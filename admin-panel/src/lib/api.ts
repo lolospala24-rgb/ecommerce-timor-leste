@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 
 // API response types
@@ -30,6 +29,10 @@ const api: AxiosInstance = axios.create({
     'Accept': 'application/json',
   },
   timeout: 30000, // 30 seconds
+  // Auth tokens live in httpOnly cookies set by the backend — the browser
+  // attaches them automatically on every request as long as credentials
+  // are included. There is nothing for client JS to read or attach.
+  withCredentials: true,
 });
 
 // Flag to prevent multiple refresh token requests
@@ -39,64 +42,24 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: Error | null, token: string | null = null) => {
+const processQueue = (error: Error | null) => {
   failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
   failedQueue = [];
 };
 
-const getAccessToken = () => {
-  let token = Cookies.get('access_token');
-  if (!token && typeof window !== 'undefined') {
-    token = window.localStorage.getItem('access_token') ?? undefined;
-  }
-  return token;
-};
-
-const getRefreshToken = () => {
-  let refreshToken = Cookies.get('refresh_token');
-  if (!refreshToken && typeof window !== 'undefined') {
-    refreshToken = window.localStorage.getItem('refresh_token') ?? undefined;
-  }
-  return refreshToken;
-};
-
-const setTokens = (accessToken: string, refreshToken: string) => {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('access_token', accessToken);
-    window.localStorage.setItem('refresh_token', refreshToken);
-  }
-  Cookies.set('access_token', accessToken);
-  Cookies.set('refresh_token', refreshToken);
-};
-
-const clearTokens = () => {
-  Cookies.remove('access_token');
-  Cookies.remove('refresh_token');
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem('access_token');
-    window.localStorage.removeItem('refresh_token');
-  }
-};
-
-// Request interceptor
+// Request interceptor: no token handling needed — the language header is
+// the only thing left to attach.
 api.interceptors.request.use(
   (config) => {
-    const token = getAccessToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    // Add language header if needed
     if (config.headers) {
       config.headers['Accept-Language'] = 'en';
     }
-    
     return config;
   },
   (error) => {
@@ -112,39 +75,27 @@ api.interceptors.response.use(
   },
   async (error: AxiosError<ApiErrorResponse>) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-    
-    // Handle 401 Unauthorized
+
+    // Handle 401 Unauthorized. The refresh token is an httpOnly cookie sent
+    // automatically — a 401 just means "ask the backend to refresh, using
+    // whatever session cookie the browser still has."
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const refreshToken = getRefreshToken();
-      
-      if (refreshToken && !isRefreshing) {
+      if (!isRefreshing) {
         originalRequest._retry = true;
         isRefreshing = true;
-        
+
         try {
-          const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-            { refreshToken }
+          await axios.post(
+            `${API_URL}/api/v1/auth/refresh`,
+            {},
+            { withCredentials: true },
           );
-          
-          const { access_token, refresh_token } = response.data;
-          setTokens(access_token, refresh_token);
-          
-          // Update authorization header
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          }
-          
-          // Process queued requests
-          processQueue(null, access_token);
-          
-          // Retry original request
+
+          processQueue(null);
           return api(originalRequest);
         } catch (refreshError) {
-          processQueue(refreshError as Error, null);
-          clearTokens();
-          
-          // Redirect to login page
+          processQueue(refreshError as Error);
+
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
             toast.error('Your session has expired. Please login again.');
@@ -153,29 +104,16 @@ api.interceptors.response.use(
         } finally {
           isRefreshing = false;
         }
-      } else if (refreshToken && isRefreshing) {
+      } else {
         // Queue request while token is being refreshed
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return api(originalRequest);
-          })
+          .then(() => api(originalRequest))
           .catch((err) => Promise.reject(err));
-      } else {
-        // No refresh token, redirect to login
-        Cookies.remove('access_token');
-        Cookies.remove('refresh_token');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-          toast.error('Please login to continue');
-        }
       }
     }
-    
+
     // Don't show toast for 401 as we handle it above
     if (error.response?.status !== 401) {
       // Only show toast for client errors, not for validation errors (let component handle)
@@ -183,7 +121,7 @@ api.interceptors.response.use(
         toast.error('Server error. Please try again later.');
       }
     }
-    
+
     // Throw error for component handling
     return Promise.reject(error);
   }
@@ -194,29 +132,29 @@ export const apiClient = {
   get: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return api.get(url, config);
   },
-  
+
   post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return api.post(url, data, config);
   },
-  
+
   put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return api.put(url, data, config);
   },
-  
+
   patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return api.patch(url, data, config);
   },
-  
+
   delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> => {
     return api.delete(url, config);
   },
-  
+
   upload: <T = unknown>(url: string, file: File, fieldName: string = 'file'): Promise<ApiResponse<T>> => {
     const formData = new FormData();
     formData.append(fieldName, file);
     return api.post(url, formData);
   },
-  
+
   uploadMultiple: <T = unknown>(url: string, files: File[], fieldName: string = 'files'): Promise<ApiResponse<T>> => {
     const formData = new FormData();
     files.forEach((file) => {

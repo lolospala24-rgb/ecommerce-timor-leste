@@ -25,6 +25,14 @@ interface AuthState {
   clearError: () => void;
 }
 
+// Non-httpOnly marker cookie read by middleware.ts for a fast, pre-render
+// redirect on protected/admin routes. It carries only a role string, never
+// the JWT — the real auth token is an httpOnly cookie this code can't see
+// and doesn't need to. Anyone could forge this cookie in devtools, but that
+// only lets them see the dashboard shell; every API call still needs the
+// real httpOnly token, which the backend's RolesGuard verifies server-side.
+const SESSION_ROLE_COOKIE = 'session_role';
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -37,37 +45,29 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post('/auth/login', { email, password });
-          
+
           // Handle different response formats
           const data = response.data || response;
-          const { access_token, refresh_token, user } = data;
-          
-          if (access_token) {
-            Cookies.set('access_token', access_token, { 
-              expires: 1, // 1 day
+          const user = data.user;
+
+          if (user?.role) {
+            Cookies.set(SESSION_ROLE_COOKIE, user.role, {
+              expires: 1,
               secure: process.env.NODE_ENV === 'production',
               sameSite: 'lax',
             });
           }
-          
-          if (refresh_token) {
-            Cookies.set('refresh_token', refresh_token, { 
-              expires: 7, // 7 days
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-            });
-          }
-          
-          set({ 
-            user: user || data.user, 
-            isAuthenticated: true, 
-            isLoading: false 
+
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false
           });
         } catch (error: any) {
           console.error('Login error:', error);
-          set({ 
-            error: error.response?.data?.message || 'Login failed', 
-            isLoading: false 
+          set({
+            error: error.response?.data?.message || 'Login failed',
+            isLoading: false
           });
           throw error;
         }
@@ -76,52 +76,46 @@ export const useAuthStore = create<AuthState>()(
       logout: async () => {
         set({ isLoading: true });
         try {
-          const token = Cookies.get('access_token');
-          if (token) {
-            await api.post('/auth/logout', {}, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-          }
+          await api.post('/auth/logout');
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
+          Cookies.remove(SESSION_ROLE_COOKIE);
           set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },
 
       checkAuth: async () => {
-        const token = Cookies.get('access_token');
-        
-        if (!token) {
-          set({ isAuthenticated: false, user: null });
-          return;
-        }
-
+        // The access token is an httpOnly cookie now, invisible to this
+        // code — the only way to know if a session exists is to ask the
+        // backend, which reads the cookie itself.
         set({ isLoading: true });
         try {
-          const response = await api.get('/auth/me', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
+          const response = await api.get('/auth/me');
+
           const data = response.data || response;
           const userData = data.data || data;
-          
-          set({ 
-            user: userData, 
-            isAuthenticated: true, 
-            isLoading: false 
+
+          if (userData?.role) {
+            Cookies.set(SESSION_ROLE_COOKIE, userData.role, {
+              expires: 1,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+            });
+          }
+
+          set({
+            user: userData,
+            isAuthenticated: true,
+            isLoading: false
           });
         } catch (error: any) {
           console.error('Check auth error:', error);
-          // Token invalid or expired
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
-          set({ 
-            user: null, 
-            isAuthenticated: false, 
-            isLoading: false 
+          Cookies.remove(SESSION_ROLE_COOKIE);
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
           });
         }
       },

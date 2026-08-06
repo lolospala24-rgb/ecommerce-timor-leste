@@ -1,11 +1,11 @@
-import axios, { AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import Cookies from 'js-cookie';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // Configuration interfaces
 interface AxiosConfig {
   baseURL: string;
   timeout: number;
   headers: Record<string, string>;
+  withCredentials: boolean;
 }
 
 interface RetryConfig {
@@ -22,6 +22,10 @@ const defaultConfig: AxiosConfig = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  // Auth tokens live in httpOnly cookies set by the backend — the browser
+  // attaches them automatically on every request as long as credentials
+  // are included. There is nothing for client JS to read or attach.
+  withCredentials: true,
 };
 
 const defaultRetryConfig: RetryConfig = {
@@ -43,20 +47,6 @@ export const createAxiosInstance = (config?: Partial<AxiosConfig>): AxiosInstanc
     ...defaultConfig,
     ...config,
   });
-};
-
-// Setup request interceptors
-export const setupRequestInterceptors = (instance: AxiosInstance): void => {
-  instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-      const token = Cookies.get('access_token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error: AxiosError) => Promise.reject(error)
-  );
 };
 
 // Setup response interceptors with retry logic
@@ -89,7 +79,6 @@ export const setupResponseInterceptors = (
 // Create fully configured axios instance
 export const createApiClient = (): AxiosInstance => {
   const instance = createAxiosInstance();
-  setupRequestInterceptors(instance);
   setupResponseInterceptors(instance);
   return instance;
 };

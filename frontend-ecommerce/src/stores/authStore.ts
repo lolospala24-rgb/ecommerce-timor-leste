@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import Cookies from 'js-cookie';
 import api from '@/lib/api';
 
 interface User {
@@ -38,9 +37,9 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.post('/auth/login', { email, password });
-          const { access_token, refresh_token, user } = response.data;
-          Cookies.set('access_token', access_token);
-          Cookies.set('refresh_token', refresh_token);
+          // Tokens are set by the backend as httpOnly cookies — nothing to
+          // store client-side beyond the user object for UI state.
+          const { user } = response.data;
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
           set({ error: error.response?.data?.message || 'Login failed', isLoading: false });
@@ -64,26 +63,20 @@ export const useAuthStore = create<AuthState>()(
         try {
           await api.post('/auth/logout');
         } catch {
-          // Ignore logout errors
+          // Ignore logout errors — the backend clears the cookies either way
         } finally {
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
           set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },
 
       checkAuth: async () => {
-        const token = Cookies.get('access_token');
-        if (!token) {
-          set({ isAuthenticated: false, user: null });
-          return;
-        }
+        // The access token is an httpOnly cookie now, invisible to this
+        // code — the only way to know if a session exists is to ask the
+        // backend, which reads the cookie itself.
         try {
           const response = await api.get('/auth/me');
           set({ user: response.data, isAuthenticated: true });
         } catch {
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
           set({ user: null, isAuthenticated: false });
         }
       },

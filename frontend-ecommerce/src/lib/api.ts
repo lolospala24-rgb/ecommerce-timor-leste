@@ -1,5 +1,4 @@
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import { getApiClient } from './axios-config';
 
@@ -73,35 +72,26 @@ api.interceptors.response.use(
 
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
     
-    // Handle 401 Unauthorized - refresh token
+    // Handle 401 Unauthorized - refresh token. The refresh token lives in an
+    // httpOnly cookie, so it's sent automatically (withCredentials) rather
+    // than read from JS — a 401 here just means "try the refresh endpoint
+    // and see if the browser still has a valid session cookie."
     if (status === 401 && !originalRequest._retry) {
-      const refreshToken = Cookies.get('refresh_token');
-      
-      if (refreshToken) {
-        originalRequest._retry = true;
-        try {
-          const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-            { refreshToken }
-          );
+      originalRequest._retry = true;
+      try {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
 
-          const { access_token, refresh_token } = response.data;
-          Cookies.set('access_token', access_token);
-          Cookies.set('refresh_token', refresh_token);
-          
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          }
-          return api(originalRequest);
-        } catch (refreshError) {
-          console.error('[Refresh Token Error]', refreshError);
-          Cookies.remove('access_token');
-          Cookies.remove('refresh_token');
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-            window.location.href = '/login';
-          }
-          return Promise.reject(refreshError);
+        return api(originalRequest);
+      } catch (refreshError) {
+        console.error('[Refresh Token Error]', refreshError);
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
         }
+        return Promise.reject(refreshError);
       }
     }
 

@@ -31,7 +31,16 @@ const adminRoutes = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const accessToken = request.cookies.get('access_token')?.value;
+  // The real auth token is an httpOnly cookie this middleware can't (and
+  // shouldn't need to) read. `session_role` is a small non-sensitive marker
+  // cookie — just the user's role string — set by authStore after a
+  // successful login/checkAuth, used here purely for a fast pre-render
+  // redirect. It is NOT the security boundary: every API call is still
+  // authorized server-side by the backend's RolesGuard against the real
+  // token, so a forged marker cookie only ever gets someone an empty shell
+  // that fails to load any real data.
+  const sessionRole = request.cookies.get('session_role')?.value;
+  const isLoggedIn = Boolean(sessionRole);
 
   // Allow access to unauthorized page
   if (pathname === '/unauthorized') {
@@ -39,23 +48,32 @@ export function middleware(request: NextRequest) {
   }
 
   // Check if route is protected
-  const isProtectedRoute = protectedRoutes.some(route => 
+  const isProtectedRoute = protectedRoutes.some(route =>
     pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  const isAuthRoute = authRoutes.some(route => 
+  const isAuthRoute = authRoutes.some(route =>
     pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  // Redirect to login if accessing protected route without token
-  if (isProtectedRoute && !accessToken) {
+  const isAdminOnlyRoute = adminRoutes.some(route =>
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  // Redirect to login if accessing protected route without a session
+  if (isProtectedRoute && !isLoggedIn) {
     const url = new URL('/login', request.url);
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
   }
 
-  // Redirect to dashboard if accessing auth route with token
-  if (isAuthRoute && accessToken) {
+  // Redirect non-admins away from admin-only routes
+  if (isAdminOnlyRoute && isLoggedIn && sessionRole !== 'ADMIN') {
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
+  }
+
+  // Redirect to dashboard if accessing auth route with an active session
+  if (isAuthRoute && isLoggedIn) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
