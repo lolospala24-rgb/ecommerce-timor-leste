@@ -37,12 +37,13 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, showSeller = true }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [imageError, setImageError] = useState(false);
   const { addItem } = useCartStore();
-  const { toggleWishlist, isInWishlist } = useWishlistStore();
+  const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
+
+  const isWishlisted = isInWishlist(product.id);
 
   const discount = product.comparePrice
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
@@ -58,8 +59,7 @@ export function ProductCard({ product, showSeller = true }: ProductCardProps) {
       return;
     }
     try {
-      await toggleWishlist(product);
-      setIsWishlisted(!isWishlisted);
+      await toggleItem(product);
     } catch (error) {
       toast.error('Failed to update wishlist');
     }

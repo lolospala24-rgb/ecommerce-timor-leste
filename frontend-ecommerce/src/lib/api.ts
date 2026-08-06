@@ -99,7 +99,7 @@ api.interceptors.response.use(
     if (status !== 401) {
       if (isNetworkError(error)) {
         toast.error('The server is currently unavailable. Please try again shortly.');
-      } else if (status !== 400) {
+      } else {
         toast.error(message);
       }
     }

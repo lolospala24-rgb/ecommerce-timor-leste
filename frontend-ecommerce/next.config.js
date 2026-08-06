@@ -1,3 +1,25 @@
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  // Next.js needs 'unsafe-inline'/'unsafe-eval' for its runtime + hydration scripts.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // Tailwind/Mapbox GL inject inline styles at runtime.
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com https://api.mapbox.com https://*.tiles.mapbox.com",
+  "font-src 'self' data:",
+  // API calls (REST + websocket) go straight to the backend, plus Mapbox's geocoding/styles/telemetry endpoints.
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com`,
+  // Mapbox GL renders via web workers loaded from blob: URLs.
+  "worker-src 'self' blob:",
+  "frame-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -36,7 +58,22 @@ const nextConfig = {
       },
     ];
   },
-  
+
+  headers: async () => {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+        ],
+      },
+    ];
+  },
+
+
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
