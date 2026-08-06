@@ -8,10 +8,11 @@ import { ProductsModule } from '../products/products.module';
 import { CartsModule } from '../carts/carts.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ShippingModule } from '../shipping/shipping.module';
+import { AdminModule } from '../admin/admin.module';
 import { OrderEventsGateway } from './order-events.gateway';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule],
+  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, AdminModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrderEventsGateway],
   exports: [OrdersService],

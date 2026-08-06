@@ -26,6 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('sellers')
 export class SellersController {
@@ -150,7 +151,7 @@ export class SellersController {
   }
 
   @Post('upload-logo')
-  @UseInterceptors(FileInterceptor('logo'))
+  @UseInterceptors(FileInterceptor('logo', multerConfig))
   async uploadLogo(
     @CurrentUser('id') userId: number,
     @UploadedFile() file: Express.Multer.File,
@@ -160,7 +161,7 @@ export class SellersController {
   }
 
   @Post('upload-banner')
-  @UseInterceptors(FileInterceptor('banner'))
+  @UseInterceptors(FileInterceptor('banner', multerConfig))
   async uploadBanner(
     @CurrentUser('id') userId: number,
     @UploadedFile() file: Express.Multer.File,

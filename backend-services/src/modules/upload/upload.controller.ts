@@ -13,6 +13,7 @@ import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -23,7 +24,7 @@ export class UploadController {
 
   @Post('images')
   @Roles(Role.ADMIN, Role.SELLER)
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(FilesInterceptor('images', 10, multerConfig))
   async uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
     this.logger.log(`Received ${files?.length || 0} files for upload`);
     
@@ -50,7 +51,7 @@ export class UploadController {
 
   @Post('image')
   @Roles(Role.ADMIN, Role.SELLER)
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', multerConfig))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('No image provided');

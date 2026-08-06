@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
@@ -11,6 +12,7 @@ import { MailService } from '../../mail/mail.service';
 import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShippingService } from '../shipping/shipping.service';
+import { AdminService } from '../admin/admin.service';
 import { OrderEventsGateway } from './order-events.gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -20,6 +22,8 @@ import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
@@ -27,6 +31,7 @@ export class OrdersService {
     private productsService: ProductsService,
     private notificationsService: NotificationsService,
     private shippingService: ShippingService,
+    private adminService: AdminService,
     private orderEventsGateway: OrderEventsGateway,
   ) {}
 
@@ -68,18 +73,27 @@ export class OrdersService {
       group.subtotal += item.quantity * item.product.price;
     }
 
+    // Delivery address is the same for every seller group in this checkout,
+    // so it's fetched once up front instead of once per seller.
+    const address = await this.prisma.address.findUnique({
+      where: { id: createOrderDto.addressId },
+    });
+    if (!address) {
+      throw new BadRequestException('Selected delivery address not found');
+    }
+
+    // Tax rate and service fee are platform settings, not client input —
+    // any taxAmount/serviceFee sent by the client is accepted for backward
+    // compatibility but ignored below so a request can't undercharge itself.
+    const settings = await this.adminService.getSystemSettings();
+    const taxRate = Number(settings.taxRate ?? 0);
+    const flatServiceFee = Number(settings.serviceFee ?? 0);
+
     // Create orders for each seller
     const orders = [];
     const orderNumberPrefix = `ORD-${Date.now()}-`;
 
     for (const [_, group] of sellerGroups) {
-      const address = await this.prisma.address.findUnique({
-        where: { id: createOrderDto.addressId },
-      });
-      if (!address) {
-        throw new BadRequestException('Selected delivery address not found');
-      }
-
       if (!group.sellerId) {
         throw new BadRequestException('Invalid seller information for one or more cart items');
       }
@@ -119,8 +133,8 @@ export class OrdersService {
         throw new BadRequestException('Cart subtotal is invalid');
       }
 
-      const taxAmount = Number(createOrderDto.taxAmount ?? 0);
-      const serviceFee = Number(createOrderDto.serviceFee ?? 0);
+      const taxAmount = Number((group.subtotal * taxRate) / 100);
+      const serviceFee = flatServiceFee;
       const total = Number(group.subtotal + shippingCost + taxAmount + serviceFee);
       if (!Number.isFinite(total) || total < 0) {
         throw new BadRequestException('Order total is invalid');
@@ -153,46 +167,61 @@ export class OrdersService {
         },
       };
 
+      let order;
       try {
-        const order = await this.prisma.order.create({
-          data: orderCreateData,
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
-            },
-            customer: true,
-            seller: {
-              include: {
-                user: true,
-              },
-            },
-            address: true,
-          },
-        });
+        // Atomic, race-safe checkout: reserve stock and create the order
+        // in a single DB transaction. The conditional `stock: { gte }` guard
+        // means concurrent checkouts on the same product can never both
+        // succeed for more units than are actually in stock — the losing
+        // request's updateMany matches zero rows and we abort the whole
+        // transaction (order + any earlier stock reservations in this loop
+        // are rolled back together).
+        order = await this.prisma.$transaction(async (tx) => {
+          for (const item of group.items) {
+            const stockUpdate = await tx.product.updateMany({
+              where: { id: item.productId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            });
 
-        // Update product stock
-        for (const item of group.items) {
-          await this.productsService.updateStock(
-            item.productId,
-            item.quantity,
-            'subtract',
-            group.seller.userId,
-          );
-        }
+            if (stockUpdate.count === 0) {
+              throw new BadRequestException(
+                `Insufficient stock for "${item.product.name}". Please adjust the quantity in your cart and try again.`,
+              );
+            }
+          }
 
-        // Create payment record for COD
-        if (createOrderDto.paymentMethod === PaymentMethod.COD) {
-          await this.prisma.payment.create({
-            data: {
-              orderId: order.id,
-              amount: total,
-              method: PaymentMethod.COD,
-              status: PaymentStatus.PENDING,
+          const createdOrder = await tx.order.create({
+            data: orderCreateData,
+            include: {
+              items: {
+                include: {
+                  product: true,
+                },
+              },
+              customer: true,
+              seller: {
+                include: {
+                  user: true,
+                },
+              },
+              address: true,
             },
           });
-        }
+
+          // Create payment record for COD
+          if (createOrderDto.paymentMethod === PaymentMethod.COD) {
+            await tx.payment.create({
+              data: {
+                orderId: createdOrder.id,
+                amount: total,
+                method: PaymentMethod.COD,
+                status: PaymentStatus.PENDING,
+              },
+            });
+          }
+
+          return createdOrder;
+        });
 
         orders.push(order);
 
@@ -257,7 +286,10 @@ export class OrdersService {
           createdAt: order.createdAt,
         });
       } catch (error) {
-        console.error('Order create failed', { orderCreateData, error });
+        this.logger.error(
+          `Order create failed for seller ${group.sellerId}: ${error instanceof Error ? error.message : error}`,
+          error instanceof Error ? error.stack : undefined,
+        );
         throw error;
       }
     }

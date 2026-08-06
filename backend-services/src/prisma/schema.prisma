@@ -119,6 +119,8 @@ model AdminLog {
   // Relations
   admin User @relation(fields: [adminId], references: [id])
 
+  @@index([adminId])
+  @@index([targetType, targetId])
   @@map("admin_logs")
 }
 
@@ -143,6 +145,7 @@ model Category {
   children Category[] @relation("CategoryToCategory")
   products Product[]
 
+  @@index([parentId])
   @@map("categories")
 }
 
@@ -328,6 +331,8 @@ model Order {
   @@index([sellerId])
   @@index([status])
   @@index([orderNumber])
+  @@index([addressId])
+  @@index([shippingZoneId])
   @@map("orders")
 }
 
@@ -536,6 +541,10 @@ model CourierRate {
   municipality     Municipality?  @relation(fields: [municipalityId], references: [id])
   shippingZones    ShippingZone[]
 
+  @@index([courierId])
+  @@index([courierServiceId])
+  @@index([provinceId])
+  @@index([municipalityId])
   @@map("courier_rates")
 }
 
@@ -564,6 +573,11 @@ model ShippingZone {
   courierRate           CourierRate?    @relation(fields: [courierRateId], references: [id])
   orders                Order[]
 
+  @@index([provinceId])
+  @@index([municipalityId])
+  @@index([courierId])
+  @@index([courierServiceId])
+  @@index([courierRateId])
   @@map("shipping_zones")
 }
 

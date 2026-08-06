@@ -21,6 +21,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('payments')
 export class PaymentsController {
@@ -65,7 +66,7 @@ export class PaymentsController {
   }
 
   @Post('upload-proof')
-  @UseInterceptors(FileInterceptor('proofImage'))
+  @UseInterceptors(FileInterceptor('proofImage', multerConfig))
   async uploadPaymentProof(
     @UploadedFile() file: Express.Multer.File,
     @Body('paymentId') paymentId: string,

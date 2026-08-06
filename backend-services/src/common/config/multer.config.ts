@@ -1,22 +1,31 @@
 import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 
-export const multerConfig = {
-  storage: diskStorage({
-    destination: './uploads',
-    filename: (req, file, callback) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-      const ext = extname(file.originalname);
-      callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-    },
-  }),
-  fileFilter: (req: any, file: any, callback: any) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-      return callback(
-        new BadRequestException('Only image files are allowed!'),
+const ALLOWED_IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp)$/i;
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]);
+
+// Shared Multer options for every endpoint that accepts image uploads
+// (product images, seller store logos, payment proof screenshots).
+// Deliberately no `storage` override: Multer's default memory storage keeps
+// `file.buffer` populated, which CloudinaryService.uploadFile() streams
+// directly via streamifier — disk storage would leave `buffer` undefined
+// and silently break every upload path.
+export const multerConfig: MulterOptions = {
+  fileFilter: (_req, file, callback) => {
+    if (
+      !ALLOWED_IMAGE_EXTENSIONS.test(file.originalname) ||
+      !ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)
+    ) {
+      callback(
+        new BadRequestException('Only JPG, PNG, GIF, and WEBP image files are allowed'),
         false,
       );
+      return;
     }
     callback(null, true);
   },

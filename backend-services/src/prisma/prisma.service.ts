@@ -24,37 +24,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.logger.log('Database disconnected');
   }
 
-  // Helper method to handle soft deletes
-  async softDelete(model: string, id: number) {
-    const modelMap: Record<string, string> = {
-      user: 'isActive',
-      product: 'isActive',
-      address: 'isActive',
-      category: 'isActive',
-    };
-
-    const field = modelMap[model];
-    if (!field) {
-      throw new Error(`Soft delete not configured for model: ${model}`);
-    }
-
-    return this.$executeRawUnsafe(
-      `UPDATE ${model} SET ${field} = false WHERE id = ${id}`,
-    );
-  }
-
-  // Helper method to check if record exists
-  async exists(model: string, where: any): Promise<boolean> {
-    const count = await this.$queryRawUnsafe<{ count: number }>(
-      `SELECT COUNT(*) as count FROM ${model} WHERE ${Object.entries(where)
-        .map(([key, value]) =>
-          `${key} = ${typeof value === 'string' ? `'${String(value).replace(/'/g, "''")}'` : value}`,
-        )
-        .join(' AND ')}`,
-    );
-    return Number(count[0].count) > 0;
-  }
-
   // Helper method for pagination
   async paginate<T>(
     model: any,

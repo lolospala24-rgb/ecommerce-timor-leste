@@ -1,7 +1,7 @@
 ﻿// placeholder for src/common/utils/bcrypt.util.ts
 import * as bcrypt from 'bcrypt';
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 /**
  * Hash a password using bcrypt

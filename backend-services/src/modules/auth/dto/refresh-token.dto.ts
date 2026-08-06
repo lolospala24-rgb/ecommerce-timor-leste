@@ -1,8 +1,10 @@
 ﻿// placeholder for src/modules/auth/dto/refresh-token.dto.ts
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class RefreshTokenDto {
+  // Optional: the refresh token is normally read from the httpOnly cookie.
+  // This field remains as a fallback for non-browser API clients.
   @IsString()
-  @IsNotEmpty({ message: 'Refresh token is required' })
-  refreshToken: string;
+  @IsOptional()
+  refreshToken?: string;
 }

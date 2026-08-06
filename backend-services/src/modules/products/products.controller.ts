@@ -31,6 +31,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('products')
 export class ProductsController {
@@ -42,7 +43,7 @@ export class ProductsController {
 
   @Post()
   @Roles(Role.SELLER, Role.ADMIN)
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(FilesInterceptor('images', 10, multerConfig))
   async create(
     @UploadedFiles() files: Express.Multer.File[],
     @Body() createProductDto: CreateProductDto,
@@ -210,7 +211,7 @@ export class ProductsController {
 
   @Post(':id/images')
   @Roles(Role.SELLER, Role.ADMIN)
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(FilesInterceptor('images', 10, multerConfig))
   async addImages(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
