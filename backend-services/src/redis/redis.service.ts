@@ -139,6 +139,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.inMemory.keyMap.delete(key) ? 1 : 0;
   }
 
+  // Deletes many keys in a single round trip instead of one DEL per key.
+  async delMany(keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    if (this.isRedisReady()) return this.client.del(...keys);
+    let count = 0;
+    for (const key of keys) {
+      if (this.inMemory.keyMap.delete(key)) count++;
+    }
+    return count;
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (this.isRedisReady()) return this.client.keys(pattern);
     // simple glob '*' -> regex

@@ -660,7 +660,16 @@ export class PaymentsService {
       return JSON.parse(cached);
     }
 
-    const [totalPayments, pendingPayments, paidPayments, failedPayments, refundedPayments, totalAmount] = await Promise.all([
+    const [
+      totalPayments,
+      pendingPayments,
+      paidPayments,
+      failedPayments,
+      refundedPayments,
+      totalAmount,
+      codCount,
+      bankTransferCount,
+    ] = await Promise.all([
       this.prisma.payment.count({
         where: {
           order: { customerId: userId },
@@ -699,6 +708,18 @@ export class PaymentsService {
           amount: true,
         },
       }),
+      this.prisma.payment.count({
+        where: {
+          order: { customerId: userId },
+          method: PaymentMethod.COD,
+        },
+      }),
+      this.prisma.payment.count({
+        where: {
+          order: { customerId: userId },
+          method: PaymentMethod.BANK_TRANSFER,
+        },
+      }),
     ]);
 
     const stats = {
@@ -709,18 +730,8 @@ export class PaymentsService {
       refunded: refundedPayments,
       totalAmount: totalAmount._sum.amount || 0,
       byMethod: {
-        [PaymentMethod.COD]: await this.prisma.payment.count({
-          where: {
-            order: { customerId: userId },
-            method: PaymentMethod.COD,
-          },
-        }),
-        [PaymentMethod.BANK_TRANSFER]: await this.prisma.payment.count({
-          where: {
-            order: { customerId: userId },
-            method: PaymentMethod.BANK_TRANSFER,
-          },
-        }),
+        [PaymentMethod.COD]: codCount,
+        [PaymentMethod.BANK_TRANSFER]: bankTransferCount,
       },
     };
 
@@ -733,10 +744,8 @@ export class PaymentsService {
     if (paymentId) {
       await this.redisService.del(`payment:${paymentId}`);
     }
-    
+
     const keys = await this.redisService.keys('payment:*');
-    for (const key of keys) {
-      await this.redisService.del(key);
-    }
+    await this.redisService.delMany(keys);
   }
 }
