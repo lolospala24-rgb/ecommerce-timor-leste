@@ -34,10 +34,11 @@ export default function UsersPage() {
     setShowDetailModal(true);
   };
 
-  const handleExport = async () => {
-    // Export users to CSV
-    window.location.href = '/api/users/export';
-  };
+  // NOTE: There is currently no working export endpoint for users, either in
+  // the Next.js API routes (`src/app/api/**`) or in the backend service
+  // (`backend-services`). The button is disabled rather than wired up to a
+  // non-existent/fake endpoint. Re-enable once a real `/users/export`
+  // backend route exists.
 
   return (
     <div className="space-y-6">
@@ -53,7 +54,11 @@ export default function UsersPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={handleExport}>
+          <Button
+            variant="outline"
+            disabled
+            title="Export is not available yet — no export endpoint exists for users"
+          >
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

@@ -36,6 +36,15 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [roleChangeUser, setRoleChangeUser] = useState<any>(null);
+  const [pendingRole, setPendingRole] = useState<string>('');
+  const [isChangingRole, setIsChangingRole] = useState(false);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -77,26 +86,47 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
     }
   };
 
-  const handleChangeRole = async (userId: number, newRole: string) => {
+  const handleChangeRole = (user: any, newRole: string) => {
+    setRoleChangeUser(user);
+    setPendingRole(newRole);
+    setRoleDialogOpen(true);
+  };
+
+  const confirmChangeRole = async () => {
+    if (!roleChangeUser || !pendingRole) return;
+    setIsChangingRole(true);
     try {
-      await api.post(`/users/${userId}/role`, { role: newRole });
+      await api.post(`/users/${roleChangeUser.id}/role`, { role: pendingRole });
       toast.success('User role updated successfully');
       onRefresh();
     } catch (error) {
       toast.error('Failed to update user role');
+    } finally {
+      setIsChangingRole(false);
+      setRoleDialogOpen(false);
+      setRoleChangeUser(null);
+      setPendingRole('');
     }
   };
 
-  const handleDeleteUser = async (userId: number, userName: string) => {
-    if (!confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteUser = (user: any) => {
+    setDeleteUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteUser || isDeleting) return;
+    setIsDeleting(true);
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(`/users/${deleteUser.id}`);
       toast.success('User deleted successfully');
       onRefresh();
     } catch (error) {
       toast.error('Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDeleteUser(null);
     }
   };
 
@@ -186,13 +216,13 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
                       {user.role !== 'ADMIN' && (
                         <>
                           <DropdownMenuItem
-                            onClick={() => handleChangeRole(user.id, 'CUSTOMER')}
+                            onClick={() => handleChangeRole(user, 'CUSTOMER')}
                           >
                             <Shield className="mr-2 h-4 w-4" />
                             Make Customer
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => handleChangeRole(user.id, 'SELLER')}
+                            onClick={() => handleChangeRole(user, 'SELLER')}
                           >
                             <Shield className="mr-2 h-4 w-4" />
                             Make Seller
@@ -200,7 +230,8 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-600"
-                            onClick={() => handleDeleteUser(user.id, user.name)}
+                            disabled={isDeleting}
+                            onClick={() => handleDeleteUser(user)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete User
@@ -228,6 +259,37 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
         confirmText={selectedUser?.isActive ? 'Block' : 'Unblock'}
         onConfirm={handleBlockUser}
         isLoading={isLoading}
+      />
+
+      <ConfirmDialog
+        open={roleDialogOpen}
+        onOpenChange={(open) => {
+          setRoleDialogOpen(open);
+          if (!open) {
+            setRoleChangeUser(null);
+            setPendingRole('');
+          }
+        }}
+        title="Change User Role"
+        description={`Are you sure you want to change ${roleChangeUser?.name}'s role from ${roleChangeUser?.role} to ${pendingRole}? This changes the user's permissions and what they can access on the platform.`}
+        confirmText="Change Role"
+        onConfirm={confirmChangeRole}
+        isLoading={isChangingRole}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setDeleteUser(null);
+          }
+        }}
+        title="Delete User"
+        description={`Are you sure you want to delete ${deleteUser?.name}? This action cannot be undone.`}
+        confirmText="Delete"
+        onConfirm={confirmDeleteUser}
+        isLoading={isDeleting}
       />
     </>
   );

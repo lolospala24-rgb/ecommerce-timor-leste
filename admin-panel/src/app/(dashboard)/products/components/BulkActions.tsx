@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 interface BulkActionsProps {
   productIds: number[];
@@ -28,13 +29,24 @@ export function BulkActions({ productIds, onComplete, onCancel }: BulkActionsPro
   const [priceValue, setPriceValue] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!action) {
       setError('Please select an action');
       return;
     }
 
+    if (action === 'delete') {
+      setError('');
+      setDeleteConfirmOpen(true);
+      return;
+    }
+
+    executeBulkAction();
+  };
+
+  const executeBulkAction = async () => {
     setIsLoading(true);
     setError('');
 
@@ -77,6 +89,7 @@ export function BulkActions({ productIds, onComplete, onCancel }: BulkActionsPro
       setError(err.response?.data?.message || err.message || 'Failed to perform bulk action');
     } finally {
       setIsLoading(false);
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -230,6 +243,16 @@ export function BulkActions({ productIds, onComplete, onCancel }: BulkActionsPro
           )}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Products"
+        description={`Are you sure you want to permanently delete ${productIds.length} product${productIds.length === 1 ? '' : 's'}? This action cannot be undone.`}
+        confirmText={`Delete ${productIds.length} Product${productIds.length === 1 ? '' : 's'}`}
+        onConfirm={executeBulkAction}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

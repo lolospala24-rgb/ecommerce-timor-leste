@@ -1,17 +1,35 @@
 ﻿'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useDashboard, useRevenueChart, useTopProducts } from '@/hooks/useDashboard';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { StatsCards } from './components/StatsCards';
-import { RevenueChart } from './components/RevenueChart';
 import { TopProducts } from './components/TopProducts';
 import { RecentOrders } from './components/RecentOrders';
-import { SalesMap } from './components/SalesMap';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+
+// Recharts and Google Maps pull in sizeable JS bundles that are only needed
+// once the user views these tabs — code-split them out of the initial
+// dashboard page load.
+const RevenueChart = dynamic(
+  () => import('./components/RevenueChart').then((mod) => mod.RevenueChart),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-96 w-full" />,
+  }
+);
+
+const SalesMap = dynamic(
+  () => import('./components/SalesMap').then((mod) => mod.SalesMap),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-96 w-full" />,
+  }
+);
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
