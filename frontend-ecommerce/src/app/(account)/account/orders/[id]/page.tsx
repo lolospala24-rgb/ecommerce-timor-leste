@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
+import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'Pending', color: 'bg-yellow-500' },
@@ -30,7 +31,7 @@ export default function AccountOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = parseInt(params.id as string);
-  const { data: order, isLoading } = useOrder(orderId);
+  const { data: order, isLoading, refetch } = useOrder(orderId);
   useOrderRealtime(orderId);
 
   if (isLoading) {
@@ -157,6 +158,14 @@ export default function AccountOrderDetailPage() {
                 <span className="text-muted-foreground">Shipping</span>
                 <span>${formatMoney(order.shippingCost)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Tax</span>
+                <span>${formatMoney(order.taxAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Service Fee</span>
+                <span>${formatMoney(order.serviceFee)}</span>
+              </div>
               <Separator />
               <div className="flex justify-between font-bold">
                 <span>Total</span>
@@ -174,6 +183,15 @@ export default function AccountOrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {order.paymentMethod === 'BANK_TRANSFER' && order.status !== 'CANCELLED' && (
+            <BankTransferProof
+              orderId={order.id}
+              amount={Number(order.total ?? 0)}
+              payment={order.payment}
+              onUpdated={() => refetch()}
+            />
+          )}
 
           {/* Customer Info */}
           <Card>

@@ -114,7 +114,7 @@ function OrderSuccessContent() {
         )}
 
         <div className="flex flex-wrap gap-3">
-          <Link href="/orders" className="inline-flex items-center gap-2 rounded-[14px] bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700">
+          <Link href="/account/orders" className="inline-flex items-center gap-2 rounded-[14px] bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700">
             <PackageCheck className="h-4 w-4" />
             View My Orders
           </Link>
