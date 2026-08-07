@@ -16,7 +16,7 @@ import { RatingStars } from '@/components/shared/RatingStars';
 import { ProductReviews } from './ProductReviews';
 import { RelatedProducts } from './RelatedProducts';
 import { Product } from '@/types/product.types';
-import { formatVariantLabel, parseProductTypeFields, getProductThumbnail } from '@/lib/product';
+import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
 import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
@@ -32,7 +32,6 @@ import {
   Store,
   Tag,
   ChevronRight,
-  Play,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -173,38 +172,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 xl:gap-16">
         {/* Gallery */}
         <div className="lg:sticky lg:top-24 lg:self-start space-y-4">
-          {/* Video Section with Badge */}
-          {product.videoUrl && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5 rounded-full bg-blue-50 text-blue-700 border-blue-200">
-                  <Play className="h-3.5 w-3.5" />
-                  Product Video
-                </Badge>
-              </div>
-              <div className="group overflow-hidden rounded-2xl border-2 border-blue-100 bg-slate-950 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="relative aspect-video w-full bg-slate-900">
-                  <video
-                    controls
-                    preload="metadata"
-                    poster={getProductThumbnail(product)}
-                    className="w-full h-full bg-black object-cover"
-                  >
-                    <source src={product.videoUrl} />
-                    Your browser does not support the video tag.
-                  </video>
-                  
-                  {/* Fallback overlay for when video hasn't started */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-black/40 via-transparent to-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg transition-transform group-hover:scale-110">
-                      <Play className="h-7 w-7 fill-slate-950 text-slate-950 ml-0.5" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Images Section with Badge */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -507,23 +474,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                     </dd>
                   </div>
                 )}
-                {product.brand && (
-                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                    <dt className="text-sm text-muted-foreground">Brand</dt>
-                    <dd className="col-span-1 text-sm font-medium sm:col-span-2">
-                      {product.brand}
-                    </dd>
-                  </div>
-                )}
-                {product.specifications &&
-                  Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                      <dt className="text-sm text-muted-foreground">{key}</dt>
-                      <dd className="col-span-1 text-sm font-medium sm:col-span-2">
-                        {String(value)}
-                      </dd>
-                    </div>
-                  ))}
                 {product.weight && (
                   <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
                     <dt className="text-sm text-muted-foreground">Weight</dt>
