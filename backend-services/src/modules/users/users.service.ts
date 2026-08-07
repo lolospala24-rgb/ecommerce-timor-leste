@@ -12,7 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashPassword } from '../../common/utils/bcrypt.util';
-import { Role } from '@prisma/client';
+import { Role, OrderStatus } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 
 @Injectable()
@@ -172,6 +172,9 @@ export class UsersService {
             isVerified: true,
             verifiedAt: true,
             storeLogo: true,
+            _count: {
+              select: { products: true },
+            },
           },
         },
         customerAddress: {
@@ -192,10 +195,17 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Cache for 5 minutes
-    await this.redisService.set(cacheKey, JSON.stringify(user), 300);
+    const spentAggregate = await this.prisma.order.aggregate({
+      where: { customerId: id, status: OrderStatus.DELIVERED },
+      _sum: { total: true },
+    });
 
-    return user;
+    const result = { ...user, totalSpent: spentAggregate._sum.total || 0 };
+
+    // Cache for 5 minutes
+    await this.redisService.set(cacheKey, JSON.stringify(result), 300);
+
+    return result;
   }
 
   async findByEmail(email: string) {

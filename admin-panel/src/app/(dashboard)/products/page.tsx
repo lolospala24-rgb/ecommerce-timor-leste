@@ -39,7 +39,25 @@ export default function ProductsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
 
-  const { data, isLoading, refetch } = useProducts(filters);
+  const { data, isLoading, refetch } = useProducts({
+    page: filters.page,
+    limit: filters.limit,
+    search: filters.search,
+    categoryId: filters.categoryId,
+    sellerId: filters.sellerId,
+  });
+
+  // The shared /products endpoint has no "all statuses" or "low stock"
+  // concept server-side, so the dropdown filters are applied client-side —
+  // matching the pattern the other status tabs below already use.
+  const visibleProducts = (data?.data || []).filter((p) => {
+    if (filters.status === 'active' && !p.isActive) return false;
+    if (filters.status === 'inactive' && p.isActive) return false;
+    if (filters.stockStatus === 'inStock' && p.stock <= 0) return false;
+    if (filters.stockStatus === 'outOfStock' && p.stock !== 0) return false;
+    if (filters.stockStatus === 'lowStock' && !(p.stock > 0 && p.stock < 10)) return false;
+    return true;
+  });
 
   const handleExport = async () => {
     window.location.href = '/api/products/export';
@@ -91,7 +109,7 @@ export default function ProductsPage() {
             <CardHeader>
               <CardTitle>Products</CardTitle>
               <CardDescription>
-                Total {data?.pagination?.total || 0} products found
+                Total {visibleProducts.length} products found
                 {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
               </CardDescription>
             </CardHeader>
@@ -115,7 +133,7 @@ export default function ProductsPage() {
                     </div>
                   )}
                   <ProductsTable
-                    products={data?.data || []}
+                    products={visibleProducts}
                     selectedProducts={selectedProducts}
                     onSelectProduct={(id) => {
                       setSelectedProducts(prev =>

@@ -12,6 +12,8 @@ interface Payment {
   status: string;
   paidAt?: string | null;
   transactionId?: string | null;
+  proofImage?: string | null;
+  notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
   // additional relations
@@ -19,6 +21,16 @@ interface Payment {
     id: number;
     name: string;
     email: string;
+  };
+  order?: {
+    id: number;
+    orderNumber: string;
+    customer?: {
+      id: number;
+      name: string;
+      email: string;
+      phone?: string | null;
+    };
   };
 }
 

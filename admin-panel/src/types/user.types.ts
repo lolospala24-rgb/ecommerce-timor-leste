@@ -29,6 +29,7 @@ export interface UserWithRelations extends User {
   customerAddress?: Address[];
   orders?: OrderSummary[];
   reviews?: ReviewSummary[];
+  totalSpent?: number;
   _count?: {
     orders: number;
     reviews: number;

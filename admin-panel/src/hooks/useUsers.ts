@@ -26,6 +26,7 @@ interface User {
       products: number;
     };
   };
+  totalSpent?: number;
   _count?: {
     orders: number;
     reviews: number;

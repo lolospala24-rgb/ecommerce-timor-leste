@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface ImageUploadProps {
@@ -31,7 +32,7 @@ export function ImageUpload({ images, setImages, maxImages = 10 }: ImageUploadPr
 
     try {
       const response = await api.post('/upload/images', formData);
-      const newImages = response.data?.urls ?? response.urls ?? [];
+      const newImages = unwrapApiData<{ urls: string[] }>(response.data)?.urls ?? [];
       setImages([...images, ...newImages]);
       toast.success(`${newImages.length} image(s) uploaded successfully`);
     } catch (error) {

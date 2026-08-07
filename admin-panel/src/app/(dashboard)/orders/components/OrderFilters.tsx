@@ -14,11 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useSellers } from '@/hooks/useSellers';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-
-type DateRange = {
-  from?: Date;
-  to?: Date;
-};
+import type { DateRange } from 'react-day-picker';
 
 interface OrderFiltersProps {
   filters: {

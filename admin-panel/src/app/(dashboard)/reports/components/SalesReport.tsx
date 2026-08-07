@@ -114,7 +114,7 @@ export function SalesReport({ dateRange }: SalesReportProps) {
                 <XAxis dataKey="date" tickFormatter={(value) => format(new Date(value), 'MMM dd')} />
                 <YAxis yAxisId="left" tickFormatter={(value) => `$${value}`} />
                 <YAxis yAxisId="right" orientation="right" />
-                <Tooltip formatter={(value: any, name: string) => [name === 'revenue' ? `$${value.toLocaleString()}` : value, name === 'revenue' ? 'Revenue' : 'Orders']} labelFormatter={(label) => format(new Date(label), 'MMMM dd, yyyy')} />
+                <Tooltip formatter={(value: any, name: string | number | undefined) => [name === 'revenue' ? `$${value.toLocaleString()}` : value, name === 'revenue' ? 'Revenue' : 'Orders']} labelFormatter={(label) => format(new Date(label), 'MMMM dd, yyyy')} />
                 <Legend />
                 <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" strokeWidth={2} />
                 <Line yAxisId="right" type="monotone" dataKey="orders" name="Orders" stroke="#3b82f6" strokeWidth={2} />
@@ -185,7 +185,7 @@ export function SalesReport({ dateRange }: SalesReportProps) {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={(entry) => `${entry.name}: ${entry.percentage}%`}
+                    label={(entry) => `${entry.name}: ${entry.payload?.percentage}%`}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
@@ -216,7 +216,7 @@ export function SalesReport({ dateRange }: SalesReportProps) {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={(entry) => `${entry.name}: ${entry.percentage}%`}
+                    label={(entry) => `${entry.name}: ${entry.payload?.percentage}%`}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"

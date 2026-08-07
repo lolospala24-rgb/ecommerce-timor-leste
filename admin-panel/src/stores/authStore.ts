@@ -11,6 +11,11 @@ interface User {
   role: 'ADMIN' | 'SELLER' | 'CUSTOMER';
   avatar?: string;
   createdAt: string;
+  seller?: {
+    id: number;
+    storeName: string;
+    isVerified: boolean;
+  };
 }
 
 interface AuthState {

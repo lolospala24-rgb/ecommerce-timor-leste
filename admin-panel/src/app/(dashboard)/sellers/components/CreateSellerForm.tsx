@@ -33,7 +33,7 @@ interface CreateSellerFormProps {
 }
 
 export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps) {
-  const { mutateAsync, isLoading } = useRegisterSeller();
+  const { mutateAsync, isPending: isLoading } = useRegisterSeller();
 
   const {
     register,

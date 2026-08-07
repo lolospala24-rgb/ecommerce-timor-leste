@@ -26,26 +26,23 @@ import { Loader2, AlertCircle } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
-  nameTetum: z.string().optional().default(''),
+  nameTetum: z.string().optional(),
   description: z.string().min(20, 'Description must be at least 20 characters'),
-  descriptionTetum: z.string().optional().default(''),
-  price: z.number().min(0, 'Price must be positive').default(0),
-  comparePrice: z.number().optional().nullable().default(null),
-  cost: z.number().optional().nullable().default(null),
-  stock: z.number().min(0, 'Stock must be positive').default(0),
-  sku: z.string().optional().default(''),
-  barcode: z.string().optional().default(''),
-  videoUrl: z.preprocess((value) => {
-    if (typeof value === 'string' && value.trim() === '') return null;
-    return value;
-  }, z.string().url('Please enter a valid video URL').nullable().optional()),
-  weight: z.number().optional().nullable().default(null),
+  descriptionTetum: z.string().optional(),
+  price: z.number().min(0, 'Price must be positive'),
+  comparePrice: z.number().optional().nullable(),
+  cost: z.number().optional().nullable(),
+  stock: z.number().min(0, 'Stock must be positive'),
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  videoUrl: z.union([z.literal(''), z.string().url('Please enter a valid video URL')]).optional(),
+  weight: z.number().optional().nullable(),
   categoryId: z.number().min(1, 'Please select a category'),
   subCategoryId: z.number().optional().nullable(),
   sellerId: z.number().min(1, 'Please select a seller'),
-  isActive: z.boolean().default(true),
-  isFeatured: z.boolean().default(false),
-  slug: z.string().optional().default(''),
+  isActive: z.boolean(),
+  isFeatured: z.boolean(),
+  slug: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;

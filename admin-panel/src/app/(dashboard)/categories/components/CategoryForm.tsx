@@ -27,9 +27,9 @@ const categorySchema = z.object({
   description: z.string().optional(),
   image: z.string().optional(),
   parentId: z.string().optional(),
-  isActive: z.boolean().default(true),
-  isFeatured: z.boolean().default(false),
-  order: z.number().int().min(0).default(0),
+  isActive: z.boolean(),
+  isFeatured: z.boolean(),
+  order: z.number().int().min(0),
   slug: z.string().optional(),
 });
 

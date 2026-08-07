@@ -5,7 +5,7 @@ interface VideoApiErrorResponse {
   message?: string;
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const accessToken = request.cookies.get('access_token')?.value;
 
@@ -13,7 +13,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
 
-    const id = params.id;
+    const { id } = await params;
     const formData = await request.formData();
     const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
 
@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const accessToken = request.cookies.get('access_token')?.value;
 
@@ -37,7 +37,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 });
     }
 
-    const id = params.id;
+    const { id } = await params;
     const response = await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/videos/${id}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });

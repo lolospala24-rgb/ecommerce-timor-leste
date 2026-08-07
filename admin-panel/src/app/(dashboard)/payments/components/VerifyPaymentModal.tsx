@@ -47,10 +47,7 @@ export function VerifyPaymentModal({ paymentId, open, onClose, onRefresh }: Veri
 
     try {
       if (action === 'approve') {
-        await api.post(`/payments/${paymentId}/confirm`, {
-          transactionId: `TXN-${Date.now()}`,
-          notes: 'Payment verified by admin',
-        });
+        await api.post(`/payments/${paymentId}/confirm`, {});
         toast.success('Payment approved successfully');
       } else {
         await api.post(`/payments/${paymentId}/reject`, {
@@ -114,7 +111,7 @@ export function VerifyPaymentModal({ paymentId, open, onClose, onRefresh }: Veri
                 </div>
                 <div>
                   <span className="text-muted-foreground">Payment Date:</span>
-                  <p>{new Date(payment.createdAt).toLocaleString()}</p>
+                  <p>{payment.createdAt ? new Date(payment.createdAt).toLocaleString() : '—'}</p>
                 </div>
                 {payment.notes && (
                   <div className="md:col-span-2">
@@ -143,7 +140,7 @@ export function VerifyPaymentModal({ paymentId, open, onClose, onRefresh }: Veri
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(payment.proofImage, '_blank')}
+                      onClick={() => window.open(payment.proofImage as string, '_blank')}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View Full Size

@@ -38,6 +38,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveAll = async () => {
+    if (!settings) return;
     setIsSaving(true);
     try {
       await updateSettings(settings);
