@@ -40,12 +40,16 @@ import { AppService } from './app.service';
     }),
     // Global rate limit as a baseline abuse guard for every endpoint.
     // Sensitive public auth endpoints (register, password reset, etc.)
-    // additionally set tighter per-route limits via @Throttle().
+    // additionally set tighter per-route limits via @Throttle(). This is
+    // shared per-IP across the whole API, including every parallel widget
+    // query a dashboard page fires and both frontends in local dev, so it
+    // has to stay well above normal legitimate traffic — the per-route
+    // limits above are the actual abuse defense, not this one.
     ThrottlerModule.forRoot([
       {
         name: 'default',
         ttl: 60_000,
-        limit: 100,
+        limit: 600,
       },
     ]),
     PrismaModule,

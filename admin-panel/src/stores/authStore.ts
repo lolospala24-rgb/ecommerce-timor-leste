@@ -115,7 +115,11 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false
           });
         } catch (error: any) {
-          console.error('Check auth error:', error);
+          // A 401 here just means there's no active session (e.g. a guest
+          // on the login page) — that's the expected result, not a failure.
+          if (error?.response?.status !== 401) {
+            console.error('Check auth error:', error);
+          }
           Cookies.remove(SESSION_ROLE_COOKIE);
           set({
             user: null,
