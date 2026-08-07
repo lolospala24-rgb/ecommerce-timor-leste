@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, X, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GalleryThumbnailItem } from '@/lib/product';
 
@@ -45,6 +45,10 @@ export function ProductImages({
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
+  // Purely local to this component — selecting the video thumbnail never
+  // touches mainImageUrl/onMainImageChange, so none of the existing image
+  // gallery state or callbacks are affected by it.
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
 
   const carouselImages =
@@ -65,6 +69,10 @@ export function ProductImages({
 
   useEffect(() => {
     if (!mainImageUrl) return;
+    // The parent only ever drives image selection (variant swaps, etc.) —
+    // if it changes the active image out from under us, that means the
+    // user (or the page) picked an image, so drop out of video playback.
+    setActiveVideoUrl(null);
     const idx = carouselImages.indexOf(mainImageUrl);
     if (idx >= 0) setCurrentIndex(idx);
   }, [mainImageUrl, carouselImages.join(',')]);
@@ -90,15 +98,20 @@ export function ProductImages({
   };
 
   const ThumbnailButton = ({ item }: { item: GalleryThumbnailItem }) => {
-    const isActive = resolvedMainUrl === item.url;
+    const isActive =
+      item.type === 'video'
+        ? activeVideoUrl === item.videoUrl
+        : !activeVideoUrl && resolvedMainUrl === item.url;
 
     return (
       <button
         type="button"
         aria-label={
-          item.type === 'variant' && item.variantLabel
-            ? `View ${item.variantLabel} image`
-            : `View product image`
+          item.type === 'video'
+            ? 'Play product video'
+            : item.type === 'variant' && item.variantLabel
+              ? `View ${item.variantLabel} image`
+              : `View product image`
         }
         className={cn(
           'relative shrink-0 overflow-hidden rounded-lg border-2 bg-muted/30 transition-all',
@@ -109,6 +122,12 @@ export function ProductImages({
           item.type === 'variant' && !isActive && 'ring-1 ring-primary/15',
         )}
         onClick={() => {
+          if (item.type === 'video' && item.videoUrl) {
+            setActiveVideoUrl(item.videoUrl);
+            return;
+          }
+
+          setActiveVideoUrl(null);
           if (onThumbnailSelect) {
             onThumbnailSelect(item);
             return;
@@ -119,11 +138,16 @@ export function ProductImages({
       >
         <Image
           src={item.url}
-          alt={`${name} thumbnail`}
+          alt={item.type === 'video' ? `${name} video` : `${name} thumbnail`}
           fill
           className="object-cover"
           sizes="72px"
         />
+        {item.type === 'video' && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <Play className="h-6 w-6 fill-white text-white drop-shadow" />
+          </span>
+        )}
         {item.type === 'variant' && (
           <span className="absolute bottom-0 left-0 right-0 bg-primary/80 px-0.5 py-px text-center text-[9px] font-medium leading-tight text-primary-foreground">
             V
@@ -158,37 +182,56 @@ export function ProductImages({
         <div className="order-1 min-w-0 flex-1 lg:order-2">
           <div
             ref={mainRef}
-            className="group relative aspect-square cursor-zoom-in overflow-hidden rounded-2xl border bg-gradient-to-b from-muted/40 to-muted/10 shadow-sm"
+            className={cn(
+              'group relative aspect-square overflow-hidden rounded-2xl border bg-gradient-to-b from-muted/40 to-muted/10 shadow-sm',
+              activeVideoUrl ? 'cursor-default' : 'cursor-zoom-in',
+            )}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
             onMouseMove={handleMouseMove}
-            onClick={() => setIsZoomOpen(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') setIsZoomOpen(true);
+            onClick={() => {
+              if (!activeVideoUrl) setIsZoomOpen(true);
             }}
-            aria-label="Open image zoom"
+            role={activeVideoUrl ? undefined : 'button'}
+            tabIndex={activeVideoUrl ? undefined : 0}
+            onKeyDown={(e) => {
+              if (!activeVideoUrl && (e.key === 'Enter' || e.key === ' ')) setIsZoomOpen(true);
+            }}
+            aria-label={activeVideoUrl ? undefined : 'Open image zoom'}
           >
-            <Image
-              src={resolvedMainUrl}
-              alt={name}
-              fill
-              className={cn(
-                'object-contain p-4 transition-transform duration-200 ease-out',
-                isHovering && 'scale-[2]',
-              )}
-              style={
-                isHovering
-                  ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` }
-                  : undefined
-              }
-              priority
-              sizes="(max-width: 768px) 100vw, 50vw"
-              draggable={false}
-            />
+            {activeVideoUrl ? (
+              <video
+                key={activeVideoUrl}
+                src={activeVideoUrl}
+                poster={thumbnail || carouselImages[0]}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="h-full w-full object-contain p-4"
+              />
+            ) : (
+              <Image
+                src={resolvedMainUrl}
+                alt={name}
+                fill
+                className={cn(
+                  'object-contain p-4 transition-transform duration-200 ease-out',
+                  isHovering && 'scale-[2]',
+                )}
+                style={
+                  isHovering
+                    ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` }
+                    : undefined
+                }
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                draggable={false}
+              />
+            )}
 
             {/* Badges */}
+            {!activeVideoUrl && (
             <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 pointer-events-none">
               {discount > 0 && (
                 <Badge className="w-fit border-0 bg-red-500 px-2.5 py-1 text-xs font-semibold text-white shadow-md">
@@ -207,9 +250,10 @@ export function ProductImages({
                 </Badge>
               )}
             </div>
+            )}
 
             {/* Image counter */}
-            {carouselImages.length > 1 && (
+            {!activeVideoUrl && carouselImages.length > 1 && (
               <Badge
                 variant="secondary"
                 className="absolute bottom-3 left-3 z-10 bg-background/90 text-xs font-medium shadow-sm backdrop-blur-sm pointer-events-none"
@@ -219,7 +263,7 @@ export function ProductImages({
             )}
 
             {/* Nav arrows */}
-            {carouselImages.length > 1 && (
+            {!activeVideoUrl && carouselImages.length > 1 && (
               <>
                 <Button
                   type="button"
@@ -249,11 +293,13 @@ export function ProductImages({
             )}
 
             {/* Zoom hint */}
+            {!activeVideoUrl && (
             <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full border bg-background/90 px-2.5 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur-sm pointer-events-none opacity-0 transition-opacity group-hover:opacity-100">
               <ZoomIn className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Hover to zoom · Click to expand</span>
               <span className="sm:hidden">Tap to zoom</span>
             </div>
+            )}
           </div>
         </div>
       </div>

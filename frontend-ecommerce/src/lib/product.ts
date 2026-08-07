@@ -291,9 +291,14 @@ export function fieldsToNameList(fields?: Record<string, unknown> | unknown): st
 export interface GalleryThumbnailItem {
   id: string;
   url: string;
-  type: 'product' | 'variant';
+  type: 'product' | 'variant' | 'video';
   variantId?: number;
   variantLabel?: string;
+  /** Only set when type === 'video' — the actual video source; `url` above
+   *  stays a real image so the thumbnail button renders exactly like every
+   *  other thumbnail (same <Image>, same sizing), just with a Play icon
+   *  layered on top. */
+  videoUrl?: string;
 }
 
 export function buildThumbnailGallery(
@@ -301,8 +306,18 @@ export function buildThumbnailGallery(
   variants: ProductVariant[],
   attributeKeys: string[],
   attributeLabels?: Record<string, string>,
+  productVideoUrl?: string | null,
 ): GalleryThumbnailItem[] {
   const items: GalleryThumbnailItem[] = [];
+
+  if (productVideoUrl && baseProductImages[0]) {
+    items.push({
+      id: 'product-video',
+      url: baseProductImages[0],
+      type: 'video',
+      videoUrl: productVideoUrl,
+    });
+  }
 
   baseProductImages.forEach((url, index) => {
     items.push({

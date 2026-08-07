@@ -162,8 +162,8 @@ export function useProductVariantSelection(product: Product) {
       : baseProductImages;
 
   const thumbnailGallery = useMemo(
-    () => buildThumbnailGallery(baseProductImages, variants, attributeKeys, attributeLabels),
-    [baseProductImages, variants, attributeKeys, attributeLabels],
+    () => buildThumbnailGallery(baseProductImages, variants, attributeKeys, attributeLabels, product.videoUrl),
+    [baseProductImages, variants, attributeKeys, attributeLabels, product.videoUrl],
   );
 
   const mainImageUrl =
