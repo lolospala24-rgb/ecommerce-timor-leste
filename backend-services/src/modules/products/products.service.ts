@@ -353,6 +353,15 @@ export class ProductsService {
             },
           },
         },
+        type: true,
+        // findOne() is @Public() with no role check, so only ever expose
+        // active variants here — the admin product-detail page fetches the
+        // full (incl. inactive) list separately via GET /:id/variants,
+        // which does have proper owner/admin access control.
+        variants: {
+          where: { isActive: true },
+          orderBy: { id: 'asc' },
+        },
         reviews: {
           where: { isApproved: true },
           take: 10,
@@ -466,14 +475,7 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to update this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to update this product');
 
     // Check slug uniqueness if being updated
     if (updateProductDto.slug && updateProductDto.slug !== product.slug) {
@@ -520,7 +522,10 @@ export class ProductsService {
         barcode: updateProductDto.barcode,
         videoUrl: updateProductDto.videoUrl ?? undefined,
         weight: updateProductDto.weight,
+        brand: updateProductDto.brand,
+        specifications: updateProductDto.specifications as any,
         categoryId: updateProductDto.categoryId,
+        typeId: updateProductDto.typeId,
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
         slug: updateProductDto.slug,
@@ -571,14 +576,7 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to delete this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to delete this product');
 
     // Check if product has pending orders
     if (product.orderItems.length > 0) {
@@ -614,17 +612,10 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to modify this product');
 
     const currentImages = Array.isArray(product.images) ? (product.images as string[]) : [];
-    
+
     // Upload new images
     const newImages = [];
     for (const file of files) {
@@ -665,17 +656,10 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to modify this product');
 
     const currentImages = Array.isArray(product.images) ? (product.images as string[]) : [];
-    
+
     if (imageIndex < 0 || imageIndex >= currentImages.length) {
       throw new BadRequestException('Invalid image index');
     }
@@ -717,14 +701,7 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to modify this product');
 
     let newStock: number;
 
@@ -763,14 +740,7 @@ export class ProductsService {
     }
 
     // Check ownership
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to modify this product');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to modify this product');
 
     const updatedProduct = await this.prisma.product.update({
       where: { id },
@@ -1554,19 +1524,17 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${productId} not found`);
     }
 
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to add variants to this product');
 
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to add variants to this product');
-    }
+    // ProductVariant.sku is a required, unique column, but the DTO allows
+    // omitting it (matching Product.sku, which is optional) — generate one
+    // rather than let Prisma reject the insert with a raw constraint error.
+    const sku = createVariantDto.sku?.trim() || `VAR-${productId}-${Date.now().toString(36).toUpperCase()}`;
 
     const variant = await this.prisma.productVariant.create({
       data: {
         productId,
-        sku: createVariantDto.sku,
+        sku,
         price: createVariantDto.price,
         comparePrice: createVariantDto.comparePrice,
         cost: createVariantDto.cost,
@@ -1598,16 +1566,7 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${productId} not found`);
     }
 
-    let showInactive = false;
-    if (userId) {
-      const seller = await this.prisma.seller.findUnique({
-        where: { userId },
-        include: { user: true },
-      });
-      if (seller && (seller.id === product.sellerId || seller.user.role === 'ADMIN')) {
-        showInactive = true;
-      }
-    }
+    const showInactive = await this.isSellerOwnerOrAdmin(product.sellerId, userId);
 
     return await this.prisma.productVariant.findMany({
       where: {
@@ -1635,13 +1594,8 @@ export class ProductsService {
     }
 
     if (!variant.isActive) {
-      const seller = userId
-        ? await this.prisma.seller.findUnique({
-            where: { userId },
-            include: { user: true },
-          })
-        : null;
-      if (!seller || (seller.id !== variant.product.sellerId && seller.user.role !== 'ADMIN')) {
+      const canView = await this.isSellerOwnerOrAdmin(variant.product.sellerId, userId);
+      if (!canView) {
         throw new NotFoundException(`Variant with ID ${variantId} not found`);
       }
     }
@@ -1672,14 +1626,7 @@ export class ProductsService {
       throw new NotFoundException(`Variant with ID ${variantId} not found`);
     }
 
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to update this variant');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to update this variant');
 
     const updatedVariant = await this.prisma.productVariant.update({
       where: { id: variantId },
@@ -1717,14 +1664,7 @@ export class ProductsService {
       throw new NotFoundException(`Variant with ID ${variantId} not found`);
     }
 
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to delete this variant');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to delete this variant');
 
     await this.prisma.productVariant.delete({ where: { id: variantId } });
 
@@ -1760,14 +1700,7 @@ export class ProductsService {
       throw new NotFoundException(`Variant with ID ${variantId} not found`);
     }
 
-    const seller = await this.prisma.seller.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
-
-    if (product.sellerId !== seller?.id && seller?.user?.role !== 'ADMIN') {
-      throw new ForbiddenException('You do not have permission to toggle this variant');
-    }
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to toggle this variant');
 
     const updatedVariant = await this.prisma.productVariant.update({
       where: { id: variantId },
@@ -1940,6 +1873,26 @@ export class ProductsService {
     }
 
     return seller;
+  }
+
+  // Sellers manage their own products; admins manage any product. An admin
+  // account has no Seller row of its own, so deriving "is this an admin"
+  // by joining through Seller (as every call site here used to) always came
+  // back null and rejected every admin request — checked directly against
+  // User.role instead, which exists for every authenticated user.
+  private async assertCanManageProduct(product: { sellerId: number }, userId: number, message: string) {
+    if (!(await this.isSellerOwnerOrAdmin(product.sellerId, userId))) {
+      throw new ForbiddenException(message);
+    }
+  }
+
+  private async isSellerOwnerOrAdmin(sellerId: number, userId?: number): Promise<boolean> {
+    if (!userId) return false;
+    const [seller, user] = await Promise.all([
+      this.prisma.seller.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ]);
+    return seller?.id === sellerId || user?.role === 'ADMIN';
   }
 
   private generateSlug(name: string): string {

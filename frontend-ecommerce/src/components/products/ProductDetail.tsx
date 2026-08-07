@@ -507,6 +507,23 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                     </dd>
                   </div>
                 )}
+                {product.brand && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">Brand</dt>
+                    <dd className="col-span-1 text-sm font-medium sm:col-span-2">
+                      {product.brand}
+                    </dd>
+                  </div>
+                )}
+                {product.specifications &&
+                  Object.entries(product.specifications).map(([key, value]) => (
+                    <div key={key} className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                      <dt className="text-sm text-muted-foreground">{key}</dt>
+                      <dd className="col-span-1 text-sm font-medium sm:col-span-2">
+                        {String(value)}
+                      </dd>
+                    </div>
+                  ))}
                 {product.weight && (
                   <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
                     <dt className="text-sm text-muted-foreground">Weight</dt>

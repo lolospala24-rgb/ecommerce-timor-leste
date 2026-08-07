@@ -31,6 +31,8 @@ export interface Product {
   categoryId: number;
   isActive: boolean;
   isFeatured: boolean;
+  brand?: string | null;
+  specifications?: Record<string, unknown> | null;
   hasVariants?: boolean;
   variants?: ProductVariant[];
   createdAt: string;

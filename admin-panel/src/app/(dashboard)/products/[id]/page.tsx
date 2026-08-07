@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useProduct } from '@/hooks/useProducts';
+import { useProduct, useProductVariants } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,6 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProductForm } from '../components/ProductForm';
+import { VariantManager } from '../components/VariantManager';
+import { ProductTypeSelector } from '../components/ProductTypeSelector';
+import { ProductSpecifications } from '../components/ProductSpecifications';
 import {
   ArrowLeft,
   Package,
@@ -36,6 +39,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const productId = parseInt(params.id as string);
   const { data: product, isLoading, refetch } = useProduct(productId);
+  const { data: variants = [], refetch: refetchVariants } = useProductVariants(productId);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -265,6 +269,9 @@ export default function ProductDetailPage() {
           {product.descriptionTetum && (
             <TabsTrigger value="descriptionTetum">Description (Tetun)</TabsTrigger>
           )}
+          <TabsTrigger value="variants">Variants</TabsTrigger>
+          <TabsTrigger value="type">Product Type</TabsTrigger>
+          <TabsTrigger value="specifications">Specifications</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
         </TabsList>
 
@@ -289,6 +296,35 @@ export default function ProductDetailPage() {
             </Card>
           </TabsContent>
         )}
+
+        <TabsContent value="variants">
+          <VariantManager
+            productId={productId}
+            variants={variants}
+            productType={product.type}
+            onUpdate={() => {
+              refetchVariants();
+              refetch();
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="type">
+          <ProductTypeSelector
+            productId={productId}
+            currentTypeId={product.type?.id ?? product.typeId ?? null}
+            onUpdate={refetch}
+          />
+        </TabsContent>
+
+        <TabsContent value="specifications">
+          <ProductSpecifications
+            productId={productId}
+            specifications={product.specifications}
+            brand={product.brand}
+            onUpdate={refetch}
+          />
+        </TabsContent>
 
         <TabsContent value="stats">
           <Card>

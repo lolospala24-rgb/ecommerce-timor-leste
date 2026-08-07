@@ -165,7 +165,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
       };
 
       if (editingVariant) {
-        await api.put(`/products/${productId}/variants/${editingVariant.id}`, payload);
+        await api.patch(`/products/${productId}/variants/${editingVariant.id}`, payload);
         toast.success('Variant updated successfully');
       } else {
         await api.post(`/products/${productId}/variants`, payload);

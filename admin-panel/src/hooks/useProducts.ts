@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface Product {
@@ -23,6 +24,8 @@ interface Product {
   sellerId: number;
   categoryId: number;
   typeId?: number | null;
+  brand?: string | null;
+  specifications?: Record<string, unknown> | null;
   isActive: boolean;
   isFeatured: boolean;
   hasVariants?: boolean;
@@ -115,6 +118,21 @@ export const useProduct = (id: number) => {
       return response.data;
     },
     enabled: !!id,
+  });
+};
+
+// Admin-facing variant list — includes inactive variants (the seller
+// owner / admin access check happens server-side), unlike the public
+// product fetch above which only ever embeds active ones.
+export const useProductVariants = (productId: number) => {
+  return useQuery({
+    queryKey: ['products', productId, 'variants'],
+    queryFn: async () => {
+      const response = await api.get(`/products/${productId}/variants`);
+      const data = unwrapApiData<any[]>(response.data);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!productId,
   });
 };
 
