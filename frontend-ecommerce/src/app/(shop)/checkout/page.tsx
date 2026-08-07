@@ -258,8 +258,17 @@ export default function CheckoutPage() {
 
     void fetchShipping();
   }, [selectedAddressId, selectedShipping, selectedShippingMeta, subtotal, addresses]);
+  // The backend creates one order per distinct seller in the cart and
+  // charges the flat service fee on each order individually — so the
+  // accurate preview multiplies by seller count, not a single flat fee,
+  // otherwise a multi-seller cart would show a lower total than it's
+  // actually charged.
+  const sellerCount = useMemo(() => {
+    const ids = new Set(safeItems.map((item) => item.sellerId ?? 'unknown'));
+    return Math.max(ids.size, 1);
+  }, [safeItems]);
   const taxRate = Number(checkoutSettings.taxRate ?? 0);
-  const serviceFee = subtotal > 0 ? Number(checkoutSettings.serviceFee ?? 0) : 0;
+  const serviceFee = subtotal > 0 ? Number(checkoutSettings.serviceFee ?? 0) * sellerCount : 0;
   const tax = subtotal * (taxRate / 100);
   const grandTotal = subtotal + shippingCost + tax + serviceFee;
 
@@ -289,7 +298,11 @@ export default function CheckoutPage() {
       });
 
       await clearCart();
-      router.push(`/orders/success?orderId=${order.id}`);
+      // Multi-seller checkouts create one order per seller — the backend
+      // returns an array in that case. Land on the first order; the
+      // customer can see the rest under "My Orders".
+      const firstOrder = Array.isArray(order) ? order[0] : order;
+      router.push(`/orders/success?orderId=${firstOrder?.id}`);
     } catch {
       // The hook already shows the error toast.
     }
@@ -479,6 +492,11 @@ export default function CheckoutPage() {
                   <h2 className="text-lg font-semibold">Your products</h2>
                   <span className="text-sm text-slate-500">{safeItems.length} items</span>
                 </div>
+                {sellerCount > 1 && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Items from {sellerCount} different sellers will be shipped as {sellerCount} separate orders.
+                  </p>
+                )}
 
                 <div className="mt-4 space-y-4">
                   {safeItems.map((item) => (
@@ -643,7 +661,10 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between"><span>Product subtotal</span><span>${subtotal.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Shipping fee</span><span>${shippingCost.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between"><span>Service fee</span><span>${serviceFee.toFixed(2)}</span></div>
+              <div className="flex items-center justify-between">
+                <span>Service fee{sellerCount > 1 ? ` (${sellerCount} sellers)` : ''}</span>
+                <span>${serviceFee.toFixed(2)}</span>
+              </div>
             </div>
 
             <div className="mt-5 rounded-[16px] bg-slate-50 p-4">

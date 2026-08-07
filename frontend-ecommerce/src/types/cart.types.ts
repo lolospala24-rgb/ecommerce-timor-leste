@@ -1,6 +1,7 @@
 export interface CartItem {
   id?: number;
   productId: number;
+  sellerId?: number | null;
   variantId?: number | null;
   variantSku?: string | null;
   variantAttributes?: Record<string, string> | null;
