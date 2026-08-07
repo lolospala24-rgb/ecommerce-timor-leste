@@ -4,15 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCartStore, useCart } from '@/stores/cartStore';
+import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, Loader2 } from 'lucide-react';
+import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getCartItemKey } from '@/lib/cart';
 
@@ -20,9 +18,6 @@ export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { items, isLoading, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
-  const { totalItems, subtotal, shipping, total } = useCart();
-  const [couponCode, setCouponCode] = useState('');
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch cart when component mounts
@@ -71,22 +66,6 @@ export default function CartPage() {
     }
   };
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) {
-      toast.error('Please enter a coupon code');
-      return;
-    }
-    setIsApplyingCoupon(true);
-    try {
-      // Apply coupon logic here
-      toast.success('Coupon applied successfully');
-    } catch (error) {
-      toast.error('Invalid coupon code');
-    } finally {
-      setIsApplyingCoupon(false);
-    }
-  };
-
   const handleCheckout = () => {
     if (!isAuthenticated) {
       toast.error('Please login to checkout');
@@ -102,10 +81,7 @@ export default function CartPage() {
 
   // Safe values with defaults
   const safeItems = Array.isArray(items) ? items : [];
-  const safeTotalItems = totalItems || 0;
-  const safeSubtotal = subtotal || 0;
-  const safeShipping = shipping || 0;
-  const safeTotal = total || 0;
+  const safeSubtotal = safeItems.reduce((sum, item) => sum + (item?.price || 0) * (item?.quantity || 0), 0);
 
   if (isLoading) {
     return (
@@ -175,42 +151,12 @@ export default function CartPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${safeSubtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span>${safeShipping.toFixed(2)}</span>
+                  <span className="font-medium">${safeSubtotal.toFixed(2)}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between font-medium">
-                  <span>Total</span>
-                  <span className="text-lg font-bold text-primary">${safeTotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Coupon */}
-              <div className="space-y-2">
-                <Label htmlFor="coupon">Coupon Code</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="coupon"
-                    placeholder="Enter code"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon}
-                  >
-                    {isApplyingCoupon ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Apply'
-                    )}
-                  </Button>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shipping, tax, and any service fee are calculated at checkout based on your delivery address.
+                </p>
               </div>
 
               <Button

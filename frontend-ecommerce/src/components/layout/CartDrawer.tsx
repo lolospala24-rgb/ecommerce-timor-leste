@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCartStore, useCart } from '@/stores/cartStore';
+import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +27,6 @@ interface CartDrawerProps {
 
 export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const { items, isLoading, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
-  const { subtotal, shipping, total, totalItems } = useCart();
   const { isAuthenticated } = useAuthStore();
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -95,10 +94,8 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   };
 
   // Safe values with fallbacks
-  const safeTotalItems = totalItems || 0;
-  const safeSubtotal = subtotal || 0;
-  const safeShipping = shipping || 0;
-  const safeTotal = total || 0;
+  const safeTotalItems = items.reduce((sum, item) => sum + (item?.quantity || 0), 0);
+  const safeSubtotal = items.reduce((sum, item) => sum + (item?.price || 0) * (item?.quantity || 0), 0);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -251,19 +248,14 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
             {/* Summary */}
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
+                <div className="flex justify-between text-sm font-medium">
+                  <span className="text-muted-foreground font-normal">Subtotal</span>
                   <span>${safeSubtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping</span>
-                  <span>${safeShipping.toFixed(2)}</span>
-                </div>
                 <Separator />
-                <div className="flex justify-between font-semibold">
-                  <span>Total</span>
-                  <span className="text-primary">${safeTotal.toFixed(2)}</span>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shipping and tax are calculated at checkout.
+                </p>
               </div>
 
               <SheetFooter className="flex flex-col gap-2">

@@ -9,7 +9,10 @@ interface WishlistItem {
   name: string;
   slug: string;
   price: number;
+  comparePrice?: number | null;
   thumbnail: string | null;
+  stock?: number;
+  isActive?: boolean;
 }
 
 interface WishlistState {
@@ -63,7 +66,10 @@ export const useWishlistStore = create<WishlistState>()(
             name: product.name,
             slug: product.slug,
             price: product.price,
+            comparePrice: product.comparePrice ?? null,
             thumbnail: product.thumbnail || null,
+            stock: product.stock,
+            isActive: product.isActive,
           };
 
           set((state) => ({

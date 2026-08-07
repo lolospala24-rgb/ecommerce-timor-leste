@@ -1,21 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Heart, ShoppingCart, Trash2, MoveRight } from 'lucide-react';
+import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
+import { Skeleton } from '@/components/ui/skeleton';
 import toast from 'react-hot-toast';
 
 export default function WishlistPage() {
   const { isAuthenticated } = useAuthStore();
-  const { items, removeItem, clearWishlist } = useWishlistStore();
+  const { items, isLoading, removeItem, clearWishlist, fetchWishlist } = useWishlistStore();
   const { addItem, items: cartItems } = useCartStore();
-  const [isLoading, setIsLoading] = useState(false);
+
+  // The wishlist store persists to localStorage, which can go stale across
+  // devices/sessions — refresh from the backend whenever this page opens.
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlist();
+    }
+  }, [isAuthenticated, fetchWishlist]);
 
   const handleAddToCart = async (product: any) => {
     try {
@@ -40,6 +48,19 @@ export default function WishlistPage() {
         <Button className="mt-4" asChild>
           <Link href="/login?redirect=/account/wishlist">Sign In</Link>
         </Button>
+      </div>
+    );
+  }
+
+  if (isLoading && items.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-72 rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
