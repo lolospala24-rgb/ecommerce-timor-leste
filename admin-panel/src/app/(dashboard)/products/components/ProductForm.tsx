@@ -101,6 +101,20 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
     }
   }, [user, setValue]);
 
+  // The backend only has a single `categoryId` — a "sub-category" is just a
+  // Category row whose `parentId` points at another Category. When editing
+  // a product whose category is itself a child, split it back into the two
+  // selects: the parent goes in `categoryId` (drives the top select) and the
+  // actual saved category goes in `subCategoryId` (drives the sub select).
+  useEffect(() => {
+    if (!initialData?.categoryId || !categories?.data?.length) return;
+    const savedCategory = categories.data.find((c: any) => c.id === initialData.categoryId);
+    if (savedCategory?.parentId) {
+      setValue('categoryId', savedCategory.parentId);
+      setValue('subCategoryId', savedCategory.id);
+    }
+  }, [initialData?.categoryId, categories?.data, setValue]);
+
   // Check if user has seller role
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -149,6 +163,11 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         return;
       }
 
+      // The backend has one `categoryId` field; a chosen sub-category IS the
+      // product's category (it's just a Category row with a parentId), so it
+      // takes priority over the parent selected in the top-level dropdown.
+      const effectiveCategoryId = data.subCategoryId ? Number(data.subCategoryId) : Number(data.categoryId);
+
       const payload = {
         name: data.name,
         nameTetum: data.nameTetum || null,
@@ -162,20 +181,13 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         barcode: data.barcode || null,
         videoUrl: data.videoUrl || null,
         weight: data.weight ? Number(data.weight) : null,
-        categoryId: Number(data.categoryId),
-        subCategoryId: data.subCategoryId ? Number(data.subCategoryId) : null,
-        categoryName: categories?.data?.find((category: any) => category.id === Number(data.categoryId))?.name || null,
-        subCategoryName: data.subCategoryId
-          ? categories?.data?.find((category: any) => category.id === Number(data.subCategoryId))?.name || null
-          : null,
+        categoryId: effectiveCategoryId,
         sellerId: Number(resolvedSellerId),
         isActive: Boolean(data.isActive),
         isFeatured: Boolean(data.isFeatured),
         slug: data.slug || null,
         images: images,
       };
-
-      console.log('📦 Sending payload:', JSON.stringify(payload, null, 2));
 
       if (initialData?.id) {
         await api.patch(`/products/${initialData.id}`, payload);

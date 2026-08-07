@@ -26,9 +26,10 @@ export function QuickAddButton({
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const { toast } = useToast();
+  const isInStock = (product.stock ?? 0) > 0;
 
   const handleAdd = async () => {
-    if (!product.isInStock) {
+    if (!isInStock) {
       toast({
         title: 'Out of Stock',
         description: 'This product is currently out of stock.',
@@ -85,11 +86,11 @@ export function QuickAddButton({
         sizes[size],
         variants[variant],
         isAdded && 'bg-emerald-500 text-white hover:bg-emerald-500/90',
-        !product.isInStock && 'opacity-50 cursor-not-allowed',
+        !isInStock && 'opacity-50 cursor-not-allowed',
         className
       )}
       onClick={handleAdd}
-      disabled={!product.isInStock || isAdding}
+      disabled={!isInStock || isAdding}
     >
       <AnimatePresence mode="wait">
         {isAdding ? (

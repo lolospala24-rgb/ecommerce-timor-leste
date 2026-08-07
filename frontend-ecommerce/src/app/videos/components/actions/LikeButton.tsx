@@ -12,13 +12,15 @@ interface LikeButtonProps {
   videoId: string;
   initialLikes?: number;
   variant?: 'floating' | 'inline';
+  size?: 'default' | 'lg';
 }
 
-export function LikeButton({ videoId, initialLikes = 0, variant = 'inline' }: LikeButtonProps) {
+export function LikeButton({ videoId, initialLikes = 0, variant = 'inline', size = 'default' }: LikeButtonProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(initialLikes);
   const { toggleLike, isLiking } = useVideo(videoId);
   const isFloating = variant === 'floating';
+  const isLarge = size === 'lg';
 
   const handleClick = async () => {
     const newState = !isLiked;
@@ -43,7 +45,7 @@ export function LikeButton({ videoId, initialLikes = 0, variant = 'inline' }: Li
           onClick={handleClick}
           disabled={isLiking}
         >
-          <Heart className={cn('h-5 w-5', isLiked && 'fill-[#FF3B5C]')} />
+          <Heart className={cn(isLarge ? 'h-6 w-6' : 'h-5 w-5', isLiked && 'fill-[#FF3B5C]')} />
           {!isFloating && <span className="ml-2 text-sm">{likes > 0 ? likes : 'Like'}</span>}
         </Button>
       </Tooltip>

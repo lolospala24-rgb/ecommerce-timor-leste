@@ -28,7 +28,8 @@ export function CommentReply({ reply, videoId, className }: CommentReplyProps) {
   const [likes, setLikes] = useState(reply.likes || 0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isCreator = reply.user?.id === reply.creatorId;
+  // No creator/author-role field exists on Comment to compare against.
+  const isCreator = false;
   const isVerifiedBuyer = reply.isVerifiedBuyer || false;
 
   const handleLike = async () => {
@@ -55,11 +56,11 @@ export function CommentReply({ reply, videoId, className }: CommentReplyProps) {
       animate={{ opacity: 1, x: 0 }}
       className={cn('flex gap-3 group', className)}
     >
-      <Link href={`/creators/${reply.user?.username || 'profile'}`}>
+      <Link href={`/creators/${reply.userId || 'profile'}`}>
         <Avatar className="h-8 w-8">
-          <AvatarImage src={reply.user?.avatar} alt={reply.user?.name} />
+          <AvatarImage src={reply.userAvatar} alt={reply.userName} />
           <AvatarFallback className="bg-gradient-to-br from-[#FF3B5C] to-[#6366F1] text-white text-xs">
-            {reply.user?.name ? getInitials(reply.user.name) : 'U'}
+            {reply.userName ? getInitials(reply.userName) : 'U'}
           </AvatarFallback>
         </Avatar>
       </Link>
@@ -67,10 +68,10 @@ export function CommentReply({ reply, videoId, className }: CommentReplyProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <Link
-            href={`/creators/${reply.user?.username || 'profile'}`}
+            href={`/creators/${reply.userId || 'profile'}`}
             className="font-medium text-sm text-white hover:text-[#6366F1] transition-colors"
           >
-            {reply.user?.name || 'Anonymous'}
+            {reply.userName || 'Anonymous'}
           </Link>
 
           {isCreator && (

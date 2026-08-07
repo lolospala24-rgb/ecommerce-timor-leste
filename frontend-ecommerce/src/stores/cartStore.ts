@@ -13,7 +13,7 @@ interface CartState {
   isLoading: boolean;
   error: string | null;
   fetchCart: () => Promise<void>;
-  addItem: (product: any, quantity: number) => Promise<void>;
+  addItem: (product: any, quantity: number, variant?: any | null) => Promise<void>;
   removeItem: (productId: number, variantId?: number | null) => Promise<void>;
   updateQuantity: (productId: number, quantity: number, variantId?: number | null) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -49,7 +49,7 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      addItem: async (product: any, quantity: number) => {
+      addItem: async (product: any, quantity: number, variant?: any | null) => {
         if (!product || !product.id) {
           toast.error('Invalid product');
           return;
@@ -58,20 +58,27 @@ export const useCartStore = create<CartState>()(
         set({ isLoading: true, error: null });
         const previousItems = get().items;
         try {
-          const payload = {
+          const variantId = variant?.id ?? null;
+          const payload: { productId: number; quantity: number; variantId?: number } = {
             productId: product.id,
             quantity: quantity || 1,
           };
+          if (variantId) {
+            payload.variantId = variantId;
+          }
 
           const qty = quantity || 1;
-          const existing = previousItems.find((i) => i.productId === product.id);
+          const existing = previousItems.find(
+            (i) => i.productId === product.id && (i.variantId ?? null) === variantId
+          );
           const optimisticItem = productToCartItem(
             product,
-            (existing?.quantity ?? 0) + qty
+            (existing?.quantity ?? 0) + qty,
+            variant
           );
           const optimisticItems = existing
             ? previousItems.map((i) =>
-                i.productId === product.id ? optimisticItem : i
+                i.productId === product.id && (i.variantId ?? null) === variantId ? optimisticItem : i
               )
             : [...previousItems, optimisticItem];
           set({ items: optimisticItems });

@@ -25,9 +25,10 @@ export function BuyNowButton({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const isInStock = (product.stock ?? 0) > 0;
 
   const handleBuy = async () => {
-    if (!product.isInStock) {
+    if (!isInStock) {
       toast({
         title: 'Out of Stock',
         description: 'This product is currently out of stock.',
@@ -69,11 +70,11 @@ export function BuyNowButton({
       className={cn(
         'bg-[#6366F1] text-white hover:bg-[#6366F1]/90 transition-all duration-200',
         sizes[size],
-        !product.isInStock && 'opacity-50 cursor-not-allowed',
+        !isInStock && 'opacity-50 cursor-not-allowed',
         className
       )}
       onClick={handleBuy}
-      disabled={!product.isInStock || isLoading}
+      disabled={!isInStock || isLoading}
     >
       <AnimatePresence mode="wait">
         {isLoading ? (

@@ -1,12 +1,43 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, PackageCheck, ArrowRight, ReceiptText, Truck, Home } from 'lucide-react';
+import { CheckCircle2, PackageCheck, ArrowRight, ReceiptText, Truck, Home, Loader2 } from 'lucide-react';
+import { useOrder } from '@/hooks/useOrders';
+import { BankTransferProof } from '@/components/checkout/BankTransferProof';
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  PAID: 'Paid',
+  PROCESSING: 'Processing',
+  SHIPPING: 'Shipping',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+};
 
 export default function OrderSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7]">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+        </div>
+      }
+    >
+      <OrderSuccessContent />
+    </Suspense>
+  );
+}
+
+function OrderSuccessContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const orderIdParam = searchParams.get('orderId');
+  const orderId = orderIdParam ? Number(orderIdParam) : null;
+  const { data: order, isLoading, refetch } = useOrder(orderId);
+
+  const statusLabel = order?.status ? STATUS_LABELS[order.status] ?? order.status : isLoading ? 'Loading...' : 'Pending';
+  const orderDate = order?.createdAt ? new Date(order.createdAt).toLocaleString() : isLoading ? 'Loading...' : '—';
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] px-4 py-10 text-slate-900 lg:px-8">
@@ -38,7 +69,7 @@ export default function OrderSuccessPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-500">Status</p>
-                <p className="text-lg font-semibold">Pending</p>
+                <p className="text-lg font-semibold">{statusLabel}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -47,9 +78,20 @@ export default function OrderSuccessPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-500">Order Date</p>
-                <p className="text-lg font-semibold">{new Date().toLocaleString()}</p>
+                <p className="text-lg font-semibold">{orderDate}</p>
               </div>
             </div>
+            {order?.total != null && (
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">Order Total</p>
+                  <p className="text-lg font-semibold">${Number(order.total).toFixed(2)}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-[18px] border border-slate-200 bg-white p-5">
@@ -61,6 +103,15 @@ export default function OrderSuccessPage() {
             </ul>
           </div>
         </div>
+
+        {order?.paymentMethod === 'BANK_TRANSFER' && order?.id && (
+          <BankTransferProof
+            orderId={order.id}
+            amount={Number(order.total ?? 0)}
+            payment={order.payment}
+            onUpdated={() => refetch()}
+          />
+        )}
 
         <div className="flex flex-wrap gap-3">
           <Link href="/orders" className="inline-flex items-center gap-2 rounded-[14px] bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700">

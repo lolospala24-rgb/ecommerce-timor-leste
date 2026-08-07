@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/api';
+import { unwrapApiData } from '../lib/utils';
 import toast from 'react-hot-toast';
 
 export interface Settings {
@@ -30,7 +31,7 @@ export interface Settings {
 
 const fetchSettings = async (): Promise<Settings> => {
   const response = await apiClient.get<Settings>('/admin/settings');
-  return response.data;
+  return unwrapApiData<Settings>(response.data);
 };
 
 export const useSettings = () => {
@@ -45,7 +46,7 @@ export const useSettings = () => {
   const mutation = useMutation({
     mutationFn: async (settings: Settings) => {
       const response = await apiClient.post<Settings>('/admin/settings', settings);
-      return response.data;
+      return unwrapApiData<Settings>(response.data);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['settings'], data);

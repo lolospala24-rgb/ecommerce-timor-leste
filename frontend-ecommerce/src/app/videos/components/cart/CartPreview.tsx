@@ -90,7 +90,7 @@ export function CartPreview({ product, className }: CartPreviewProps) {
                 key={i}
                 className={cn(
                   'text-xs',
-                  i < Math.floor(product.rating)
+                  i < Math.floor(product.rating ?? 0)
                     ? 'text-yellow-500'
                     : 'text-[#A3A3A3]/30',
                 )}

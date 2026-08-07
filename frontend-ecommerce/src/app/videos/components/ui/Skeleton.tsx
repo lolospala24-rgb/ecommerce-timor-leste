@@ -4,7 +4,15 @@ import { forwardRef, HTMLAttributes } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {
+// framer-motion's <motion.div> redefines onDrag/onAnimation* with its own
+// signature, which conflicts with the native DOM HTMLAttributes versions
+// when spread onto it — omit them from the prop type we accept.
+type MotionSafeDivAttributes = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd'
+>;
+
+interface SkeletonProps extends MotionSafeDivAttributes {
   variant?: 'text' | 'circular' | 'rectangular' | 'rounded';
   width?: string | number;
   height?: string | number;

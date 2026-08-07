@@ -11,6 +11,7 @@ import {
   MaxLength,
   IsPositive,
   IsUrl,
+  IsArray,
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -114,4 +115,12 @@ export class UpdateProductDto {
   @IsOptional()
   @MaxLength(100)
   slug?: string;
+
+  // Mirrors CreateProductDto.images — without this, edits made through the
+  // full-array update flow (as opposed to the separate addImages/removeImage
+  // endpoints) were silently stripped by the whitelist ValidationPipe and
+  // never persisted.
+  @IsArray()
+  @IsOptional()
+  images?: string[];
 }

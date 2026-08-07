@@ -240,7 +240,9 @@ export function VideoPlayer({
         }
       }, 3000);
     }
-    return () => clearTimeout(controlsTimeout.current);
+    return () => {
+      if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+    };
   }, [showControls, isPlaying, isHovered]);
 
   const formatTime = (seconds: number) => {

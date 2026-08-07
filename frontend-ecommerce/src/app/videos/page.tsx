@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -27,6 +27,14 @@ import { cn } from '@/lib/utils';
 // ============================================================
 
 export default function VideoShopPage() {
+  return (
+    <Suspense fallback={<VideoLayout><FeedSkeleton viewMode="grid" /></VideoLayout>}>
+      <VideoShopPageContent />
+    </Suspense>
+  );
+}
+
+function VideoShopPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setLoading } = useUIStore();

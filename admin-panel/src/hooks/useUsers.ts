@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -95,7 +96,7 @@ export const useUser = (id: number) => {
     queryKey: ['users', id],
     queryFn: async () => {
       const response = await api.get<User>(`/users/${id}`);
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     enabled: !!id,
   });
@@ -106,7 +107,7 @@ export const useProfile = () => {
     queryKey: ['users', 'profile'],
     queryFn: async () => {
       const response = await api.get<User>('/users/profile');
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
   });
 };
@@ -117,7 +118,7 @@ export const useCreateUser = () => {
   return useMutation({
     mutationFn: async (data: Partial<User> & { password: string }) => {
       const response = await api.post('/users', data);
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -135,7 +136,7 @@ export const useUpdateUser = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<User> }) => {
       const response = await api.patch(`/users/${id}`, data);
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -154,8 +155,8 @@ export const useUpdateProfile = () => {
   
   return useMutation({
     mutationFn: async (data: Partial<User>) => {
-      const response = await api.patch('/users/profile/update', data);
-      return response.data;
+      const response = await api.patch('/users/profile', data);
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'profile'] });
@@ -190,7 +191,7 @@ export const useBlockUser = () => {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await api.patch(`/users/${id}/block`);
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -209,7 +210,7 @@ export const useUnblockUser = () => {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await api.patch(`/users/${id}/unblock`);
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -228,7 +229,7 @@ export const useChangeUserRole = () => {
   return useMutation({
     mutationFn: async ({ id, role }: { id: number; role: string }) => {
       const response = await api.post(`/users/${id}/role`, { role });
-      return response.data;
+      return unwrapApiData<User>(response.data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -246,7 +247,7 @@ export const useUserStats = () => {
     queryKey: ['users', 'stats'],
     queryFn: async () => {
       const response = await api.get('/users/stats');
-      return response.data;
+      return unwrapApiData(response.data);
     },
   });
 };

@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/product';
 import { Video, VideoResponse, VideoFilters } from '@/types/video';
 import { Product } from '@/types/product.types';
 import { Creator } from '@/types/creator';
@@ -33,27 +34,46 @@ class VideoService {
     return VideoService.instance;
   }
 
+  // The backend has no creator/follower system (no following/likes/views
+  // counters, no follow state) — those fields are honestly zeroed rather
+  // than fabricated, since there's no real data source for them yet.
   private normalizeCreator(raw: any): Creator {
     if (!raw) {
       return {
         id: 'unknown',
+        userId: 'unknown',
         name: 'Creator',
         username: 'creator',
         avatar: '/images/placeholder.png',
+        bio: '',
         isVerified: false,
+        isFollowed: false,
         followers: 0,
+        following: 0,
+        likes: 0,
+        views: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
     }
 
+    const id = String(raw.id ?? raw.userId ?? 'unknown');
     return {
-      id: String(raw.id ?? raw.userId ?? 'unknown'),
+      id,
+      userId: String(raw.userId ?? raw.id ?? id),
       name: raw.name ?? raw.storeName ?? raw.store_name ?? 'Creator',
       username: raw.username ?? raw.storeSlug ?? raw.slug ?? 'creator',
       avatar: raw.avatar ?? raw.storeLogo ?? raw.thumbnail ?? '/images/placeholder.png',
+      bio: raw.bio ?? raw.description ?? '',
       isVerified: Boolean(raw.isVerified ?? raw.verified ?? false),
+      isFollowed: false,
       followers: Number(raw.followers ?? raw._count?.followers ?? 0),
-      bio: raw.bio ?? raw.description,
+      following: 0,
+      likes: 0,
+      views: 0,
       storeName: raw.storeName ?? raw.store_name,
+      createdAt: raw.createdAt ?? new Date().toISOString(),
+      updatedAt: raw.updatedAt ?? new Date().toISOString(),
     };
   }
 
@@ -170,39 +190,25 @@ class VideoService {
     return videos.map((video: any) => this.normalizeVideo(video));
   }
 
-  async likeVideo(id: string): Promise<{ likes: number; isLiked: boolean }> {
-    const response = await api.post<{ likes: number; isLiked: boolean }>(`/videos/${id}/like`);
-    return response;
+  // The backend tracks likes/shares as a public, anonymous, one-way counter
+  // (`VideosService.incrementAnalytics`) — there is no per-user like state
+  // and no unlike/save/unsave route. `{success: true}` is the entire real
+  // response shape; there's no `likes`/`isLiked`/`shares` count to read back.
+  async likeVideo(id: string): Promise<{ success: boolean }> {
+    return api.post<{ success: boolean }>(`/videos/${id}/like`) as unknown as Promise<{ success: boolean }>;
   }
 
-  async unlikeVideo(id: string): Promise<{ likes: number; isLiked: boolean }> {
-    const response = await api.delete<{ likes: number; isLiked: boolean }>(`/videos/${id}/like`);
-    return response;
-  }
-
-  async shareVideo(id: string): Promise<{ shares: number }> {
-    const response = await api.post<{ shares: number }>(`/videos/${id}/share`);
-    return response;
-  }
-
-  async saveVideo(id: string): Promise<{ isSaved: boolean }> {
-    const response = await api.post<{ isSaved: boolean }>(`/videos/${id}/save`);
-    return response;
-  }
-
-  async unsaveVideo(id: string): Promise<{ isSaved: boolean }> {
-    const response = await api.delete<{ isSaved: boolean }>(`/videos/${id}/save`);
-    return response;
+  async shareVideo(id: string): Promise<{ success: boolean }> {
+    return api.post<{ success: boolean }>(`/videos/${id}/share`) as unknown as Promise<{ success: boolean }>;
   }
 
   async getSellerProfile(id: string): Promise<SellerProfile> {
     const response = await api.get<SellerProfile>(`/sellers/${id}`);
-    return response;
+    return unwrapApiData<SellerProfile>(response);
   }
 
   async getSellerProducts(id: string, page = 1, limit = 12): Promise<{ items: SellerProduct[] }> {
-    const response = await api.get<{ items: SellerProduct[] }>(`/sellers/${id}/products?page=${page}&limit=${limit}`);
-    return response;
+    return api.get<{ items: SellerProduct[] }>(`/sellers/${id}/products?page=${page}&limit=${limit}`) as unknown as Promise<{ items: SellerProduct[] }>;
   }
 }
 

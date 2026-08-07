@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
+import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-500',
@@ -34,7 +35,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = parseInt(params.id as string);
-  const { data: order, isLoading } = useOrder(orderId);
+  const { data: order, isLoading, refetch } = useOrder(orderId);
   useOrderRealtime(orderId);
 
   if (isLoading) {
@@ -190,6 +191,15 @@ export default function OrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {order.paymentMethod === 'BANK_TRANSFER' && order.status !== 'CANCELLED' && (
+            <BankTransferProof
+              orderId={order.id}
+              amount={Number(order.total ?? 0)}
+              payment={order.payment}
+              onUpdated={() => refetch()}
+            />
+          )}
 
           {/* Customer Info */}
           <Card>

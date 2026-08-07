@@ -11,11 +11,13 @@ interface ShareButtonProps {
   videoId: string;
   initialShares?: number;
   variant?: 'floating' | 'inline';
+  size?: 'default' | 'lg';
 }
 
-export function ShareButton({ videoId, initialShares = 0, variant = 'inline' }: ShareButtonProps) {
+export function ShareButton({ videoId, initialShares = 0, variant = 'inline', size = 'default' }: ShareButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isFloating = variant === 'floating';
+  const isLarge = size === 'lg';
 
   return (
     <>
@@ -30,7 +32,7 @@ export function ShareButton({ videoId, initialShares = 0, variant = 'inline' }: 
             )}
             onClick={() => setIsOpen(true)}
           >
-            <Share2 className="h-5 w-5" />
+            <Share2 className={isLarge ? 'h-6 w-6' : 'h-5 w-5'} />
             {!isFloating && <span className="ml-2 text-sm">{initialShares > 0 ? initialShares : 'Share'}</span>}
             {isFloating && initialShares > 0 && (
               <span className="absolute -bottom-1 text-[10px] text-[#A3A3A3]">{initialShares}</span>

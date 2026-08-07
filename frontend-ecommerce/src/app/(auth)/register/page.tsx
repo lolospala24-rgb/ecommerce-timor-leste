@@ -27,7 +27,16 @@ const registerSchema = z
   .object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Please enter a valid email address'),
-    phone: z.string().optional(),
+    // Matches the backend's RegisterDto pattern (@Matches(/^[+]?[0-9]{8,15}$/)).
+    // An empty string still runs the regex check under class-validator's
+    // @IsOptional (only null/undefined skip it), so it must become `undefined`
+    // before being sent, not submitted as ''.
+    phone: z
+      .string()
+      .optional()
+      .refine((value) => !value || /^[+]?[0-9]{8,15}$/.test(value), {
+        message: 'Please enter a valid phone number (8-15 digits)',
+      }),
     password: z
       .string()
       .min(6, 'Password must be at least 6 characters')
@@ -78,6 +87,11 @@ export default function RegisterPage() {
 
     try {
       const { confirmPassword, terms, ...registerData } = data;
+      // class-validator's @IsOptional only skips null/undefined, not '' — an
+      // empty phone string would still fail the backend's @Matches pattern.
+      if (!registerData.phone) {
+        delete registerData.phone;
+      }
       await api.post('/auth/register', registerData);
       toast.success('Registration successful! Please verify your email.');
       router.push('/login');
@@ -148,6 +162,9 @@ export default function RegisterPage() {
                 {...register('phone')}
               />
             </div>
+            {errors.phone && (
+              <p className="text-sm text-destructive">{errors.phone.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -17,19 +17,19 @@ class ProductService {
   }
 
   async addToCart(productId: string, quantity: number = 1): Promise<void> {
-    await api.post('/cart', { productId, quantity });
+    await api.post('/carts/add', { productId: Number(productId), quantity });
   }
 
   async removeFromCart(productId: string): Promise<void> {
-    await api.delete(`/cart/${productId}`);
+    await api.delete(`/carts/item/${productId}`);
   }
 
   async addToWishlist(productId: string): Promise<void> {
-    await api.post('/wishlist', { productId });
+    await api.post('/wishlist', { productId: Number(productId) });
   }
 
   async removeFromWishlist(productId: string): Promise<void> {
-    await api.delete(`/wishlist/${productId}`);
+    await api.delete(`/wishlist?productId=${productId}`);
   }
 }
 

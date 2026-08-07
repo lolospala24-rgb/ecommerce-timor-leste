@@ -36,7 +36,7 @@ export function ReviewModal({
 }: ReviewModalProps) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { createReview, isLoading } = useCreateReview();
+  const { mutateAsync: createReview, isPending: isLoading } = useCreateReview();
   
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);

@@ -14,8 +14,6 @@ import {
   Plus,
   Lock,
   Sparkles,
-  ReceiptText,
-  CheckCircle2,
   ChevronRight,
   Loader2,
   LucideIcon,
@@ -124,7 +122,6 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState('');
   const [selectedShippingMeta, setSelectedShippingMeta] = useState<{ courierId?: number; courierServiceId?: number; shippingMethod?: string } | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<'COD' | 'BANK_TRANSFER'>('COD');
-  const [voucherApplied, setVoucherApplied] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [checkoutSettings, setCheckoutSettings] = useState<{ taxRate?: number; serviceFee?: number }>({});
@@ -261,11 +258,10 @@ export default function CheckoutPage() {
 
     void fetchShipping();
   }, [selectedAddressId, selectedShipping, selectedShippingMeta, subtotal, addresses]);
-  const discount = voucherApplied ? 25 : 0;
   const taxRate = Number(checkoutSettings.taxRate ?? 0);
   const serviceFee = subtotal > 0 ? Number(checkoutSettings.serviceFee ?? 0) : 0;
   const tax = subtotal * (taxRate / 100);
-  const grandTotal = subtotal - discount + shippingCost + tax + serviceFee;
+  const grandTotal = subtotal + shippingCost + tax + serviceFee;
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
@@ -603,40 +599,6 @@ export default function CheckoutPage() {
               </div>
 
               <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">Voucher</h2>
-                    <p className="text-sm text-slate-500">Use a promo code for extra savings</p>
-                  </div>
-                  {voucherApplied && (
-                    <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" /> Promo applied
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <div className="flex flex-1 items-center rounded-[14px] border border-slate-200 bg-slate-50 px-4 py-3">
-                    <ReceiptText className="mr-2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Enter promo code"
-                      className="w-full border-none bg-transparent text-sm outline-none"
-                      readOnly={voucherApplied}
-                      value={voucherApplied ? 'SAVE25' : ''}
-                      onChange={() => undefined}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setVoucherApplied((prev) => !prev)}
-                    className="rounded-[14px] bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-                  >
-                    {voucherApplied ? 'Remove' : 'Apply'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-semibold">Order notes</h2>
                 <textarea
                   rows={4}
@@ -679,8 +641,6 @@ export default function CheckoutPage() {
 
             <div className="mt-6 space-y-3 border-t border-slate-200 pt-5 text-sm text-slate-600">
               <div className="flex items-center justify-between"><span>Product subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between"><span>Product discount</span><span className="text-emerald-600">-${discount.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between"><span>Voucher discount</span><span className="text-emerald-600">-${discount.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Shipping fee</span><span>${shippingCost.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Service fee</span><span>${serviceFee.toFixed(2)}</span></div>

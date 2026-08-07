@@ -32,7 +32,7 @@ export function SingleVideoView({
 
       {/* Render the actual player if we have the video object */}
       {video ? (
-        <VideoPlayer src={video.url} />
+        <VideoPlayer src={video.videoUrl} />
       ) : (
         <div className="text-[#A3A3A3]">Loading video...</div>
       )}

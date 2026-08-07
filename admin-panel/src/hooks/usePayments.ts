@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 
 interface Payment {
   id: number;
@@ -65,7 +66,7 @@ export const usePayment = (id?: number | null) => {
     queryKey: ['payments', id],
     queryFn: async () => {
       const response = await api.get<Payment>(`/payments/${id}`);
-      return response.data;
+      return unwrapApiData<Payment>(response.data);
     },
     enabled: !!id,
   });

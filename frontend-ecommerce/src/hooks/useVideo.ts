@@ -56,33 +56,15 @@ export const useVideo = (id: string) => {
     },
   });
 
-  const unlikeMutation = useMutation({
-    mutationFn: () => videoService.unlikeVideo(id),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: ['video', id] });
-      const previousVideo = queryClient.getQueryData<Video>(['video', id]);
-      if (previousVideo) {
-        queryClient.setQueryData<Video>(['video', id], {
-          ...previousVideo,
-          likes: previousVideo.likes - 1,
-          isLiked: false,
-        });
-      }
-      return { previousVideo };
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['video', id] });
-    },
-  });
-
   const addToCartMutation = useMutation({
     mutationFn: (productId: string) => productService.addToCart(productId),
   });
 
+  // The backend records likes as a public, anonymous, one-way counter with
+  // no per-user state, so there's no "unlike" API to call back — once a
+  // video is liked in this session, further clicks are a no-op.
   const toggleLike = () => {
-    if (video?.isLiked) {
-      unlikeMutation.mutate();
-    } else {
+    if (!video?.isLiked) {
       likeMutation.mutate();
     }
   };
@@ -96,7 +78,7 @@ export const useVideo = (id: string) => {
     isLoadingRecommendations,
     error,
     toggleLike,
-    isLiking: likeMutation.isPending || unlikeMutation.isPending,
+    isLiking: likeMutation.isPending,
     addToCart: addToCartMutation.mutate,
     isAddingToCart: addToCartMutation.isPending,
   };

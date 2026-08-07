@@ -351,7 +351,7 @@ export function HeroSection() {
 
           {/* Slide Indicators */}
           <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-1.5 sm:gap-2">
-            {displaySlides.map((_, index) => (
+            {displaySlides.map((_: unknown, index: number) => (
               <button
                 key={index}
                 className={`h-1.5 rounded-full transition-all duration-300 ${

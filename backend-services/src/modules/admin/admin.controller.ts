@@ -224,8 +224,15 @@ export class AdminController {
     return { data: order };
   }
 
-  // System Settings (read-only public config for storefront)
+  // System Settings (read-only public config for storefront).
+  // `@Public()` only skips JwtAuthGuard; RolesGuard still enforces the
+  // class-level `@Roles(Role.ADMIN)` on top of it unless overridden here,
+  // which made this route 403 for every caller (including anonymous
+  // storefront visitors) despite the `@Public()` marking having no
+  // exceptions in the codebase for this combination. `@Roles()` with no
+  // arguments clears the requirement for this handler specifically.
   @Public()
+  @Roles()
   @Get('settings')
   async getSystemSettings() {
     const settings = await this.adminService.getSystemSettings();

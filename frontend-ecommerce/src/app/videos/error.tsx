@@ -55,27 +55,18 @@ export default function VideoShopError({ error, reset }: VideoShopErrorProps) {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 justify-center">
-          <Button
-            variant="default"
-            onClick={reset}
-            icon={<RefreshCw className="h-4 w-4" />}
-          >
+          <Button variant="default" onClick={reset} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
             Try Again
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => router.push('/videos')}
-            icon={<Home className="h-4 w-4" />}
-          >
+          <Button variant="outline" onClick={() => router.push('/videos')} className="gap-2">
+            <Home className="h-4 w-4" />
             Go to Videos
           </Button>
 
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            icon={<ArrowLeft className="h-4 w-4" />}
-          >
+          <Button variant="ghost" onClick={() => router.back()} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
             Go Back
           </Button>
         </div>

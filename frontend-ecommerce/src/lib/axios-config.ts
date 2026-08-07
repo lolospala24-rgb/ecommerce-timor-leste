@@ -63,14 +63,14 @@ export const setupResponseInterceptors = (
         return Promise.reject(error);
       }
       
-      config._retryCount = config._retryCount || 0;
-      
-      if (config._retryCount >= retryConfig.maxRetries) {
+      const retryCount = (config._retryCount || 0) + 1;
+      config._retryCount = retryCount;
+
+      if (retryCount > retryConfig.maxRetries) {
         return Promise.reject(error);
       }
-      
-      config._retryCount += 1;
-      await new Promise(resolve => setTimeout(resolve, retryConfig.retryDelay * config._retryCount));
+
+      await new Promise(resolve => setTimeout(resolve, retryConfig.retryDelay * retryCount));
       return instance(config);
     }
   );

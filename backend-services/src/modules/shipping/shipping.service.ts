@@ -230,7 +230,11 @@ export class ShippingService {
           ...baseWhere,
           OR: [
             { municipalityRef: { name: { equals: options.municipality?.trim() } } },
-            { municipalityRef: { name: { contains: options.municipality?.trim(), mode: 'insensitive' } } },
+            // No `mode: 'insensitive'` — that's a PostgreSQL-only Prisma
+            // filter option and throws a validation error against MySQL
+            // (this database's provider). MySQL's default collation is
+            // already case-insensitive, so plain `contains` is sufficient.
+            { municipalityRef: { name: { contains: options.municipality?.trim() } } },
           ],
         },
         orderBy: { priority: 'desc' },

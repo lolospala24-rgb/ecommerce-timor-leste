@@ -90,8 +90,14 @@ export const useComments = (videoId: string, options: UseCommentsOptions = {}) =
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    createComment: createCommentMutation.mutate,
+    createComment: async (content: string) => {
+      await createCommentMutation.mutateAsync(content);
+    },
     isCreating: createCommentMutation.isPending,
+    // The backend has no reply/thread concept for comments (or a comments
+    // endpoint at all yet) — this posts the reply as a top-level comment
+    // via the same mutation until real threaded replies exist server-side.
+    createReply: (_parentId: string, content: string) => createCommentMutation.mutateAsync(content),
     likeComment: likeCommentMutation.mutate,
     isLiking: likeCommentMutation.isPending,
   };

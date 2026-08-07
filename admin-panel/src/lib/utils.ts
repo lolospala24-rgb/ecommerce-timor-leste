@@ -172,6 +172,25 @@ export function unique<T>(array: T[], key?: keyof T): T[] {
   });
 }
 
+// Recursively unwrap nested `{ data: ... }` envelopes. The backend's global
+// TransformInterceptor wraps every response as `{ status, data }`, and some
+// controllers additionally wrap their own return value in `{ data }` (or
+// `{ message, data }`) on top of that — this peels off every such layer so
+// callers always land on the real payload regardless of how many levels
+// deep it's nested. (Mirrors `unwrapApiData` in frontend-ecommerce/src/lib/product.ts.)
+export function unwrapApiData<T>(payload: unknown): T {
+  if (!payload || typeof payload !== 'object') {
+    return payload as T;
+  }
+
+  const obj = payload as Record<string, unknown>;
+  if ('data' in obj && obj.data !== undefined && obj.data !== null) {
+    return unwrapApiData<T>(obj.data);
+  }
+
+  return payload as T;
+}
+
 // Sort array by key
 export function sortBy<T>(array: T[], key: keyof T, order: 'asc' | 'desc' = 'asc'): T[] {
   return [...array].sort((a, b) => {

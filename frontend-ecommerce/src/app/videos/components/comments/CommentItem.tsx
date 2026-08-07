@@ -53,8 +53,11 @@ export function CommentItem({
   const [isLoading, setIsLoading] = useState(false);
   const { likeComment, createReply } = useComments(videoId);
 
-  const isCreator = comment.user?.id === comment.creatorId;
+  // The Comment type has no creator/author-role field to compare against —
+  // there's no data source to derive a real "is this the video creator" flag.
+  const isCreator = false;
   const isVerifiedBuyer = comment.isVerifiedBuyer || false;
+  const repliesCount = comment.replies?.length ?? 0;
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -114,11 +117,11 @@ export function CommentItem({
 
       <div className="flex gap-3">
         {/* Avatar */}
-        <Link href={`/creators/${comment.user?.username || 'profile'}`}>
+        <Link href={`/creators/${comment.userId || 'profile'}`}>
           <Avatar className="h-10 w-10 ring-2 ring-[rgba(255,255,255,0.05)] hover:ring-[#6366F1]/30 transition-all">
-            <AvatarImage src={comment.user?.avatar} alt={comment.user?.name} />
+            <AvatarImage src={comment.userAvatar} alt={comment.userName} />
             <AvatarFallback className="bg-gradient-to-br from-[#FF3B5C] to-[#6366F1] text-white">
-              {comment.user?.name ? getInitials(comment.user.name) : 'U'}
+              {comment.userName ? getInitials(comment.userName) : 'U'}
             </AvatarFallback>
           </Avatar>
         </Link>
@@ -127,10 +130,10 @@ export function CommentItem({
           {/* Header */}
           <div className="flex items-center gap-2 flex-wrap">
             <Link
-              href={`/creators/${comment.user?.username || 'profile'}`}
+              href={`/creators/${comment.userId || 'profile'}`}
               className="font-medium text-sm text-white hover:text-[#6366F1] transition-colors"
             >
-              {comment.user?.name || 'Anonymous'}
+              {comment.userName || 'Anonymous'}
             </Link>
 
             {isCreator && (
@@ -180,12 +183,12 @@ export function CommentItem({
               <span>Reply</span>
             </button>
 
-            {comment.repliesCount > 0 && (
+            {repliesCount > 0 && (
               <button
                 onClick={() => setShowReplies(!showReplies)}
                 className="text-xs text-[#6366F1] hover:underline"
               >
-                {showReplies ? 'Hide' : 'View'} {comment.repliesCount} replies
+                {showReplies ? 'Hide' : 'View'} {repliesCount} replies
               </button>
             )}
           </div>
@@ -246,7 +249,7 @@ export function CommentItem({
               <Flag className="h-4 w-4" />
               <span>Report</span>
             </DropdownMenuItem>
-            {user?.id === comment.userId && (
+            {user?.id != null && String(user.id) === comment.userId && (
               <>
                 <DropdownMenuSeparator className="bg-[rgba(255,255,255,0.08)]" />
                 <DropdownMenuItem className="hover:bg-[#1C1C1C] cursor-pointer gap-3 text-red-500">

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface Category {
@@ -61,7 +62,7 @@ export const useCategoryTree = () => {
     queryKey: ['categories', 'tree'],
     queryFn: async () => {
       const response = await api.get<Category[]>('/categories/tree');
-      return response.data;
+      return unwrapApiData<Category[]>(response.data);
     },
   });
 };
@@ -71,7 +72,7 @@ export const useFeaturedCategories = () => {
     queryKey: ['categories', 'featured'],
     queryFn: async () => {
       const response = await api.get<Category[]>('/categories/featured');
-      return response.data;
+      return unwrapApiData<Category[]>(response.data);
     },
   });
 };
@@ -81,7 +82,7 @@ export const useCategory = (id: number) => {
     queryKey: ['categories', id],
     queryFn: async () => {
       const response = await api.get<Category>(`/categories/${id}`);
-      return response.data;
+      return unwrapApiData<Category>(response.data);
     },
     enabled: !!id,
   });
@@ -93,7 +94,7 @@ export const useCreateCategory = () => {
   return useMutation({
     mutationFn: async (data: Partial<Category>) => {
       const response = await api.post('/categories', data);
-      return response.data;
+      return unwrapApiData<Category>(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -112,7 +113,7 @@ export const useUpdateCategory = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<Category> }) => {
       const response = await api.patch(`/categories/${id}`, data);
-      return response.data;
+      return unwrapApiData<Category>(response.data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -150,7 +151,7 @@ export const useToggleCategoryFeatured = () => {
   return useMutation({
     mutationFn: async ({ id, isFeatured }: { id: number; isFeatured: boolean }) => {
       const response = await api.post(`/categories/${id}/featured`, { isFeatured });
-      return response.data;
+      return unwrapApiData<Category>(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });

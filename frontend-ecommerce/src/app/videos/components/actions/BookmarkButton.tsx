@@ -9,11 +9,13 @@ import { cn } from '@/lib/utils';
 interface BookmarkButtonProps {
   videoId: string;
   variant?: 'floating' | 'inline';
+  size?: 'default' | 'lg';
 }
 
-export function BookmarkButton({ videoId, variant = 'inline' }: BookmarkButtonProps) {
+export function BookmarkButton({ videoId, variant = 'inline', size = 'default' }: BookmarkButtonProps) {
   const [isSaved, setIsSaved] = useState(false);
   const isFloating = variant === 'floating';
+  const isLarge = size === 'lg';
 
   const handleClick = () => setIsSaved(!isSaved);
 
@@ -29,7 +31,7 @@ export function BookmarkButton({ videoId, variant = 'inline' }: BookmarkButtonPr
         )}
         onClick={handleClick}
       >
-        <Bookmark className={cn('h-5 w-5', isSaved && 'fill-[#6366F1]')} />
+        <Bookmark className={cn(isLarge ? 'h-6 w-6' : 'h-5 w-5', isSaved && 'fill-[#6366F1]')} />
         {!isFloating && <span className="ml-2 text-sm">{isSaved ? 'Saved' : 'Save'}</span>}
       </Button>
     </Tooltip>

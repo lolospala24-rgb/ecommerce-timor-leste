@@ -112,7 +112,7 @@ export function ProductTimeline({
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <div className="relative h-8 w-8 flex-shrink-0 rounded bg-[#0B0B0D] overflow-hidden">
                   <img
-                    src={item.product.thumbnail}
+                    src={item.product.thumbnail ?? undefined}
                     alt={item.product.name}
                     className="h-full w-full object-cover"
                   />

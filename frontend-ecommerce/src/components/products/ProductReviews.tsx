@@ -22,7 +22,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data, isLoading } = useProductReviews(productId, { page, limit: 10 });
-  const { createReview } = useCreateReview();
+  const { mutateAsync: createReview } = useCreateReview();
   const { isAuthenticated } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {

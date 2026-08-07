@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useFeaturedProducts } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/products/ProductCard';
+import type { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRight, Sparkles } from 'lucide-react';
@@ -60,7 +61,7 @@ export function FeaturedProducts() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.slice(0, 8).map((product) => (
+          {(products as Product[]).slice(0, 8).map((product: Product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

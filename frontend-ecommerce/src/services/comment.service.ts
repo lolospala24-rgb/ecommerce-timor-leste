@@ -26,8 +26,6 @@ class CommentService {
           limit,
           total,
           totalPages,
-          hasNext: page < totalPages,
-          hasPrev: page > 1,
         },
       };
     } catch {
@@ -38,26 +36,23 @@ class CommentService {
           limit,
           total: 0,
           totalPages: 1,
-          hasNext: false,
-          hasPrev: false,
         },
       };
     }
   }
 
   async createComment(videoId: string, content: string): Promise<Comment> {
-    const response = await api.post<Comment>(`/videos/${videoId}/comments`, { content });
-    return response;
+    // `api` unwraps the response to the JSON body at runtime (see lib/api.ts
+    // interceptor), but axios's own types don't know that — hence the cast.
+    return api.post<Comment>(`/videos/${videoId}/comments`, { content }) as unknown as Promise<Comment>;
   }
 
   async likeComment(commentId: string): Promise<{ likes: number; isLiked: boolean }> {
-    const response = await api.post<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`);
-    return response;
+    return api.post<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`) as unknown as Promise<{ likes: number; isLiked: boolean }>;
   }
 
   async unlikeComment(commentId: string): Promise<{ likes: number; isLiked: boolean }> {
-    const response = await api.delete<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`);
-    return response;
+    return api.delete<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`) as unknown as Promise<{ likes: number; isLiked: boolean }>;
   }
 
   async deleteComment(commentId: string): Promise<void> {

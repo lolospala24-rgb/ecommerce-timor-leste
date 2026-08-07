@@ -13,8 +13,8 @@ export function ProductBadge({ product, className }: ProductBadgeProps) {
   const badges = [];
 
   // Discount badge
-  const discount = product.oldPrice
-    ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+  const discount = product.comparePrice
+    ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
     : 0;
 
   if (discount > 0) {
@@ -32,15 +32,6 @@ export function ProductBadge({ product, className }: ProductBadgeProps) {
       label: 'New',
       variant: 'secondary' as const,
       className: 'bg-[#6366F1] text-white',
-    });
-  }
-
-  // Best seller badge
-  if (product.sold > 1000) {
-    badges.push({
-      label: 'Best Seller',
-      variant: 'success' as const,
-      className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20',
     });
   }
 

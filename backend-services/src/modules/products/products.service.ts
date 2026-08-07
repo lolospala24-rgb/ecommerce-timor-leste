@@ -510,6 +510,10 @@ export class ProductsService {
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
         slug: updateProductDto.slug,
+        ...(Array.isArray(updateProductDto.images) && {
+          images: updateProductDto.images,
+          thumbnail: updateProductDto.images[0] || null,
+        }),
       },
       include: {
         seller: {

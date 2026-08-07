@@ -5,42 +5,59 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(num) ? num : fallback;
 }
 
-/** Map a product (from catalog) into a flat cart line item. */
-export function productToCartItem(product: any, quantity: number): CartItem {
+/** Map a product (from catalog) into a flat cart line item. When `variant` is
+ * given, its price/stock/sku take priority over the base product's — this
+ * mirrors how the backend prices a cart line (`item.variant?.price ?? item.product.price`). */
+export function productToCartItem(product: any, quantity: number, variant?: any | null): CartItem {
+  const variantThumbnail = Array.isArray(variant?.images) ? variant.images[0] ?? null : null;
+
   return {
     productId: product.id,
+    variantId: variant?.id ?? null,
+    variantSku: variant?.sku ?? null,
+    variantAttributes: variant?.attributes ?? null,
+    variantThumbnail,
     name: product.name ?? 'Product',
     nameTetum: product.nameTetum ?? null,
     slug: product.slug ?? String(product.id),
-    price: toNumber(product.price),
+    price: toNumber(variant?.price ?? product.price),
     comparePrice:
-      product.comparePrice != null ? toNumber(product.comparePrice) : null,
-    thumbnail: product.thumbnail ?? null,
+      (variant?.comparePrice ?? product.comparePrice) != null
+        ? toNumber(variant?.comparePrice ?? product.comparePrice)
+        : null,
+    thumbnail: variantThumbnail ?? product.thumbnail ?? null,
     quantity: toNumber(quantity, 1),
-    stock: toNumber(product.stock),
+    stock: toNumber(variant?.stock ?? product.stock),
   };
 }
 
 /**
- * Normalize cart items from the API (nested `product`) or guest/local storage (flat).
+ * Normalize cart items from the API (nested `product`/`variant`) or
+ * guest/local storage (flat).
  */
 export function normalizeCartItem(raw: any): CartItem {
   const product = raw?.product ?? raw ?? {};
+  const variant = raw?.variant ?? null;
   const productId = raw?.productId ?? product?.id ?? 0;
+  const variantThumbnail = Array.isArray(variant?.images) ? variant.images[0] ?? null : null;
 
   return {
     productId,
+    variantId: raw?.variantId ?? variant?.id ?? null,
+    variantSku: variant?.sku ?? null,
+    variantAttributes: variant?.attributes ?? null,
+    variantThumbnail,
     name: product.name ?? raw.name ?? 'Product',
     nameTetum: product.nameTetum ?? raw.nameTetum ?? null,
     slug: product.slug ?? raw.slug ?? String(productId),
-    price: toNumber(product.price ?? raw.price),
+    price: toNumber(variant?.price ?? product.price ?? raw.price),
     comparePrice:
-      product.comparePrice != null || raw.comparePrice != null
-        ? toNumber(product.comparePrice ?? raw.comparePrice)
+      (variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice) != null
+        ? toNumber(variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice)
         : null,
-    thumbnail: product.thumbnail ?? raw.thumbnail ?? null,
+    thumbnail: variantThumbnail ?? product.thumbnail ?? raw.thumbnail ?? null,
     quantity: toNumber(raw.quantity, 1),
-    stock: toNumber(product.stock ?? raw.stock),
+    stock: toNumber(variant?.stock ?? product.stock ?? raw.stock),
   };
 }
 

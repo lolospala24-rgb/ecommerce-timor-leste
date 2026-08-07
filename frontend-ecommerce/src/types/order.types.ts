@@ -1,3 +1,5 @@
+import type { Address } from './address.types';
+
 export type OrderStatus = 'PENDING' | 'PAID' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -26,6 +26,32 @@ import {
 } from '@/components/ui/sheet';
 
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<SearchPageSkeleton />}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-12 w-full" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="space-y-3">
+            <Skeleton className="aspect-square rounded-lg" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';

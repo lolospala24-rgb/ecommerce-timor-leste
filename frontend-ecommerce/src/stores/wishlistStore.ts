@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/product';
 import toast from 'react-hot-toast';
 
 interface WishlistItem {
@@ -34,8 +35,8 @@ export const useWishlistStore = create<WishlistState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await api.get('/wishlist');
-          const items = response?.data?.items || [];
-          set({ items, isLoading: false });
+          const wishlist = unwrapApiData<{ items: WishlistItem[] }>(response?.data);
+          set({ items: wishlist?.items || [], isLoading: false });
         } catch (error: any) {
           console.warn('Fetch wishlist error:', error.message);
           set({ isLoading: false });
@@ -49,14 +50,14 @@ export const useWishlistStore = create<WishlistState>()(
         }
 
         if (get().isInWishlist(product.id)) {
-          toast.info('Already in wishlist');
+          toast('Already in wishlist', { icon: 'ℹ️' });
           return;
         }
 
         set({ isLoading: true, error: null });
         try {
           await api.post('/wishlist', { productId: product.id });
-          
+
           const wishlistItem = {
             id: product.id,
             name: product.name,
@@ -64,48 +65,34 @@ export const useWishlistStore = create<WishlistState>()(
             price: product.price,
             thumbnail: product.thumbnail || null,
           };
-          
-          set((state) => ({ 
-            items: [...state.items, wishlistItem], 
-            isLoading: false 
+
+          set((state) => ({
+            items: [...state.items, wishlistItem],
+            isLoading: false
           }));
           toast.success('Added to wishlist');
         } catch (error: any) {
           console.error('Add to wishlist error:', error);
-          // Still add locally even if API fails
-          const wishlistItem = {
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            price: product.price,
-            thumbnail: product.thumbnail || null,
-          };
-          set((state) => ({ 
-            items: [...state.items, wishlistItem], 
-            isLoading: false 
-          }));
-          toast.success('Added to wishlist');
+          set({ isLoading: false, error: error.message || 'Failed to add to wishlist' });
+          toast.error('Failed to add to wishlist. Please try again.');
         }
       },
 
       removeItem: async (productId: number) => {
         if (!productId) return;
-        
+
         set({ isLoading: true, error: null });
         try {
           await api.delete(`/wishlist?productId=${productId}`);
-          set((state) => ({ 
-            items: state.items.filter(item => item.id !== productId), 
-            isLoading: false 
+          set((state) => ({
+            items: state.items.filter(item => item.id !== productId),
+            isLoading: false
           }));
           toast.success('Removed from wishlist');
         } catch (error: any) {
           console.error('Remove from wishlist error:', error);
-          set((state) => ({ 
-            items: state.items.filter(item => item.id !== productId), 
-            isLoading: false 
-          }));
-          toast.success('Removed from wishlist');
+          set({ isLoading: false, error: error.message || 'Failed to remove from wishlist' });
+          toast.error('Failed to remove from wishlist. Please try again.');
         }
       },
 
@@ -134,8 +121,9 @@ export const useWishlistStore = create<WishlistState>()(
           set({ items: [], isLoading: false });
           toast.success('Wishlist cleared');
         } catch (error: any) {
-          set({ items: [], isLoading: false });
-          toast.success('Wishlist cleared');
+          console.error('Clear wishlist error:', error);
+          set({ isLoading: false, error: error.message || 'Failed to clear wishlist' });
+          toast.error('Failed to clear wishlist. Please try again.');
         }
       },
     }),
