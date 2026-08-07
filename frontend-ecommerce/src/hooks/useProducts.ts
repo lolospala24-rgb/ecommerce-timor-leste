@@ -21,56 +21,21 @@ interface ProductFilters {
   minRating?: number;
 }
 
+// The backend (`ProductsService.mapProductSort`) already understands these
+// semantic sort keys directly — including 'rating'/'best_selling'/
+// 'popularity', which trigger a post-query re-sort it can't do from a plain
+// Prisma `orderBy` — so the frontend must pass them through unchanged
+// rather than pre-translating to column names. Re-mapping here previously
+// mangled the signal (e.g. 'rating' became 'createdAt'), silently turning
+// "Top Rated" and "Best Selling" into a plain newest-first sort.
+// 'relevance' has no backend equivalent (no text-search ranking exists),
+// so it's treated as "no explicit sort" rather than sent as a literal value
+// the backend wouldn't recognize.
 export const mapProductSortParams = (sortBy?: string, sortOrder?: 'asc' | 'desc') => {
-  let mappedSortBy = sortBy;
-  let mappedSortOrder = sortOrder;
-
-  switch (sortBy) {
-    case 'newest':
-      mappedSortBy = 'createdAt';
-      mappedSortOrder = 'desc';
-      break;
-    case 'price_asc':
-      mappedSortBy = 'price';
-      mappedSortOrder = 'asc';
-      break;
-    case 'price_desc':
-      mappedSortBy = 'price';
-      mappedSortOrder = 'desc';
-      break;
-    case 'rating':
-      mappedSortBy = 'createdAt';
-      mappedSortOrder = 'desc';
-      break;
-    case 'popularity':
-      mappedSortBy = 'popularity';
-      mappedSortOrder = 'desc';
-      break;
-    case 'relevance':
-      mappedSortBy = 'createdAt';
-      mappedSortOrder = 'desc';
-      break;
-    case 'featured':
-      mappedSortBy = 'isFeatured';
-      mappedSortOrder = 'desc';
-      break;
-    case 'best_selling':
-      mappedSortBy = 'createdAt';
-      mappedSortOrder = 'desc';
-      break;
-    case 'name_asc':
-      mappedSortBy = 'name';
-      mappedSortOrder = 'asc';
-      break;
-    case 'name_desc':
-      mappedSortBy = 'name';
-      mappedSortOrder = 'desc';
-      break;
-    default:
-      break;
+  if (!sortBy || sortBy === 'relevance') {
+    return { sortBy: undefined, sortOrder: undefined };
   }
-
-  return { sortBy: mappedSortBy, sortOrder: mappedSortOrder };
+  return { sortBy, sortOrder };
 };
 
 export const useProducts = (filters?: ProductFilters) => {

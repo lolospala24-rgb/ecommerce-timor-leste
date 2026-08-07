@@ -264,9 +264,9 @@ export function ProductFilters({
   const getSortLabel = (value: string) => {
     const labels: Record<string, { label: string; icon: any }> = {
       newest: { label: 'Newest First', icon: Clock },
-      price_low: { label: 'Price: Low to High', icon: DollarSign },
-      price_high: { label: 'Price: High to Low', icon: DollarSign },
-      popular: { label: 'Most Popular', icon: TrendingUp },
+      price_asc: { label: 'Price: Low to High', icon: DollarSign },
+      price_desc: { label: 'Price: High to Low', icon: DollarSign },
+      popularity: { label: 'Most Popular', icon: TrendingUp },
       rating: { label: 'Top Rated', icon: Star },
       relevance: { label: 'Relevance', icon: Sparkles },
     };
@@ -886,9 +886,9 @@ export function ProductFilters({
                       )}>
                         <SelectItem value="default">Default</SelectItem>
                         <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="price_low">Price: Low to High</SelectItem>
-                        <SelectItem value="price_high">Price: High to Low</SelectItem>
-                        <SelectItem value="popular">Most Popular</SelectItem>
+                        <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                        <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                        <SelectItem value="popularity">Most Popular</SelectItem>
                         <SelectItem value="rating">Top Rated</SelectItem>
                         <SelectItem value="relevance">Relevance</SelectItem>
                       </SelectContent>
