@@ -107,9 +107,11 @@ export function Header() {
     };
 
     void loadCheckoutPreview();
+    // This settings data barely changes — polling every 5s on a header
+    // mounted on every page was needless network chatter.
     const intervalId = window.setInterval(() => {
       void loadCheckoutPreview();
-    }, 5000);
+    }, 60_000);
 
     return () => {
       isMounted = false;

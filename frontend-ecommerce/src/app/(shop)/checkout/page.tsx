@@ -199,9 +199,12 @@ export default function CheckoutPage() {
     };
 
     void loadCheckoutConfig();
+    // Shipping zones/tax/fee settings rarely change mid-session — refresh
+    // periodically in case an admin updates them, but every 5s was pure
+    // network chatter for data that's effectively static during a checkout.
     const intervalId = window.setInterval(() => {
       void loadCheckoutConfig();
-    }, 5000);
+    }, 60_000);
 
     return () => {
       isMounted = false;
@@ -275,6 +278,11 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       toast.error('Please select a delivery address before placing your order.');
+      return;
+    }
+
+    if (!selectedShipping) {
+      toast.error('Please select a shipping method before placing your order.');
       return;
     }
 
@@ -685,7 +693,7 @@ export default function CheckoutPage() {
 
             <button
               type="button"
-              disabled={!selectedAddressId || isPlacingOrder}
+              disabled={!selectedAddressId || !selectedShipping || isPlacingOrder}
               onClick={handlePlaceOrder}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-[16px] bg-gradient-to-r from-orange-500 to-amber-400 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
             >
