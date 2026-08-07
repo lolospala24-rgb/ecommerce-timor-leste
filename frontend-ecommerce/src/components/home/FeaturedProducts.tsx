@@ -6,6 +6,7 @@ import { ProductCard } from '@/components/products/ProductCard';
 import type { Product } from '@/types/product';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export function FeaturedProducts() {
@@ -25,9 +26,9 @@ export function FeaturedProducts() {
             </div>
             <Skeleton className="h-10 w-32" />
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-80 rounded-xl" />
+              <Skeleton key={i} className="h-96 rounded-xl" />
             ))}
           </div>
         </div>
@@ -36,7 +37,20 @@ export function FeaturedProducts() {
   }
 
   if (!products || products.length === 0) {
-    return null;
+    return (
+      <section className="py-12 md:py-16">
+        <div className="container-custom">
+          <div className="flex items-center gap-2 mb-6">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-bold sm:text-3xl">Featured Products</h2>
+          </div>
+          <EmptyState
+            title="No featured products yet"
+            description="Check back soon — our team is curating a selection for you."
+          />
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -54,7 +68,7 @@ export function FeaturedProducts() {
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>
             <Link href="/products">
-              Haree Deltaho
+              View All
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>

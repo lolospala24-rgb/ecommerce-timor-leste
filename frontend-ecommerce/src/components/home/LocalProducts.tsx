@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useLocalProducts } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ArrowRight, MapPin } from 'lucide-react';
 
 export function LocalProducts() {
@@ -15,13 +17,23 @@ export function LocalProducts() {
 
   if (isLoading) {
     return (
-      <section className="py-12 md:py-16">
+      <section id="local-products" className="scroll-mt-20 py-12 md:py-16 bg-muted/30">
         <div className="container-custom">
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-bold sm:text-3xl">{sectionTitle}</h2>
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary animate-pulse-soft" />
+                <h2 className="text-2xl font-bold sm:text-3xl">{sectionTitle}</h2>
+              </div>
+              <p className="text-muted-foreground mt-1">Made by sellers across Timor-Leste</p>
+            </div>
+            <Skeleton className="h-10 w-32" />
           </div>
-          <p className="text-muted-foreground">Loading local products...</p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-96 rounded-xl" />
+            ))}
+          </div>
         </div>
       </section>
     );
@@ -29,23 +41,30 @@ export function LocalProducts() {
 
   if (isError || products.length === 0) {
     return (
-      <section className="py-12 md:py-16">
+      <section id="local-products" className="scroll-mt-20 py-12 md:py-16 bg-muted/30">
         <div className="container-custom">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-6">
             <MapPin className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-bold sm:text-3xl">{sectionTitle}</h2>
           </div>
-          <p className="text-muted-foreground">No local products found.</p>
+          <EmptyState
+            title="No local products yet"
+            description={
+              isError
+                ? "We couldn't load local products right now. Please try again shortly."
+                : 'Local sellers haven’t listed products in this category yet.'
+            }
+          />
         </div>
       </section>
     );
   }
-  const sectionSubtitle =
-    category?.description ?? category?.nameTetum ?? null;
+
+  const sectionSubtitle = category?.description ?? category?.nameTetum ?? null;
   const viewAllHref = category?.slug ? `/categories/${category.slug}` : '/products';
 
   return (
-    <section className="py-12 md:py-16">
+    <section id="local-products" className="scroll-mt-20 py-12 md:py-16 bg-muted/30">
       <div className="container-custom">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
@@ -67,7 +86,7 @@ export function LocalProducts() {
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {products.slice(0, 8).map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} isLocal />
           ))}
         </div>
       </div>

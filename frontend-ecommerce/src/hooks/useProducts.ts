@@ -121,7 +121,8 @@ export const useFeaturedProducts = (limit: number = 10) => {
     queryKey: ['products', 'featured', limit],
     queryFn: async () => {
       const response = await api.get(`/products/featured?limit=${limit}`);
-      return response.data.data || response.data;
+      const raw = unwrapApiData<unknown[]>(response);
+      return Array.isArray(raw) ? raw.map(normalizeProduct) : [];
     },
   });
 };

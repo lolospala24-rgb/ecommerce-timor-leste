@@ -898,6 +898,9 @@ export class ProductsService {
             storeName: true,
           },
         },
+        category: {
+          select: { id: true, name: true, slug: true },
+        },
         reviews: {
           where: { isApproved: true },
           select: {
@@ -912,7 +915,7 @@ export class ProductsService {
       const avgRating = product.reviews.length > 0
         ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
         : 0;
-      
+
       const { reviews, ...productWithoutReviews } = product;
       return {
         ...productWithoutReviews,
@@ -947,6 +950,9 @@ export class ProductsService {
             storeName: true,
           },
         },
+        category: {
+          select: { id: true, name: true, slug: true },
+        },
         reviews: {
           where: { isApproved: true },
           select: {
@@ -961,7 +967,7 @@ export class ProductsService {
       const avgRating = product.reviews.length > 0
         ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
         : 0;
-      
+
       const { reviews, ...productWithoutReviews } = product;
       return {
         ...productWithoutReviews,
@@ -983,18 +989,24 @@ export class ProductsService {
       return JSON.parse(cached);
     }
 
+    // Popularity (wishlist adds + review count) can only be ranked after
+    // it's computed, so the candidate pool can't be pre-limited by `take`
+    // the way a plain sorted query would be — doing so (as this used to)
+    // silently restricted "popular" to whatever happened to be newest.
     const products = await this.prisma.product.findMany({
       where: {
         isActive: true,
         stock: { gt: 0 },
       },
-      take: limit,
       include: {
         seller: {
           select: {
             id: true,
             storeName: true,
           },
+        },
+        category: {
+          select: { id: true, name: true, slug: true },
         },
         reviews: {
           where: { isApproved: true },
@@ -1008,7 +1020,6 @@ export class ProductsService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     const productsWithRating = products

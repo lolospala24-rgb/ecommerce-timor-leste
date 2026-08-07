@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   FolderTree,
@@ -14,6 +14,8 @@ import {
 
 import { useCategories } from '@/hooks/useCategories';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
+import type { Category } from '@/types/category.types';
 
 export function CategoriesShowcase() {
   const { data: categories, isLoading } = useCategories({
@@ -25,6 +27,26 @@ export function CategoriesShowcase() {
     loop: false,
     align: 'start',
   });
+
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   const scrollPrev = useCallback(() => {
     emblaApi?.scrollPrev();
@@ -53,17 +75,29 @@ export function CategoriesShowcase() {
     );
   }
 
-  if (!categories?.data?.length) return null;
+  if (!categories?.data?.length) {
+    return (
+      <section className="py-10 bg-background">
+        <div className="container-custom">
+          <h2 className="mb-6 text-2xl font-bold">Browse Categories</h2>
+          <EmptyState
+            title="No categories yet"
+            description="Categories will appear here once they're added to the catalog."
+          />
+        </div>
+      </section>
+    );
+  }
 
-  const categoryList = categories.data;
+  const categoryList = categories.data as Category[];
 
   const parentCategories = categoryList.filter(
-    (cat: any) => !cat.parentId
+    (cat) => !cat.parentId
   );
 
   const ITEMS_PER_SLIDE = 20;
 
-  const slides = [];
+  const slides: Category[][] = [];
 
   for (let i = 0; i < parentCategories.length; i += ITEMS_PER_SLIDE) {
     slides.push(parentCategories.slice(i, i + ITEMS_PER_SLIDE));
@@ -98,8 +132,11 @@ export function CategoriesShowcase() {
         <div className="relative">
 
           {/* Left Arrow */}
+          {slides.length > 1 && (
           <button
             onClick={scrollPrev}
+            disabled={!canScrollPrev}
+            aria-label="Previous categories"
             className="
               absolute
               left-0
@@ -117,14 +154,20 @@ export function CategoriesShowcase() {
               bg-white
               shadow-md
               hover:shadow-lg
+              disabled:pointer-events-none
+              disabled:opacity-40
             "
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+          )}
 
           {/* Right Arrow */}
+          {slides.length > 1 && (
           <button
             onClick={scrollNext}
+            disabled={!canScrollNext}
+            aria-label="Next categories"
             className="
               absolute
               right-0
@@ -142,10 +185,13 @@ export function CategoriesShowcase() {
               bg-white
               shadow-md
               hover:shadow-lg
+              disabled:pointer-events-none
+              disabled:opacity-40
             "
           >
             <ChevronRight className="h-5 w-5" />
           </button>
+          )}
 
           {/* Embla */}
           <div
@@ -160,7 +206,7 @@ export function CategoriesShowcase() {
                 >
                   <div className="grid grid-cols-5 md:grid-cols-10">
 
-                    {slide.map((category: any) => (
+                    {slide.map((category) => (
                       <Link
                         key={category.id}
                         href={`/categories/${category.slug}`}
@@ -234,7 +280,7 @@ export function CategoriesShowcase() {
                           {category.name}
                         </h3>
 
-                        {category.productCount > 0 && (
+                        {!!category.productCount && category.productCount > 0 && (
                           <span className="mt-2 text-xs text-muted-foreground">
                             {category.productCount} Products
                           </span>

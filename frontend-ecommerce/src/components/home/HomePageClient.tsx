@@ -2,14 +2,12 @@
 
 import { HeroSection } from '@/components/home/HeroSection';
 import QuickMenu from '@/components/home/QuickMenu';
+import { CategoriesShowcase } from '@/components/home/CategoriesShowcase';
 import { FeaturedProducts } from '@/components/home/FeaturedProducts';
+import { LocalProducts } from '@/components/home/LocalProducts';
 import { NewArrivals } from '@/components/home/NewArrivals';
 import { PopularProducts } from '@/components/home/PopularProducts';
-import { CategoriesShowcase } from '@/components/home/CategoriesShowcase';
-import { LocalProducts } from '@/components/home/LocalProducts';
 import { TopSellers } from '@/components/home/TopSellers';
-import { Testimonials } from '@/components/home/Testimonials';
-import { Newsletter } from '@/components/home/Newsletter';
 
 // Each section below fetches and loads its own data independently (with its
 // own skeleton/loading state), so the page renders progressively instead of
@@ -21,12 +19,10 @@ export function HomePageClient() {
       <QuickMenu />
       <CategoriesShowcase />
       <FeaturedProducts />
-       <LocalProducts />
+      <LocalProducts />
       <NewArrivals />
       <PopularProducts />
       <TopSellers />
-      <Testimonials />
-      <Newsletter />
     </div>
   );
 }

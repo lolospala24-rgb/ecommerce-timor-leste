@@ -5,6 +5,7 @@ import { useNewArrivals } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ArrowRight, Clock } from 'lucide-react';
 
 export function NewArrivals() {
@@ -12,7 +13,7 @@ export function NewArrivals() {
 
   if (isLoading) {
     return (
-      <section className="py-12 md:py-16 bg-muted/30">
+      <section id="new-arrivals" className="scroll-mt-20 py-12 md:py-16">
         <div className="container-custom">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -20,13 +21,13 @@ export function NewArrivals() {
                 <Clock className="h-5 w-5 text-primary animate-pulse-soft" />
                 <h2 className="text-2xl font-bold sm:text-3xl">New Arrivals</h2>
               </div>
-              <p className="text-muted-foreground mt-1">Produk terbaru di toko kami123</p>
+              <p className="text-muted-foreground mt-1">The latest products in our store</p>
             </div>
             <Skeleton className="h-10 w-32" />
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-80 rounded-xl" />
+              <Skeleton key={i} className="h-96 rounded-xl" />
             ))}
           </div>
         </div>
@@ -35,11 +36,24 @@ export function NewArrivals() {
   }
 
   if (!products || products.length === 0) {
-    return null;
+    return (
+      <section id="new-arrivals" className="scroll-mt-20 py-12 md:py-16">
+        <div className="container-custom">
+          <div className="flex items-center gap-2 mb-6">
+            <Clock className="h-5 w-5 text-primary" />
+            <h2 className="text-2xl font-bold sm:text-3xl">New Arrivals</h2>
+          </div>
+          <EmptyState
+            title="No new arrivals yet"
+            description="New products will show up here as soon as sellers add them."
+          />
+        </div>
+      </section>
+    );
   }
 
   return (
-    <section className="py-12 md:py-16 bg-muted/30">
+    <section id="new-arrivals" className="scroll-mt-20 py-12 md:py-16">
       <div className="container-custom">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
@@ -47,11 +61,11 @@ export function NewArrivals() {
               <Clock className="h-5 w-5 text-primary" />
               <h2 className="text-2xl font-bold sm:text-3xl">New Arrivals</h2>
             </div>
-            <p className="text-muted-foreground mt-1">Produk terbaru di toko kami</p>
+            <p className="text-muted-foreground mt-1">The latest products in our store</p>
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>
-            <Link href="/products?sort=newest">
-              Lihat Semua
+            <Link href="/products">
+              View All
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
