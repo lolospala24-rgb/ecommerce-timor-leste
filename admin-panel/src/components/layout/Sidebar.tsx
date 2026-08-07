@@ -5,175 +5,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  Clock,
   Users,
-  Bell,
-  Activity,
-  Server,
-  User,
-  UserPlus,
-  MapPin,
-  Heart,
-  Star,
-  LogIn,
-  UserCheck,
-  Shield,
-  Ban,
-  Upload,
-  Download,
   Store,
-  Package,
-  CreditCard,
-  Wallet,
-  Award,
-  Settings,
-  BarChart,
   Box,
-  Plus,
-  GitBranch,
   FolderTree,
-  Tag,
-  Sliders,
-  ListChecks,
-  Warehouse,
-  ArrowUpDown,
-  AlertTriangle,
-  AlertCircle,
-  MessageSquare,
-  Image,
-  FileUp,
-  FileDown,
-  FileText,
-  Layers,
-  Folder,
-  Filter,
-  ClipboardList,
-  Clock as ClockIcon,
-  CheckCircle,
-  Loader,
-  PackageOpen,
-  Truck,
-  MapPin as MapPinIcon,
-  CheckSquare,
-  XCircle,
-  RotateCcw,
-  Undo2,
-  Archive,
-  Calendar,
-  Banknote,
-  History,
-  Hourglass,
-  Check,
-  X,
-  Coins,
-  Landmark,
-  Globe,
-  RefreshCw,
-  Settings as SettingsIcon,
-  FileBarChart,
-  FileSpreadsheet,
-  FileText as FileTextIcon,
-  MessageCircle,
-  Mail,
-  Ticket,
-  Phone,
-  ArrowLeftRight,
-  HelpCircle,
-  ThumbsUp,
-  Megaphone,
-  TicketPercent,
-  Gift,
-  Zap,
-  Percent,
-  PackageCheck,
-  BadgeDollarSign,
-  Package as PackageIcon,
-  Share2,
-  Users as UsersIcon2,
-  Send,
-  Mail as MailIcon,
-  Smartphone,
-  TrendingUp as TrendingUpIcon,
-  Layout,
-  Image as ImageIcon,
-  Sliders as SlidersIcon,
-  Newspaper,
-  Sparkles,
-  TrendingUp as TrendingUpIcon2,
-  Package as PackageIcon2,
-  Info,
-  HelpCircle as HelpCircleIcon,
-  PenLine,
-  Rss,
-  File,
-  FileLock,
-  FileCheck,
-  FileX,
-  Search,
-  Truck as TruckIcon,
-  Route,
-  Map,
-  DollarSign as DollarSignIcon,
-  Barcode,
-  Printer,
-  Package as PackageIcon3,
-  Building,
-  Briefcase,
-  Banknote as BanknoteIcon,
-  TrendingUp as TrendingUpIcon3,
-  Cog,
-  Globe as GlobeIcon,
-  Languages,
-  Clock as ClockIcon2,
-  Coins as CoinsIcon,
-  Mail as MailIcon2,
-  Shield as ShieldIcon,
-  Key,
-  Database,
-  Wrench,
-  Crown,
-  UserCog,
-  Users as UsersIcon3,
-  Headphones,
-  PiggyBank,
-  Warehouse as WarehouseIcon,
-  Megaphone as MegaphoneIcon,
-  UserRound,
-  Clipboard,
-  FileClock,
-  Package as PackageIcon4,
-  ClipboardList as ClipboardListIcon,
-  CreditCard as CreditCardIcon,
-  User as UserIcon2,
-  Cog as CogIcon,
-  Lock,
-  Book,
-  BookOpen,
-  Shield as ShieldIcon2,
   Video,
-  Info as InfoIcon,
-  MessageCircle as MessageCircleIcon,
-  Bug,
-  Cpu,
-  Bot,
-  LineChart,
-  UserSearch,
-  MessageSquare as MessageSquareIcon,
-  Brain,
-  Sparkles as SparklesIcon,
-  Smartphone as SmartphoneIcon,
-  Bell as BellIcon,
-  BarChart as BarChartIcon,
-  Plug,
-  Webhook,
-  Share,
-  Globe2,
-  Send as SendIcon2,
-  CreditCard as CreditCardIcon2,
-  Truck as TruckIcon2,
+  ClipboardList,
+  Banknote,
+  Star,
+  Truck,
+  Package,
+  FileBarChart,
+  Settings,
   Menu,
   X as XIcon,
   ChevronLeft,
@@ -192,11 +35,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 // ============================================================
@@ -207,48 +45,57 @@ interface MenuItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
-  children?: MenuItem[];
+}
+
+interface MenuSection {
+  label: string;
+  items: MenuItem[];
 }
 
 // ============================================================
 //  MAIN MENU
+//  Every entry here maps to a real page backed by a working API —
+//  see the sidebar audit for what was removed and why.
 // ============================================================
-const menuItems: MenuItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/users', label: 'User Management', icon: Users },
-  { href: '/sellers', label: 'Seller Management', icon: Store },
-  { href: '/products', label: 'Product Management', icon: Box },
-  { href: '/video-shop', label: 'Video Shop', icon: Video },
-  { href: '/categories', label: 'Category Management', icon: FolderTree },
-  { href: '/orders', label: 'Order Management', icon: ClipboardList },
-  { href: '/payments', label: 'Payment Management', icon: Banknote },
-  { href: '/reports', label: 'Reports & Analytics', icon: FileBarChart },
-  { href: '/support', label: 'Support Center', icon: MessageCircle },
-  { href: '/marketing', label: 'Marketing', icon: Megaphone },
-  { href: '/content', label: 'Content Management', icon: Layout },
-  { href: '/shipping', label: 'Shipping & Logistics', icon: TruckIcon },
-  { href: '/couriers', label: 'Courier Management', icon: Package },
-  { href: '/suppliers', label: 'Supplier Management', icon: Building },
-  { href: '/system', label: 'System Management', icon: Cog },
-  { href: '/roles', label: 'Roles & Permissions', icon: Crown },
-  { href: '/audit', label: 'Audit & Security', icon: Clipboard },
-  { href: '/ai', label: 'AI Intelligence', icon: Bot },
-  { href: '/mobile', label: 'Mobile App', icon: SmartphoneIcon },
-  { href: '/integrations', label: 'Integrations', icon: Plug },
-];
-
-// ============================================================
-//  HELP CENTER SUB-MENU
-// ============================================================
-const helpCenterItems: MenuItem[] = [
-  { href: '/help/documentation', label: 'Documentation', icon: Book },
-  { href: '/help/user-guide', label: 'User Guide', icon: BookOpen },
-  { href: '/help/api-docs', label: 'API Documentation', icon: ShieldIcon2 },
-  { href: '/help/tutorials', label: 'Tutorials', icon: Video },
-  { href: '/help/release-notes', label: 'Release Notes', icon: InfoIcon },
-  { href: '/help/contact', label: 'Contact Support', icon: MessageCircleIcon },
-  { href: '/help/report-bug', label: 'Report a Bug', icon: Bug },
-  { href: '/help/version', label: 'System Version', icon: Cpu },
+const menuSections: MenuSection[] = [
+  {
+    label: 'Overview',
+    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+  },
+  {
+    label: 'Catalog',
+    items: [
+      { href: '/products', label: 'Products', icon: Box },
+      { href: '/categories', label: 'Categories', icon: FolderTree },
+      { href: '/video-shop', label: 'Video Shop', icon: Video },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { href: '/orders', label: 'Orders', icon: ClipboardList },
+      { href: '/payments', label: 'Payments', icon: Banknote },
+      { href: '/reviews', label: 'Reviews', icon: Star },
+    ],
+  },
+  {
+    label: 'People',
+    items: [
+      { href: '/users', label: 'Users', icon: Users },
+      { href: '/sellers', label: 'Sellers', icon: Store },
+    ],
+  },
+  {
+    label: 'Logistics',
+    items: [
+      { href: '/shipping', label: 'Shipping', icon: Truck },
+      { href: '/couriers', label: 'Couriers', icon: Package },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [{ href: '/reports', label: 'Reports', icon: FileBarChart }],
+  },
 ];
 
 // ============================================================
@@ -256,7 +103,7 @@ const helpCenterItems: MenuItem[] = [
 // ============================================================
 const bottomMenuItems: MenuItem[] = [
   { href: '/profile', label: 'Profile', icon: UserCircle },
-  { href: '/settings', label: 'Settings', icon: SettingsIcon },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 // ============================================================
@@ -268,7 +115,6 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
 
   // ============================================================
   //  CHECK MOBILE
@@ -289,11 +135,8 @@ export function Sidebar() {
   // ============================================================
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
-    if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
-
-  const isHelpActive = () => pathname.startsWith('/help');
 
   // ============================================================
   //  GET INITIALS
@@ -361,95 +204,6 @@ export function Sidebar() {
   };
 
   // ============================================================
-  //  RENDER HELP CENTER
-  // ============================================================
-  const renderHelpCenter = () => {
-    const helpActive = isHelpActive();
-
-    if (collapsed) {
-      return (
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="/help/documentation"
-                className={cn(
-                  'flex items-center justify-center rounded-lg px-3 py-2.5 transition-all duration-200',
-                  helpActive
-                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <Book className="h-5 w-5" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="ml-2">
-              Help Center
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    }
-
-    return (
-      <Collapsible
-        open={helpOpen}
-        onOpenChange={setHelpOpen}
-        className="mt-4"
-      >
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200',
-              helpActive
-                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            )}
-          >
-            <Book className="h-5 w-5 flex-shrink-0" />
-            <span className="flex-1 text-left text-sm font-medium">Help Center</span>
-            <ChevronRight
-              className={cn(
-                'h-4 w-4 transition-transform duration-200',
-                helpOpen && 'rotate-90'
-              )}
-            />
-            {helpActive && (
-              <Badge className="bg-primary-foreground/20 text-primary-foreground">
-                Active
-              </Badge>
-            )}
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-1 ml-2 space-y-0.5 border-l-2 border-muted pl-3">
-          {helpCenterItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200',
-                  active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-                {active && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
-                )}
-              </Link>
-            );
-          })}
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  };
-
-  // ============================================================
   //  SIDEBAR CONTENT
   // ============================================================
   const sidebarContent = (
@@ -468,7 +222,7 @@ export function Sidebar() {
             <div>
               <span className="font-bold text-lg">AdminPanel</span>
               <span className="block text-[10px] text-muted-foreground -mt-0.5">
-                Super Admin • v3.0
+                Super Admin
               </span>
             </div>
           </Link>
@@ -506,16 +260,19 @@ export function Sidebar() {
 
       {/* ===== NAVIGATION ===== */}
       <ScrollArea className="flex-1">
-        <nav className="px-3 py-4">
-          <div className="space-y-0.5">
-            {menuItems.map((item) => renderMenuItem(item))}
-          </div>
-
-          {/* ===== DIVIDER ===== */}
-          {!collapsed && <div className="my-4 border-t" />}
-
-          {/* ===== HELP CENTER ===== */}
-          {renderHelpCenter()}
+        <nav className="px-3 py-4 space-y-4">
+          {menuSections.map((section) => (
+            <div key={section.label}>
+              {!collapsed && (
+                <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => renderMenuItem(item))}
+              </div>
+            </div>
+          ))}
         </nav>
       </ScrollArea>
 

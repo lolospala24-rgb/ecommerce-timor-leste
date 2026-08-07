@@ -348,9 +348,14 @@ export class ReviewsService {
     const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
+    // A rejected review is also isApproved:false, distinguished only by
+    // having a rejectionReason set — exclude those or they'd resurface in
+    // the pending queue forever after being decided on.
+    const pendingWhere = { isApproved: false, rejectionReason: null };
+
     const [reviews, total] = await Promise.all([
       this.prisma.review.findMany({
-        where: { isApproved: false },
+        where: pendingWhere,
         skip,
         take: limit,
         include: {
@@ -375,7 +380,7 @@ export class ReviewsService {
         },
         orderBy: { createdAt: 'asc' },
       }),
-      this.prisma.review.count({ where: { isApproved: false } }),
+      this.prisma.review.count({ where: pendingWhere }),
     ]);
 
     return ResponseUtil.paginate(reviews, total, page, limit);
