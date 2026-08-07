@@ -76,10 +76,19 @@ api.interceptors.response.use(
   async (error: AxiosError<ApiErrorResponse>) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
+    // /auth/me is a "do I have a session?" probe (used by checkAuth on
+    // every page, including the login page itself for a logged-out guest).
+    // Its 401 is an expected, routine answer — not a sign of an expired
+    // session — so it must never trigger the refresh-then-redirect flow
+    // below. Doing so previously caused an infinite reload loop: a guest
+    // on /login -> /auth/me 401s -> refresh also 401s (no session at all)
+    // -> hard redirect to /login -> remounts -> /auth/me fires again.
+    const isAuthProbe = originalRequest.url?.includes('/auth/me');
+
     // Handle 401 Unauthorized. The refresh token is an httpOnly cookie sent
     // automatically — a 401 just means "ask the backend to refresh, using
     // whatever session cookie the browser still has."
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthProbe) {
       if (!isRefreshing) {
         originalRequest._retry = true;
         isRefreshing = true;
@@ -96,7 +105,7 @@ api.interceptors.response.use(
         } catch (refreshError) {
           processQueue(refreshError as Error);
 
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
             window.location.href = '/login';
             toast.error('Your session has expired. Please login again.');
           }
