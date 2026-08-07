@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, CheckCircle, Camera } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/product';
 import toast from 'react-hot-toast';
 
 const profileSchema = z.object({
@@ -48,7 +49,7 @@ export default function ProfilePage() {
         phone: data.phone?.trim() || undefined,
       };
       const response = await api.patch('/users/profile', payload);
-      setUser(response?.data || response);
+      setUser(unwrapApiData(response?.data));
       toast.success('Profile updated successfully');
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -99,10 +100,10 @@ export default function ProfilePage() {
                   {user?.name ? getInitials(user.name) : 'U'}
                 </AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="sm">
-                <Camera className="mr-2 h-4 w-4" />
-                Change Photo
-              </Button>
+              <div>
+                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

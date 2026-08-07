@@ -1,30 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Bell, Lock, Globe, Moon, Sun, Mail, Shield } from 'lucide-react';
+import { Bell, Lock, Globe, Moon, Sun, Shield } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { ChangePasswordDialog } from '@/components/account/ChangePasswordDialog';
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [notifications, setNotifications] = useLocalStorage('notifications', {
     email: true,
     orderUpdates: true,
     promotions: false,
   });
-
-  const [settings, setSettings] = useState({
-    language: 'en',
-    currency: 'USD',
-  });
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -130,50 +124,14 @@ export default function SettingsPage() {
           <CardDescription>Manage your security settings</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="outline" className="w-full justify-start" onClick={() => setChangePasswordOpen(true)}>
             <Lock className="mr-2 h-4 w-4" />
             Change Password
-          </Button>
-          <Button variant="outline" className="w-full justify-start">
-            <Mail className="mr-2 h-4 w-4" />
-            Update Email
           </Button>
         </CardContent>
       </Card>
 
-      {/* Language & Currency */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Preferences</CardTitle>
-          <CardDescription>Language and currency settings</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Language</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={settings.language}
-              onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-            >
-              <option value="en">English</option>
-              <option value="tet">Tetun</option>
-              <option value="pt">Portuguese</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Currency</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={settings.currency}
-              onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-            >
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="IDR">IDR (Rp)</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   );
 }
