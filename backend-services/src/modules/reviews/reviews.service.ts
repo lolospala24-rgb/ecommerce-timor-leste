@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
@@ -21,6 +22,7 @@ export class ReviewsService {
     private redisService: RedisService,
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
+    private settingsService: SettingsService,
   ) {}
 
   async create(
@@ -28,6 +30,11 @@ export class ReviewsService {
     userId: number,
     images: Express.Multer.File[],
   ) {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.enableReviews) {
+      throw new BadRequestException('Product reviews are currently disabled');
+    }
+
     // Check if user has purchased the product
     const hasPurchased = await this.prisma.order.findFirst({
       where: {
@@ -78,7 +85,8 @@ export class ReviewsService {
         title: createReviewDto.title,
         comment: createReviewDto.comment,
         images: uploadedImages,
-        isApproved: false, // Needs admin approval
+        isApproved: !settings.requireReviewApproval,
+        approvedAt: settings.requireReviewApproval ? null : new Date(),
       },
       include: {
         user: {

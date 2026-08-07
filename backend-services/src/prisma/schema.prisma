@@ -178,9 +178,9 @@ model Product {
   updatedAt        DateTime @updatedAt
 
   // Relations
-  seller            Seller            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category          Category          @relation(fields: [categoryId], references: [id])
-  type              ProductType?      @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  seller            Seller             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category          Category           @relation(fields: [categoryId], references: [id])
+  type              ProductType?       @relation(fields: [typeId], references: [id], onDelete: SetNull)
   cartItems         CartItem[]
   wishlistItems     WishlistItem[]
   orderItems        OrderItem[]
@@ -242,7 +242,7 @@ model ProductVariant {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems CartItem[]
 
   @@map("product_variants")
@@ -294,17 +294,17 @@ model WishlistItem {
 }
 
 model Order {
-  id                    Int           @id @default(autoincrement())
-  orderNumber           String        @unique
+  id                    Int            @id @default(autoincrement())
+  orderNumber           String         @unique
   customerId            Int
   sellerId              Int
   subtotal              Float
   total                 Float?
-  shippingCost          Float         @default(0)
-  taxAmount             Float         @default(0)
-  serviceFee            Float         @default(0)
+  shippingCost          Float          @default(0)
+  taxAmount             Float          @default(0)
+  serviceFee            Float          @default(0)
   paymentMethod         PaymentMethod?
-  status                OrderStatus   @default(PENDING)
+  status                OrderStatus    @default(PENDING)
   shippingMethod        String?
   courier               String?
   shippingStatus        ShippingStatus @default(PENDING)
@@ -316,8 +316,8 @@ model Order {
   shippedAt             DateTime?
   deliveredAt           DateTime?
   cancelledAt           DateTime?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   // Relations
   customer     User          @relation(fields: [customerId], references: [id])
@@ -372,12 +372,12 @@ model Payment {
 }
 
 model Country {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  code      String    @unique
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   provinces Province[]
   addresses Address[]
@@ -386,38 +386,38 @@ model Country {
 }
 
 model Province {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   countryId Int
   name      String
   code      String?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  country         Country          @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  municipalities  Municipality[]
-  addresses       Address[]
-  shippingZones   ShippingZone[]
-  courierRates    CourierRate[]
+  country        Country        @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  municipalities Municipality[]
+  addresses      Address[]
+  shippingZones  ShippingZone[]
+  courierRates   CourierRate[]
 
   @@unique([countryId, name])
   @@map("provinces")
 }
 
 model Video {
-  id           Int      @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   productId    Int?
   title        String
-  description  String?  @db.Text
+  description  String?     @db.Text
   videoUrl     String
   thumbnailUrl String?
   status       VideoStatus @default(PUBLISHED)
-  views        Int      @default(0)
-  likes        Int      @default(0)
-  shares       Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  views        Int         @default(0)
+  likes        Int         @default(0)
+  shares       Int         @default(0)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   // Relations
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -433,13 +433,13 @@ enum VideoStatus {
 }
 
 model Municipality {
-  id          Int      @id @default(autoincrement())
-  provinceId  Int
-  name        String
-  code        String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  provinceId Int
+  name       String
+  code       String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   province      Province       @relation(fields: [provinceId], references: [id], onDelete: Cascade)
   addresses     Address[]
@@ -451,53 +451,53 @@ model Municipality {
 }
 
 model Address {
-  id                  Int      @id @default(autoincrement())
-  userId              Int
-  label               String?
-  countryId           Int?
-  provinceId          Int
-  municipalityId      Int
-  province            String?
-  municipality        String?
-  administrativePost  String?
-  suco                String
-  village             String?
-  street              String?
-  postalCode          String?
-  latitude            Float?
-  longitude           Float?
-  reference           String?
-  phone               String?
-  isPrimary           Boolean  @default(false)
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  userId             Int
+  label              String?
+  countryId          Int?
+  provinceId         Int
+  municipalityId     Int
+  province           String?
+  municipality       String?
+  administrativePost String?
+  suco               String
+  village            String?
+  street             String?
+  postalCode         String?
+  latitude           Float?
+  longitude          Float?
+  reference          String?
+  phone              String?
+  isPrimary          Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
-  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  country            Country?      @relation(fields: [countryId], references: [id])
-  provinceRef        Province      @relation(fields: [provinceId], references: [id])
-  municipalityRef    Municipality  @relation(fields: [municipalityId], references: [id])
-  orders             Order[]
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country         Country?     @relation(fields: [countryId], references: [id])
+  provinceRef     Province     @relation(fields: [provinceId], references: [id])
+  municipalityRef Municipality @relation(fields: [municipalityId], references: [id])
+  orders          Order[]
 
   @@index([userId])
   @@map("addresses")
 }
 
 model Courier {
-  id           Int      @id @default(autoincrement())
-  name         String
-  code         String   @unique
-  phone        String?
-  website      String?
-  trackingUrl  String?
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  phone       String?
+  website     String?
+  trackingUrl String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  services     CourierService[]
+  services      CourierService[]
   shippingZones ShippingZone[]
-  courierRates CourierRate[]
+  courierRates  CourierRate[]
 
   @@map("couriers")
 }
@@ -512,8 +512,8 @@ model CourierService {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  courier     Courier       @relation(fields: [courierId], references: [id], onDelete: Cascade)
-  courierRates CourierRate[]
+  courier       Courier        @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  courierRates  CourierRate[]
   shippingZones ShippingZone[]
 
   @@unique([courierId, name])
@@ -521,25 +521,25 @@ model CourierService {
 }
 
 model CourierRate {
-  id                Int      @id @default(autoincrement())
-  courierId         Int
-  courierServiceId  Int
-  provinceId        Int?
-  municipalityId    Int?
-  price             Float
-  etaDays           Int?
-  minimumWeight     Float?
-  maximumWeight     Float?
-  status            String   @default("ACTIVE")
-  priority          Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  courierId        Int
+  courierServiceId Int
+  provinceId       Int?
+  municipalityId   Int?
+  price            Float
+  etaDays          Int?
+  minimumWeight    Float?
+  maximumWeight    Float?
+  status           String   @default("ACTIVE")
+  priority         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  courier          Courier        @relation(fields: [courierId], references: [id], onDelete: Cascade)
-  courierService   CourierService @relation(fields: [courierServiceId], references: [id], onDelete: Cascade)
-  province         Province?      @relation(fields: [provinceId], references: [id])
-  municipality     Municipality?  @relation(fields: [municipalityId], references: [id])
-  shippingZones    ShippingZone[]
+  courier        Courier        @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  courierService CourierService @relation(fields: [courierServiceId], references: [id], onDelete: Cascade)
+  province       Province?      @relation(fields: [provinceId], references: [id])
+  municipality   Municipality?  @relation(fields: [municipalityId], references: [id])
+  shippingZones  ShippingZone[]
 
   @@index([courierId])
   @@index([courierServiceId])
@@ -566,12 +566,12 @@ model ShippingZone {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  provinceRef           Province?       @relation(fields: [provinceId], references: [id])
-  municipalityRef       Municipality?   @relation(fields: [municipalityId], references: [id])
-  courier               Courier?        @relation(fields: [courierId], references: [id])
-  courierService        CourierService? @relation(fields: [courierServiceId], references: [id])
-  courierRate           CourierRate?    @relation(fields: [courierRateId], references: [id])
-  orders                Order[]
+  provinceRef     Province?       @relation(fields: [provinceId], references: [id])
+  municipalityRef Municipality?   @relation(fields: [municipalityId], references: [id])
+  courier         Courier?        @relation(fields: [courierId], references: [id])
+  courierService  CourierService? @relation(fields: [courierServiceId], references: [id])
+  courierRate     CourierRate?    @relation(fields: [courierRateId], references: [id])
+  orders          Order[]
 
   @@index([provinceId])
   @@index([municipalityId])
@@ -582,18 +582,75 @@ model ShippingZone {
 }
 
 model ShippingSetting {
-  id                     Int      @id @default(autoincrement())
-  defaultShippingCost    Float    @default(2.5)
-  freeShippingThreshold  Float    @default(50)
-  enableFreeShipping     Boolean  @default(false)
-  enableDynamicShipping  Boolean  @default(false)
-  enableLocalPickup      Boolean  @default(false)
-  defaultCourier         String?
-  defaultShippingMethod  String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  id                    Int      @id @default(autoincrement())
+  defaultShippingCost   Float    @default(2.5)
+  freeShippingThreshold Float    @default(50)
+  enableFreeShipping    Boolean  @default(false)
+  enableDynamicShipping Boolean  @default(false)
+  enableLocalPickup     Boolean  @default(false)
+  defaultCourier        String?
+  defaultShippingMethod String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@map("shipping_settings")
+}
+
+// Singleton row (the app always reads/writes id 1) holding every
+// store-wide setting exposed by the admin Settings page, except shipping
+// itself which stays in ShippingSetting above.
+model SystemSettings {
+  id Int @id @default(autoincrement())
+
+  // General / store identity
+  siteName        String @default("E-commerce Timor-Leste")
+  siteDescription String @default("Online marketplace for Timor-Leste") @db.Text
+  contactEmail    String @default("support@ecommercetimor.com")
+  contactPhone    String @default("+670 1234 5678")
+  address         String @default("Dili, Timor-Leste") @db.Text
+  currency        String @default("USD")
+  taxRate         Float  @default(8)
+  serviceFee      Float  @default(4.5)
+
+  // System toggles
+  maintenanceMode            Boolean @default(false)
+  maintenanceMessage         String  @default("We are currently under maintenance. Please check back later.") @db.Text
+  registrationOpen           Boolean @default(true)
+  sellerVerificationRequired Boolean @default(true)
+  enableReviews              Boolean @default(true)
+  requireReviewApproval      Boolean @default(true)
+  maxProductImages           Int     @default(5)
+
+  // Payment methods
+  enableCOD                Boolean @default(true)
+  enableBankTransfer       Boolean @default(true)
+  minCODOrderAmount        Float   @default(0)
+  maxCODOrderAmount        Float   @default(1000)
+  autoConfirmBankTransfer  Boolean @default(false)
+  bankName                 String?
+  bankAccountName          String?
+  bankAccountNumber        String?
+  bankIBAN                 String?
+  bankSWIFT                String?
+  bankTransferInstructions String? @db.Text
+
+  // Outbound email (SMTP)
+  smtpHost                String?
+  smtpPort                Int     @default(587)
+  smtpUser                String?
+  smtpPassword            String?
+  smtpSecure              Boolean @default(false)
+  fromEmail               String  @default("noreply@ecommercetimor.com")
+  fromName                String  @default("E-commerce Timor-Leste")
+  sendOrderConfirmation   Boolean @default(true)
+  sendPaymentConfirmation Boolean @default(true)
+  sendShippingUpdate      Boolean @default(true)
+  sendWelcomeEmail        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 model Review {

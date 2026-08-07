@@ -20,35 +20,18 @@ import {
   Truck,
   Mail,
   Shield,
-  Save,
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/useSettings';
 import { Skeleton } from '@/components/ui/skeleton';
-import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
-  const { settings, isLoading, refetch, updateSettings } = useSettings();
-  const [isSaving, setIsSaving] = useState(false);
+  const { settings, isLoading, refetch } = useSettings();
 
   const handleSettingsRefresh = async () => {
     await refetch();
-  };
-
-  const handleSaveAll = async () => {
-    if (!settings) return;
-    setIsSaving(true);
-    try {
-      await updateSettings(settings);
-      await handleSettingsRefresh();
-      toast.success('All settings saved successfully');
-    } catch (error) {
-      toast.error('Failed to save settings');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   if (isLoading) {
@@ -76,11 +59,7 @@ export default function SettingsPage() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Reset
-          </Button>
-          <Button onClick={handleSaveAll} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Saving...' : 'Save All Changes'}
+            Refresh
           </Button>
         </div>
       </div>
@@ -114,7 +93,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="payment" className="space-y-4">
-          <PaymentSettings settings={settings} />
+          <PaymentSettings settings={settings} onSettingsUpdated={handleSettingsRefresh} />
         </TabsContent>
 
         <TabsContent value="shipping" className="space-y-4">
@@ -122,11 +101,11 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4">
-          <EmailSettings settings={settings} />
+          <EmailSettings settings={settings} onSettingsUpdated={handleSettingsRefresh} />
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">
-          <SystemSettings settings={settings} />
+          <SystemSettings settings={settings} onSettingsUpdated={handleSettingsRefresh} />
         </TabsContent>
       </Tabs>
     </div>

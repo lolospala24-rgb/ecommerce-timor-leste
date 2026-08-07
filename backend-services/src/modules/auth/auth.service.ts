@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
+import { SettingsService } from '../settings/settings.service';
 import { hashPassword, comparePassword } from '../../common/utils/bcrypt.util';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -25,9 +26,15 @@ export class AuthService {
     private configService: ConfigService,
     private redisService: RedisService,
     private mailService: MailService,
+    private settingsService: SettingsService,
   ) {}
 
   async register(registerDto: RegisterDto) {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.registrationOpen) {
+      throw new BadRequestException('New registrations are currently closed');
+    }
+
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerDto.email },
@@ -72,6 +79,7 @@ export class AuthService {
       user.name,
       emailVerificationToken,
     );
+    await this.mailService.sendWelcomeEmail(user.email, user.name);
 
     return user;
   }

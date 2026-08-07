@@ -82,7 +82,7 @@ export function Header() {
       try {
         const [shippingResponse, settingsResponse] = await Promise.allSettled([
           api.get('/shipping-settings'),
-          api.get('/admin/settings'),
+          api.get('/settings/public'),
         ]);
 
         if (!isMounted) return;

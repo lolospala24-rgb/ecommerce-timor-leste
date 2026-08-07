@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import {
   Card,
   CardContent,
@@ -13,29 +13,33 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, Database, RefreshCw, AlertTriangle, Trash2, Lock, Globe } from 'lucide-react';
-import api from '@/lib/api';
+import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 interface SystemSettingsProps {
-  settings: any;
+  settings: Settings | undefined;
+  onSettingsUpdated?: () => Promise<void> | void;
 }
 
-export function SystemSettings({ settings }: SystemSettingsProps) {
-  const [formData, setFormData] = useState({
-    maintenanceMode: settings?.maintenanceMode ?? false,
-    maintenanceMessage: settings?.maintenanceMessage || 'We are currently under maintenance. Please check back later.',
-    registrationOpen: settings?.registrationOpen ?? true,
-    sellerVerificationRequired: settings?.sellerVerificationRequired ?? true,
-    maxProductImages: settings?.maxProductImages || 5,
-    maxFileSize: settings?.maxFileSize || 5,
-    allowedImageTypes: settings?.allowedImageTypes || ['jpg', 'png', 'webp', 'jpeg'],
-    enableGuestCheckout: settings?.enableGuestCheckout ?? true,
-    enableReviews: settings?.enableReviews ?? true,
-    requireReviewApproval: settings?.requireReviewApproval ?? true,
-    cacheDuration: settings?.cacheDuration || 300,
-  });
+const buildFormData = (settings?: Settings) => ({
+  maintenanceMode: settings?.maintenanceMode ?? false,
+  maintenanceMessage: settings?.maintenanceMessage || 'We are currently under maintenance. Please check back later.',
+  registrationOpen: settings?.registrationOpen ?? true,
+  sellerVerificationRequired: settings?.sellerVerificationRequired ?? true,
+  maxProductImages: settings?.maxProductImages ?? 5,
+  enableReviews: settings?.enableReviews ?? true,
+  requireReviewApproval: settings?.requireReviewApproval ?? true,
+});
+
+export function SystemSettings({ settings, onSettingsUpdated }: SystemSettingsProps) {
+  const { updateSettings, clearCache, clearLogs } = useSettings();
+  const [formData, setFormData] = useState(() => buildFormData(settings));
+
+  useEffect(() => {
+    setFormData(buildFormData(settings));
+  }, [settings]);
 
   const [showClearCacheDialog, setShowClearCacheDialog] = useState(false);
   const [showClearLogsDialog, setShowClearLogsDialog] = useState(false);
@@ -49,7 +53,8 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      await api.put('/settings/system', formData);
+      await updateSettings(formData);
+      await onSettingsUpdated?.();
       toast.success('System settings updated');
     } catch (error) {
       toast.error('Failed to update settings');
@@ -61,8 +66,8 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
   const handleClearCache = async () => {
     setIsClearing(true);
     try {
-      await api.post('/system/clear-cache');
-      toast.success('Cache cleared successfully');
+      const result = await clearCache();
+      toast.success(result?.message || 'Cache cleared successfully');
     } catch (error) {
       toast.error('Failed to clear cache');
     } finally {
@@ -74,8 +79,8 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
   const handleClearLogs = async () => {
     setIsClearing(true);
     try {
-      await api.post('/system/clear-logs');
-      toast.success('Logs cleared successfully');
+      const result = await clearLogs();
+      toast.success(result?.message || 'Logs cleared successfully');
     } catch (error) {
       toast.error('Failed to clear logs');
     } finally {
@@ -99,7 +104,7 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
             <div>
               <Label className="text-base">Maintenance Mode</Label>
               <p className="text-sm text-muted-foreground">
-                Put the site in maintenance mode. Only admins can access.
+                Blocks the storefront and API for everyone except admins.
               </p>
             </div>
             <Switch
@@ -148,19 +153,6 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
               onCheckedChange={(checked: boolean) => handleChange('sellerVerificationRequired', checked)}
             />
           </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base">Enable Guest Checkout</Label>
-              <p className="text-sm text-muted-foreground">
-                Allow customers to checkout without creating an account
-              </p>
-            </div>
-            <Switch
-              checked={formData.enableGuestCheckout}
-              onCheckedChange={(checked: boolean) => handleChange('enableGuestCheckout', checked)}
-            />
-          </div>
         </div>
 
         {/* Review Settings */}
@@ -195,67 +187,23 @@ export function SystemSettings({ settings }: SystemSettingsProps) {
         {/* File Upload Settings */}
         <div className="space-y-4 border-b pb-4">
           <Label className="text-base">File Upload Settings</Label>
-          
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Max Product Images per Product</Label>
-              <Input
-                type="number"
-                min="1"
-                max="20"
-                value={formData.maxProductImages}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('maxProductImages', parseInt(e.target.value))}
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label>Max File Size (MB)</Label>
-              <Input
-                type="number"
-                min="1"
-                max="20"
-                step="0.5"
-                value={formData.maxFileSize}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('maxFileSize', parseFloat(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Allowed Image Types</Label>
-            <Input
-              placeholder="jpg, png, webp, jpeg"
-              value={formData.allowedImageTypes.join(', ')}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('allowedImageTypes', e.target.value.split(',').map((s) => s.trim()))}
-            />
-            <p className="text-xs text-muted-foreground">
-              Separate multiple types with commas
-            </p>
-          </div>
-        </div>
-
-        {/* Performance Settings */}
-        <div className="space-y-4 border-b pb-4">
-          <Label className="text-base">Performance Settings</Label>
-          
-          <div className="space-y-2">
-            <Label>Cache Duration (seconds)</Label>
+          <div className="space-y-2 max-w-xs">
+            <Label>Max Product Images per Product</Label>
             <Input
               type="number"
-              min="0"
-              value={formData.cacheDuration}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('cacheDuration', parseInt(e.target.value))}
+              min="1"
+              max="20"
+              value={formData.maxProductImages}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange('maxProductImages', parseInt(e.target.value))}
             />
-            <p className="text-xs text-muted-foreground">
-              Set to 0 to disable caching
-            </p>
           </div>
         </div>
 
         {/* System Maintenance */}
         <div className="space-y-4">
           <Label className="text-base">System Maintenance</Label>
-          
+
           <div className="grid gap-4 md:grid-cols-2">
             <Button
               variant="outline"

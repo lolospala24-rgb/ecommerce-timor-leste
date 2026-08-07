@@ -5,9 +5,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MailModule } from '../../mail/mail.module';
 import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule],
+  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule, SettingsModule],
   controllers: [SellersController],
   providers: [SellersService],
   exports: [SellersService],

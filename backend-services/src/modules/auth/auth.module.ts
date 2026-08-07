@@ -9,6 +9,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MailModule } from '../../mail/mail.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MailModule } from '../../mail/mail.module';
     PrismaModule,
     RedisModule,
     MailModule,
+    SettingsModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),

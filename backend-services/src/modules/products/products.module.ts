@@ -4,9 +4,10 @@ import { ProductsController } from './products.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, CloudinaryModule],
+  imports: [PrismaModule, RedisModule, CloudinaryModule, SettingsModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

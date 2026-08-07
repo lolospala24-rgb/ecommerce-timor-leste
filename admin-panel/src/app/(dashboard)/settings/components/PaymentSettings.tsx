@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -14,30 +14,37 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CreditCard, Building, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import api from '@/lib/api';
+import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
 
 interface PaymentSettingsProps {
-  settings: any;
+  settings: Settings | undefined;
+  onSettingsUpdated?: () => Promise<void> | void;
 }
 
-export function PaymentSettings({ settings }: PaymentSettingsProps) {
-  const [formData, setFormData] = useState({
-    enableCOD: settings?.enableCOD ?? true,
-    enableBankTransfer: settings?.enableBankTransfer ?? true,
-    bankName: settings?.bankName || 'Banco Nacional Ultramarino (BNU)',
-    bankAccountName: settings?.bankAccountName || 'E-commerce Timor-Leste',
-    bankAccountNumber: settings?.bankAccountNumber || '',
-    bankIBAN: settings?.bankIBAN || '',
-    bankSWIFT: settings?.bankSWIFT || 'BNUTLTLD',
-    bankTransferInstructions: settings?.bankTransferInstructions || 'Please transfer the exact amount and upload the payment proof.',
-    autoConfirmBankTransfer: settings?.autoConfirmBankTransfer ?? false,
-    minCODOrderAmount: settings?.minCODOrderAmount || 0,
-    maxCODOrderAmount: settings?.maxCODOrderAmount || 1000,
-  });
+const buildFormData = (settings?: Settings) => ({
+  enableCOD: settings?.enableCOD ?? true,
+  enableBankTransfer: settings?.enableBankTransfer ?? true,
+  bankName: settings?.bankName || '',
+  bankAccountName: settings?.bankAccountName || '',
+  bankAccountNumber: settings?.bankAccountNumber || '',
+  bankIBAN: settings?.bankIBAN || '',
+  bankSWIFT: settings?.bankSWIFT || '',
+  bankTransferInstructions: settings?.bankTransferInstructions || 'Please transfer the exact amount and upload the payment proof.',
+  autoConfirmBankTransfer: settings?.autoConfirmBankTransfer ?? false,
+  minCODOrderAmount: settings?.minCODOrderAmount ?? 0,
+  maxCODOrderAmount: settings?.maxCODOrderAmount ?? 1000,
+});
 
+export function PaymentSettings({ settings, onSettingsUpdated }: PaymentSettingsProps) {
+  const { updateSettings } = useSettings();
+  const [formData, setFormData] = useState(() => buildFormData(settings));
   const [showBankAccount, setShowBankAccount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setFormData(buildFormData(settings));
+  }, [settings]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -46,7 +53,8 @@ export function PaymentSettings({ settings }: PaymentSettingsProps) {
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      await api.put('/settings/payment', formData);
+      await updateSettings(formData);
+      await onSettingsUpdated?.();
       toast.success('Payment settings updated');
     } catch (error) {
       toast.error('Failed to update settings');
@@ -186,13 +194,16 @@ export function PaymentSettings({ settings }: PaymentSettingsProps) {
                   onChange={(e) => handleChange('bankTransferInstructions', e.target.value)}
                   rows={4}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Shown to customers at checkout — every field above is displayed on the storefront so they know where to send payment.
+                </p>
               </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto-confirm Bank Transfers</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatically confirm payments (requires admin approval)
+                    Mark payment as paid automatically as soon as the customer uploads a receipt, instead of waiting for admin review
                   </p>
                 </div>
                 <Switch

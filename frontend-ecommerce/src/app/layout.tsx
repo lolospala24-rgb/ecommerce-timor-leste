@@ -6,6 +6,7 @@ import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -55,11 +56,13 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
-          <div className="flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <MaintenanceGate>
+            <div className="flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+          </MaintenanceGate>
           <Toaster
             position="top-right"
             toastOptions={{

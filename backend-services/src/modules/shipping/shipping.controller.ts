@@ -65,35 +65,9 @@ export class ShippingController {
     return { data: { shippingCost: cost } };
   }
 
-  @Public()
-  @Get('settings/shipping')
-  async getSettingsShipping() {
-    const settings = await this.shippingService.getShippingSettings();
-    const zones = await this.shippingService.getShippingZones();
-    return {
-      data: {
-        ...settings,
-        shippingZones: zones,
-      },
-    };
-  }
-
   @Roles(Role.ADMIN)
   @Put('shipping-settings')
   async updateShippingSettings(@Body() dto: ShippingSettingsDto) {
-    const settings = await this.shippingService.updateShippingSettings(dto);
-    const zones = await this.shippingService.getShippingZones();
-    return {
-      data: {
-        ...settings,
-        shippingZones: zones,
-      },
-    };
-  }
-
-  @Roles(Role.ADMIN)
-  @Put('settings/shipping')
-  async updateSettingsShipping(@Body() dto: ShippingSettingsDto) {
     const settings = await this.shippingService.updateShippingSettings(dto);
     const zones = await this.shippingService.getShippingZones();
     return {

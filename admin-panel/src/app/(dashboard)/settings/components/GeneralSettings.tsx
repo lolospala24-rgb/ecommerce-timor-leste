@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import {
@@ -12,34 +12,28 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ImageUpload } from '@/components/shared/ImageUpload';
-import { Globe, MapPin, Phone, Mail, Percent, ReceiptText } from 'lucide-react';
-import api from '@/lib/api';
+import { Globe, Percent, ReceiptText } from 'lucide-react';
+import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
 
 interface GeneralSettingsProps {
-  settings: any;
+  settings: Settings | undefined;
   onSettingsUpdated?: () => Promise<void> | void;
 }
 
-const buildFormData = (settings: any) => ({
+const buildFormData = (settings?: Settings) => ({
   siteName: settings?.siteName || 'E-commerce Timor-Leste',
   siteDescription: settings?.siteDescription || 'Online marketplace for Timor-Leste',
-  siteLogo: settings?.siteLogo || '',
-  siteFavicon: settings?.siteFavicon || '',
   contactEmail: settings?.contactEmail || 'support@ecommercetimor.com',
   contactPhone: settings?.contactPhone || '+670 1234 5678',
   address: settings?.address || 'Dili, Timor-Leste',
-  timezone: settings?.timezone || 'Asia/Dili',
   currency: settings?.currency || 'USD',
-  dateFormat: settings?.dateFormat || 'MM/DD/YYYY',
-  timeFormat: settings?.timeFormat || '12h',
   taxRate: settings?.taxRate ?? 8,
   serviceFee: settings?.serviceFee ?? 4.5,
 });
 
 export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettingsProps) {
+  const { updateSettings } = useSettings();
   const [formData, setFormData] = useState(() => buildFormData(settings));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -54,15 +48,11 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      const payload = {
+      await updateSettings({
         ...formData,
         taxRate: Number(formData.taxRate ?? 0),
         serviceFee: Number(formData.serviceFee ?? 0),
-      };
-      const response = await api.post('/admin/settings', payload);
-      const updated = response?.data ?? response;
-      const normalized = typeof updated === 'object' && updated ? { ...formData, ...updated } : formData;
-      setFormData((prev) => ({ ...prev, ...normalized }));
+      });
       await onSettingsUpdated?.();
       toast.success('General settings updated');
     } catch {
@@ -77,7 +67,7 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
       <CardHeader>
         <CardTitle>General Settings</CardTitle>
         <CardDescription>
-          Configure store identity, contact details, and commerce values from live configuration.
+          Configure store identity, contact details, and commerce values.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -88,7 +78,7 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
               Store profile
             </div>
             <p className="mt-2 text-lg font-semibold">{formData.siteName}</p>
-            <p className="text-xs text-muted-foreground">{formData.currency} • {formData.timezone}</p>
+            <p className="text-xs text-muted-foreground">{formData.currency}</p>
           </div>
 
           <div className="rounded-lg border p-4">
@@ -173,32 +163,6 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
           </div>
 
           <div className="space-y-2">
-            <Label>Timezone</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={formData.timezone}
-              onChange={(e) => handleChange('timezone', e.target.value)}
-            >
-              <option value="Asia/Dili">Asia/Dili (UTC+9)</option>
-              <option value="Asia/Jakarta">Asia/Jakarta (UTC+7)</option>
-              <option value="Asia/Singapore">Asia/Singapore (UTC+8)</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Date Format</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={formData.dateFormat}
-              onChange={(e) => handleChange('dateFormat', e.target.value)}
-            >
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
             <Label>Tax Rate (%)</Label>
             <Input
               type="number"
@@ -218,27 +182,6 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
               onChange={(e) => handleChange('serviceFee', Number(e.target.value))}
               placeholder="4.50"
             />
-          </div>
-        </div>
-
-        <div className="space-y-4 rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="h-4 w-4 text-primary" />
-            Store branding
-          </div>
-          <Label>Store Logo</Label>
-          <ImageUpload
-            images={formData.siteLogo ? [formData.siteLogo] : []}
-            setImages={(images) => handleChange('siteLogo', images[0] || '')}
-            maxImages={1}
-          />
-          <p className="text-xs text-muted-foreground">
-            Recommended size: 200x60px. Supported formats: PNG, JPG, SVG
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{formData.currency}</Badge>
-            <Badge variant="outline">{formData.dateFormat}</Badge>
-            <Badge variant="outline">{formData.timezone}</Badge>
           </div>
         </div>
 

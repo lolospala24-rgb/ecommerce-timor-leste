@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
@@ -22,6 +23,7 @@ export class PaymentsService {
     private redisService: RedisService,
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
+    private settingsService: SettingsService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto, userId: number) {
@@ -281,7 +283,57 @@ export class PaymentsService {
 
     await this.clearPaymentCache(paymentId);
 
+    const { autoConfirmBankTransfer } = await this.settingsService.getSettings();
+    if (autoConfirmBankTransfer) {
+      await this.autoConfirmBankTransfer(paymentId);
+    }
+
     return result.secure_url;
+  }
+
+  // Mirrors the "mark paid" half of confirmPayment() for the
+  // autoConfirmBankTransfer setting, minus the AdminLog entry — there's no
+  // admin behind this action, it's triggered by the customer's own upload.
+  private async autoConfirmBankTransfer(paymentId: number) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        order: {
+          include: {
+            customer: true,
+            seller: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment || payment.status !== PaymentStatus.PENDING) return;
+
+    const updatedPayment = await this.prisma.$transaction(async (prisma) => {
+      const updated = await prisma.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.PAID, paidAt: new Date() },
+      });
+      await prisma.order.update({
+        where: { id: payment.orderId },
+        data: { status: OrderStatus.PAID },
+      });
+      return updated;
+    });
+
+    await this.mailService.sendPaymentConfirmation(
+      payment.order.customer.email,
+      payment.order.customer.name,
+      payment.order,
+      updatedPayment,
+    );
+    await this.mailService.sendPaymentReceivedNotification(
+      payment.order.seller.user.email,
+      payment.order.seller.storeName,
+      payment.order,
+    );
+
+    await this.clearPaymentCache(paymentId);
   }
 
   async findAll(

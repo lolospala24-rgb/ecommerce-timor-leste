@@ -124,7 +124,20 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState<'COD' | 'BANK_TRANSFER'>('COD');
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
-  const [checkoutSettings, setCheckoutSettings] = useState<{ taxRate?: number; serviceFee?: number }>({});
+  const [checkoutSettings, setCheckoutSettings] = useState<{
+    taxRate?: number;
+    serviceFee?: number;
+    enableCOD?: boolean;
+    enableBankTransfer?: boolean;
+    minCODOrderAmount?: number;
+    maxCODOrderAmount?: number;
+    bankName?: string | null;
+    bankAccountName?: string | null;
+    bankAccountNumber?: string | null;
+    bankIBAN?: string | null;
+    bankSWIFT?: string | null;
+    bankTransferInstructions?: string | null;
+  }>({});
 
   useEffect(() => {
     void checkAuth();
@@ -151,7 +164,7 @@ export default function CheckoutPage() {
         }
 
         try {
-          const settingsResponse = await api.get('/admin/settings');
+          const settingsResponse = await api.get('/settings/public');
           settingsPayload = settingsResponse?.data?.data ?? settingsResponse?.data ?? {};
         } catch {
           settingsPayload = {};
@@ -167,6 +180,16 @@ export default function CheckoutPage() {
         setCheckoutSettings({
           taxRate: Number(settingsPayload?.taxRate ?? 0),
           serviceFee: Number(settingsPayload?.serviceFee ?? 0),
+          enableCOD: settingsPayload?.enableCOD ?? true,
+          enableBankTransfer: settingsPayload?.enableBankTransfer ?? true,
+          minCODOrderAmount: Number(settingsPayload?.minCODOrderAmount ?? 0),
+          maxCODOrderAmount: Number(settingsPayload?.maxCODOrderAmount ?? 0),
+          bankName: settingsPayload?.bankName ?? null,
+          bankAccountName: settingsPayload?.bankAccountName ?? null,
+          bankAccountNumber: settingsPayload?.bankAccountNumber ?? null,
+          bankIBAN: settingsPayload?.bankIBAN ?? null,
+          bankSWIFT: settingsPayload?.bankSWIFT ?? null,
+          bankTransferInstructions: settingsPayload?.bankTransferInstructions ?? null,
         });
 
         setSelectedShipping((prev) => {
@@ -223,6 +246,23 @@ export default function CheckoutPage() {
       setSelectedAddressId(primary?.id ?? addresses[0]?.id ?? null);
     }
   }, [addresses, selectedAddressId]);
+
+  const availablePaymentMethods = useMemo(
+    () =>
+      paymentMethods.filter((method) => {
+        if (method.id === 'COD') return checkoutSettings.enableCOD !== false;
+        if (method.id === 'BANK_TRANSFER') return checkoutSettings.enableBankTransfer !== false;
+        return true;
+      }),
+    [checkoutSettings.enableCOD, checkoutSettings.enableBankTransfer],
+  );
+
+  useEffect(() => {
+    if (availablePaymentMethods.length === 0) return;
+    if (!availablePaymentMethods.some((method) => method.id === selectedPayment)) {
+      setSelectedPayment(availablePaymentMethods[0].id as 'COD' | 'BANK_TRANSFER');
+    }
+  }, [availablePaymentMethods, selectedPayment]);
 
   const safeItems = Array.isArray(items) ? items : [];
   const subtotal = useMemo(
@@ -600,28 +640,54 @@ export default function CheckoutPage() {
 
               <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-lg font-semibold">Payment method</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {paymentMethods.map((method) => {
-                    const Icon = method.icon;
-                    const selected = method.id === selectedPayment;
-                    return (
-                      <button
-                        key={method.id}
-                        type="button"
-                        onClick={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
-                        className={`flex items-center justify-between rounded-[16px] border p-4 text-left transition ${selected ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`rounded-full p-2 ${selected ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                            <Icon className="h-4 w-4" />
+                {availablePaymentMethods.length > 0 ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {availablePaymentMethods.map((method) => {
+                      const Icon = method.icon;
+                      const selected = method.id === selectedPayment;
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
+                          className={`flex items-center justify-between rounded-[16px] border p-4 text-left transition ${selected ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`rounded-full p-2 ${selected ? 'bg-orange-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <span className="font-medium text-slate-900">{method.name}</span>
                           </div>
-                          <span className="font-medium text-slate-900">{method.name}</span>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
-                      </button>
-                    );
-                  })}
-                </div>
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[16px] border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                    No payment methods are currently available. Please contact support.
+                  </div>
+                )}
+
+                {selectedPayment === 'COD' && (Boolean(checkoutSettings.minCODOrderAmount) || Boolean(checkoutSettings.maxCODOrderAmount)) && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Cash on Delivery is available for orders
+                    {checkoutSettings.minCODOrderAmount ? ` from $${checkoutSettings.minCODOrderAmount.toFixed(2)}` : ''}
+                    {checkoutSettings.maxCODOrderAmount ? ` up to $${checkoutSettings.maxCODOrderAmount.toFixed(2)}` : ''}.
+                  </p>
+                )}
+
+                {selectedPayment === 'BANK_TRANSFER' && checkoutSettings.bankName && (
+                  <div className="mt-4 rounded-[14px] border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+                    <p className="font-semibold">Transfer to:</p>
+                    <p className="mt-1">{checkoutSettings.bankName} — {checkoutSettings.bankAccountName}</p>
+                    {checkoutSettings.bankAccountNumber && <p>Account No: {checkoutSettings.bankAccountNumber}</p>}
+                    {checkoutSettings.bankSWIFT && <p>SWIFT: {checkoutSettings.bankSWIFT}</p>}
+                    <p className="mt-2 text-orange-800">
+                      You&apos;ll confirm your transfer and upload a receipt after placing the order.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">

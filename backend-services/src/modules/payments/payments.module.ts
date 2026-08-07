@@ -5,13 +5,12 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MailModule } from '../../mail/mail.module';
 import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
-import { CodStrategy } from './strategies/cod.strategy';
-import { BankTransferStrategy } from './strategies/bank-transfer.strategy';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule],
+  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule, SettingsModule],
   controllers: [PaymentsController],
-  providers: [PaymentsService, CodStrategy, BankTransferStrategy],
+  providers: [PaymentsService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

@@ -2,9 +2,15 @@
 
 import Link from 'next/link';
 import { MessageCircle, Send, Camera, PlayCircle, Mail, Phone, MapPin, Heart } from 'lucide-react';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const { data: settings } = usePublicSettings();
+  const siteName = settings?.siteName || 'E-commerce Timor-Leste';
+  const address = settings?.address || 'Dili, Timor-Leste';
+  const contactPhone = settings?.contactPhone || '+670 1234 5678';
+  const contactEmail = settings?.contactEmail || 'support@ecommercetimor.com';
 
   return (
     <footer className="border-t bg-muted/30">
@@ -99,15 +105,15 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-3 text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>Dili, Timor-Leste</span>
+                <span>{address}</span>
               </li>
               <li className="flex items-start gap-3 text-muted-foreground">
                 <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>+670 1234 5678</span>
+                <span>{contactPhone}</span>
               </li>
               <li className="flex items-start gap-3 text-muted-foreground">
                 <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>support@ecommercetimor.com</span>
+                <span>{contactEmail}</span>
               </li>
             </ul>
           </div>
@@ -115,7 +121,7 @@ export function Footer() {
 
         <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
           <p>
-            &copy; {currentYear} E-commerce Timor-Leste. All rights reserved.
+            &copy; {currentYear} {siteName}. All rights reserved.
           </p>
           <p className="flex items-center gap-1">
             Made with <Heart className="h-3 w-3 text-red-500" /> for Timor-Leste

@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -13,29 +13,40 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
-import api from '@/lib/api';
+import { Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
 
 interface EmailSettingsProps {
-  settings: any;
+  settings: Settings | undefined;
+  onSettingsUpdated?: () => Promise<void> | void;
 }
 
-export function EmailSettings({ settings }: EmailSettingsProps) {
-  const [formData, setFormData] = useState({
-    smtpHost: settings?.smtpHost || '',
-    smtpPort: settings?.smtpPort || 587,
-    smtpUser: settings?.smtpUser || '',
-    smtpPassword: settings?.smtpPassword || '',
-    smtpSecure: settings?.smtpSecure || false,
-    fromEmail: settings?.fromEmail || 'noreply@ecommercetimor.com',
-    fromName: settings?.fromName || 'E-commerce Timor-Leste',
-    sendOrderConfirmation: settings?.sendOrderConfirmation ?? true,
-    sendPaymentConfirmation: settings?.sendPaymentConfirmation ?? true,
-    sendShippingUpdate: settings?.sendShippingUpdate ?? true,
-    sendWelcomeEmail: settings?.sendWelcomeEmail ?? true,
-    sendNewsletter: settings?.sendNewsletter ?? false,
-  });
+// Mirrors SettingsService.PASSWORD_MASK on the backend — sending this value
+// back unchanged tells the server "leave the stored password alone".
+const PASSWORD_MASK = '••••••••';
+
+const buildFormData = (settings?: Settings) => ({
+  smtpHost: settings?.smtpHost || '',
+  smtpPort: settings?.smtpPort ?? 587,
+  smtpUser: settings?.smtpUser || '',
+  smtpPassword: settings?.smtpPassword || '',
+  smtpSecure: settings?.smtpSecure ?? false,
+  fromEmail: settings?.fromEmail || 'noreply@ecommercetimor.com',
+  fromName: settings?.fromName || 'E-commerce Timor-Leste',
+  sendOrderConfirmation: settings?.sendOrderConfirmation ?? true,
+  sendPaymentConfirmation: settings?.sendPaymentConfirmation ?? true,
+  sendShippingUpdate: settings?.sendShippingUpdate ?? true,
+  sendWelcomeEmail: settings?.sendWelcomeEmail ?? true,
+});
+
+export function EmailSettings({ settings, onSettingsUpdated }: EmailSettingsProps) {
+  const { updateSettings, sendTestEmail } = useSettings();
+  const [formData, setFormData] = useState(() => buildFormData(settings));
+
+  useEffect(() => {
+    setFormData(buildFormData(settings));
+  }, [settings]);
 
   const [testEmail, setTestEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -49,7 +60,8 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
   const handleSubmit = async () => {
     setIsSaving(true);
     try {
-      await api.put('/settings/email', formData);
+      await updateSettings(formData);
+      await onSettingsUpdated?.();
       toast.success('Email settings updated');
     } catch (error) {
       toast.error('Failed to update settings');
@@ -67,7 +79,7 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
     setIsSending(true);
     setTestResult(null);
     try {
-      await api.post('/settings/email/test', { email: testEmail });
+      await sendTestEmail(testEmail);
       setTestResult({ success: true, message: 'Test email sent successfully!' });
       toast.success('Test email sent');
     } catch (error: any) {
@@ -91,7 +103,7 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Configure your SMTP settings to enable email notifications for customers.
-            Leave empty to use the default mail server.
+            Leave empty to use the server&apos;s default mail configuration.
           </AlertDescription>
         </Alert>
 
@@ -130,8 +142,14 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
               type="password"
               placeholder="••••••••"
               value={formData.smtpPassword}
+              onFocus={() => {
+                if (formData.smtpPassword === PASSWORD_MASK) handleChange('smtpPassword', '');
+              }}
               onChange={(e) => handleChange('smtpPassword', e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Leave the masked value in place to keep the currently saved password.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -164,7 +182,7 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
 
         <div className="space-y-4 border-t pt-4">
           <Label className="text-base">Email Notifications</Label>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <Label>Order Confirmation</Label>
@@ -190,7 +208,7 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
           <div className="flex items-center justify-between">
             <div>
               <Label>Shipping Update</Label>
-              <p className="text-sm text-muted-foreground">Send email when order is shipped</p>
+              <p className="text-sm text-muted-foreground">Send email when an order's status changes</p>
             </div>
             <Switch
               checked={formData.sendShippingUpdate}
@@ -212,7 +230,7 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
 
         <div className="space-y-4 border-t pt-4">
           <Label className="text-base">Test Email Configuration</Label>
-          
+
           <div className="flex gap-3">
             <Input
               type="email"
@@ -225,6 +243,9 @@ export function EmailSettings({ settings }: EmailSettingsProps) {
               Send Test
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Sends using whatever SMTP settings are currently saved — save your changes above first.
+          </p>
 
           {testResult && (
             <Alert variant={testResult.success ? 'default' : 'destructive'}>

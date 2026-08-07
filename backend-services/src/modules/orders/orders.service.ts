@@ -12,7 +12,7 @@ import { MailService } from '../../mail/mail.service';
 import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShippingService } from '../shipping/shipping.service';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../settings/settings.service';
 import { OrderEventsGateway } from './order-events.gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -31,7 +31,7 @@ export class OrdersService {
     private productsService: ProductsService,
     private notificationsService: NotificationsService,
     private shippingService: ShippingService,
-    private adminService: AdminService,
+    private settingsService: SettingsService,
     private orderEventsGateway: OrderEventsGateway,
   ) {}
 
@@ -85,9 +85,16 @@ export class OrdersService {
     // Tax rate and service fee are platform settings, not client input —
     // any taxAmount/serviceFee sent by the client is accepted for backward
     // compatibility but ignored below so a request can't undercharge itself.
-    const settings = await this.adminService.getSystemSettings();
+    const settings = await this.settingsService.getSettings();
     const taxRate = Number(settings.taxRate ?? 0);
     const flatServiceFee = Number(settings.serviceFee ?? 0);
+
+    if (createOrderDto.paymentMethod === PaymentMethod.COD && !settings.enableCOD) {
+      throw new BadRequestException('Cash on Delivery is currently unavailable');
+    }
+    if (createOrderDto.paymentMethod === PaymentMethod.BANK_TRANSFER && !settings.enableBankTransfer) {
+      throw new BadRequestException('Bank transfer is currently unavailable');
+    }
 
     // Create orders for each seller
     const orders = [];
@@ -138,6 +145,17 @@ export class OrdersService {
       const total = Number(group.subtotal + shippingCost + taxAmount + serviceFee);
       if (!Number.isFinite(total) || total < 0) {
         throw new BadRequestException('Order total is invalid');
+      }
+
+      if (createOrderDto.paymentMethod === PaymentMethod.COD) {
+        const minCOD = Number(settings.minCODOrderAmount ?? 0);
+        const maxCOD = Number(settings.maxCODOrderAmount ?? 0);
+        if (minCOD > 0 && total < minCOD) {
+          throw new BadRequestException(`Cash on Delivery requires a minimum order of $${minCOD.toFixed(2)}`);
+        }
+        if (maxCOD > 0 && total > maxCOD) {
+          throw new BadRequestException(`Cash on Delivery is not available for orders over $${maxCOD.toFixed(2)}`);
+        }
       }
 
       // Generate unique order number

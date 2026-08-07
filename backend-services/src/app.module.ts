@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
@@ -12,6 +13,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { SellersModule } from './modules/sellers/sellers.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { ProductsModule } from './modules/products/products.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -60,6 +62,7 @@ import { AppService } from './app.service';
     UsersModule,
     SellersModule,
     AdminModule,
+    SettingsModule,
     CategoriesModule,
     ProductsModule,
     OrdersModule,
@@ -92,6 +95,10 @@ import { AppService } from './app.service';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })

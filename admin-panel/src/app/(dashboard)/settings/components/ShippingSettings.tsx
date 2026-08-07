@@ -25,7 +25,10 @@ import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface ShippingSettingsProps {
-  settings?: Partial<ShippingSettingsData> | null;
+  // Unused here — shipping settings are always loaded fresh from the
+  // dedicated /shipping-settings endpoint below, not from the general
+  // Settings object. Kept for prop-shape consistency with the other tabs.
+  settings?: unknown;
   onSettingsUpdated?: () => Promise<void> | void;
 }
 
@@ -92,14 +95,14 @@ interface MunicipalityOption {
 const SHIPPING_METHODS = ['STANDARD', 'EXPRESS', 'ECONOMY', 'LOCAL_PICKUP'];
 const SHIPPING_STATUSES = ['ACTIVE', 'INACTIVE'];
 
-const getInitialFormData = (shippingData?: Partial<ShippingSettingsData> | null, fallbackSettings?: Partial<ShippingSettingsData> | null): ShippingFormData => ({
-  defaultShippingCost: Number(shippingData?.defaultShippingCost ?? fallbackSettings?.defaultShippingCost ?? 2.5),
-  freeShippingThreshold: Number(shippingData?.freeShippingThreshold ?? fallbackSettings?.freeShippingThreshold ?? 50),
-  enableFreeShipping: Boolean(shippingData?.enableFreeShipping ?? fallbackSettings?.enableFreeShipping ?? false),
-  enableDynamicShipping: Boolean(shippingData?.enableDynamicShipping ?? fallbackSettings?.enableDynamicShipping ?? false),
-  enableLocalPickup: Boolean(shippingData?.enableLocalPickup ?? fallbackSettings?.enableLocalPickup ?? false),
-  defaultCourier: shippingData?.defaultCourier ?? fallbackSettings?.defaultCourier ?? '',
-  defaultShippingMethod: shippingData?.defaultShippingMethod ?? fallbackSettings?.defaultShippingMethod ?? 'STANDARD',
+const getInitialFormData = (shippingData?: Partial<ShippingSettingsData> | null): ShippingFormData => ({
+  defaultShippingCost: Number(shippingData?.defaultShippingCost ?? 2.5),
+  freeShippingThreshold: Number(shippingData?.freeShippingThreshold ?? 50),
+  enableFreeShipping: Boolean(shippingData?.enableFreeShipping ?? false),
+  enableDynamicShipping: Boolean(shippingData?.enableDynamicShipping ?? false),
+  enableLocalPickup: Boolean(shippingData?.enableLocalPickup ?? false),
+  defaultCourier: shippingData?.defaultCourier ?? '',
+  defaultShippingMethod: shippingData?.defaultShippingMethod ?? 'STANDARD',
   shippingZones: Array.isArray(shippingData?.shippingZones) && shippingData.shippingZones.length > 0
     ? shippingData.shippingZones.map((zone, index) => ({
         id: zone.id ?? index + 1,
@@ -132,25 +135,21 @@ const getInitialFormData = (shippingData?: Partial<ShippingSettingsData> | null,
       ],
 });
 
-export function ShippingSettings({ settings, onSettingsUpdated }: ShippingSettingsProps) {
-  const [formData, setFormData] = useState<ShippingFormData>(() => getInitialFormData(undefined, settings));
+export function ShippingSettings({ onSettingsUpdated }: ShippingSettingsProps) {
+  const [formData, setFormData] = useState<ShippingFormData>(() => getInitialFormData());
   const [isSaving, setIsSaving] = useState(false);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [provinces, setProvinces] = useState<ProvinceOption[]>([]);
   const [municipalitiesByZone, setMunicipalitiesByZone] = useState<Record<number, MunicipalityOption[]>>({});
 
   useEffect(() => {
-    setFormData(getInitialFormData(undefined, settings));
-  }, [settings]);
-
-  useEffect(() => {
     const loadShippingSettings = async () => {
       try {
-        const response = await api.get('/settings/shipping');
+        const response = await api.get('/shipping-settings');
         const shippingData = response?.data?.data ?? response?.data ?? response;
-        setFormData(getInitialFormData(shippingData, settings));
+        setFormData(getInitialFormData(shippingData));
       } catch {
-        setFormData(getInitialFormData(undefined, settings));
+        setFormData(getInitialFormData());
       }
     };
 
@@ -185,7 +184,7 @@ export function ShippingSettings({ settings, onSettingsUpdated }: ShippingSettin
     loadShippingSettings();
     loadCouriers();
     loadProvinces();
-  }, [settings]);
+  }, []);
 
   const handleChange = <K extends keyof ShippingFormData>(field: K, value: ShippingFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -285,7 +284,7 @@ export function ShippingSettings({ settings, onSettingsUpdated }: ShippingSettin
         })),
       };
 
-      const response = await api.put('/settings/shipping', payload);
+      const response = await api.put('/shipping-settings', payload);
       const shippingData = response?.data?.data ?? response?.data ?? response;
       if (shippingData) {
         setFormData(getInitialFormData(shippingData));

@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { SettingsService } from '../settings/settings.service';
 import { RegisterSellerDto } from './dto/register-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { SellerFilterDto } from './dto/seller-filter.dto';
@@ -24,9 +25,15 @@ export class SellersService {
     private redisService: RedisService,
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
+    private settingsService: SettingsService,
   ) {}
 
   async register(registerSellerDto: RegisterSellerDto) {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.registrationOpen) {
+      throw new BadRequestException('New registrations are currently closed');
+    }
+
     // Check if email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: registerSellerDto.email },
@@ -71,7 +78,8 @@ export class SellersService {
           storeEmail: registerSellerDto.storeEmail,
           storeAddress: registerSellerDto.storeAddress,
           description: registerSellerDto.description,
-          isVerified: false,
+          isVerified: !settings.sellerVerificationRequired,
+          verifiedAt: settings.sellerVerificationRequired ? null : new Date(),
         },
         include: {
           user: {

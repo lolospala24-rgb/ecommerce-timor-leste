@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2, Upload, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 
 interface PaymentInfo {
   id: number;
@@ -25,6 +26,7 @@ interface BankTransferProofProps {
 export function BankTransferProof({ orderId, amount, payment, onUpdated }: BankTransferProofProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: settings } = usePublicSettings();
 
   const handleStartPayment = async () => {
     setIsSubmitting(true);
@@ -78,6 +80,19 @@ export function BankTransferProof({ orderId, amount, payment, onUpdated }: BankT
         Please transfer <span className="font-semibold">${amount.toFixed(2)}</span> to complete your
         order, then upload your transfer receipt below for verification.
       </p>
+
+      {settings?.bankName && (
+        <div className="mt-4 rounded-[14px] border border-orange-200 bg-white p-4 text-sm text-orange-900">
+          <p className="font-semibold">{settings.bankName}</p>
+          {settings.bankAccountName && <p>Account Name: {settings.bankAccountName}</p>}
+          {settings.bankAccountNumber && <p>Account Number: {settings.bankAccountNumber}</p>}
+          {settings.bankIBAN && <p>IBAN: {settings.bankIBAN}</p>}
+          {settings.bankSWIFT && <p>SWIFT/BIC: {settings.bankSWIFT}</p>}
+          {settings.bankTransferInstructions && (
+            <p className="mt-2 text-orange-800">{settings.bankTransferInstructions}</p>
+          )}
+        </div>
+      )}
 
       {!payment ? (
         <button

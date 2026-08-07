@@ -12,7 +12,6 @@ import { UsersService } from '../users/users.service';
 import { SellersService } from '../sellers/sellers.service';
 import { ApproveSellerDto } from './dto/approve-seller.dto';
 import { BlockUserDto } from './dto/block-user.dto';
-import { SystemSettingsDto } from './dto/system-settings.dto';
 import { AdminStatsQueryDto } from './dto/admin-stats.dto';
 import { Role } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
@@ -1008,54 +1007,10 @@ export class AdminService {
     return order;
   }
 
-  // System Settings
-  async getSystemSettings() {
-    const cacheKey = 'admin:settings';
-    const cached = await this.redisService.get(cacheKey);
-
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch {
-        await this.redisService.del(cacheKey);
-      }
-    }
-
-    const settings = {
-      siteName: 'E-commerce Timor-Leste',
-      siteDescription: 'Online marketplace for Timor-Leste',
-      contactEmail: 'support@ecommercetimor.com',
-      contactPhone: '+670 1234 5678',
-      address: 'Dili, Timor-Leste',
-      currency: 'USD',
-      taxRate: 8,
-      serviceFee: 4.5,
-      shippingCost: 2.50,
-      freeShippingThreshold: 50,
-      maintenanceMode: false,
-      registrationOpen: true,
-      sellerVerificationRequired: true,
-      maxProductImages: 5,
-      allowedImageTypes: ['jpg', 'png', 'webp', 'jpeg'],
-      maxFileSize: 5, // MB
-    };
-
-    await this.redisService.set(cacheKey, JSON.stringify(settings), 3600);
-    return settings;
-  }
-
-  async updateSystemSettings(dto: SystemSettingsDto) {
-    const existing = await this.getSystemSettings();
-    const updated = {
-      ...existing,
-      ...dto,
-      taxRate: dto.taxRate ?? existing.taxRate,
-      serviceFee: dto.serviceFee ?? existing.serviceFee,
-    };
-
-    await this.redisService.set('admin:settings', JSON.stringify(updated), 3600);
-    return updated;
-  }
+  // Settings moved to SettingsService (src/modules/settings) — persisted in
+  // the SystemSettings table instead of Redis-only, and consumed directly
+  // by the modules that enforce it (orders, auth, sellers, reviews, etc.)
+  // rather than being re-exposed through AdminService.
 
   // Admin Logs
   async getAdminLogs(filters: {

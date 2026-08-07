@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { FilterProductDto } from './dto/filter-product.dto';
@@ -24,6 +25,7 @@ export class ProductsService {
     private prisma: PrismaService,
     private redisService: RedisService,
     private cloudinaryService: CloudinaryService,
+    private settingsService: SettingsService,
   ) {}
 
   async create(
@@ -71,6 +73,11 @@ export class ProductsService {
         });
         uploadedImages.push(result.secure_url);
       }
+    }
+
+    const { maxProductImages } = await this.settingsService.getSettings();
+    if (uploadedImages.length > maxProductImages) {
+      throw new BadRequestException(`A product can have at most ${maxProductImages} images`);
     }
 
     // Create product
@@ -488,6 +495,13 @@ export class ProductsService {
       });
       if (!category) {
         throw new NotFoundException('Category not found');
+      }
+    }
+
+    if (updateProductDto.images) {
+      const { maxProductImages } = await this.settingsService.getSettings();
+      if (updateProductDto.images.length > maxProductImages) {
+        throw new BadRequestException(`A product can have at most ${maxProductImages} images`);
       }
     }
 
