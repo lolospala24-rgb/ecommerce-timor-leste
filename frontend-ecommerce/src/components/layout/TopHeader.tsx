@@ -23,7 +23,6 @@ import {
   ShoppingBag,
   Heart,
   ChevronDown,
-  Languages,
   Moon,
   Sun,
 } from 'lucide-react';
@@ -65,47 +64,15 @@ export function TopHeader() {
     <div className="border-b bg-muted/30">
       <div className="container-custom">
         <div className="flex h-8 items-center justify-between text-xs">
-          {/* Left side - Language & Currency */}
-          <div className="flex items-center gap-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>English</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem>
-                  <Languages className="mr-2 h-4 w-4" />
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Languages className="mr-2 h-4 w-4" />
-                  Tetun
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Languages className="mr-2 h-4 w-4" />
-                  Português
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
+          {/* Left side - Language & Currency (fixed for now: the storefront
+              content and pricing aren't actually localized/converted yet,
+              so this is an honest static indicator rather than a switcher
+              that looks interactive but does nothing) */}
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Globe className="h-3.5 w-3.5" />
+            <span>English</span>
             <span className="text-muted-foreground/30">|</span>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                  <span>USD</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem>USD ($)</DropdownMenuItem>
-                <DropdownMenuItem>EUR (€)</DropdownMenuItem>
-                <DropdownMenuItem>IDR (Rp)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <span>USD</span>
           </div>
 
           {/* Right side - Menu items */}

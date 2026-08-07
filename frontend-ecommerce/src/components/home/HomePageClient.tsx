@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { HeroSection } from '@/components/home/HeroSection';
 import QuickMenu from '@/components/home/QuickMenu';
 import { FeaturedProducts } from '@/components/home/FeaturedProducts';
@@ -11,24 +10,11 @@ import { LocalProducts } from '@/components/home/LocalProducts';
 import { TopSellers } from '@/components/home/TopSellers';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
+// Each section below fetches and loads its own data independently (with its
+// own skeleton/loading state), so the page renders progressively instead of
+// blocking behind one artificial top-level spinner.
 export function HomePageClient() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[80vh] items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen">
       <HeroSection />

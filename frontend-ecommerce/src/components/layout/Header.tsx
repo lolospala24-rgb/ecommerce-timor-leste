@@ -44,7 +44,7 @@ import { Play } from 'lucide-react';
 export function Header() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { totalItems } = useCart();
+  const { totalItems, subtotal: cartSubtotal } = useCart();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useOrderNotifications();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -117,9 +117,8 @@ export function Header() {
     };
   }, [isAuthenticated]);
 
-  const previewSubtotal = 100;
-  const previewTax = previewSubtotal * (checkoutPreview.taxRate / 100);
-  const previewGrandTotal = previewSubtotal + checkoutPreview.shippingCost + previewTax + checkoutPreview.serviceFee;
+  const previewTax = cartSubtotal * (checkoutPreview.taxRate / 100);
+  const previewGrandTotal = cartSubtotal + checkoutPreview.shippingCost + previewTax + checkoutPreview.serviceFee;
 
   return (
     <>
@@ -219,33 +218,39 @@ export function Header() {
                         </div>
                       )}
                     </div>
-                    <div className="border-b bg-orange-50/70 px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">Checkout preview</p>
-                          <p className="text-xs text-orange-600/80">Live from admin settings</p>
+                    {cartSubtotal > 0 && (
+                      <div className="border-b bg-orange-50/70 px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">Cart estimate</p>
+                            <p className="text-xs text-orange-600/80">Based on your current cart</p>
+                          </div>
                         </div>
-                        <div className="rounded-full bg-white/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-orange-700">Live</div>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Subtotal</span>
+                            <span className="font-semibold text-slate-900">${cartSubtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Shipping (from)</span>
+                            <span className="font-semibold text-slate-900">${checkoutPreview.shippingCost.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Tax</span>
+                            <span className="font-semibold text-slate-900">${previewTax.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-600">Service fee</span>
+                            <span className="font-semibold text-slate-900">${checkoutPreview.serviceFee.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-orange-100 pt-1 text-sm font-semibold text-orange-700">
+                            <span>Estimated total</span>
+                            <span>${previewGrandTotal.toFixed(2)}</span>
+                          </div>
+                          <p className="pt-0.5 text-[11px] text-orange-600/70">Final total is calculated at checkout.</p>
+                        </div>
                       </div>
-                      <div className="mt-2 space-y-1 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600">Shipping</span>
-                          <span className="font-semibold text-slate-900">${checkoutPreview.shippingCost.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600">Tax</span>
-                          <span className="font-semibold text-slate-900">${previewTax.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600">Service fee</span>
-                          <span className="font-semibold text-slate-900">${checkoutPreview.serviceFee.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between border-t border-orange-100 pt-1 text-sm font-semibold text-orange-700">
-                          <span>Estimated total</span>
-                          <span>${previewGrandTotal.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                     <div className="max-h-80 overflow-y-auto">
                       {notifications.length === 0 ? (
                         <div className="px-4 py-6 text-center text-sm text-muted-foreground">

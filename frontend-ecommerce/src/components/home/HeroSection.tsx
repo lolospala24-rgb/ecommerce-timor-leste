@@ -26,25 +26,30 @@ export function HeroSection() {
   const [touchEnd, setTouchEnd] = useState(0);
   const { data: featuredProducts, isLoading } = useFeaturedProducts(5);
 
-  // Slides data with product images
-  const slides = featuredProducts?.map((product: any) => ({
-    id: product.id,
-    title: product.name,
-    subtitle: product.nameTetum || 'Featured Product',
-    description: product.description?.substring(0, 120) + '...' || 'Discover amazing products from local sellers',
-    image: product.images?.[0] || product.thumbnail || '/images/placeholder.png',
-    price: product.price,
-    originalPrice: product.originalPrice || product.price * 1.2,
-    rating: product.rating || 0,
-    reviewCount: product.reviewCount || 0,
-    slug: product.slug,
-    storeName: product.seller?.storeName || 'Local Seller',
-    storeLogo: product.seller?.logo,
-    isFeatured: product.isFeatured || false,
-    discount: product.discount || 0,
-    cta: 'Shop Now',
-    ctaLink: `/products/${product.slug}`,
-  })) || [];
+  // Slides data with product images. `comparePrice` is the only real
+  // "before discount" figure the backend provides — a slide only claims a
+  // discount when comparePrice is genuinely higher than the current price,
+  // never a fabricated markup.
+  const slides = featuredProducts?.map((product: any) => {
+    const hasRealDiscount = product.comparePrice != null && product.comparePrice > product.price;
+    return {
+      id: product.id,
+      title: product.name,
+      subtitle: product.nameTetum || 'Featured Product',
+      description: product.description?.substring(0, 120) + '...' || 'Discover amazing products from local sellers',
+      image: product.images?.[0] || product.thumbnail || '/images/placeholder.png',
+      price: product.price,
+      originalPrice: hasRealDiscount ? product.comparePrice : null,
+      rating: product.rating || 0,
+      reviewCount: product.totalReviews || 0,
+      slug: product.slug,
+      storeName: product.seller?.storeName || 'Local Seller',
+      storeLogo: product.seller?.logo,
+      isFeatured: product.isFeatured || false,
+      cta: 'Shop Now',
+      ctaLink: `/products/${product.slug}`,
+    };
+  }) || [];
 
   // Fallback slides if no products
   const fallbackSlides = [
@@ -127,8 +132,9 @@ export function HeroSection() {
   const handleMouseLeave = () => setIsAutoPlaying(true);
 
   const current = displaySlides[currentSlide];
-  const discountPercent = current.discount || (current.originalPrice && current.price ? 
-    Math.round(((current.originalPrice - current.price) / current.originalPrice) * 100) : 0);
+  const discountPercent = current.originalPrice && current.price
+    ? Math.round(((current.originalPrice - current.price) / current.originalPrice) * 100)
+    : 0;
 
   if (isLoading) {
     return (

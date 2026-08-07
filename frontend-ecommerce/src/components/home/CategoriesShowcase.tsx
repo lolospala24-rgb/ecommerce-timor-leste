@@ -182,7 +182,7 @@ export function CategoriesShowcase() {
                           hover:-translate-y-1
                         "
                       >
-                        {category.featured && (
+                        {category.isFeatured && (
                           <span
                             className="
                               absolute
