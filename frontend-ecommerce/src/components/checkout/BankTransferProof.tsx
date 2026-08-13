@@ -20,6 +20,8 @@ interface BankTransferProofProps {
   onUpdated: () => void;
 }
 
+const MAX_PROOF_SIZE_MB = 5;
+
 // Bank transfer orders don't get a Payment record at checkout the way COD
 // orders do (backend only auto-creates one for PaymentMethod.COD) — the
 // customer has to explicitly start one via POST /payments, then upload a
@@ -50,6 +52,17 @@ export function BankTransferProof({ orderId, amount, payment, onUpdated }: BankT
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0] ?? null;
+    if (selected && selected.size > MAX_PROOF_SIZE_MB * 1024 * 1024) {
+      toast.error(`File must be ${MAX_PROOF_SIZE_MB}MB or smaller.`);
+      event.target.value = '';
+      setFile(null);
+      return;
+    }
+    setFile(selected);
   };
 
   const handleUploadProof = async () => {

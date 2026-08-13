@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useState } from 'react';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +19,9 @@ interface VideoFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
+
+const MAX_VIDEO_SIZE_MB = 100;
+const MAX_THUMBNAIL_SIZE_MB = 5;
 
 // Remounted by `key={video?.id ?? 'new'}` in the parent whenever the
 // target video changes, so initial state below only ever needs to run
@@ -64,6 +68,36 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
     }
 
     onSuccess();
+  };
+
+  const handleVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (file && !file.type.startsWith('video/')) {
+      toast.error('Please select a video file.');
+      event.target.value = '';
+      return;
+    }
+    if (file && file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+      toast.error(`Video must be ${MAX_VIDEO_SIZE_MB}MB or smaller.`);
+      event.target.value = '';
+      return;
+    }
+    setVideoFile(file);
+  };
+
+  const handleThumbnailFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (file && !file.type.startsWith('image/')) {
+      toast.error('Please select an image file.');
+      event.target.value = '';
+      return;
+    }
+    if (file && file.size > MAX_THUMBNAIL_SIZE_MB * 1024 * 1024) {
+      toast.error(`Thumbnail must be ${MAX_THUMBNAIL_SIZE_MB}MB or smaller.`);
+      event.target.value = '';
+      return;
+    }
+    setThumbnailFile(file);
   };
 
   const videoPreviewUrl = videoFile ? URL.createObjectURL(videoFile) : video?.videoUrl;
@@ -153,9 +187,10 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
             id="video-file"
             type="file"
             accept="video/*"
-            onChange={(event) => setVideoFile(event.target.files?.[0] || null)}
+            onChange={handleVideoFileChange}
             required={!isEditing}
           />
+          <p className="text-xs text-muted-foreground">Max {MAX_VIDEO_SIZE_MB}MB.</p>
         </div>
 
         <div className="space-y-2">
@@ -183,8 +218,9 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
             id="thumbnail-file"
             type="file"
             accept="image/*"
-            onChange={(event) => setThumbnailFile(event.target.files?.[0] || null)}
+            onChange={handleThumbnailFileChange}
           />
+          <p className="text-xs text-muted-foreground">Max {MAX_THUMBNAIL_SIZE_MB}MB.</p>
         </div>
       </div>
 
