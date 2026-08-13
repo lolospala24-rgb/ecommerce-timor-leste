@@ -37,7 +37,10 @@ ALTER TABLE `shipping_zones`
   ADD UNIQUE INDEX `shipping_zones_active_rate_key` (`activeRateKey`);
 
 ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_provinceId_fkey` FOREIGN KEY (`provinceId`) REFERENCES `provinces` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_municipalityId_fkey` FOREIGN KEY (`municipalityId`) REFERENCES `municipalities` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_courierId_fkey` FOREIGN KEY (`courierId`) REFERENCES `couriers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+-- courierId/municipalityId feed the activeRateKey expression above, and
+-- MySQL rejects a SET NULL/CASCADE foreign key action on a column that a
+-- generated column depends on (error 1215) — RESTRICT is required here.
+ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_municipalityId_fkey` FOREIGN KEY (`municipalityId`) REFERENCES `municipalities` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_courierId_fkey` FOREIGN KEY (`courierId`) REFERENCES `couriers` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_courierServiceId_fkey` FOREIGN KEY (`courierServiceId`) REFERENCES `courier_services` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE `shipping_zones` ADD CONSTRAINT `shipping_zones_courierRateId_fkey` FOREIGN KEY (`courierRateId`) REFERENCES `courier_rates` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;

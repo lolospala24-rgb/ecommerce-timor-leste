@@ -955,8 +955,14 @@ model ShippingZone {
   updatedAt             DateTime @updatedAt
 
   provinceRef     Province?       @relation(fields: [provinceId], references: [id])
-  municipalityRef Municipality?   @relation(fields: [municipalityId], references: [id])
-  courier         Courier?        @relation(fields: [courierId], references: [id])
+  // onDelete/onUpdate pinned to Restrict: courierId/municipalityId feed the
+  // activeRateKey generated column (see the enforce_active_shipping_rate_uniqueness
+  // migration), and MySQL rejects SetNull/Cascade foreign key actions on a
+  // column referenced by a generated column expression (error 1215). Leaving
+  // this as the Prisma default would make the next `migrate dev` try to
+  // "correct" it back to SetNull and reintroduce that failure.
+  municipalityRef Municipality?   @relation(fields: [municipalityId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  courier         Courier?        @relation(fields: [courierId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   courierService  CourierService? @relation(fields: [courierServiceId], references: [id])
   courierRate     CourierRate?    @relation(fields: [courierRateId], references: [id])
   orders          Order[]
