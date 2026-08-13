@@ -13,7 +13,12 @@ export const useOrderRealtime = (orderId?: number) => {
     if (!user?.id) return;
 
     const socket = getSocket();
-    socket.emit('join-order-room', { orderId, userId: user.id });
+    // The caller's own room is joined server-side from the authenticated
+    // session on connect. A specific orderId still needs an explicit join,
+    // authorized server-side against the session rather than this payload.
+    if (orderId) {
+      socket.emit('join-order-room', { orderId });
+    }
 
     const onOrderUpdated = (payload: any) => {
       queryClient.setQueryData(['orders', orderId], (current: any) => {

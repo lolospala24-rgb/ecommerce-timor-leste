@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { usePayments } from '@/hooks/usePayments';
 import { PaymentsTable } from './components/PaymentsTable';
 import { PaymentFilters } from './components/PaymentFilters';
@@ -18,6 +19,8 @@ import { Download, RefreshCw, DollarSign } from 'lucide-react';
 import { VerifyPaymentModal } from './components/VerifyPaymentModal';
 
 export default function PaymentsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -31,6 +34,21 @@ export default function PaymentsPage() {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   const { data, isLoading, refetch } = usePayments(filters);
+
+  // Deep-link from a "Payment Receipt Uploaded" notification
+  // (/payments?paymentId=42) straight into the review modal.
+  useEffect(() => {
+    const paymentIdParam = searchParams.get('paymentId');
+    if (paymentIdParam) {
+      const paymentId = Number(paymentIdParam);
+      if (Number.isFinite(paymentId)) {
+        setSelectedPaymentId(paymentId);
+        setShowVerifyModal(true);
+      }
+      router.replace('/payments');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleVerifyPayment = (paymentId: number) => {
     setSelectedPaymentId(paymentId);

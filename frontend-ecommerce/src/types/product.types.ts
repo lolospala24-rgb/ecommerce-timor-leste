@@ -40,6 +40,9 @@ export interface Product {
   seller?: {
     id: number;
     storeName: string;
+    storeLogo?: string | null;
+    storeAddress?: string | null;
+    isVerified?: boolean;
   };
   type?: {
     id: number;
@@ -55,6 +58,9 @@ export interface Product {
   };
   rating?: number;
   totalReviews?: number;
+  ratingDistribution?: { rating: number; count: number }[];
+  // Units sold across DELIVERED orders only — see products.service.ts#findBySlug.
+  salesCount?: number;
 }
 
 export interface ProductFilters {

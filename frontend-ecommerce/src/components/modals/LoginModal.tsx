@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
+import { getSafeRedirectPath } from '@/lib/utils';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -60,7 +61,7 @@ export function LoginModal({ open, onOpenChange, redirect = '/', onSuccess }: Lo
       reset();
       onSuccess?.();
       if (redirect) {
-        router.push(redirect);
+        router.push(getSafeRedirectPath(redirect));
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');

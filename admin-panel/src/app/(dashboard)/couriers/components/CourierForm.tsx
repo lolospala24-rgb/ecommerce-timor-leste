@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateCourier, useUpdateCourier, CourierData } from '@/hooks/useCouriers';
 import { Loader2 } from 'lucide-react';
 
@@ -16,7 +17,7 @@ const courierSchema = z.object({
   phone: z.string().optional().or(z.literal('')),
   website: z.string().url('Enter a valid website URL').optional().or(z.literal('')),
   trackingUrl: z.string().url('Enter a valid tracking URL').optional().or(z.literal('')),
-  status: z.string().min(1, 'Status is required'),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
 });
 
 type CourierFormValues = z.infer<typeof courierSchema>;
@@ -33,6 +34,7 @@ export function CourierForm({ initialData, onSuccess, onCancel }: CourierFormPro
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -56,7 +58,7 @@ export function CourierForm({ initialData, onSuccess, onCancel }: CourierFormPro
         phone: initialData.phone ?? '',
         website: initialData.website ?? '',
         trackingUrl: initialData.trackingUrl ?? '',
-        status: initialData.status ?? 'ACTIVE',
+        status: initialData.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
       });
     }
   }, [initialData, reset]);
@@ -96,7 +98,21 @@ export function CourierForm({ initialData, onSuccess, onCancel }: CourierFormPro
 
         <div className="space-y-3">
           <Label htmlFor="status">Status *</Label>
-          <Input id="status" placeholder="ACTIVE" {...register('status')} />
+          <Controller
+            control={control}
+            name="status"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
           {errors.status && <p className="text-sm text-red-500">{errors.status.message}</p>}
         </div>
 

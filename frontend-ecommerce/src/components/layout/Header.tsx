@@ -193,7 +193,7 @@ export function Header() {
                     <Button variant="ghost" size="icon" className="relative h-9 w-9">
                       <Bell className="h-4 w-4" />
                       {unreadCount > 0 && (
-                        <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-500">
+                        <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </Badge>
                       )}
@@ -221,11 +221,11 @@ export function Header() {
                       )}
                     </div>
                     {cartSubtotal > 0 && (
-                      <div className="border-b bg-orange-50/70 px-4 py-3">
+                      <div className="border-b bg-blue-50/70 px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">Cart estimate</p>
-                            <p className="text-xs text-orange-600/80">Based on your current cart</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Cart estimate</p>
+                            <p className="text-xs text-blue-600/80">Based on your current cart</p>
                           </div>
                         </div>
                         <div className="mt-2 space-y-1 text-sm">
@@ -245,11 +245,11 @@ export function Header() {
                             <span className="text-slate-600">Service fee</span>
                             <span className="font-semibold text-slate-900">${checkoutPreview.serviceFee.toFixed(2)}</span>
                           </div>
-                          <div className="flex items-center justify-between border-t border-orange-100 pt-1 text-sm font-semibold text-orange-700">
+                          <div className="flex items-center justify-between border-t border-blue-100 pt-1 text-sm font-semibold text-primary">
                             <span>Estimated total</span>
                             <span>${previewGrandTotal.toFixed(2)}</span>
                           </div>
-                          <p className="pt-0.5 text-[11px] text-orange-600/70">Final total is calculated at checkout.</p>
+                          <p className="pt-0.5 text-[11px] text-blue-600/70">Final total is calculated at checkout.</p>
                         </div>
                       </div>
                     )}
@@ -304,7 +304,7 @@ export function Header() {
               >
                 <ShoppingCart className="h-4 w-4" />
                 {totalItems > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500">
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-600">
                     {totalItems > 9 ? '9+' : totalItems}
                   </Badge>
                 )}

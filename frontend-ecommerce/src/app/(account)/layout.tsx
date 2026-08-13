@@ -14,7 +14,6 @@ import {
   Star, 
   Settings, 
   LogOut,
-  Store,
   Package
 } from 'lucide-react';
 
@@ -98,17 +97,6 @@ export default function AccountLayout({
               );
             })}
             
-            {/* Seller Dashboard (if seller) */}
-            {user.role === 'SELLER' && (
-              <Link
-                href="/seller/dashboard"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent"
-              >
-                <Store className="h-4 w-4" />
-                Seller Dashboard
-              </Link>
-            )}
-
             <div className="border-t pt-2 mt-2">
               <button
                 onClick={() => logout()}

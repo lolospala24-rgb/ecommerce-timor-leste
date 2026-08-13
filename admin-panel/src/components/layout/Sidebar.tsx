@@ -10,12 +10,23 @@ import {
   Box,
   FolderTree,
   Video,
+  LayoutTemplate,
   ClipboardList,
   Banknote,
+  RotateCcw,
+  Wallet,
+  Percent,
+  BookOpen,
+  ClipboardCheck,
+  SlidersHorizontal,
   Star,
   Truck,
   Package,
+  MapPin,
+  Route,
+  Gauge,
   FileBarChart,
+  Bell,
   Settings,
   Menu,
   X as XIcon,
@@ -60,22 +71,41 @@ interface MenuSection {
 const menuSections: MenuSection[] = [
   {
     label: 'Overview',
-    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/notifications', label: 'Notifications', icon: Bell },
+    ],
   },
   {
     label: 'Catalog',
     items: [
       { href: '/products', label: 'Products', icon: Box },
       { href: '/categories', label: 'Categories', icon: FolderTree },
-      { href: '/video-shop', label: 'Video Shop', icon: Video },
+      { href: '/video-shop', label: 'Video Management', icon: Video },
+      { href: '/homepage', label: 'Homepage', icon: LayoutTemplate },
     ],
   },
   {
     label: 'Sales',
     items: [
       { href: '/orders', label: 'Orders', icon: ClipboardList },
-      { href: '/payments', label: 'Payments', icon: Banknote },
       { href: '/reviews', label: 'Reviews', icon: Star },
+    ],
+  },
+  {
+    // Everything money-related, one place, one source of truth — see
+    // /finance/overview for the command center these all feed into.
+    label: 'Finance',
+    items: [
+      { href: '/finance/overview', label: 'Overview', icon: LayoutDashboard },
+      { href: '/payments', label: 'Transactions', icon: Banknote },
+      { href: '/finance/commissions', label: 'Commissions', icon: Percent },
+      { href: '/payouts', label: 'Payouts', icon: Wallet },
+      { href: '/refunds', label: 'Refunds', icon: RotateCcw },
+      { href: '/finance/adjustments', label: 'Adjustments', icon: SlidersHorizontal },
+      { href: '/finance/ledger', label: 'Ledger', icon: BookOpen },
+      { href: '/finance/platform-ledger', label: 'Platform Ledger', icon: Truck },
+      { href: '/finance/reconciliation', label: 'Reconciliation', icon: ClipboardCheck },
     ],
   },
   {
@@ -90,6 +120,9 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/shipping', label: 'Shipping', icon: Truck },
       { href: '/couriers', label: 'Couriers', icon: Package },
+      { href: '/municipalities', label: 'Municipalities', icon: MapPin },
+      { href: '/shipping-rates', label: 'Shipping Rates', icon: Route },
+      { href: '/shipping-dashboard', label: 'Shipping Dashboard', icon: Gauge },
     ],
   },
   {
@@ -391,7 +424,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'hidden lg:flex flex-col bg-white border-r transition-all duration-300',
+        'hidden lg:flex flex-col bg-white border-r transition-all duration-300 print:hidden',
         collapsed ? 'w-[72px]' : 'w-72'
       )}
     >

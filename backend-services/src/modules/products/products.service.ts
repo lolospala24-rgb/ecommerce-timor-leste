@@ -47,6 +47,16 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
+    // Check product type exists, if provided
+    if (createProductDto.typeId) {
+      const type = await this.prisma.productType.findUnique({
+        where: { id: createProductDto.typeId },
+      });
+      if (!type) {
+        throw new NotFoundException('Product type not found');
+      }
+    }
+
     // Generate slug
     let slug = createProductDto.slug;
     if (!slug) {
@@ -97,8 +107,11 @@ export class ProductsService {
         images: uploadedImages,
         thumbnail: uploadedImages[0] || null,
         weight: createProductDto.weight,
+        brand: createProductDto.brand,
+        specifications: (createProductDto.specifications ?? {}) as any,
         sellerId: seller.id,
         categoryId: createProductDto.categoryId,
+        typeId: createProductDto.typeId ?? null,
         isActive: createProductDto.isActive ?? true,
         isFeatured: createProductDto.isFeatured ?? false,
         slug,
@@ -451,7 +464,25 @@ export class ProductsService {
             name: true,
             nameTetum: true,
             slug: true,
+            parent: { select: { id: true, name: true, slug: true } },
           },
+        },
+        type: true,
+        // Matches findOne()'s include — this is @Public() with no role
+        // check, so only ever expose active variants here. Was previously
+        // missing entirely, which silently dropped variant/attribute/image
+        // data for the storefront's actual product-detail fetch (it
+        // resolves products by slug, not id); the frontend papered over it
+        // with an extra fallback request to GET /:id/variants.
+        variants: {
+          where: { isActive: true },
+          orderBy: { id: 'asc' },
+        },
+        reviews: {
+          where: { isApproved: true },
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: { user: { select: { id: true, name: true } } },
         },
       },
     });
@@ -459,8 +490,45 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException(`Product with slug ${slug} not found`);
     }
-    await this.redisService.set(cacheKey, JSON.stringify(product), 300);
-    return product;
+
+    // findOne() (fetched by numeric id) already computes these from
+    // approved reviews — this path (fetched by slug) is what the storefront's
+    // actual product-detail page calls and was missing them entirely, so
+    // every product silently showed 0 stars / "0 reviews" regardless of how
+    // many approved reviews it actually had.
+    const [ratingStats, ratingDistribution, salesAgg] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: { productId: product.id, isApproved: true },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      this.prisma.review.groupBy({
+        by: ['rating'],
+        where: { productId: product.id, isApproved: true },
+        _count: true,
+      }),
+      // "Sold" only counts DELIVERED order lines — a completed sale, not
+      // just an order someone placed and never received (same standard the
+      // homepage's BEST_SELLING rule already uses, see homepage.service.ts).
+      this.prisma.orderItem.aggregate({
+        where: { productId: product.id, order: { status: 'DELIVERED' } },
+        _sum: { quantity: true },
+      }),
+    ]);
+
+    const productWithStats = {
+      ...product,
+      rating: ratingStats._avg.rating || 0,
+      totalReviews: ratingStats._count,
+      ratingDistribution: ratingDistribution.map((r) => ({
+        rating: r.rating,
+        count: r._count,
+      })),
+      salesCount: salesAgg._sum.quantity || 0,
+    };
+
+    await this.redisService.set(cacheKey, JSON.stringify(productWithStats), 300);
+    return productWithStats;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto, userId: number) {
@@ -1537,6 +1605,9 @@ export class ProductsService {
 
     await this.assertCanManageProduct(product, userId, 'You do not have permission to add variants to this product');
 
+    await this.assertNoDuplicateVariantAttributes(productId, createVariantDto.attributes);
+    await this.assertVariantImageLimit(createVariantDto.images);
+
     // ProductVariant.sku is a required, unique column, but the DTO allows
     // omitting it (matching Product.sku, which is optional) — generate one
     // rather than let Prisma reject the insert with a raw constraint error.
@@ -1639,6 +1710,13 @@ export class ProductsService {
 
     await this.assertCanManageProduct(product, userId, 'You do not have permission to update this variant');
 
+    if (updateVariantDto.attributes !== undefined) {
+      await this.assertNoDuplicateVariantAttributes(productId, updateVariantDto.attributes, variantId);
+    }
+    if (updateVariantDto.images !== undefined) {
+      await this.assertVariantImageLimit(updateVariantDto.images);
+    }
+
     const updatedVariant = await this.prisma.productVariant.update({
       where: { id: variantId },
       data: {
@@ -1676,6 +1754,13 @@ export class ProductsService {
     }
 
     await this.assertCanManageProduct(product, userId, 'You do not have permission to delete this variant');
+
+    const orderCount = await this.prisma.orderItem.count({ where: { variantId } });
+    if (orderCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete this variant — it has been purchased in ${orderCount} order(s). Deactivate it instead to keep it out of new purchases while preserving order history.`,
+      );
+    }
 
     await this.prisma.productVariant.delete({ where: { id: variantId } });
 
@@ -1904,6 +1989,57 @@ export class ProductsService {
       this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
     ]);
     return seller?.id === sellerId || user?.role === 'ADMIN';
+  }
+
+  // Order-independent, case-insensitive comparison key so {color:"Black",
+  // size:"M"} and {size:"M", color:"black"} are recognized as the same
+  // combination regardless of key order or casing.
+  private canonicalizeVariantAttributes(attributes: unknown): string {
+    const record =
+      attributes && typeof attributes === 'object' && !Array.isArray(attributes)
+        ? (attributes as Record<string, unknown>)
+        : {};
+    return Object.keys(record)
+      .sort()
+      .map((key) => `${key.trim().toLowerCase()}=${String(record[key]).trim().toLowerCase()}`)
+      .join('|');
+  }
+
+  private async assertNoDuplicateVariantAttributes(
+    productId: number,
+    attributes: Record<string, string> | undefined,
+    excludeVariantId?: number,
+  ) {
+    const canonical = this.canonicalizeVariantAttributes(attributes);
+    // A variant with no attributes at all (e.g. a single default variant
+    // on a product that otherwise has none) isn't a "combination" to
+    // dedupe against — nothing to compare.
+    if (!canonical) return;
+
+    const existingVariants = await this.prisma.productVariant.findMany({
+      where: {
+        productId,
+        ...(excludeVariantId ? { id: { not: excludeVariantId } } : {}),
+      },
+      select: { attributes: true },
+    });
+
+    const isDuplicate = existingVariants.some(
+      (v) => this.canonicalizeVariantAttributes(v.attributes) === canonical,
+    );
+    if (isDuplicate) {
+      throw new ConflictException(
+        'A variant with this exact combination of options already exists for this product.',
+      );
+    }
+  }
+
+  private async assertVariantImageLimit(images: string[] | undefined) {
+    if (!images || images.length === 0) return;
+    const { maxProductImages } = await this.settingsService.getSettings();
+    if (images.length > maxProductImages) {
+      throw new BadRequestException(`A variant can have at most ${maxProductImages} images`);
+    }
   }
 
   private generateSlug(name: string): string {

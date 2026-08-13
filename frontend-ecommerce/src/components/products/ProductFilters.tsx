@@ -296,44 +296,44 @@ export function ProductFilters({
   const styles = {
     bg: isDark ? 'bg-[#0B0B0D]' : 'bg-white',
     bgCard: isDark ? 'bg-[#151515]' : 'bg-white',
-    bgHover: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-gray-50',
+    bgHover: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-slate-50',
     bgInput: isDark ? 'bg-[#151515]' : 'bg-white',
     bgSelect: isDark ? 'bg-[#151515]' : 'bg-white',
     bgSelectContent: isDark ? 'bg-[#151515]' : 'bg-white',
-    bgBadge: isDark ? 'bg-[#6366F1]/20' : 'bg-[#6366F1]/10',
-    bgRating: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-gray-50',
-    bgAccordion: isDark ? 'border-[rgba(255,255,255,0.05)]' : 'border-gray-100',
+    bgBadge: isDark ? 'bg-[#1D4ED8]/20' : 'bg-[#1D4ED8]/10',
+    bgRating: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-slate-50',
+    bgAccordion: isDark ? 'border-[rgba(255,255,255,0.05)]' : 'border-slate-100',
 
-    text: isDark ? 'text-white' : 'text-gray-900',
-    textSecondary: isDark ? 'text-[#A3A3A3]' : 'text-gray-500',
-    textMuted: isDark ? 'text-[#A3A3A3]' : 'text-gray-400',
-    textPrimary: isDark ? 'text-[#6366F1]' : 'text-[#6366F1]',
-    textBrand: isDark ? 'text-[#A3A3A3]' : 'text-gray-600',
+    text: isDark ? 'text-white' : 'text-slate-900',
+    textSecondary: isDark ? 'text-[#A3A3A3]' : 'text-slate-500',
+    textMuted: isDark ? 'text-[#A3A3A3]' : 'text-slate-400',
+    textPrimary: isDark ? 'text-[#1D4ED8]' : 'text-[#1D4ED8]',
+    textBrand: isDark ? 'text-[#A3A3A3]' : 'text-slate-600',
 
-    border: isDark ? 'border-[rgba(255,255,255,0.06)]' : 'border-gray-200',
-    borderFocus: isDark ? 'focus-visible:ring-[#6366F1]' : 'focus-visible:ring-[#6366F1]',
+    border: isDark ? 'border-[rgba(255,255,255,0.06)]' : 'border-slate-200',
+    borderFocus: isDark ? 'focus-visible:ring-[#1D4ED8]' : 'focus-visible:ring-[#1D4ED8]',
 
-    shadow: isDark ? 'shadow-lg shadow-[#0B0B0D]' : 'shadow-lg shadow-gray-100',
-    shadowHover: isDark ? 'hover:shadow-xl hover:shadow-[#0B0B0D]' : 'hover:shadow-xl hover:shadow-gray-100',
+    shadow: isDark ? 'shadow-lg shadow-[#0B0B0D]' : 'shadow-lg shadow-slate-100',
+    shadowHover: isDark ? 'hover:shadow-xl hover:shadow-[#0B0B0D]' : 'hover:shadow-xl hover:shadow-slate-100',
 
-    buttonHover: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-gray-50',
+    buttonHover: isDark ? 'hover:bg-[#1C1C1C]' : 'hover:bg-slate-50',
     buttonOutline: isDark 
-      ? 'border-[rgba(255,255,255,0.08)] text-[#A3A3A3] hover:text-white hover:border-[#6366F1]/30' 
-      : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:border-[#6366F1]/30',
+      ? 'border-[rgba(255,255,255,0.08)] text-[#A3A3A3] hover:text-white hover:border-[#1D4ED8]/30' 
+      : 'border-slate-200 text-slate-600 hover:text-slate-900 hover:border-[#1D4ED8]/30',
 
-    badgeDefault: isDark ? 'bg-[#6366F1]/20 text-[#6366F1]' : 'bg-[#6366F1]/10 text-[#6366F1]',
-    badgeStock: isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700',
-    badgeRating: isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700',
-    badgeDiscount: isDark ? 'bg-[#FF3B5C]/20 text-[#FF3B5C]' : 'bg-red-100 text-red-600',
-    badgeFeatured: isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700',
+    badgeDefault: isDark ? 'bg-[#1D4ED8]/20 text-[#1D4ED8]' : 'bg-[#1D4ED8]/10 text-[#1D4ED8]',
+    badgeStock: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
+    badgeRating: isDark ? 'bg-amber-500/20 text-amber-500' : 'bg-amber-100 text-amber-700',
+    badgeDiscount: isDark ? 'bg-[#DC2626]/20 text-[#DC2626]' : 'bg-red-100 text-red-600',
+    badgeFeatured: isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700',
     badgeNew: isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700',
 
-    switchChecked: isDark ? 'data-[state=checked]:bg-[#FF3B5C]' : 'data-[state=checked]:bg-[#FF3B5C]',
-    accent: isDark ? 'accent-[#FF3B5C]' : 'accent-[#FF3B5C]',
+    switchChecked: isDark ? 'data-[state=checked]:bg-[#DC2626]' : 'data-[state=checked]:bg-[#DC2626]',
+    accent: isDark ? 'accent-[#DC2626]' : 'accent-[#DC2626]',
 
     scrollbar: isDark 
       ? 'scrollbar-thin scrollbar-thumb-[#1C1C1C] scrollbar-track-transparent' 
-      : 'scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent',
+      : 'scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent',
   };
 
   // ============================================================
@@ -362,7 +362,7 @@ export function ProductFilters({
         <div className="flex items-center gap-3">
           <div className={cn(
             'p-2 rounded-xl',
-            isDark ? 'bg-[#1C1C1C]' : 'bg-gray-100'
+            isDark ? 'bg-[#1C1C1C]' : 'bg-slate-100'
           )}>
             <SlidersHorizontal className={cn('h-5 w-5', styles.textPrimary)} />
           </div>
@@ -469,7 +469,7 @@ export function ProductFilters({
             )}
             {filters.minRating && (
               <Badge className={cn('text-xs px-2.5 py-1 rounded-full gap-1', styles.badgeRating)}>
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                 {filters.minRating}+ Stars
                 <button
                   onClick={() => removeFilter('minRating')}
@@ -583,7 +583,7 @@ export function ProductFilters({
                     styles.text,
                     'placeholder:',
                     styles.textSecondary,
-                    'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20',
+                    'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20',
                     styles.borderFocus
                   )}
                 />
@@ -630,7 +630,7 @@ export function ProductFilters({
                         styles.bgSelect,
                         styles.border,
                         styles.text,
-                        'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20'
+                        'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20'
                       )}>
                         <SelectValue placeholder="All Categories" />
                       </SelectTrigger>
@@ -723,7 +723,7 @@ export function ProductFilters({
                             styles.bgInput,
                             styles.border,
                             styles.text,
-                            'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20'
+                            'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20'
                           )}
                           min={0}
                           max={priceRange[1]}
@@ -745,7 +745,7 @@ export function ProductFilters({
                             styles.bgInput,
                             styles.border,
                             styles.text,
-                            'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20'
+                            'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20'
                           )}
                           min={priceRange[0]}
                           max={maxPrice}
@@ -781,7 +781,7 @@ export function ProductFilters({
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="px-3 pb-3">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#6366F1]/5">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#1D4ED8]/5">
                     <Label htmlFor="in-stock" className={cn('cursor-pointer text-sm font-medium', styles.text)}>
                       In Stock Only
                     </Label>
@@ -791,7 +791,7 @@ export function ProductFilters({
                       onCheckedChange={handleStockChange}
                       className={cn(
                         styles.switchChecked,
-                        'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#FF3B5C]/20'
+                        'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#DC2626]/20'
                       )}
                     />
                   </div>
@@ -818,7 +818,7 @@ export function ProductFilters({
                         className={cn(
                           'flex items-center gap-3 text-sm cursor-pointer p-2 rounded-lg transition-all',
                           styles.bgRating,
-                          filters.minRating === stars && (isDark ? 'bg-[#1C1C1C]' : 'bg-gray-100')
+                          filters.minRating === stars && (isDark ? 'bg-[#1C1C1C]' : 'bg-slate-100')
                         )}
                       >
                         <input
@@ -830,14 +830,14 @@ export function ProductFilters({
                           className={cn(
                             'h-4 w-4 rounded-full border-2',
                             styles.accent,
-                            isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-gray-300'
+                            isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-slate-300'
                           )}
                         />
                         <span className="flex items-center gap-1.5">
                           {Array.from({ length: stars }).map((_, i) => (
                             <Star
                               key={i}
-                              className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                              className="h-4 w-4 fill-amber-500 text-amber-500"
                             />
                           ))}
                           {stars < 5 && (
@@ -873,7 +873,7 @@ export function ProductFilters({
                         styles.bgSelect,
                         styles.border,
                         styles.text,
-                        'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20'
+                        'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20'
                       )}>
                         <SelectValue placeholder="Sort by" />
                       </SelectTrigger>
@@ -921,7 +921,7 @@ export function ProductFilters({
                           className={cn(
                             'flex items-center gap-3 text-sm cursor-pointer p-2 rounded-lg transition-all',
                             styles.bgRating,
-                            filters.brands?.includes(brand.name) && (isDark ? 'bg-[#1C1C1C]' : 'bg-gray-100')
+                            filters.brands?.includes(brand.name) && (isDark ? 'bg-[#1C1C1C]' : 'bg-slate-100')
                           )}
                         >
                           <input
@@ -931,7 +931,7 @@ export function ProductFilters({
                             className={cn(
                               'h-4 w-4 rounded border-2',
                               styles.accent,
-                              isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-gray-300'
+                              isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-slate-300'
                             )}
                           />
                           <span className={cn('flex-1', styles.textBrand)}>{brand.name}</span>
@@ -968,7 +968,7 @@ export function ProductFilters({
                           className={cn(
                             'flex items-center gap-3 text-sm cursor-pointer p-2 rounded-lg transition-all',
                             styles.bgRating,
-                            filters.conditions?.includes(condition) && (isDark ? 'bg-[#1C1C1C]' : 'bg-gray-100')
+                            filters.conditions?.includes(condition) && (isDark ? 'bg-[#1C1C1C]' : 'bg-slate-100')
                           )}
                         >
                           <input
@@ -978,7 +978,7 @@ export function ProductFilters({
                             className={cn(
                               'h-4 w-4 rounded border-2',
                               styles.accent,
-                              isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-gray-300'
+                              isDark ? 'border-[rgba(255,255,255,0.08)]' : 'border-slate-300'
                             )}
                           />
                           <span className={styles.textBrand}>{condition}</span>
@@ -1004,7 +1004,7 @@ export function ProductFilters({
                   </AccordionTrigger>
                   <AccordionContent className="px-3 pb-3">
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#6366F1]/5">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#1D4ED8]/5">
                         <Label htmlFor="on-sale" className={cn('cursor-pointer text-sm font-medium', styles.text)}>
                           On Sale Only
                         </Label>
@@ -1014,7 +1014,7 @@ export function ProductFilters({
                           onCheckedChange={handleDiscountChange}
                           className={cn(
                             styles.switchChecked,
-                            'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#FF3B5C]/20'
+                            'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#DC2626]/20'
                           )}
                         />
                       </div>
@@ -1036,7 +1036,7 @@ export function ProductFilters({
                               styles.bgSelect,
                               styles.border,
                               styles.text,
-                              'focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20'
+                              'focus:border-[#1D4ED8] focus:ring-2 focus:ring-[#1D4ED8]/20'
                             )}>
                               <SelectValue placeholder="Any discount" />
                             </SelectTrigger>
@@ -1075,7 +1075,7 @@ export function ProductFilters({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="px-3 pb-3">
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#6366F1]/5">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#1D4ED8]/5">
                       <Label htmlFor="is-featured" className={cn('cursor-pointer text-sm font-medium', styles.text)}>
                         Show Featured Only
                       </Label>
@@ -1085,7 +1085,7 @@ export function ProductFilters({
                         onCheckedChange={handleFeaturedChange}
                         className={cn(
                           styles.switchChecked,
-                          'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#FF3B5C]/20'
+                          'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#DC2626]/20'
                         )}
                       />
                     </div>
@@ -1107,7 +1107,7 @@ export function ProductFilters({
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="px-3 pb-3">
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#6366F1]/5">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-opacity-5 bg-[#1D4ED8]/5">
                       <Label htmlFor="is-new" className={cn('cursor-pointer text-sm font-medium', styles.text)}>
                         Show New Only
                       </Label>
@@ -1117,7 +1117,7 @@ export function ProductFilters({
                         onCheckedChange={handleNewChange}
                         className={cn(
                           styles.switchChecked,
-                          'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#FF3B5C]/20'
+                          'data-[state=checked]:shadow-lg data-[state=checked]:shadow-[#DC2626]/20'
                         )}
                       />
                     </div>

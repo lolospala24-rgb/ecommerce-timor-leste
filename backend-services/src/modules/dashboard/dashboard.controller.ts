@@ -48,6 +48,14 @@ export class DashboardController {
     return this.dashboardService.getAdminOrders(period);
   }
 
+  @Get('admin/sales-by-region')
+  @Roles(Role.ADMIN)
+  async getSalesByRegion(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'month',
+  ) {
+    return this.dashboardService.getSalesByRegion(period);
+  }
+
   @Get('admin/top-products')
   @Roles(Role.ADMIN)
   async getTopProducts(

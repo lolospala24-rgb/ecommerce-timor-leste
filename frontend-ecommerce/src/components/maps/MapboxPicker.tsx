@@ -14,7 +14,12 @@ type Location = {
   municipality?: string;
 };
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+// No hardcoded fallback token — a leaked/committed Mapbox key can't be
+// rotated without a code change. Missing config must fail visibly (see
+// MISSING_TOKEN_ERROR below), not silently fall back to a baked-in key.
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
+
+const MISSING_TOKEN_ERROR = 'Map is not configured (missing NEXT_PUBLIC_MAPBOX_TOKEN).';
 
 export default function MapboxPicker({
   onSelect,
@@ -33,9 +38,10 @@ export default function MapboxPicker({
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Debug token presence
-    // eslint-disable-next-line no-console
-    console.log('Mapbox access token (client):', mapboxgl.accessToken);
+    if (!mapboxgl.accessToken) {
+      setInitError(MISSING_TOKEN_ERROR);
+      return;
+    }
 
     if (mapRef.current) return;
 
@@ -57,8 +63,6 @@ export default function MapboxPicker({
 
     const tryInit = () => {
       attempts += 1;
-      // eslint-disable-next-line no-console
-      console.log(`Mapbox init attempt ${attempts}, container present: ${!!mapContainer.current}`);
       if (!mapContainer.current) {
         if (attempts >= maxAttempts) {
           setInitError('Map container element not attached to DOM.');
@@ -114,6 +118,14 @@ export default function MapboxPicker({
                 });
               }
 
+              // Mapbox's `region` context type is documented as a country's
+              // top-level administrative division (state/province) — for
+              // Timor-Leste that's the Municipality level, not `country`
+              // (which is always just "Timor-Leste" and can never match a
+              // real municipality name). `district` is the next level down,
+              // used as a best-effort Posto Administrativo guess; Mapbox's
+              // Timor-Leste coverage may not resolve that deep, in which
+              // case it's left blank for the customer to fill in manually.
               const loc: Location = {
                 lat,
                 lng,
@@ -121,8 +133,8 @@ export default function MapboxPicker({
                 street: feat?.text || '',
                 village: context.place || context.locality || '',
                 suco: context.neighborhood || '',
-                postoAdmin: context.region || '',
-                municipality: context.country || '',
+                postoAdmin: context.district || '',
+                municipality: context.region || '',
               };
 
               setPicked(loc);
@@ -134,10 +146,6 @@ export default function MapboxPicker({
             }
           })();
         });
-
-        // created
-        // eslint-disable-next-line no-console
-        console.log('Mapbox map created');
       } catch (err: any) {
         const msg = err?.message || String(err);
         setInitError(`Map initialization failed: ${msg}`);
@@ -172,8 +180,6 @@ export default function MapboxPicker({
               });
               // mark as initialized
               setInitError(null);
-              // eslint-disable-next-line no-console
-              console.log('Leaflet fallback initialized');
             } catch (leafErr) {
               // eslint-disable-next-line no-console
               console.error('Leaflet fallback failed', leafErr);
@@ -219,11 +225,7 @@ export default function MapboxPicker({
             ? `Selected: ${picked.placeName || `${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}`}`
             : 'Click on the map to pick a location.'}
         </div>
-        <div className="mt-2 text-xs text-red-600">
-          <div>Debug: token present: {mapboxgl.accessToken ? 'yes' : 'no'}</div>
-          <div>Debug: map initialized: {mapRef.current ? 'yes' : 'no'}</div>
-          {initError && <div className="mt-1 text-xs text-red-700">Error: {initError}</div>}
-        </div>
+        {initError && <div className="mt-2 text-xs text-red-700">{initError}</div>}
       </div>
     </div>
   );

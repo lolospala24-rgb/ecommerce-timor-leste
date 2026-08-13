@@ -13,7 +13,10 @@ import { ProductsService } from '../products/products.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ShippingService } from '../shipping/shipping.service';
 import { SettingsService } from '../settings/settings.service';
-import { OrderEventsGateway } from './order-events.gateway';
+import { FinanceService } from '../finance/finance.service';
+import { RefundsService } from '../finance/refunds.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { LOW_STOCK_THRESHOLD, NotificationEvent } from '../notifications/notifications.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
@@ -32,7 +35,9 @@ export class OrdersService {
     private notificationsService: NotificationsService,
     private shippingService: ShippingService,
     private settingsService: SettingsService,
-    private orderEventsGateway: OrderEventsGateway,
+    private financeService: FinanceService,
+    private refundsService: RefundsService,
+    private notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
@@ -47,6 +52,7 @@ export class OrdersService {
                 seller: true,
               },
             },
+            variant: true,
           },
         },
       },
@@ -54,6 +60,24 @@ export class OrdersService {
 
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
+    }
+
+    // A variant can be deactivated, deleted (setting variantId to null via
+    // the FK's onDelete: SetNull), or run out of stock between add-to-cart
+    // and checkout — cart-add already checked these, but that check is
+    // stale by the time the customer actually places the order, so it's
+    // re-verified here rather than trusted from the cart row.
+    for (const item of cart.items) {
+      if (item.variantId != null && (!item.variant || item.variant.productId !== item.productId)) {
+        throw new BadRequestException(
+          `"${item.product.name}" has a selected option that no longer exists. Please update your cart.`,
+        );
+      }
+      if (item.variant && !item.variant.isActive) {
+        throw new BadRequestException(
+          `The selected option for "${item.product.name}" is no longer available. Please choose a different option.`,
+        );
+      }
     }
 
     // Group items by seller
@@ -69,14 +93,17 @@ export class OrdersService {
         });
       }
       const group = sellerGroups.get(sellerId);
+      const unitPrice = item.variant?.price ?? item.product.price;
       group.items.push(item);
-      group.subtotal += item.quantity * item.product.price;
+      group.subtotal += item.quantity * unitPrice;
     }
 
     // Delivery address is the same for every seller group in this checkout,
-    // so it's fetched once up front instead of once per seller.
-    const address = await this.prisma.address.findUnique({
-      where: { id: createOrderDto.addressId },
+    // so it's fetched once up front instead of once per seller. Scoped to
+    // userId — without this, any authenticated customer could pass another
+    // user's addressId and have their order shipped/priced against it.
+    const address = await this.prisma.address.findFirst({
+      where: { id: createOrderDto.addressId, userId, isActive: true },
     });
     if (!address) {
       throw new BadRequestException('Selected delivery address not found');
@@ -110,13 +137,14 @@ export class OrdersService {
       }
 
       const invalidItems = group.items.filter((item: any) => {
+        const price = item.variant?.price ?? item.product?.price;
         return (
           !item.product ||
           item.productId == null ||
           item.quantity == null ||
           item.quantity <= 0 ||
-          item.product.price == null ||
-          !Number.isFinite(item.product.price)
+          price == null ||
+          !Number.isFinite(price)
         );
       });
 
@@ -124,13 +152,25 @@ export class OrdersService {
         throw new BadRequestException('One or more cart items contain invalid product or pricing data');
       }
 
-      const shippingCost = Number(await this.shippingService.calculateShippingCost({
+      const shippingResult = await this.shippingService.calculateShippingCost({
         municipality: address?.municipality,
         municipalityId: address?.municipalityId ?? undefined,
         provinceId: address?.provinceId ?? undefined,
         shippingMethod: createOrderDto.shippingMethod,
         subtotal: group.subtotal,
-      }));
+        courierId: createOrderDto.courierId,
+        courierServiceId: createOrderDto.courierServiceId,
+      });
+      const shippingCost = Number(shippingResult.shippingCost);
+
+      // A courierId was explicitly selected at checkout but no active rate
+      // matched it for this address — don't silently fall back to the
+      // default shipping cost, that would let a tampered/stale courierId
+      // slip an order through for a courier that doesn't actually serve
+      // this municipality.
+      if (createOrderDto.courierId && shippingResult.shippingZoneId == null) {
+        throw new BadRequestException('The selected courier is no longer available for this delivery address. Please choose a different shipping option.');
+      }
 
       if (!Number.isFinite(shippingCost) || shippingCost < 0) {
         throw new BadRequestException('Calculated shipping cost is invalid');
@@ -140,9 +180,15 @@ export class OrdersService {
         throw new BadRequestException('Cart subtotal is invalid');
       }
 
-      const taxAmount = Number((group.subtotal * taxRate) / 100);
+      // Rounded to cents at the point of calculation — a percentage tax on
+      // a subtotal that already has cents (e.g. 8% of $84.30 = $6.744) is a
+      // real fractional-cent value, not float noise, and it must not
+      // propagate unrounded into `total`/Payment.amount or every downstream
+      // consumer (refund default amount, commission base, invoices) ends up
+      // a fraction of a cent off the number the customer actually saw and paid.
+      const taxAmount = Math.round(((group.subtotal * taxRate) / 100) * 100) / 100;
       const serviceFee = flatServiceFee;
-      const total = Number(group.subtotal + shippingCost + taxAmount + serviceFee);
+      const total = Math.round((group.subtotal + shippingCost + taxAmount + serviceFee) * 100) / 100;
       if (!Number.isFinite(total) || total < 0) {
         throw new BadRequestException('Order total is invalid');
       }
@@ -174,18 +220,30 @@ export class OrdersService {
         status: OrderStatus.PENDING,
         paymentMethod: createOrderDto.paymentMethod,
         addressId: createOrderDto.addressId,
+        shippingZoneId: shippingResult.shippingZoneId,
+        courier: shippingResult.courierName,
         notes: createOrderDto.notes,
         items: {
-          create: group.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.product.price,
-            total: item.quantity * item.product.price,
-          })),
+          create: group.items.map((item) => {
+            const unitPrice = item.variant?.price ?? item.product.price;
+            return {
+              productId: item.productId,
+              variantId: item.variantId ?? null,
+              quantity: item.quantity,
+              price: unitPrice,
+              total: item.quantity * unitPrice,
+            };
+          }),
         },
       };
 
       let order;
+      // Populated (base-product items only — variant-level stock isn't
+      // modeled by the low-stock notification yet) whenever this order's
+      // decrement crosses the low-stock/out-of-stock line, so it fires
+      // exactly once per crossing rather than once per order that happens
+      // to touch an already-low product.
+      const lowStockAlerts: Array<{ productId: number; productName: string; sellerId: number; newStock: number }> = [];
       try {
         // Atomic, race-safe checkout: reserve stock and create the order
         // in a single DB transaction. The conditional `stock: { gte }` guard
@@ -196,15 +254,39 @@ export class OrdersService {
         // are rolled back together).
         order = await this.prisma.$transaction(async (tx) => {
           for (const item of group.items) {
-            const stockUpdate = await tx.product.updateMany({
-              where: { id: item.productId, stock: { gte: item.quantity } },
-              data: { stock: { decrement: item.quantity } },
-            });
+            // Variant and base-product stock are separate pools (mirrors
+            // cart-add's `currentVariant ? currentVariant.stock : prod.stock`
+            // check) — a variant-bearing product's own Product.stock is not
+            // touched by a variant purchase, only the selected variant's row is.
+            const stockUpdate = item.variantId
+              ? await tx.productVariant.updateMany({
+                  where: { id: item.variantId, stock: { gte: item.quantity } },
+                  data: { stock: { decrement: item.quantity } },
+                })
+              : await tx.product.updateMany({
+                  where: { id: item.productId, stock: { gte: item.quantity } },
+                  data: { stock: { decrement: item.quantity } },
+                });
 
             if (stockUpdate.count === 0) {
               throw new BadRequestException(
                 `Insufficient stock for "${item.product.name}". Please adjust the quantity in your cart and try again.`,
               );
+            }
+
+            if (!item.variantId) {
+              const beforeStock = item.product.stock;
+              if (beforeStock > LOW_STOCK_THRESHOLD) {
+                const afterStock = beforeStock - item.quantity;
+                if (afterStock <= LOW_STOCK_THRESHOLD) {
+                  lowStockAlerts.push({
+                    productId: item.productId,
+                    productName: item.product.name,
+                    sellerId: group.sellerId,
+                    newStock: Math.max(afterStock, 0),
+                  });
+                }
+              }
             }
           }
 
@@ -214,6 +296,7 @@ export class OrdersService {
               items: {
                 include: {
                   product: true,
+                  variant: true,
                 },
               },
               customer: true,
@@ -240,9 +323,22 @@ export class OrdersService {
 
           return createdOrder;
         });
+      } catch (error) {
+        this.logger.error(
+          `Order create failed for seller ${group.sellerId}: ${error instanceof Error ? error.message : error}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        throw error;
+      }
 
-        orders.push(order);
+      orders.push(order);
 
+      // The order (with stock reserved and payment record, if COD) is
+      // already committed at this point — everything below is best-effort
+      // notification. A flaky mail server or websocket hiccup must never
+      // surface as a request failure for an order that actually succeeded,
+      // which is why this has its own try/catch that only logs.
+      try {
         // Send order confirmation email
         await this.mailService.sendOrderConfirmation(
           order.customer.email,
@@ -261,7 +357,9 @@ export class OrdersService {
           userId,
           title: 'Order Successfully Created',
           message: `Your order ${order.orderNumber} is now pending. Total: $${order.total.toFixed(2)}`,
-          type: 'ORDER',
+          type: NotificationEvent.ORDER_CREATED,
+          entityType: 'ORDER',
+          entityId: order.id,
           data: {
             orderId: order.id,
             orderNumber: order.orderNumber,
@@ -276,7 +374,9 @@ export class OrdersService {
         await this.notificationsService.broadcastNotification({
           title: 'New Order Received',
           message: `Order ${order.orderNumber} from ${order.customer.name} is pending. Total: $${order.total.toFixed(2)}`,
-          type: 'ORDER',
+          type: NotificationEvent.ORDER_CREATED,
+          entityType: 'ORDER',
+          entityId: order.id,
           data: {
             orderId: order.id,
             orderNumber: order.orderNumber,
@@ -290,7 +390,7 @@ export class OrdersService {
           userFilter: { role: 'ADMIN', isActive: true },
         });
 
-        this.orderEventsGateway.emitOrderCreated({
+        this.notificationsGateway.emitOrderCreated({
           orderId: order.id,
           userId,
           orderNumber: order.orderNumber,
@@ -303,12 +403,24 @@ export class OrdersService {
           shippingCost,
           createdAt: order.createdAt,
         });
-      } catch (error) {
+
+        // One alert per threshold crossing (captured during the stock
+        // decrement above), not one per unit sold — buying the item that
+        // takes a product from 11 down to 9 fires once; further purchases
+        // that keep it under the threshold don't re-fire.
+        for (const alert of lowStockAlerts) {
+          await this.notificationsService.sendLowStockAlert(
+            alert.productId,
+            alert.productName,
+            alert.sellerId,
+            alert.newStock,
+          );
+        }
+      } catch (notifyError) {
         this.logger.error(
-          `Order create failed for seller ${group.sellerId}: ${error instanceof Error ? error.message : error}`,
-          error instanceof Error ? error.stack : undefined,
+          `Order ${order.orderNumber} was created successfully, but post-order notifications failed: ${notifyError instanceof Error ? notifyError.message : notifyError}`,
+          notifyError instanceof Error ? notifyError.stack : undefined,
         );
-        throw error;
       }
     }
 
@@ -551,6 +663,7 @@ export class OrdersService {
               select: {
                 id: true,
                 name: true,
+                slug: true,
                 description: true,
                 thumbnail: true,
                 price: true,
@@ -599,6 +712,7 @@ export class OrdersService {
         items: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },
@@ -657,46 +771,73 @@ export class OrdersService {
 
     if (targetStatus === OrderStatus.DELIVERED) {
       updateData.deliveredAt = new Date();
-      
-      // Update payment status to paid if COD
-      if (order.paymentMethod === PaymentMethod.COD) {
-        await this.prisma.payment.update({
-          where: { orderId: order.id },
-          data: {
-            status: PaymentStatus.PAID,
-            paidAt: new Date(),
-          },
-        });
-      }
     }
 
     if (updateOrderStatusDto.status === OrderStatus.CANCELLED) {
       updateData.cancelledAt = new Date();
-      
-      // Restore product stock
+
+      // Restore stock — variant and base-product stock are separate pools
+      // (see orders.service.ts create()), so a variant purchase restores
+      // only that variant's row, not the parent Product's.
       for (const item of order.items) {
-        await this.productsService.updateStock(
-          item.productId,
-          item.quantity,
-          'add',
-          order.seller.userId,
-        );
+        if (item.variantId) {
+          await this.prisma.productVariant.updateMany({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          });
+        } else {
+          await this.productsService.updateStock(
+            item.productId,
+            item.quantity,
+            'add',
+            order.seller.userId,
+          );
+        }
       }
     }
 
-    const updatedOrder = await this.prisma.order.update({
-      where: { id },
-      data: updateData,
-      include: {
-        customer: true,
-        seller: true,
-        items: {
-          include: {
-            product: true,
-          },
+    const orderInclude = {
+      customer: true,
+      seller: true,
+      items: {
+        include: {
+          product: true,
         },
       },
-    });
+    } as const;
+
+    // DELIVERED needs the order-status write, the COD payment-paid write,
+    // and the finance-ledger writes (commission snapshot for COD — its
+    // payment only becomes PAID at this exact moment — plus releasing
+    // pending -> available earnings) to succeed or fail together, so it
+    // gets its own transaction rather than the plain single-table update
+    // every other status transition uses.
+    const updatedOrder =
+      targetStatus === OrderStatus.DELIVERED
+        ? await this.prisma.$transaction(async (tx) => {
+            if (order.paymentMethod === PaymentMethod.COD) {
+              await tx.payment.update({
+                where: { orderId: order.id },
+                data: { status: PaymentStatus.PAID, paidAt: new Date() },
+              });
+              await this.financeService.recordSaleOnPaymentConfirmed(tx, order.id);
+            }
+
+            const result = await tx.order.update({
+              where: { id },
+              data: updateData,
+              include: orderInclude,
+            });
+
+            await this.financeService.releaseEarningsOnDelivery(tx, order.id);
+
+            return result;
+          })
+        : await this.prisma.order.update({
+            where: { id },
+            data: updateData,
+            include: orderInclude,
+          });
 
     const statusLabel = updatedOrder.status
       .toLowerCase()
@@ -742,7 +883,7 @@ export class OrdersService {
     // Clear cache
     await this.clearOrderCache(id);
 
-    this.orderEventsGateway.emitOrderUpdated(updatedOrder.id, {
+    this.notificationsGateway.emitOrderUpdated(updatedOrder.id, {
       orderId: updatedOrder.id,
       userId: updatedOrder.customerId,
       status: updatedOrder.status,
@@ -768,6 +909,7 @@ export class OrdersService {
         items: {
           include: {
             product: true,
+            variant: true,
           },
         },
       },
@@ -787,14 +929,22 @@ export class OrdersService {
       );
     }
 
-    // Restore product stock
+    // Restore stock — variant and base-product stock are separate pools,
+    // see orders.service.ts create().
     for (const item of order.items) {
-      await this.productsService.updateStock(
-        item.productId,
-        item.quantity,
-        'add',
-        order.seller.userId,
-      );
+      if (item.variantId) {
+        await this.prisma.productVariant.updateMany({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      } else {
+        await this.productsService.updateStock(
+          item.productId,
+          item.quantity,
+          'add',
+          order.seller.userId,
+        );
+      }
     }
 
     const cancelledOrder = await this.prisma.order.update({
@@ -806,18 +956,21 @@ export class OrdersService {
       },
     });
 
-    // Update payment status if exists
+    // If it was already paid, this isn't just a status flip anymore — it
+    // goes through RefundsService so the seller's earnings ledger is
+    // reversed correctly (auto-approved: cancelling before the seller has
+    // shipped anything is unambiguous, see createAndApproveForCancellation).
     const payment = await this.prisma.payment.findUnique({
       where: { orderId: id },
     });
 
     if (payment && payment.status === PaymentStatus.PAID) {
-      await this.prisma.payment.update({
-        where: { orderId: id },
-        data: {
-          status: PaymentStatus.REFUNDED,
-        },
-      });
+      await this.refundsService.createAndApproveForCancellation(
+        id,
+        userId,
+        reason || 'Order cancelled by customer',
+        userId,
+      );
     }
 
     // Send cancellation email
@@ -829,6 +982,62 @@ export class OrdersService {
     );
 
     // Clear cache
+    await this.clearOrderCache(id);
+
+    return cancelledOrder;
+  }
+
+  /**
+   * System-triggered counterpart to cancelOrder() for an abandoned
+   * bank-transfer order — no receipt ever uploaded, past
+   * SystemSettings.paymentExpiryHours. Called by PaymentExpiryJob, not a
+   * customer, so there's no ownership check. Payment was never confirmed
+   * (still PENDING), so unlike cancelOrder() there's no seller-earnings
+   * reversal to run through RefundsService — nothing was ever credited.
+   */
+  async expireUnpaidOrder(id: number) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        seller: { include: { user: true } },
+        items: { include: { product: true, variant: true } },
+        payment: true,
+      },
+    });
+
+    if (!order || !order.payment) return;
+    if (order.status !== OrderStatus.PENDING) return;
+    if (order.payment.status !== PaymentStatus.PENDING) return;
+
+    for (const item of order.items) {
+      if (item.variantId) {
+        await this.prisma.productVariant.updateMany({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      } else {
+        await this.productsService.updateStock(item.productId, item.quantity, 'add', order.seller.userId);
+      }
+    }
+
+    await this.prisma.payment.update({
+      where: { id: order.payment.id },
+      data: { status: PaymentStatus.FAILED, notes: 'Expired — no receipt uploaded within the payment window' },
+    });
+
+    const cancelledOrder = await this.prisma.order.update({
+      where: { id },
+      data: { status: OrderStatus.CANCELLED, cancelledAt: new Date(), notes: 'Cancelled: payment expired, no receipt uploaded' },
+    });
+
+    await this.mailService.sendOrderCancelledEmail(
+      order.customer.email,
+      order.customer.name,
+      cancelledOrder,
+      'Payment window expired — no receipt was uploaded in time',
+    );
+
     await this.clearOrderCache(id);
 
     return cancelledOrder;
@@ -856,75 +1065,41 @@ export class OrdersService {
       );
     }
 
-    const confirmedOrder = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.DELIVERED,
-        deliveredAt: new Date(),
-      },
-    });
+    const confirmedOrder = await this.prisma.$transaction(async (tx) => {
+      if (order.paymentMethod === PaymentMethod.COD) {
+        await tx.payment.update({
+          where: { orderId: id },
+          data: { status: PaymentStatus.PAID, paidAt: new Date() },
+        });
+        await this.financeService.recordSaleOnPaymentConfirmed(tx, id);
+      }
 
-    // Update payment status if COD
-    if (order.paymentMethod === PaymentMethod.COD) {
-      await this.prisma.payment.update({
-        where: { orderId: id },
+      const result = await tx.order.update({
+        where: { id },
         data: {
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
+          status: OrderStatus.DELIVERED,
+          deliveredAt: new Date(),
         },
       });
-    }
+
+      await this.financeService.releaseEarningsOnDelivery(tx, id);
+
+      return result;
+    });
 
     await this.clearOrderCache(id);
 
     return confirmedOrder;
   }
 
-  async requestRefund(id: number, userId: number, reason: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: {
-        customer: true,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${id} not found`);
-    }
-
-    if (order.customerId !== userId) {
-      throw new ForbiddenException('You can only request refund for your own orders');
-    }
-
-    if (order.status !== OrderStatus.DELIVERED) {
-      throw new BadRequestException(
-        `Cannot request refund for order with status ${order.status}`,
-      );
-    }
-
-    // Check if within refund period (7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    if (order.deliveredAt && order.deliveredAt < sevenDaysAgo) {
-      throw new BadRequestException('Refund period has expired (7 days after delivery)');
-    }
-
-    // Create refund request record (would need a Refund table)
-    // For now, just update order notes
-    const refundRequest = await this.prisma.order.update({
-      where: { id },
-      data: {
-        notes: `Refund requested: ${reason}. Status: PENDING`,
-      },
-    });
-
-    // Notify admin about refund request
-    // This would typically send an email to admin
-
+  // Thin passthrough — RefundsService owns eligibility rules (DELIVERED +
+  // 7-day window), the Refund record, and admin notification via the
+  // pending-refunds queue. Kept on OrdersService so OrdersController's
+  // existing :id/request-refund route doesn't need to change.
+  async requestRefund(id: number, userId: number, reason: string, amount?: number) {
+    const refund = await this.refundsService.requestRefund(id, userId, reason, amount);
     await this.clearOrderCache(id);
-
-    return refundRequest;
+    return refund;
   }
 
   async getAllOrdersAdmin(filters: {
@@ -1130,11 +1305,20 @@ export class OrdersService {
                 id: true,
                 name: true,
                 price: true,
+                sku: true,
+                thumbnail: true,
+              },
+            },
+            variant: {
+              select: {
+                sku: true,
+                attributes: true,
               },
             },
           },
         },
         address: true,
+        payment: true,
       },
     });
 
@@ -1154,8 +1338,31 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
-    if (order.status !== OrderStatus.CANCELLED && order.status !== OrderStatus.DELIVERED) {
-      throw new BadRequestException('Cannot delete non-cancelled or non-delivered orders');
+    // DELIVERED orders are completed, financially-realized transactions —
+    // permanently deleting one would destroy the only record of that sale,
+    // its payment, and its seller-earnings ledger entries, with no way to
+    // reconcile afterward. Only CANCELLED is even a candidate.
+    if (order.status !== OrderStatus.CANCELLED) {
+      throw new BadRequestException('Only cancelled orders can be deleted. Delivered orders are financial records and cannot be removed.');
+    }
+
+    // A CANCELLED order can *also* carry real financial history now — a
+    // customer cancelling a PAID order goes through RefundsService, which
+    // leaves a Refund row and SellerLedgerEntry rows referencing this order
+    // (see cancelOrder()). Those are financial records too, so a cancelled
+    // order is only actually safe to erase if it never got that far: no
+    // payment ever succeeded, meaning no ledger entry exists for it. This
+    // also happens to be exactly what the FK constraints on Payment/Refund/
+    // SellerLedgerEntry.orderId would enforce anyway — checking explicitly
+    // here just turns that into a clean 400 instead of a raw constraint error.
+    const hasFinancialHistory = await this.prisma.sellerLedgerEntry.findFirst({
+      where: { orderId: id },
+      select: { id: true },
+    });
+    if (hasFinancialHistory) {
+      throw new BadRequestException(
+        'This order has financial history (a completed payment, refund, or ledger entry) and cannot be deleted.',
+      );
     }
 
     await this.prisma.order.delete({

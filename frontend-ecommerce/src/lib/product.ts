@@ -170,15 +170,23 @@ export function getVariantAttributeOptions(
   return options;
 }
 
+// Requires a value for every attribute this product actually varies by
+// (attributeKeys) — a partial selection (e.g. Color chosen, Size not yet)
+// must never resolve to a concrete variant. Matching on whatever subset
+// happens to be selected so far would silently show that variant's price/
+// stock/image as if the whole combination had been chosen.
 export function findMatchingVariant(
   variants: ProductVariant[],
   selectedAttributes: Record<string, string>,
+  attributeKeys: string[],
 ): ProductVariant | null {
-  const selectedEntries = Object.entries(selectedAttributes).filter(([, value]) => value);
-  if (selectedEntries.length === 0) return null;
+  if (attributeKeys.length === 0) return null;
+
+  const isCompleteSelection = attributeKeys.every((key) => Boolean(selectedAttributes[key]));
+  if (!isCompleteSelection) return null;
 
   const matches = variants.filter((variant) =>
-    selectedEntries.every(([key, value]) => variant.attributes?.[key] === value),
+    attributeKeys.every((key) => variant.attributes?.[key] === selectedAttributes[key]),
   );
 
   if (matches.length === 0) return null;

@@ -22,8 +22,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import api from '@/lib/api';
-import toast from 'react-hot-toast';
+import { useDeleteCourier } from '@/hooks/useCouriers';
 
 interface CourierItem {
   id: number;
@@ -46,7 +45,7 @@ interface CouriersTableProps {
 export function CouriersTable({ couriers, onEdit, onRefresh }: CouriersTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCourier, setSelectedCourier] = useState<CourierItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { mutateAsync: deleteCourier, isPending: isDeleting } = useDeleteCourier();
 
   const getInitials = (name: string) =>
     name
@@ -58,15 +57,12 @@ export function CouriersTable({ couriers, onEdit, onRefresh }: CouriersTableProp
 
   const handleDeleteCourier = async () => {
     if (!selectedCourier) return;
-    setIsDeleting(true);
     try {
-      await api.delete(`/couriers/${selectedCourier.id}`);
-      toast.success(`Courier ${selectedCourier.name} deleted`);
+      await deleteCourier(selectedCourier.id);
       onRefresh();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete courier');
+    } catch {
+      // The hook already shows the error toast.
     } finally {
-      setIsDeleting(false);
       setDeleteDialogOpen(false);
       setSelectedCourier(null);
     }

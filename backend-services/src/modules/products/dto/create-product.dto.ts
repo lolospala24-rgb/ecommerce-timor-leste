@@ -80,9 +80,22 @@ export class CreateProductDto {
   @Type(() => Number)
   weight?: number;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  brand?: string;
+
+  @IsOptional()
+  specifications?: Record<string, unknown>;
+
   @IsInt()
   @Type(() => Number)
   categoryId: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  typeId?: number;
 
   @IsInt()
   @IsOptional()

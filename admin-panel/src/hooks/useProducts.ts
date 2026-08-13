@@ -141,7 +141,7 @@ export const useFeaturedProducts = (limit: number = 10) => {
     queryKey: ['products', 'featured', limit],
     queryFn: async () => {
       const response = await api.get<Product[]>(`/products/featured?limit=${limit}`);
-      return response.data;
+      return response.data.data;
     },
   });
 };
@@ -151,7 +151,7 @@ export const useNewArrivals = (limit: number = 10) => {
     queryKey: ['products', 'new-arrivals', limit],
     queryFn: async () => {
       const response = await api.get<Product[]>(`/products/new-arrivals?limit=${limit}`);
-      return response.data;
+      return response.data.data;
     },
   });
 };
@@ -161,7 +161,7 @@ export const useBestSellers = (limit: number = 10) => {
     queryKey: ['products', 'best-sellers', limit],
     queryFn: async () => {
       const response = await api.get<Product[]>(`/products/best-sellers?limit=${limit}`);
-      return response.data;
+      return response.data.data;
     },
   });
 };
@@ -186,7 +186,7 @@ export const useCreateProduct = () => {
   return useMutation({
     mutationFn: async (data: FormData) => {
       const response = await api.post('/products', data);
-      return response.data;
+      return response.data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -204,7 +204,7 @@ export const useUpdateProduct = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
       const response = await api.patch(`/products/${id}`, data);
-      return response.data;
+      return response.data.data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -240,7 +240,7 @@ export const useToggleProductStatus = () => {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await api.post(`/products/${id}/toggle-status`);
-      return response.data;
+      return response.data.data;
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -259,7 +259,7 @@ export const useCloneProduct = () => {
   return useMutation({
     mutationFn: async (id: number) => {
       const response = await api.post(`/products/${id}/clone`);
-      return response.data;
+      return response.data.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

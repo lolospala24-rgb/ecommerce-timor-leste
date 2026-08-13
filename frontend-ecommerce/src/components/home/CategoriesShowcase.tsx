@@ -282,7 +282,7 @@ export function CategoriesShowcase() {
 
                         {!!category.productCount && category.productCount > 0 && (
                           <span className="mt-2 text-xs text-muted-foreground">
-                            {category.productCount} Products
+                            {category.productCount} {category.productCount === 1 ? 'Product' : 'Products'}
                           </span>
                         )}
                       </Link>

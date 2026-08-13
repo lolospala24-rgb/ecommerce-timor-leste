@@ -92,7 +92,7 @@ export default function AddressesPage() {
                         {address.label || 'Address'}
                       </h3>
                       {address.isPrimary && (
-                        <Badge className="bg-green-500">
+                        <Badge className="bg-green-600">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Primary
                         </Badge>

@@ -14,19 +14,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { MapPin } from 'lucide-react';
 import type { SalesByRegion } from '@/types/dashboard.types';
 
 interface SalesMapProps {
   data?: SalesByRegion[];
+  isLoading?: boolean;
 }
-
-const defaultRegions: SalesByRegion[] = [
-  { municipality: 'Dili', latitude: -8.5569, longitude: 125.5603, sales: 7600, orderCount: 42 },
-  { municipality: 'Baucau', latitude: -8.4544, longitude: 126.4329, sales: 4200, orderCount: 28 },
-  { municipality: 'Liquiçá', latitude: -8.4989, longitude: 125.3115, sales: 1900, orderCount: 12 },
-  { municipality: 'Viqueque', latitude: -8.4689, longitude: 127.0537, sales: 1250, orderCount: 8 },
-  { municipality: 'Oecusse', latitude: -9.3206, longitude: 124.3567, sales: 900, orderCount: 6 },
-];
 
 const getMarkerSize = (sales: number, maxSales: number) => {
   const normalized = Math.max(0.2, sales / maxSales);
@@ -36,8 +31,9 @@ const getMarkerSize = (sales: number, maxSales: number) => {
 const mapCenter = { lat: -8.5569, lng: 125.5603 };
 const mapContainerStyle = { width: '100%', height: '100%' };
 
-export function SalesMap({ data }: SalesMapProps) {
-  const salesData = data && data.length > 0 ? data : defaultRegions;
+export function SalesMap({ data, isLoading }: SalesMapProps) {
+  const salesData = data ?? [];
+  const hasData = salesData.length > 0;
   const maxSales = Math.max(...salesData.map((region) => region.sales), 1);
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
 
@@ -64,7 +60,9 @@ export function SalesMap({ data }: SalesMapProps) {
       <CardContent>
         <div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
           <div className="h-[28rem] rounded-3xl border border-slate-200 overflow-hidden bg-slate-100">
-            {!apiKey ? (
+            {isLoading ? (
+              <Skeleton className="h-full w-full rounded-none" />
+            ) : !apiKey ? (
               <div className="flex h-full w-full items-center justify-center p-6 text-center text-sm text-slate-600">
                 Google Maps API key tidak ditemukan. Tambahkan `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` di lingkungan Anda.
               </div>
@@ -81,8 +79,12 @@ export function SalesMap({ data }: SalesMapProps) {
                 mapContainerStyle={mapContainerStyle}
                 center={mapCenter}
                 zoom={7}
+                mapTypeId="hybrid"
                 options={{
-                  mapTypeControl: false,
+                  mapTypeControl: true,
+                  mapTypeControlOptions: {
+                    position: google.maps.ControlPosition.TOP_RIGHT,
+                  },
                   streetViewControl: false,
                   fullscreenControl: false,
                 }}
@@ -121,7 +123,18 @@ export function SalesMap({ data }: SalesMapProps) {
             )}
           </div>
           <div className="space-y-4">
-            {salesData.map((region) => (
+            {isLoading ? (
+              [...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-3xl" />)
+            ) : !hasData ? (
+              <div className="flex h-full min-h-[16rem] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                <MapPin className="mb-2 h-8 w-8 text-slate-300" />
+                <p className="font-medium text-slate-600">No delivered sales for this period yet</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Regions appear here once orders in this period reach Delivered status.
+                </p>
+              </div>
+            ) : (
+              salesData.map((region) => (
               <div key={region.municipality} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -141,7 +154,8 @@ export function SalesMap({ data }: SalesMapProps) {
                   />
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </CardContent>

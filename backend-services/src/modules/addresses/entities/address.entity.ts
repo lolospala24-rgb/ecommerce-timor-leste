@@ -10,7 +10,7 @@ export class AddressEntity implements Address {
   municipalityId: number;
   province: string | null;
   municipality: string | null;
-  administrativePost: string | null;
+  postoAdmin: string | null;
   suco: string;
   village: string | null;
   street: string | null;
@@ -34,7 +34,7 @@ export class AddressEntity implements Address {
     if (this.street) parts.push(this.street);
     if (this.village) parts.push(this.village);
     parts.push(this.suco);
-    parts.push(this.administrativePost || '');
+    parts.push(this.postoAdmin || '');
     parts.push(this.municipality || '');
     if (this.reference) parts.push(`(${this.reference})`);
     return parts.filter(Boolean).join(', ');
@@ -46,7 +46,7 @@ export class AddressEntity implements Address {
       ${this.street || ''}
       ${this.village ? `Village: ${this.village}` : ''}
       Suco: ${this.suco}
-      Posto: ${this.administrativePost || ''}
+      Posto: ${this.postoAdmin || ''}
       Municipality: ${this.municipality || ''}
       Phone: ${this.phone}
       ${this.reference ? `Reference: ${this.reference}` : ''}
@@ -55,7 +55,7 @@ export class AddressEntity implements Address {
 
   // Get short address (without reference)
   getShortAddress(): string {
-    return `${this.suco}, ${this.administrativePost || ''}, ${this.municipality || ''}`.replace(/, ,/g, ',').replace(/(^, |, $)/g, '');
+    return `${this.suco}, ${this.postoAdmin || ''}, ${this.municipality || ''}`.replace(/, ,/g, ',').replace(/(^, |, $)/g, '');
   }
 
   // Get label or default
@@ -67,7 +67,7 @@ export class AddressEntity implements Address {
   isComplete(): boolean {
     return !!(
       this.municipality &&
-      this.administrativePost &&
+      this.postoAdmin &&
       this.suco &&
       this.phone
     );
@@ -84,7 +84,7 @@ export class AddressEntity implements Address {
     if (this.street) parts.push(this.street);
     if (this.village) parts.push(this.village);
     parts.push(this.suco);
-    parts.push(this.administrativePost || '');
+    parts.push(this.postoAdmin || '');
     parts.push(this.municipality || '');
     parts.push('Timor-Leste');
     return parts.filter(Boolean).join(', ');

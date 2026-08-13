@@ -4,8 +4,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import 'multer';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
@@ -76,44 +78,58 @@ export class ReviewsService {
       }
     }
 
-    // Create review (pending approval by default)
-    const review = await this.prisma.review.create({
-      data: {
-        productId: createReviewDto.productId,
-        userId,
-        rating: createReviewDto.rating,
-        title: createReviewDto.title,
-        comment: createReviewDto.comment,
-        images: uploadedImages,
-        isApproved: !settings.requireReviewApproval,
-        approvedAt: settings.requireReviewApproval ? null : new Date(),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
+    // Create review (pending approval by default). The existingReview check
+    // above is a check-then-write that isn't atomic — two concurrent
+    // submissions from the same user can both pass it and race to insert;
+    // the DB's unique constraint (productId, userId) is what actually
+    // prevents the duplicate, so the loser here throws P2002, not a normal
+    // validation error. Translate it to the same friendly message rather
+    // than letting it surface as a raw 500.
+    let review;
+    try {
+      review = await this.prisma.review.create({
+        data: {
+          productId: createReviewDto.productId,
+          userId,
+          rating: createReviewDto.rating,
+          title: createReviewDto.title,
+          comment: createReviewDto.comment,
+          images: uploadedImages,
+          isApproved: !settings.requireReviewApproval,
+          approvedAt: settings.requireReviewApproval ? null : new Date(),
         },
-        product: {
-          select: {
-            id: true,
-            name: true,
-            sellerId: true,
-            seller: {
-              select: {
-                storeName: true,
-                user: {
-                  select: {
-                    email: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sellerId: true,
+              seller: {
+                select: {
+                  storeName: true,
+                  user: {
+                    select: {
+                      email: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('You have already reviewed this product');
+      }
+      throw error;
+    }
 
     // Notify admin about new review
     await this.mailService.sendNewReviewNotification(review);
@@ -122,6 +138,41 @@ export class ReviewsService {
     await this.clearReviewCache(createReviewDto.productId);
 
     return review;
+  }
+
+  // Lets the frontend show a clear reason ("already reviewed", "purchase
+  // required") before the customer opens the review form, instead of only
+  // finding out via a failed submit. Mirrors the exact checks create() runs
+  // — this is read-only, so it can't be used to bypass them.
+  async checkEligibility(productId: number, userId: number) {
+    const settings = await this.settingsService.getSettings();
+    if (!settings.enableReviews) {
+      return { canReview: false, reason: 'reviews_disabled', message: 'Product reviews are currently disabled' };
+    }
+
+    const existingReview = await this.prisma.review.findFirst({
+      where: { productId, userId },
+    });
+    if (existingReview) {
+      return { canReview: false, reason: 'already_reviewed', message: 'You have already reviewed this product' };
+    }
+
+    const hasPurchased = await this.prisma.order.findFirst({
+      where: {
+        customerId: userId,
+        status: 'DELIVERED',
+        items: { some: { productId } },
+      },
+    });
+    if (!hasPurchased) {
+      return {
+        canReview: false,
+        reason: 'not_purchased',
+        message: 'You can review this product after your order is delivered',
+      };
+    }
+
+    return { canReview: true };
   }
 
   async getProductReviews(
@@ -249,6 +300,7 @@ export class ReviewsService {
             select: {
               id: true,
               name: true,
+              slug: true,
               thumbnail: true,
               seller: {
                 select: {
@@ -381,6 +433,59 @@ export class ReviewsService {
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.review.count({ where: pendingWhere }),
+    ]);
+
+    return ResponseUtil.paginate(reviews, total, page, limit);
+  }
+
+  async getAdminReviews(filters: {
+    page: number;
+    limit: number;
+    status?: 'pending' | 'approved' | 'rejected' | 'all';
+    search?: string;
+  }) {
+    const { page, limit, status = 'all', search } = filters;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (status === 'pending') {
+      where.isApproved = false;
+      where.rejectionReason = null;
+    } else if (status === 'approved') {
+      where.isApproved = true;
+    } else if (status === 'rejected') {
+      where.isApproved = false;
+      where.rejectionReason = { not: null };
+    }
+
+    if (search) {
+      where.OR = [
+        { comment: { contains: search } },
+        { title: { contains: search } },
+        { user: { name: { contains: search } } },
+        { user: { email: { contains: search } } },
+        { product: { name: { contains: search } } },
+      ];
+    }
+
+    const [reviews, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              seller: { select: { storeName: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.review.count({ where }),
     ]);
 
     return ResponseUtil.paginate(reviews, total, page, limit);
@@ -799,6 +904,18 @@ export class ReviewsService {
 
   private async clearReviewCache(productId: number) {
     await this.redisService.del(`review:stats:${productId}`);
-    await this.redisService.del(`review:product:${productId}:*`);
+    await this.redisService.del(`product:${productId}`);
+
+    // findBySlug() (the storefront's actual product-detail fetch) now bakes
+    // rating/totalReviews/ratingDistribution into its cached payload, so a
+    // new/approved/rejected review must also invalidate that cache entry or
+    // the rating shown on the product page goes stale for up to 5 minutes.
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { slug: true },
+    });
+    if (product) {
+      await this.redisService.del(`product:slug:${product.slug}`);
+    }
   }
 }

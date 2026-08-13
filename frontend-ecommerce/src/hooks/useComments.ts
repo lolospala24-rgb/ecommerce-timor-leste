@@ -1,104 +1,89 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { commentService } from '@/services/comment.service';
-import { Comment } from '@/types/comment';
+import { useAuthStore } from '@/stores/authStore';
+import { patchVideoInCaches } from './video/useVideoCache';
 
-interface UseCommentsOptions {
-  limit?: number;
-  sortBy?: 'recent' | 'popular' | 'oldest';
-}
+const PAGE_SIZE = 20;
 
-export const useComments = (videoId: string, options: UseCommentsOptions = {}) => {
+export const useComments = (videoId: number | null) => {
   const queryClient = useQueryClient();
-  const { limit = 10 } = options;
+  const { isAuthenticated } = useAuthStore();
 
-  const {
-    data,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ['comments', videoId, options],
-    queryFn: ({ pageParam = 1 }) =>
-      commentService.getComments(videoId, pageParam, limit),
+  const query = useInfiniteQuery({
+    queryKey: ['comments', videoId],
+    queryFn: ({ pageParam = 1 }) => commentService.getComments(videoId as number, pageParam, PAGE_SIZE),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const { page, totalPages } = lastPage.meta;
-      return page < totalPages ? page + 1 : undefined;
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return loaded < lastPage.total ? allPages.length + 1 : undefined;
     },
-    enabled: !!videoId,
-    staleTime: 2 * 60 * 1000,
+    enabled: videoId != null,
+    staleTime: 30 * 1000,
   });
 
-  const comments = data?.pages.flatMap((page) => page.data) || [];
-  const totalComments = data?.pages[0]?.meta.total || 0;
+  const comments = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const total = query.data?.pages[0]?.total ?? 0;
 
-  const createCommentMutation = useMutation({
-    mutationFn: (content: string) => commentService.createComment(videoId, content),
-    onSuccess: (newComment) => {
-      queryClient.setQueryData(['comments', videoId, options], (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          pages: [
-            {
-              ...oldData.pages[0],
-              data: [newComment, ...oldData.pages[0].data],
-              meta: {
-                ...oldData.pages[0].meta,
-                total: oldData.pages[0].meta.total + 1,
-              },
-            },
-            ...oldData.pages.slice(1),
-          ],
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ['video', videoId] });
+  const createMutation = useMutation({
+    mutationFn: ({ content, parentId }: { content: string; parentId?: number }) =>
+      commentService.createComment(videoId as number, content, parentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', videoId] });
+      if (videoId != null) {
+        patchVideoInCaches(queryClient, videoId, (v) => ({ commentsCount: v.commentsCount + 1 }));
+      }
     },
+    onError: () => toast.error("Couldn't post your comment. Please try again."),
   });
 
-  const likeCommentMutation = useMutation({
-    mutationFn: (commentId: string) => commentService.likeComment(commentId),
+  const deleteMutation = useMutation({
+    mutationFn: (commentId: number) => commentService.deleteComment(commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', videoId] });
+      if (videoId != null) {
+        patchVideoInCaches(queryClient, videoId, (v) => ({ commentsCount: Math.max(0, v.commentsCount - 1) }));
+      }
+    },
+    onError: () => toast.error("Couldn't delete comment. Please try again."),
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: (commentId: number) => commentService.likeComment(commentId),
     onSuccess: (result, commentId) => {
-      queryClient.setQueryData(['comments', videoId, options], (oldData: any) => {
-        if (!oldData) return oldData;
+      queryClient.setQueryData(['comments', videoId], (old: any) => {
+        if (!old) return old;
         return {
-          ...oldData,
-          pages: oldData.pages.map((page: any) => ({
+          ...old,
+          pages: old.pages.map((page: any) => ({
             ...page,
-            data: page.data.map((comment: Comment) =>
-              comment.id === commentId
-                ? {
-                    ...comment,
-                    likes: result.likes,
-                    isLiked: result.isLiked,
-                  }
-                : comment
-            ),
+            items: page.items.map((c: any) => (c.id === commentId ? { ...c, likes: result.likes } : c)),
           })),
         };
       });
     },
   });
 
+  const addComment = (content: string, parentId?: number) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to comment');
+      return;
+    }
+    if (!content.trim()) return;
+    createMutation.mutate({ content: content.trim(), parentId });
+  };
+
   return {
     comments,
-    totalComments,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    createComment: async (content: string) => {
-      await createCommentMutation.mutateAsync(content);
-    },
-    isCreating: createCommentMutation.isPending,
-    // The backend has no reply/thread concept for comments (or a comments
-    // endpoint at all yet) — this posts the reply as a top-level comment
-    // via the same mutation until real threaded replies exist server-side.
-    createReply: (_parentId: string, content: string) => createCommentMutation.mutateAsync(content),
-    likeComment: likeCommentMutation.mutate,
-    isLiking: likeCommentMutation.isPending,
+    total,
+    isLoading: query.isLoading,
+    error: query.error,
+    fetchNextPage: query.fetchNextPage,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    addComment,
+    isPosting: createMutation.isPending,
+    deleteComment: deleteMutation.mutate,
+    likeComment: likeMutation.mutate,
   };
 };

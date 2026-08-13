@@ -160,7 +160,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
         </DialogHeader>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-slate-100">
             <Image
               src={galleryImages[0] || product.thumbnail || '/images/placeholder.png'}
               alt={product.name}
@@ -172,7 +172,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
               }}
             />
             {discount > 0 && (
-              <Badge className="absolute top-2 left-2 bg-red-500">
+              <Badge className="absolute top-2 left-2 bg-red-600">
                 -{discount}%
               </Badge>
             )}
@@ -212,12 +212,12 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
             <div className="flex items-center gap-2">
               {displayStock > 0 ? (
                 <>
-                  <Check className="h-5 w-5 text-green-500" />
+                  <Check className="h-5 w-5 text-green-600" />
                   <span className="text-green-600 font-medium">In Stock</span>
                 </>
               ) : (
                 <>
-                  <AlertCircle className="h-5 w-5 text-red-500" />
+                  <AlertCircle className="h-5 w-5 text-red-600" />
                   <span className="text-red-600 font-medium">Out of Stock</span>
                 </>
               )}
@@ -289,7 +289,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
                 >
                   <Heart
                     className={`h-5 w-5 ${
-                      isWishlisted ? 'fill-red-500 text-red-500' : ''
+                      isWishlisted ? 'fill-red-600 text-red-600' : ''
                     }`}
                   />
                 </Button>

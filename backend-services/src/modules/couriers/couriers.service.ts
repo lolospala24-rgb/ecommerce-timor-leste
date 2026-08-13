@@ -22,6 +22,7 @@ export class CouriersService {
       data: {
         name: createCourierDto.name,
         code: createCourierDto.code,
+        description: createCourierDto.description || null,
         phone: createCourierDto.phone || null,
         website: createCourierDto.website || null,
         trackingUrl: createCourierDto.trackingUrl || null,
@@ -80,6 +81,7 @@ export class CouriersService {
       data: {
         name: updateCourierDto.name || courier.name,
         code: updateCourierDto.code || courier.code,
+        description: updateCourierDto.description !== undefined ? updateCourierDto.description : courier.description,
         phone: updateCourierDto.phone !== undefined ? updateCourierDto.phone : courier.phone,
         website: updateCourierDto.website !== undefined ? updateCourierDto.website : courier.website,
         trackingUrl: updateCourierDto.trackingUrl !== undefined ? updateCourierDto.trackingUrl : courier.trackingUrl,
@@ -99,6 +101,13 @@ export class CouriersService {
       throw new NotFoundException(`Courier with ID ${id} not found`);
     }
 
+    const zoneCount = await this.prisma.shippingZone.count({ where: { courierId: id } });
+    if (zoneCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete "${courier.name}" — it is used by ${zoneCount} shipping rate(s). Deactivate it instead, or remove those rates first.`,
+      );
+    }
+
     await this.prisma.courier.delete({
       where: { id },
     });
@@ -109,6 +118,7 @@ export class CouriersService {
       id: courier.id,
       name: courier.name,
       code: courier.code,
+      description: courier.description || undefined,
       phone: courier.phone || undefined,
       website: courier.website || undefined,
       trackingUrl: courier.trackingUrl || undefined,

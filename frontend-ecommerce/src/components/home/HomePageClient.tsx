@@ -3,25 +3,21 @@
 import { HeroSection } from '@/components/home/HeroSection';
 import QuickMenu from '@/components/home/QuickMenu';
 import { CategoriesShowcase } from '@/components/home/CategoriesShowcase';
-import { FeaturedProducts } from '@/components/home/FeaturedProducts';
-import { LocalProducts } from '@/components/home/LocalProducts';
-import { NewArrivals } from '@/components/home/NewArrivals';
-import { PopularProducts } from '@/components/home/PopularProducts';
+import { HomepageSections } from '@/components/home/HomepageSections';
 import { TopSellers } from '@/components/home/TopSellers';
 
-// Each section below fetches and loads its own data independently (with its
-// own skeleton/loading state), so the page renders progressively instead of
-// blocking behind one artificial top-level spinner.
+// Product sections (Featured/New Arrivals/Popular/Local/...) are no longer
+// individual hardcoded components — HomepageSections fetches the admin-
+// configured section list from the backend's Homepage Section Engine in one
+// call and renders all of them through one reusable renderer. Adding a new
+// section (e.g. "On Sale") in the admin panel needs no frontend change.
 export function HomePageClient() {
   return (
     <div className="flex flex-col min-h-screen">
       <HeroSection />
       <QuickMenu />
       <CategoriesShowcase />
-      <FeaturedProducts />
-      <LocalProducts />
-      <NewArrivals />
-      <PopularProducts />
+      <HomepageSections />
       <TopSellers />
     </div>
   );

@@ -356,7 +356,7 @@ async function main() {
       municipalityId: municipality.id,
       province: province.name,
       municipality: municipality.name,
-      administrativePost: 'Cristo Rei',
+      postoAdmin: 'Cristo Rei',
       suco: 'Bidau Lecidere',
       village: '12 de Novembro',
       street: 'Rua de Bidau',

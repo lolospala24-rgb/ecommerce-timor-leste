@@ -28,6 +28,8 @@ const addressSchema = z.object({
   street: z.string().trim().optional(),
   reference: z.string().trim().optional(),
   phone: z.string().trim().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   isPrimary: z.boolean().default(false),
 });
 
@@ -49,8 +51,17 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
   const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
+      label: initialData?.label ?? '',
       municipality: '',
       municipalityId: initialData?.municipalityId ? Number(initialData.municipalityId) : undefined,
+      postoAdmin: initialData?.postoAdmin ?? '',
+      suco: initialData?.suco ?? '',
+      village: initialData?.village ?? '',
+      street: initialData?.street ?? '',
+      reference: initialData?.reference ?? initialData?.placeName ?? '',
+      phone: initialData?.phone ?? '',
+      latitude: initialData?.latitude != null ? Number(initialData.latitude) : undefined,
+      longitude: initialData?.longitude != null ? Number(initialData.longitude) : undefined,
       isPrimary: initialData?.isPrimary ?? false,
     },
   });
@@ -149,6 +160,12 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       <h4 className="font-medium">{initialData ? 'Edit Address' : 'Add New Address'}</h4>
 
       {error && <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+
+      {watch('latitude') != null && watch('longitude') != null && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-foreground">
+          📍 Location pinned from map ({watch('latitude')?.toFixed(5)}, {watch('longitude')?.toFixed(5)}) — fields below were pre-filled, review and adjust as needed.
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">

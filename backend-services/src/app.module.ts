@@ -2,6 +2,7 @@
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
@@ -31,6 +32,8 @@ import { ShippingModule } from './modules/shipping/shipping.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { CouriersModule } from './modules/couriers/couriers.module';
 import { VideosModule } from './modules/videos/videos.module';
+import { HomepageModule } from './modules/homepage/homepage.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -40,6 +43,8 @@ import { AppService } from './app.service';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    // Powers PaymentExpiryJob's @Cron — nothing else uses it today.
+    ScheduleModule.forRoot(),
     // Global rate limit as a baseline abuse guard for every endpoint.
     // Sensitive public auth endpoints (register, password reset, etc.)
     // additionally set tighter per-route limits via @Throttle(). This is
@@ -80,6 +85,8 @@ import { AppService } from './app.service';
     LocationsModule,
     CouriersModule,
     VideosModule,
+    HomepageModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [

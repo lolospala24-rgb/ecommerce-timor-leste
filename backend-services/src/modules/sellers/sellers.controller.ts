@@ -25,6 +25,7 @@ import { SellerFilterDto } from './dto/seller-filter.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { Role } from '@prisma/client';
 import { multerConfig } from '../../common/config/multer.config';
 
@@ -168,6 +169,29 @@ export class SellersController {
   ) {
     const bannerUrl = await this.sellersService.uploadBanner(userId, file);
     return { message: 'Banner uploaded successfully', data: { bannerUrl } };
+  }
+
+  // Must come before ':id/products' etc. only insofar as it's its own
+  // distinct path segment — Nest/Express matches by full path shape, so
+  // ordering relative to ':id' below is fine either way here.
+  @Post(':id/follow')
+  async follow(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const result = await this.sellersService.follow(id, userId);
+    return { success: true, data: result };
+  }
+
+  @Delete(':id/follow')
+  async unfollow(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const result = await this.sellersService.unfollow(id, userId);
+    return { success: true, data: result };
+  }
+
+  @Public()
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':id/follow-status')
+  async getFollowStatus(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId?: number) {
+    const result = await this.sellersService.getFollowStatus(id, userId);
+    return { success: true, data: result };
   }
 
   @Public()

@@ -31,6 +31,13 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import {
+  notificationHref,
+  relativeTime,
+  PRIORITY_DOT_COLOR,
+  CATEGORY_LABEL,
+  type AdminNotification,
+} from '@/lib/notifications';
 
 export function Header() {
   const router = useRouter();
@@ -72,7 +79,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 backdrop-blur-xl px-4 shadow-sm">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white/80 backdrop-blur-xl px-4 shadow-sm print:hidden">
       <div className="flex items-center gap-4 flex-1">
         {/* Breadcrumb */}
         <div className="hidden md:block">
@@ -158,22 +165,57 @@ export function Header() {
             <DropdownMenuSeparator />
             <div className="max-h-96 overflow-y-auto">
               {notifications && notifications.length > 0 ? (
-                notifications.slice(0, 8).map((notification: any) => (
-                  <div key={notification.id} className={`border-b px-4 py-3 text-sm ${!notification.isRead ? 'bg-amber-50' : 'bg-white'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{notification.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{notification.message}</p>
-                        <p className="mt-2 text-[11px] text-muted-foreground">{new Date(notification.createdAt).toLocaleString()}</p>
-                      </div>
-                      {!notification.isRead && (
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => markAsRead(notification.id)}>
-                          Mark read
-                        </Button>
+                notifications.slice(0, 8).map((notification: AdminNotification) => {
+                  const href = notificationHref(notification);
+                  const dotColor = notification.priority ? PRIORITY_DOT_COLOR[notification.priority] : 'bg-blue-500';
+                  const handleOpen = () => {
+                    if (!notification.isRead) markAsRead(notification.id);
+                    if (href) router.push(href);
+                  };
+                  return (
+                    <div
+                      key={notification.id}
+                      role={href ? 'button' : undefined}
+                      onClick={href ? handleOpen : undefined}
+                      className={cn(
+                        'border-b px-4 py-3 text-sm',
+                        !notification.isRead ? 'bg-amber-50' : 'bg-white',
+                        href && 'cursor-pointer hover:bg-muted/60',
                       )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2">
+                          <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', dotColor)} />
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium">{notification.title}</p>
+                              {notification.category && (
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  {CATEGORY_LABEL[notification.category]}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{notification.message}</p>
+                            <p className="mt-2 text-[11px] text-muted-foreground">{relativeTime(notification.createdAt)}</p>
+                          </div>
+                        </div>
+                        {!notification.isRead && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 shrink-0 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsRead(notification.id);
+                            }}
+                          >
+                            Mark read
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="px-4 py-8 text-center text-muted-foreground">
                   <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />

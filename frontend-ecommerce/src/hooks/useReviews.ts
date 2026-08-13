@@ -32,6 +32,26 @@ export const useProductReviews = (productId: number, filters?: ReviewFilters) =>
   })
 }
 
+interface ReviewEligibility {
+  canReview: boolean
+  reason?: 'reviews_disabled' | 'already_reviewed' | 'not_purchased'
+  message?: string
+}
+
+export const useReviewEligibility = (productId: number, enabled: boolean) => {
+  return useQuery({
+    queryKey: ['reviews', 'eligibility', productId],
+    queryFn: async () => {
+      const response = await api.get(`/reviews/product/${productId}/eligibility`)
+      // Controller wraps the result as { data: result }, and the global
+      // TransformInterceptor wraps that again as { status, data } — so the
+      // real payload is nested one level deeper than a typical response.
+      return (response.data?.data ?? response.data) as ReviewEligibility
+    },
+    enabled: enabled && !!productId,
+  })
+}
+
 export const useUserReviews = (filters?: ReviewFilters) => {
   return useQuery({
     queryKey: ['reviews', 'user', filters],
@@ -54,10 +74,11 @@ export const useCreateReview = () => {
   return useMutation({
     mutationFn: async (payload: CreateReviewPayload) => {
       const response = await api.post('/reviews', payload)
-      return response.data
+      return response.data.data
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', 'product', variables.productId] })
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'eligibility', variables.productId] })
       queryClient.invalidateQueries({ queryKey: ['reviews', 'user'] })
       toast.success('Review submitted successfully!')
     },

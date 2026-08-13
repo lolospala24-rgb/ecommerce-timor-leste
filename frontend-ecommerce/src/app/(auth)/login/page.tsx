@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
+import { getSafeRedirectPath } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +50,7 @@ function LoginFormSkeleton() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/';
+  const redirect = getSafeRedirectPath(searchParams.get('redirect'), '/');
   const { login, isLoading, isAuthenticated, error: storeError } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);

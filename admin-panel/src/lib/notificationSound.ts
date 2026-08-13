@@ -32,6 +32,30 @@ export const unlockNotificationSound = async () => {
   }
 };
 
+const playTone = (
+  context: AudioContext,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  peakGain: number,
+) => {
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+
+  gainNode.gain.setValueAtTime(0.0001, startTime);
+  gainNode.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.015);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+};
+
 export const playRealtimeNotificationSound = async () => {
   const context = getAudioContext();
   if (!context) return;
@@ -41,22 +65,12 @@ export const playRealtimeNotificationSound = async () => {
       await context.resume();
     }
 
-    const oscillator = context.createOscillator();
-    const gainNode = context.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, context.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(1320, context.currentTime + 0.14);
-
-    gainNode.gain.setValueAtTime(0.0001, context.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.03, context.currentTime + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(context.destination);
-
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.22);
+    const now = context.currentTime;
+    // Two-tone "ding-dong" chime — a descending major third (E6 -> C6),
+    // the classic doorbell/notification interval. The second tone starts
+    // while the first is still decaying for a smooth, natural transition.
+    playTone(context, 1318.51, now, 0.22, 0.035);
+    playTone(context, 1046.5, now + 0.16, 0.28, 0.035);
   } catch {
     // ignore audio failures
   }

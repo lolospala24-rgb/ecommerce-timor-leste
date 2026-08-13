@@ -164,7 +164,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                     <div key={getCartItemKey(item)} className="flex gap-3">
                       <Link
                         href={`/products/${slug}`}
-                        className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-100"
+                        className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100"
                         onClick={() => onOpenChange(false)}
                       >
                         {thumbnail ? (
@@ -181,7 +181,7 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                             }}
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-gray-400">
+                          <div className="flex h-full w-full items-center justify-center text-slate-400">
                             <ShoppingCart className="h-6 w-6" />
                           </div>
                         )}

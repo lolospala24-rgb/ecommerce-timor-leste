@@ -42,7 +42,7 @@ export function CategoryBanner({ category, productCount = 0 }: CategoryBannerPro
                 <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
                   {category.name}
                 </h1>
-                <Sparkles className="hidden sm:block h-7 w-7 text-yellow-400 shrink-0" />
+                <Sparkles className="hidden sm:block h-7 w-7 text-amber-500 shrink-0" />
               </div>
 
               {category.nameTetum && (
@@ -58,14 +58,15 @@ export function CategoryBanner({ category, productCount = 0 }: CategoryBannerPro
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm px-3 py-1.5">
                   <Package className="h-3.5 w-3.5 mr-1.5" />
-                  {productCount} Products
+                  {productCount} {productCount === 1 ? 'Product' : 'Products'}
                 </Badge>
                 {category.children && category.children.length > 0 && (
                   <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm px-3 py-1.5">
-                    {category.children.length} Subcategories
+                    {category.children.length}{' '}
+                    {category.children.length === 1 ? 'Subcategory' : 'Subcategories'}
                   </Badge>
                 )}
-                <Badge className="bg-emerald-500/30 text-white border-0 backdrop-blur-sm px-3 py-1.5">
+                <Badge className="bg-green-500/30 text-white border-0 backdrop-blur-sm px-3 py-1.5">
                   <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
                   Shop Now
                 </Badge>

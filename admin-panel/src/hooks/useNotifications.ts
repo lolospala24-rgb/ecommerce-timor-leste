@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/stores/authStore';
 import { playRealtimeNotificationSound } from '@/lib/notificationSound';
+import { shouldPlaySound, type AdminNotification } from '@/lib/notifications';
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
@@ -16,38 +17,60 @@ export const useNotifications = () => {
     queryFn: async () => {
       try {
         const response = await api.get('/notifications', { params: { page: 1, limit: 20 } });
-        return response?.data?.data || response?.data || [];
+        return (response?.data?.data || response?.data || []) as AdminNotification[];
       } catch {
-        return [];
+        return [] as AdminNotification[];
       }
     },
     staleTime: 1000 * 60, // 1 minute
   });
 
+  // The dropdown only fetches the latest 20 rows — deriving "unread" from
+  // that page undercounts once unread total exceeds 20, so the real count
+  // comes from its own dedicated, unpaginated endpoint.
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/notifications/unread/count');
+        return Number(response?.data?.data?.count ?? 0);
+      } catch {
+        return 0;
+      }
+    },
+    staleTime: 1000 * 30,
+  });
+
   useEffect(() => {
     if (!user?.id) return;
 
+    // No join needed — the server derives room membership from the
+    // authenticated session (verified JWT cookie) on connect, not from
+    // anything the client tells it.
     const socket = getSocket();
-    socket.emit('join-notifications-room', { userId: user.id });
 
     const onNotificationUpdated = (payload: any) => {
       if (payload?.notification?.userId && payload.notification.userId !== user.id) return;
-      void playRealtimeNotificationSound();
+      if (payload?.notification && shouldPlaySound(payload.notification)) {
+        void playRealtimeNotificationSound();
+      }
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     };
 
+    // `admin.new_order` is intentionally not listened to here — it's an
+    // ephemeral, non-persisted order event; the persisted "New Order
+    // Received" admin notification arrives through `notifications:updated`
+    // like every other notification. Listening to both fired the sound and
+    // the query invalidation twice for the same event.
     socket.on('notifications:updated', onNotificationUpdated);
-    socket.on('admin.new_order', onNotificationUpdated);
 
     return () => {
       socket.off('notifications:updated', onNotificationUpdated);
-      socket.off('admin.new_order', onNotificationUpdated);
     };
   }, [queryClient, user?.id]);
 
   const notifications = Array.isArray(data) ? data : [];
-  const unreadCount = notifications.filter((n: { isRead?: boolean }) => !n.isRead).length;
 
   const markAsRead = async (id: number) => {
     try {

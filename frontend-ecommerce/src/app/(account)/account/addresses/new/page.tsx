@@ -1,11 +1,35 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AddressForm } from '@/components/checkout/AddressForm';
 
-export default function NewAddressPage() {
+function NewAddressContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // A redirect target is only honored when it points back into this app,
+  // so an address created directly (no map-picker prefill) lands on the
+  // address list instead of an arbitrary external URL.
+  const redirectParam = searchParams.get('redirect');
+  const redirectTo = redirectParam && redirectParam.startsWith('/') ? redirectParam : '/account/addresses';
+
+  const lat = searchParams.get('lat');
+  const lng = searchParams.get('lng');
+
+  const prefillData = {
+    street: searchParams.get('street') || undefined,
+    village: searchParams.get('village') || undefined,
+    suco: searchParams.get('suco') || undefined,
+    postoAdmin: searchParams.get('postoAdmin') || undefined,
+    municipality: searchParams.get('municipality') || undefined,
+    placeName: searchParams.get('placeName') || undefined,
+    latitude: lat ? Number(lat) : undefined,
+    longitude: lng ? Number(lng) : undefined,
+  };
+  const hasPrefill = Object.values(prefillData).some((value) => value !== undefined);
 
   return (
     <Card>
@@ -14,8 +38,20 @@ export default function NewAddressPage() {
         <CardDescription>Add a new delivery address. Select municipality from shipping zones.</CardDescription>
       </CardHeader>
       <CardContent>
-        <AddressForm onSuccess={() => router.push('/checkout')} onCancel={() => router.back()} />
+        <AddressForm
+          initialData={hasPrefill ? prefillData : undefined}
+          onSuccess={() => router.push(redirectTo)}
+          onCancel={() => router.back()}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+export default function NewAddressPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <NewAddressContent />
+    </Suspense>
   );
 }

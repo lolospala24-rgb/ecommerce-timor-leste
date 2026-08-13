@@ -13,12 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
-  PENDING: 'bg-yellow-500',
-  PAID: 'bg-blue-500',
-  PROCESSING: 'bg-purple-500',
-  SHIPPING: 'bg-indigo-500',
-  DELIVERED: 'bg-green-500',
-  CANCELLED: 'bg-red-500',
+  PENDING: 'bg-amber-500',
+  PAID: 'bg-green-600',
+  PROCESSING: 'bg-blue-600',
+  SHIPPING: 'bg-blue-600',
+  DELIVERED: 'bg-green-600',
+  CANCELLED: 'bg-red-600',
 };
 
 const statusIcons: Record<string, any> = {
@@ -38,6 +38,18 @@ const statusLabels: Record<string, string> = {
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
 };
+
+// A customer with a BANK_TRANSFER order looked identical here whether they
+// still owed us a receipt or one was already rejected — both need the
+// customer to go do something, which the order status alone doesn't convey
+// (order.status stays PENDING either way).
+function getActionNeeded(order: any): string | null {
+  if (order.paymentMethod !== 'BANK_TRANSFER' || order.status === 'CANCELLED') return null;
+  if (!order.payment) return 'Payment needed';
+  if (order.payment.status === 'FAILED') return 'Receipt rejected — retry';
+  if (order.payment.status === 'PENDING' && !order.payment.proofImage) return 'Upload receipt';
+  return null;
+}
 
 export default function OrdersPage() {
   const { isAuthenticated } = useAuthStore();
@@ -106,12 +118,13 @@ export default function OrdersPage() {
             <div className="space-y-4">
               {data?.data.map((order: any) => {
                 const StatusIcon = statusIcons[order.status] || Package;
+                const actionNeeded = getActionNeeded(order);
                 return (
                   <Card key={order.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Link href={`/orders/${order.id}`} className="hover:text-primary">
                               <h3 className="font-semibold">Order #{order.orderNumber}</h3>
                             </Link>
@@ -119,6 +132,11 @@ export default function OrdersPage() {
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {statusLabels[order.status]}
                             </Badge>
+                            {actionNeeded && (
+                              <Badge variant="outline" className="border-amber-500 text-slate-600">
+                                {actionNeeded}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             Placed on {new Date(order.createdAt).toLocaleDateString()}

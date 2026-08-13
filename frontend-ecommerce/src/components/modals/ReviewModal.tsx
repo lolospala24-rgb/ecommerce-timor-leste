@@ -119,8 +119,8 @@ export function ReviewModal({
                   <Star
                     className={`h-8 w-8 ${
                       star <= (hoveredRating || rating)
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300'
+                        ? 'fill-amber-500 text-amber-500'
+                        : 'text-slate-300'
                     }`}
                   />
                 </button>

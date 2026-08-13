@@ -11,6 +11,7 @@ import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterSellerDto } from './dto/register-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { SellerFilterDto } from './dto/seller-filter.dto';
@@ -26,6 +27,7 @@ export class SellersService {
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async register(registerSellerDto: RegisterSellerDto) {
@@ -102,6 +104,15 @@ export class SellersService {
       result.user.name,
       result.storeName,
     );
+
+    // Only alert admins when there's actually something to review — if
+    // sellerVerificationRequired is off, the seller above was already
+    // created isVerified: true and there's no pending action for an admin.
+    if (!result.isVerified) {
+      await this.notificationsService
+        .notifySellerRegistered(result.id, result.storeName, result.user.name)
+        .catch((err) => console.error('Failed to send seller-registered notification:', err));
+    }
 
     // Clear cache
     await this.clearSellerCache();
@@ -202,6 +213,17 @@ export class SellersService {
             isActive: true,
           },
         },
+        // Was previously omitted entirely — the admin seller-detail page's
+        // "Recent Orders" tab reads seller.orders and always rendered
+        // "No orders found" regardless of reality, silently.
+        orders: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            customer: { select: { name: true } },
+          },
+        },
+        balance: true,
         _count: {
           select: {
             products: true,
@@ -216,23 +238,40 @@ export class SellersService {
     }
 
     // Calculate rating
-    const reviews = await this.prisma.review.aggregate({
-      where: {
-        product: {
-          sellerId: id,
+    const [reviews, revenueAgg] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: {
+          product: {
+            sellerId: id,
+          },
+          isApproved: true,
         },
-        isApproved: true,
-      },
-      _avg: {
-        rating: true,
-      },
-      _count: true,
-    });
+        _avg: {
+          rating: true,
+        },
+        _count: true,
+      }),
+      // Was previously never computed — the admin seller-detail page's
+      // "Total Revenue" stat card read seller.totalRevenue, which this
+      // endpoint never returned, so it silently always rendered $0.
+      this.prisma.order.aggregate({
+        where: { sellerId: id, status: 'DELIVERED' },
+        _sum: { total: true },
+      }),
+    ]);
 
     const sellerWithRating = {
       ...seller,
       rating: reviews._avg.rating || 0,
       totalReviews: reviews._count,
+      totalRevenue: revenueAgg._sum.total || 0,
+      balance: seller.balance || {
+        pendingAmount: 0,
+        availableAmount: 0,
+        processingAmount: 0,
+        paidOutAmount: 0,
+        refundedAmount: 0,
+      },
     };
 
     // Cache for 5 minutes
@@ -373,6 +412,9 @@ export class SellersService {
         storeEmail: updateSellerDto.storeEmail,
         storeAddress: updateSellerDto.storeAddress,
         description: updateSellerDto.description,
+        bankName: updateSellerDto.bankName,
+        bankAccountName: updateSellerDto.bankAccountName,
+        bankAccountNumber: updateSellerDto.bankAccountNumber,
       },
       include: {
         user: {
@@ -460,6 +502,10 @@ export class SellersService {
         rejectionReason,
       );
     }
+
+    await this.notificationsService
+      .sendSellerVerificationNotification(seller.user.id, seller.storeName, isApproved, id, rejectionReason)
+      .catch((err) => console.error('Failed to send seller-verification notification:', err));
 
     // Clear cache
     await this.clearSellerCache(id);
@@ -716,6 +762,43 @@ export class SellersService {
     await this.redisService.set(cacheKey, JSON.stringify(stats), 300);
 
     return stats;
+  }
+
+  // ==================== Follow (video-shopping creator header) ====================
+  // Deliberately not routed through `findOne`'s 5-minute Redis cache — that
+  // cache is keyed by sellerId only and shared across all viewers, so a
+  // per-user isFollowing flag must never be written into it.
+
+  async follow(sellerId: number, userId: number) {
+    const seller = await this.prisma.seller.findUnique({ where: { id: sellerId } });
+    if (!seller) throw new NotFoundException(`Seller with ID ${sellerId} not found`);
+
+    await this.prisma.sellerFollow.upsert({
+      where: { sellerId_userId: { sellerId, userId } },
+      create: { sellerId, userId },
+      update: {},
+    });
+
+    const followersCount = await this.prisma.sellerFollow.count({ where: { sellerId } });
+    return { isFollowing: true, followersCount };
+  }
+
+  async unfollow(sellerId: number, userId: number) {
+    await this.prisma.sellerFollow.deleteMany({ where: { sellerId, userId } });
+    const followersCount = await this.prisma.sellerFollow.count({ where: { sellerId } });
+    return { isFollowing: false, followersCount };
+  }
+
+  async getFollowStatus(sellerId: number, userId?: number) {
+    const [followersCount, isFollowing] = await Promise.all([
+      this.prisma.sellerFollow.count({ where: { sellerId } }),
+      userId
+        ? this.prisma.sellerFollow
+            .findUnique({ where: { sellerId_userId: { sellerId, userId } } })
+            .then((row) => !!row)
+        : Promise.resolve(false),
+    ]);
+    return { isFollowing, followersCount };
   }
 
   private async clearSellerCache(sellerId?: number) {

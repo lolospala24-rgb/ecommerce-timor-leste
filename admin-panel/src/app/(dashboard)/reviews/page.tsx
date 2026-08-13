@@ -10,9 +10,11 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -21,12 +23,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Star, CheckCircle, XCircle, MessageSquareText, Loader2 } from 'lucide-react';
+import { Star, CheckCircle, XCircle, MessageSquareText, Loader2, Search, ShieldCheck } from 'lucide-react';
 import {
-  usePendingReviews,
+  useAdminReviews,
   useApproveReview,
   useRejectReview,
   type PendingReview,
+  type ReviewStatusFilter,
 } from '@/hooks/useReviews';
 
 function StarRating({ rating }: { rating: number }) {
@@ -42,8 +45,30 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+function StatusBadge({ review }: { review: PendingReview }) {
+  if (review.isApproved) {
+    return <Badge className="bg-green-600 hover:bg-green-600">Approved</Badge>;
+  }
+  if (review.rejectionReason) {
+    return <Badge variant="destructive">Rejected</Badge>;
+  }
+  return <Badge variant="secondary">Pending</Badge>;
+}
+
+const STATUS_TABS: { value: ReviewStatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
 export default function ReviewsPage() {
-  const { data, isLoading } = usePendingReviews();
+  const [status, setStatus] = useState<ReviewStatusFilter>('pending');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, isFetching } = useAdminReviews(status, search, page);
   const approveReview = useApproveReview();
   const rejectReview = useRejectReview();
 
@@ -51,6 +76,17 @@ export default function ReviewsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
 
   const reviews = data?.data || [];
+
+  const handleTabChange = (value: string) => {
+    setStatus(value as ReviewStatusFilter);
+    setPage(1);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearch(searchInput.trim());
+    setPage(1);
+  };
 
   const handleReject = async () => {
     if (!rejectTarget || !rejectionReason.trim()) return;
@@ -64,16 +100,45 @@ export default function ReviewsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Review Moderation</h1>
         <p className="text-muted-foreground">
-          Approve or reject product reviews awaiting publication
+          Search, filter, and moderate product reviews submitted by customers
         </p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Pending Reviews</CardTitle>
-          <CardDescription>
-            {data?.pagination?.total ?? 0} review{(data?.pagination?.total ?? 0) === 1 ? '' : 's'} waiting for a decision
-          </CardDescription>
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Reviews</CardTitle>
+              <CardDescription>
+                {data?.pagination?.total ?? 0} review{(data?.pagination?.total ?? 0) === 1 ? '' : 's'}
+                {status !== 'all' ? ` · ${status}` : ''}
+              </CardDescription>
+            </div>
+            <form onSubmit={handleSearchSubmit} className="flex w-full gap-2 sm:w-72">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search review, customer, product..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <Button type="submit" variant="outline" size="icon" aria-label="Search">
+                <Search className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+
+          <Tabs value={status} onValueChange={handleTabChange}>
+            <TabsList>
+              {STATUS_TABS.map((tab) => (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -85,11 +150,19 @@ export default function ReviewsPage() {
           ) : reviews.length === 0 ? (
             <div className="text-center py-12">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">All caught up</h3>
-              <p className="text-muted-foreground">There are no reviews waiting for moderation.</p>
+              <h3 className="text-lg font-semibold">
+                {search ? 'No matching reviews' : 'All caught up'}
+              </h3>
+              <p className="text-muted-foreground">
+                {search
+                  ? `No reviews match "${search}".`
+                  : status === 'pending'
+                    ? 'There are no reviews waiting for moderation.'
+                    : 'No reviews found for this filter.'}
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className={`space-y-4 transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
               {reviews.map((review) => (
                 <Card key={review.id} className="overflow-hidden">
                   <CardContent className="p-6">
@@ -97,7 +170,14 @@ export default function ReviewsPage() {
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <StarRating rating={review.rating} />
-                          <Badge variant="secondary">Pending</Badge>
+                          <StatusBadge review={review} />
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-green-200 text-green-700 dark:border-green-900 dark:text-green-400"
+                          >
+                            <ShieldCheck className="h-3 w-3" />
+                            Verified Purchase
+                          </Badge>
                         </div>
                         <p className="text-sm">
                           <span className="font-medium">{review.product?.name || 'Unknown product'}</span>
@@ -111,6 +191,11 @@ export default function ReviewsPage() {
                         </p>
                         {review.title && <p className="font-medium">{review.title}</p>}
                         <p className="text-sm">{review.comment}</p>
+                        {review.rejectionReason && (
+                          <p className="text-sm text-destructive">
+                            Rejection reason: {review.rejectionReason}
+                          </p>
+                        )}
                         {review.images?.length > 0 && (
                           <div className="flex gap-2 pt-1">
                             {review.images.map((src, i) => (
@@ -125,29 +210,55 @@ export default function ReviewsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="default"
-                          className="bg-green-600 hover:bg-green-700"
-                          disabled={approveReview.isPending}
-                          onClick={() => approveReview.mutate(review.id)}
-                        >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          disabled={rejectReview.isPending}
-                          onClick={() => setRejectTarget(review)}
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          Reject
-                        </Button>
-                      </div>
+                      {!review.isApproved && !review.rejectionReason && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={approveReview.isPending}
+                            onClick={() => approveReview.mutate(review.id)}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            disabled={rejectReview.isPending}
+                            onClick={() => setRejectTarget(review)}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {data?.pagination && data.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <span className="flex items-center px-4 text-sm text-muted-foreground">
+                Page {page} of {data.pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+                disabled={page === data.pagination.totalPages}
+              >
+                Next
+              </Button>
             </div>
           )}
         </CardContent>

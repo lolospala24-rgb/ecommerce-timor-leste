@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useDashboard, useRevenueChart, useTopProducts } from '@/hooks/useDashboard';
+import { useDashboard, useRevenueChart, useTopProducts, useSalesByRegion } from '@/hooks/useDashboard';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { StatsCards } from './components/StatsCards';
 import { TopProducts } from './components/TopProducts';
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const { data, isLoading, refetch } = useDashboard(period);
   const { data: revenueData, isLoading: revenueLoading } = useRevenueChart(period);
   const { data: topProducts } = useTopProducts(5, period === 'day' ? undefined : period);
+  const { data: salesByRegion, isLoading: salesByRegionLoading } = useSalesByRegion(period);
 
   useOrderRealtime();
 
@@ -165,7 +166,7 @@ export default function DashboardPage() {
           <TopProducts products={safeTopProducts} />
         </TabsContent>
         <TabsContent value="map">
-          <SalesMap data={[]} />
+          <SalesMap data={salesByRegion} isLoading={salesByRegionLoading} />
         </TabsContent>
       </Tabs>
 

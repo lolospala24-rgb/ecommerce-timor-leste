@@ -43,10 +43,10 @@ export function useCreateCourier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['couriers'] });
-      toast.success('Kurir criado com sucesso!');
+      toast.success('Courier created successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao criar kurir');
+      toast.error(error.response?.data?.message || 'Failed to create courier');
     },
   });
 }
@@ -61,10 +61,10 @@ export function useUpdateCourier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['couriers'] });
-      toast.success('Kurir atualizado com sucesso!');
+      toast.success('Courier updated successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao atualizar kurir');
+      toast.error(error.response?.data?.message || 'Failed to update courier');
     },
   });
 }
@@ -78,10 +78,10 @@ export function useDeleteCourier() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['couriers'] });
-      toast.success('Kurir deletado com sucesso!');
+      toast.success('Courier deleted successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Erro ao deletar kurir');
+      toast.error(error.response?.data?.message || 'Failed to delete courier');
     },
   });
 }

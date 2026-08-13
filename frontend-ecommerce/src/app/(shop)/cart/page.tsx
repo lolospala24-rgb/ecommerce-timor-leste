@@ -214,7 +214,7 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
       {/* Product Image */}
       <Link
         href={`/products/${slug}`}
-        className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-gray-100"
+        className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-slate-100"
       >
         {thumbnail ? (
           <Image
@@ -225,12 +225,12 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
             sizes="96px"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
+          <div className="flex h-full w-full items-center justify-center text-slate-400">
             <ShoppingCart className="h-8 w-8" />
           </div>
         )}
         {discount > 0 && (
-          <span className="absolute top-1 left-1 rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          <span className="absolute top-1 left-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
             -{discount}%
           </span>
         )}

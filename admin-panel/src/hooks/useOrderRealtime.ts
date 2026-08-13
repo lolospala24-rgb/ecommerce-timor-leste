@@ -15,7 +15,14 @@ export const useOrderRealtime = (orderId?: number) => {
     if (!user?.id) return;
 
     const socket = getSocket();
-    socket.emit('join-order-room', { orderId, userId: user.id });
+    // Room membership for the caller's own user/admin room is derived
+    // server-side from the authenticated session on connect. A specific
+    // orderId still needs an explicit join — authorized server-side against
+    // the session (admins may join any order; customers/sellers only their
+    // own) rather than trusted from this payload.
+    if (orderId) {
+      socket.emit('join-order-room', { orderId });
+    }
 
     const onOrderUpdated = (payload: any) => {
       const statusLabel = payload?.status ? payload.status.replace(/_/g, ' ') : 'updated';
@@ -120,12 +127,10 @@ const createOrderRecord = (payload: any) => ({
       };
 
     socket.on('order-updated', onOrderUpdated);
-    socket.on('order.created', onNewOrderCreated);
     socket.on('admin.new_order', onNewOrderCreated);
 
     return () => {
       socket.off('order-updated', onOrderUpdated);
-      socket.off('order.created', onNewOrderCreated);
       socket.off('admin.new_order', onNewOrderCreated);
     };
   }, [orderId, queryClient, user?.id]);

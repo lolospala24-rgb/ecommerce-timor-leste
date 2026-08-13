@@ -71,6 +71,15 @@ export class ReviewsController {
     return { data: stats };
   }
 
+  @Get('product/:productId/eligibility')
+  async checkEligibility(
+    @Param('productId', ParseIntPipe) productId: number,
+    @CurrentUser('id') userId: number,
+  ) {
+    const result = await this.reviewsService.checkEligibility(productId, userId);
+    return { data: result };
+  }
+
   @Get('my-reviews')
   async getMyReviews(
     @CurrentUser('id') userId: number,
@@ -109,6 +118,23 @@ export class ReviewsController {
     const result = await this.reviewsService.getPendingReviews({
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
+    });
+    return result;
+  }
+
+  @Get('admin')
+  @Roles(Role.ADMIN)
+  async getAdminReviews(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: 'pending' | 'approved' | 'rejected' | 'all',
+    @Query('search') search?: string,
+  ) {
+    const result = await this.reviewsService.getAdminReviews({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+      status,
+      search,
     });
     return result;
   }

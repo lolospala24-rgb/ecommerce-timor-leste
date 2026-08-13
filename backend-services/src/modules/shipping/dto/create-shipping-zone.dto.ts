@@ -2,6 +2,11 @@ import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsIn } from 'class-val
 import { Type } from 'class-transformer';
 
 export class CreateShippingZoneDto {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  id?: number;
+
   @IsString()
   @IsNotEmpty()
   zoneName: string;

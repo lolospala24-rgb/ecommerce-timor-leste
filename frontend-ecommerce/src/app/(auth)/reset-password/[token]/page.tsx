@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
         <CardContent>
           <div className="text-center space-y-6">
             <div className="flex justify-center">
-              <CheckCircle className="h-16 w-16 text-green-500 animate-in" />
+              <CheckCircle className="h-16 w-16 text-green-600 animate-in" />
             </div>
             <Alert>
               <AlertDescription>

@@ -317,10 +317,11 @@ export class ProductsController {
     return { data: variants };
   }
 
+  @Public()
   @Get('variants/:variantId')
   async getVariant(
     @Param('variantId', ParseIntPipe) variantId: number,
-    @CurrentUser('id') userId: number,
+    @CurrentUser('id') userId?: number,
   ) {
     const variant = await this.productsService.getVariant(variantId, userId);
     return { data: variant };

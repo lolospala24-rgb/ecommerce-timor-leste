@@ -164,14 +164,13 @@ function ActiveFiltersBar({
 function SortControls({
   activeSort,
   onChange,
+  options,
 }: {
   activeSort: string;
   onChange: (value: string) => void;
+  options: { value: string; label: string }[];
 }) {
-  const sortOptions = [
-    { value: 'popular', label: 'Populer' },
-    { value: 'newest', label: 'Terbaru' },
-  ];
+  const sortOptions = options.length > 0 ? options : [{ value: 'newest', label: 'Terbaru' }];
 
   return (
     <div className="flex items-center gap-2 md:gap-3 flex-wrap">
@@ -371,6 +370,7 @@ function CategoryPageInner({ slug }: CategoryPageContentProps) {
     productsData,
     productsLoading,
     productsFetching,
+    sortOptions,
     updateFilters,
     setPage,
     setSort,
@@ -476,6 +476,7 @@ function CategoryPageInner({ slug }: CategoryPageContentProps) {
               <SortControls
                 activeSort={filters.sortBy}
                 onChange={setSort}
+                options={sortOptions}
               />
             </div>
           </div>

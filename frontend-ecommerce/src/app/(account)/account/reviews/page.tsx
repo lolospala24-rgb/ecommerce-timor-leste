@@ -54,7 +54,7 @@ export default function ReviewsPage() {
                         {review.isApproved ? 'Approved' : 'Pending'}
                       </Badge>
                     </div>
-                    <Link href={`/products/${review.product?.slug}`} className="hover:text-primary">
+                    <Link href={`/products/${review.product?.slug || '#'}`} className="hover:text-primary">
                       <p className="font-medium">{review.product?.name}</p>
                     </Link>
                     <p className="text-sm text-muted-foreground">{review.comment}</p>

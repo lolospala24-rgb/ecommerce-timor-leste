@@ -51,7 +51,7 @@ export function RatingStars({
           <Star
             key={`full-${i}`}
             className={cn(
-              'fill-yellow-400 text-yellow-400',
+              'fill-amber-500 text-amber-500',
               sizeClasses[size]
             )}
           />
@@ -61,12 +61,12 @@ export function RatingStars({
         {hasHalfStar && (
           <div className="relative">
             <Star
-              className={cn('text-yellow-400', sizeClasses[size])}
+              className={cn('text-amber-500', sizeClasses[size])}
               style={{ fill: 'none' }}
             />
             <div className="absolute inset-0 overflow-hidden w-1/2">
               <Star
-                className={cn('fill-yellow-400 text-yellow-400', sizeClasses[size])}
+                className={cn('fill-amber-500 text-amber-500', sizeClasses[size])}
               />
             </div>
           </div>
@@ -76,7 +76,7 @@ export function RatingStars({
         {[...Array(emptyStars)].map((_, i) => (
           <Star
             key={`empty-${i}`}
-            className={cn('text-gray-300', sizeClasses[size])}
+            className={cn('text-slate-300', sizeClasses[size])}
           />
         ))}
       </div>
@@ -103,7 +103,7 @@ export function StaticRatingStars({ rating, size = 'md' }: { rating: number; siz
         <Star
           key={`full-${i}`}
           className={cn(
-            'fill-yellow-400 text-yellow-400',
+            'fill-amber-500 text-amber-500',
             sizeClasses[size]
           )}
         />
@@ -111,12 +111,12 @@ export function StaticRatingStars({ rating, size = 'md' }: { rating: number; siz
       {hasHalfStar && (
         <div className="relative">
           <Star
-            className={cn('text-yellow-400', sizeClasses[size])}
+            className={cn('text-amber-500', sizeClasses[size])}
             style={{ fill: 'none' }}
           />
           <div className="absolute inset-0 overflow-hidden w-1/2">
             <Star
-              className={cn('fill-yellow-400 text-yellow-400', sizeClasses[size])}
+              className={cn('fill-amber-500 text-amber-500', sizeClasses[size])}
             />
           </div>
         </div>
@@ -124,7 +124,7 @@ export function StaticRatingStars({ rating, size = 'md' }: { rating: number; siz
       {[...Array(emptyStars)].map((_, i) => (
         <Star
           key={`empty-${i}`}
-          className={cn('text-gray-300', sizeClasses[size])}
+          className={cn('text-slate-300', sizeClasses[size])}
         />
       ))}
     </div>

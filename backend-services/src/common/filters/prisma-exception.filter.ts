@@ -48,11 +48,18 @@ export class PrismaExceptionFilter implements ExceptionFilter {
           message = 'Record does not exist';
           status = HttpStatus.NOT_FOUND;
           break;
-        case 'P2002':
-          const fields = (exception.meta?.target as string[]) || [];
-          message = `Duplicate field value: ${fields.join(', ')} already exists`;
+        case 'P2002': {
+          // meta.target's shape differs by database: Postgres gives an
+          // actual string[] of column names, MySQL gives a single string
+          // (the constraint/index name) — normalize both instead of
+          // assuming the Postgres shape, which crashed the whole process
+          // (fields.join is not a function) the moment this ever ran.
+          const target = exception.meta?.target;
+          const fields = Array.isArray(target) ? target.join(', ') : String(target ?? 'value');
+          message = `Duplicate field value: ${fields} already exists`;
           status = HttpStatus.CONFLICT;
           break;
+        }
         case 'P2003':
           message = 'Foreign key constraint failed - referenced record not found';
           status = HttpStatus.BAD_REQUEST;

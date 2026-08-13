@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MoreHorizontal, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import api from '@/lib/api';
@@ -98,6 +98,9 @@ export function SellersTable({ sellers, onViewSeller, onRefresh }: SellersTableP
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
+                      {seller.storeLogo && (
+                        <AvatarImage src={seller.storeLogo} alt={seller.storeName || 'Store'} />
+                      )}
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
                         {getInitials(seller.storeName)}
                       </AvatarFallback>

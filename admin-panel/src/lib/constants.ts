@@ -74,7 +74,6 @@ export const API_ENDPOINTS = {
     TIMOR_MUNICIPALITIES: '/addresses/timor/municipalities',
     TIMOR_POSTOS: (municipality: string) => `/addresses/timor/municipalities/${municipality}/postos`,
     TIMOR_SUCOS: (municipality: string, posto: string) => `/addresses/timor/municipalities/${municipality}/postos/${posto}/sucos`,
-    TIMOR_VALIDATE: '/addresses/timor/validate',
   },
   CARTS: {
     BASE: '/carts',

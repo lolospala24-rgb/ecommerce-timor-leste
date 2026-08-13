@@ -3,10 +3,16 @@ import {
   Get,
   Post,
   Put,
+  Patch,
+  Delete,
   Body,
+  Param,
+  ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { ShippingService } from './shipping.service';
 import { CreateShippingZoneDto } from './dto/create-shipping-zone.dto';
+import { UpdateShippingZoneDto } from './dto/update-shipping-zone.dto';
 import { ShippingSettingsDto } from './dto/shipping-settings.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,6 +42,43 @@ export class ShippingController {
     return { data: zone };
   }
 
+  @Roles(Role.ADMIN)
+  @Patch('shipping-zones/:id/toggle')
+  async toggleShippingZone(@Param('id', ParseIntPipe) id: number) {
+    return { data: await this.shippingService.toggleShippingZoneStatus(id) };
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch('shipping-zones/:id')
+  async updateShippingZone(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateShippingZoneDto) {
+    return { data: await this.shippingService.updateShippingZone(id, dto) };
+  }
+
+  @Roles(Role.ADMIN)
+  @Delete('shipping-zones/:id')
+  async removeShippingZone(@Param('id', ParseIntPipe) id: number) {
+    return { data: await this.shippingService.removeShippingZone(id) };
+  }
+
+  @Public()
+  @Get('shipping/options')
+  async getShippingOptions(
+    @Query('municipalityId') municipalityId?: string,
+    @Query('provinceId') provinceId?: string,
+  ) {
+    const options = await this.shippingService.getAvailableShippingOptions({
+      municipalityId: municipalityId ? Number(municipalityId) : undefined,
+      provinceId: provinceId ? Number(provinceId) : undefined,
+    });
+    return { data: options };
+  }
+
+  @Roles(Role.ADMIN)
+  @Get('shipping/dashboard')
+  async getShippingDashboard() {
+    return { data: await this.shippingService.getShippingDashboardStats() };
+  }
+
   @Public()
   @Get('shipping-settings')
   async getShippingSettings() {
@@ -52,7 +95,7 @@ export class ShippingController {
   @Public()
   @Post('shipping/calculate')
   async calculateShipping(@Body() body: { municipalityId?: number; provinceId?: number; municipality?: string; province?: string; shippingMethod?: string; subtotal?: number; courierId?: number; courierServiceId?: number }) {
-    const cost = await this.shippingService.calculateShippingCost({
+    const result = await this.shippingService.calculateShippingCost({
       municipalityId: body.municipalityId,
       provinceId: body.provinceId,
       municipality: body.municipality,
@@ -62,7 +105,7 @@ export class ShippingController {
       courierId: body.courierId,
       courierServiceId: body.courierServiceId,
     });
-    return { data: { shippingCost: cost } };
+    return { data: result };
   }
 
   @Roles(Role.ADMIN)

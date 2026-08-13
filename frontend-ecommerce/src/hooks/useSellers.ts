@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
+import { unwrapApiData } from '@/lib/product'
 
 interface SellerFilters {
   page?: number
@@ -54,7 +55,7 @@ export function useSeller(id: number) {
     queryKey: ['seller', id],
     queryFn: async () => {
       const response = await api.get(`/sellers/${id}`)
-      return mapSellerForDisplay(response?.data || response)
+      return mapSellerForDisplay(unwrapApiData(response))
     },
     enabled: !!id,
   })
@@ -65,7 +66,7 @@ export function useTopSellers(limit: number = 6) {
     queryKey: ['top-sellers', limit],
     queryFn: async () => {
       const response = await api.get(`/sellers/verified?limit=${limit}`)
-      const sellers = response?.data || []
+      const sellers = response?.data?.data || []
       return sellers.map(mapSellerForDisplay)
     },
   })

@@ -17,6 +17,18 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Post-login `?redirect=` params come straight from the URL and must never
+// be handed to router.push()/window.location unvalidated — an attacker can
+// craft a link like /login?redirect=https://evil.com or //evil.com (a
+// protocol-relative URL) to bounce a victim off-site right after a real
+// login. Only a same-origin relative path (starting with a single '/') is
+// accepted; anything else falls back to `fallback`.
+export function getSafeRedirectPath(redirect: string | null | undefined, fallback: string = '/'): string {
+  if (!redirect) return fallback;
+  if (!redirect.startsWith('/') || redirect.startsWith('//')) return fallback;
+  return redirect;
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

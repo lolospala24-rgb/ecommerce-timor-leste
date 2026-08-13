@@ -138,7 +138,7 @@ export function HeroSection() {
 
   if (isLoading) {
     return (
-      <div className="relative h-[60vh] min-h-[400px] max-h-[600px] bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse">
+      <div className="relative h-[60vh] min-h-[400px] max-h-[600px] bg-gradient-to-br from-slate-100 to-slate-200 animate-pulse">
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-muted-foreground font-medium">Loading featured products...</p>
@@ -185,13 +185,13 @@ export function HeroSection() {
             {/* Badges */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {current.isFeatured && (
-                <span className="inline-flex items-center gap-1.5 bg-yellow-400/20 backdrop-blur-sm text-yellow-300 text-xs font-semibold px-3 py-1 rounded-full border border-yellow-400/30">
+                <span className="inline-flex items-center gap-1.5 bg-amber-500/20 backdrop-blur-sm text-amber-300 text-xs font-semibold px-3 py-1 rounded-full border border-amber-500/30">
                   <Sparkles className="h-3.5 w-3.5" />
                   Featured
                 </span>
               )}
               {discountPercent > 0 && (
-                <span className="inline-flex items-center gap-1.5 bg-red-500/20 backdrop-blur-sm text-red-400 text-xs font-semibold px-3 py-1 rounded-full border border-red-500/30">
+                <span className="inline-flex items-center gap-1.5 bg-red-600/20 backdrop-blur-sm text-red-400 text-xs font-semibold px-3 py-1 rounded-full border border-red-600/30">
                   <TrendingUp className="h-3.5 w-3.5" />
                   {discountPercent}% OFF
                 </span>
@@ -235,7 +235,7 @@ export function HeroSection() {
               )}
               {current.rating && (
                 <div className="flex items-center gap-1.5 text-white/80 bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                   <span className="font-medium text-sm">{current.rating.toFixed(1)}</span>
                   {current.reviewCount && (
                     <span className="text-white/40 text-xs">({current.reviewCount})</span>
@@ -295,7 +295,7 @@ export function HeroSection() {
                     sizes="300px"
                   />
                   {discountPercent > 0 && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                    <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                       -{discountPercent}%
                     </div>
                   )}
@@ -394,7 +394,7 @@ export function HeroSection() {
       {/* Decorative Elements */}
       <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
       <div className="absolute top-10 right-10 w-32 sm:w-48 h-32 sm:h-48 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
-      <div className="absolute bottom-10 left-10 w-24 sm:w-36 h-24 sm:h-36 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-24 sm:w-36 h-24 sm:h-36 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
 
       {/* Slide Counter (Desktop) */}
       {displaySlides.length > 1 && (

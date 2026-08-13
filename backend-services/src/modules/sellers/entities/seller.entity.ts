@@ -15,6 +15,9 @@ export class SellerEntity implements Seller {
   verifiedAt: Date | null;
   verifiedBy: number | null;
   rejectionReason: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNumber: string | null;
   createdAt: Date;
   updatedAt: Date;
 

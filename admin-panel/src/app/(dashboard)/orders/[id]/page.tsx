@@ -19,10 +19,8 @@ import {
   CreditCard,
   User,
   Store,
-  Printer,
-  Download,
+  FileText,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-500',
@@ -49,14 +47,6 @@ export default function OrderDetailPage() {
   const { data: order, isLoading, refetch } = useOrder(orderId);
 
   useOrderRealtime(orderId);
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownload = () => {
-    window.open(`/api/orders/${orderId}/invoice`, '_blank');
-  };
 
   if (isLoading) {
     return (
@@ -137,13 +127,11 @@ export default function OrderDetailPage() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="mr-2 h-4 w-4" />
-            Invoice
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/orders/${orderId}/invoice`}>
+              <FileText className="mr-2 h-4 w-4" />
+              Invoice
+            </Link>
           </Button>
           <UpdateOrderStatus
             orderId={order.id}

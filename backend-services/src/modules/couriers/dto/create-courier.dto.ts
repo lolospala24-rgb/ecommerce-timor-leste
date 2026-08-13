@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsPhoneNumber, IsUrl, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsPhoneNumber, IsUrl, IsNotEmpty, IsIn } from 'class-validator';
 
 export class CreateCourierDto {
   @IsString()
@@ -8,6 +8,10 @@ export class CreateCourierDto {
   @IsString()
   @IsNotEmpty()
   code: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @IsOptional()
   @IsPhoneNumber()
@@ -23,5 +27,6 @@ export class CreateCourierDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(['ACTIVE', 'INACTIVE'])
   status?: string;
 }

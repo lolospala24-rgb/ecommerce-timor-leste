@@ -4,8 +4,7 @@ import './globals.css';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import { ConditionalChrome } from '@/components/layout/ConditionalChrome';
 import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -57,11 +56,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <MaintenanceGate>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <ConditionalChrome>{children}</ConditionalChrome>
           </MaintenanceGate>
           <Toaster
             position="top-right"

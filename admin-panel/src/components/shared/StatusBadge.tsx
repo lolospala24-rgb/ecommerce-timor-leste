@@ -34,6 +34,7 @@ const paymentStatusConfig: Record<string, { label: string; color: string; icon: 
   PAID: { label: 'Paid', color: 'bg-green-500', icon: CheckCircle },
   FAILED: { label: 'Failed', color: 'bg-red-500', icon: XCircle },
   REFUNDED: { label: 'Refunded', color: 'bg-orange-500', icon: RefreshCw },
+  PARTIALLY_REFUNDED: { label: 'Partially Refunded', color: 'bg-orange-500', icon: RefreshCw },
 };
 
 const userStatusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {

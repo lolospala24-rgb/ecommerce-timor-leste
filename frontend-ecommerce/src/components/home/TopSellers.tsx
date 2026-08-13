@@ -108,7 +108,7 @@ function SellerCard({ seller }: { seller: any }) {
               {seller.storeName}
             </h3>
             {seller.isVerified && (
-              <Badge variant="default" className="text-xs bg-green-500 text-white px-1.5 py-0.5">
+              <Badge variant="default" className="text-xs bg-green-600 text-white px-1.5 py-0.5">
                 ✓
               </Badge>
             )}
@@ -118,7 +118,7 @@ function SellerCard({ seller }: { seller: any }) {
           </p>
           <div className="flex items-center gap-3 mt-1 text-sm">
             <div className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
               <span className="font-medium">{seller.rating?.toFixed(1) || '0'}</span>
             </div>
             <span className="text-muted-foreground">•</span>

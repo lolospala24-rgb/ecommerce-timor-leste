@@ -284,7 +284,7 @@ function SearchPageContent() {
                   {seller.storeName}
                 </h4>
                 {seller.isVerified && (
-                  <Badge variant="default" className="text-xs bg-green-500">
+                  <Badge variant="default" className="text-xs bg-green-600">
                     Verified
                   </Badge>
                 )}

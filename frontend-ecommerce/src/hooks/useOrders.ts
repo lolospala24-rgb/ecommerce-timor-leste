@@ -60,7 +60,7 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string }) => {
+    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; courierId?: number; courierServiceId?: number; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string }) => {
       // Client-side validation: ensure cart has valid items before sending to backend
       const cartResp = await api.get('/carts');
       const cartData = cartResp?.data?.data ?? cartResp?.data ?? {};
@@ -112,6 +112,43 @@ export const useCancelOrder = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to cancel order');
+    },
+  });
+};
+
+export const useOrderRefunds = (orderId?: number | null) => {
+  return useQuery({
+    queryKey: ['orders', orderId, 'refunds'],
+    queryFn: async () => {
+      const response = await api.get(`/refunds/order/${orderId}`);
+      return (response.data.data || response.data || []) as Array<{
+        id: number;
+        amount: number;
+        type: 'FULL' | 'PARTIAL';
+        status: 'PENDING' | 'APPROVED' | 'REJECTED';
+        reason: string;
+        requestedAt: string;
+        adminNote?: string | null;
+      }>;
+    },
+    enabled: !!orderId,
+  });
+};
+
+export const useRequestRefund = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderId, reason, amount }: { orderId: number; reason: string; amount?: number }) => {
+      const response = await api.post(`/refunds/order/${orderId}`, { reason, amount });
+      return response.data.data || response.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orders', variables.orderId, 'refunds'] });
+      toast.success('Refund request submitted — our team will review it shortly.');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to request refund');
     },
   });
 };

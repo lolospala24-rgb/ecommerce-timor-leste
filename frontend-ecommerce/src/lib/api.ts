@@ -52,6 +52,14 @@ api.interceptors.response.use(
     const data = error.response?.data;
     const message = data?.message || error.message || 'Something went wrong';
     const url = error.config?.url || API_BASE_URL;
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    // `/auth/me` is a silent background probe (checkAuth() runs on every page
+    // load, including for anonymous visitors, to see if a session cookie is
+    // still valid) — a 401 here just means "not logged in," which is the
+    // normal, expected state for a guest. It's not an application error, so
+    // it shouldn't be logged as one or trigger the redirect-to-login below.
+    const isBackgroundAuthProbe = status === 401 && url.includes('/auth/me');
 
     if (isNetworkError(error)) {
       console.warn('[API Network Error]', {
@@ -60,7 +68,7 @@ api.interceptors.response.use(
         code: error.code,
         message,
       });
-    } else {
+    } else if (!isBackgroundAuthProbe) {
       console.error('[API Response Error]', {
         url,
         status: status ?? 'NO_RESPONSE',
@@ -70,8 +78,6 @@ api.interceptors.response.use(
       });
     }
 
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-    
     // Handle 401 Unauthorized - refresh token. The refresh token lives in an
     // httpOnly cookie, so it's sent automatically (withCredentials) rather
     // than read from JS — a 401 here just means "try the refresh endpoint
@@ -87,9 +93,15 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('[Refresh Token Error]', refreshError);
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+        // A failed refresh after a background auth probe just confirms the
+        // visitor is logged out — expected, not worth logging as an error.
+        // Force-redirecting here would also bounce every guest off public
+        // pages like the storefront or category listings on load.
+        if (!isBackgroundAuthProbe) {
+          console.error('[Refresh Token Error]', refreshError);
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshError);
       }

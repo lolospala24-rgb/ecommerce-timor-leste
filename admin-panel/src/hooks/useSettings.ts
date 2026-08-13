@@ -15,6 +15,9 @@ export interface Settings {
   currency: string;
   taxRate: number;
   serviceFee: number;
+  defaultCommissionRate: number;
+  minimumPayoutAmount: number;
+  paymentExpiryHours: number;
 
   // System toggles
   maintenanceMode: boolean;

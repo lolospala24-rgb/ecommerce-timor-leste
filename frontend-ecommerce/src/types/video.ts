@@ -1,88 +1,57 @@
-import { Product } from './product.types';
+// Shapes here mirror what backend-services/src/modules/videos actually
+// returns (Video model + product/seller relations + per-viewer engagement
+// state) — see VideosRepository.videoInclude/attachViewerState. Raw API
+// payloads are normalized into these via `normalizeVideo` in
+// services/video.service.ts; nothing here is fabricated.
 
-export interface Creator {
-  id: string;
-  name: string;
-  username: string;
-  avatar: string;
+export interface VideoCreator {
+  id: number;
+  storeName: string;
+  storeLogo: string | null;
   isVerified: boolean;
-  followers: number;
-  following?: number;
-  bio?: string;
-  storeName?: string;
+  followersCount: number;
+}
+
+export interface VideoProduct {
+  id: number;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice: number | null;
+  thumbnail: string | null;
+  images: string[];
+  stock: number;
+  seller: VideoCreator | null;
 }
 
 export interface Video {
-  id: string;
+  id: number;
   title: string;
-  description: string;
+  description: string | null;
   videoUrl: string;
-  thumbnailUrl: string;
-  duration: number;
+  thumbnailUrl: string | null;
   views: number;
   likes: number;
-  comments: number;
   shares: number;
+  commentsCount: number;
+  savesCount: number;
   createdAt: string;
-  updatedAt?: string;
-  creator: Creator;
-  tags: string[];
-  products?: Product[];
-  isLiked?: boolean;
-  isSaved?: boolean;
-  category?: string;
-  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  isActive?: boolean;
-}
-
-export interface VideoResponse {
-  data: Video[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
-
-export interface VideoFilters {
-  page?: number;
-  limit?: number;
-  category?: string;
-  search?: string;
-  creatorId?: string;
-  status?: string;
-  isActive?: boolean;
-  sortBy?: 'createdAt' | 'views' | 'likes' | 'duration';
-  sortOrder?: 'asc' | 'desc';
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface VideoStats {
-  total: number;
-  published: number;
-  draft: number;
-  archived: number;
-  totalViews: number;
-  totalLikes: number;
-  totalComments: number;
-  averageDuration: number;
-}
-
-export interface VideoInteraction {
-  videoId: string;
+  updatedAt: string;
+  product: VideoProduct | null;
+  // Per-viewer state — always false/false/false for a signed-out visitor,
+  // since the backend can't know "did I like this" without a user.
   isLiked: boolean;
   isSaved: boolean;
-  viewCount: number;
-  lastViewedAt: string;
-  progress: number;
+  isFollowingCreator: boolean;
 }
 
-export interface VideoShareData {
-  videoId: string;
-  platform: 'facebook' | 'twitter' | 'instagram' | 'linkedin' | 'whatsapp' | 'telegram' | 'copy';
-  url: string;
+export interface VideoListResult {
+  items: Video[];
+  total: number;
+}
+
+export interface VideoFeedFilters {
+  filter?: 'popular' | 'trending' | 'latest' | 'following';
+  categoryId?: number;
+  limit?: number;
 }

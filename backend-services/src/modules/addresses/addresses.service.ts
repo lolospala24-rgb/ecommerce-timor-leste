@@ -69,12 +69,14 @@ export class AddressesService {
         municipalityId: municipalityRef?.id ?? createAddressDto.municipalityId ?? 0,
         province: provinceRef?.name ?? createAddressDto.province ?? null,
         municipality: municipalityRef?.name ?? createAddressDto.municipality ?? null,
-        administrativePost: createAddressDto.postoAdmin,
+        postoAdmin: createAddressDto.postoAdmin,
         suco: createAddressDto.suco,
         village: createAddressDto.village,
         street: createAddressDto.street,
         reference: createAddressDto.reference,
         phone: createAddressDto.phone,
+        latitude: createAddressDto.latitude,
+        longitude: createAddressDto.longitude,
         isPrimary,
         isActive: true,
       } as any,
@@ -89,7 +91,7 @@ export class AddressesService {
   async findAll(userId: number) {
     const cacheKey = `addresses:user:${userId}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
       return JSON.parse(cached);
     }
@@ -132,7 +134,7 @@ export class AddressesService {
     if (!updateAddressDto.municipalityId && (updateAddressDto.municipality || updateAddressDto.postoAdmin || updateAddressDto.suco)) {
       const validation = this.validateTimorAddress({
         municipality: updateAddressDto.municipality || address.municipality || undefined,
-        postoAdmin: updateAddressDto.postoAdmin || addressRecord.administrativePost || addressRecord.postoAdmin || undefined,
+        postoAdmin: updateAddressDto.postoAdmin || addressRecord.postoAdmin || undefined,
         suco: updateAddressDto.suco || address.suco,
       });
       if (!validation.isValid) {
@@ -168,12 +170,14 @@ export class AddressesService {
         municipalityId: municipalityRef ? (municipalityRef.id ?? 0) : (updateAddressDto.municipalityId ?? address.municipalityId),
         province: municipalityRef ? (provinceRef?.name ?? updateAddressDto.province ?? null) : (updateAddressDto.province ?? address.province),
         municipality: municipalityRef ? (municipalityRef.name ?? updateAddressDto.municipality ?? null) : (updateAddressDto.municipality ?? address.municipality),
-        administrativePost: updateAddressDto.postoAdmin || addressRecord.administrativePost || addressRecord.postoAdmin || null,
+        postoAdmin: updateAddressDto.postoAdmin || addressRecord.postoAdmin || null,
         suco: updateAddressDto.suco || address.suco,
         village: updateAddressDto.village,
         street: updateAddressDto.street,
         reference: updateAddressDto.reference,
         phone: updateAddressDto.phone,
+        latitude: updateAddressDto.latitude,
+        longitude: updateAddressDto.longitude,
         isPrimary: updateAddressDto.isPrimary,
       } as any,
     });

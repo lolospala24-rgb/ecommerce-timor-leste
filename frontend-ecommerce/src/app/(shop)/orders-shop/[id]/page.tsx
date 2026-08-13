@@ -12,14 +12,15 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
+import { RefundRequestPanel } from '@/components/orders/RefundRequestPanel';
 
 const statusColors: Record<string, string> = {
-  PENDING: 'bg-yellow-500',
-  PAID: 'bg-blue-500',
-  PROCESSING: 'bg-purple-500',
-  SHIPPING: 'bg-indigo-500',
-  DELIVERED: 'bg-green-500',
-  CANCELLED: 'bg-red-500',
+  PENDING: 'bg-amber-500',
+  PAID: 'bg-green-600',
+  PROCESSING: 'bg-blue-600',
+  SHIPPING: 'bg-blue-600',
+  DELIVERED: 'bg-green-600',
+  CANCELLED: 'bg-red-600',
 };
 
 const statusLabels: Record<string, string> = {
@@ -29,6 +30,22 @@ const statusLabels: Record<string, string> = {
   SHIPPING: 'In Transit',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
+};
+
+const paymentStatusColors: Record<string, string> = {
+  PENDING: 'text-amber-600',
+  PAID: 'text-green-600',
+  FAILED: 'text-red-600',
+  REFUNDED: 'text-slate-600',
+  PARTIALLY_REFUNDED: 'text-slate-600',
+};
+
+const paymentStatusLabels: Record<string, string> = {
+  PENDING: 'Pending',
+  PAID: 'Paid',
+  FAILED: 'Rejected',
+  REFUNDED: 'Refunded',
+  PARTIALLY_REFUNDED: 'Partially Refunded',
 };
 
 export default function OrderDetailPage() {
@@ -96,7 +113,7 @@ export default function OrderDetailPage() {
             <CardContent className="space-y-4">
               {order.items?.map((item: any, index: number) => (
                 <div key={index} className="flex gap-4 border-b pb-4 last:border-0 last:pb-0">
-                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
                     <Image
                       src={item.product?.thumbnail || '/images/placeholder.png'}
                       alt={item.product?.name}
@@ -105,7 +122,7 @@ export default function OrderDetailPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <Link href={`/products/${item.product?.slug}`} className="hover:text-primary">
+                    <Link href={`/products/${item.product?.slug || '#'}`} className="hover:text-primary">
                       <p className="font-medium">{item.product?.name}</p>
                     </Link>
                     <p className="text-sm text-muted-foreground">
@@ -131,7 +148,7 @@ export default function OrderDetailPage() {
                   {order.timeline.map((event: any, index: number) => (
                     <div key={index} className="flex gap-4">
                       <div className="flex-shrink-0">
-                        <div className="h-2 w-2 mt-2 rounded-full bg-green-500" />
+                        <div className="h-2 w-2 mt-2 rounded-full bg-green-600" />
                         {index < order.timeline.length - 1 && (
                           <div className="h-full w-0.5 bg-muted ml-[3px]" />
                         )}
@@ -183,6 +200,14 @@ export default function OrderDetailPage() {
                 <span className="text-muted-foreground">Payment Method</span>
                 <span>{order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Bank Transfer'}</span>
               </div>
+              {order.payment?.status && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Payment Status</span>
+                  <span className={`font-medium ${paymentStatusColors[order.payment.status] || ''}`}>
+                    {paymentStatusLabels[order.payment.status] || order.payment.status}
+                  </span>
+                </div>
+              )}
               {order.trackingNumber && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tracking Number</span>
@@ -200,6 +225,13 @@ export default function OrderDetailPage() {
               onUpdated={() => refetch()}
             />
           )}
+
+          <RefundRequestPanel
+            orderId={order.id}
+            orderStatus={order.status}
+            paymentStatus={order.payment?.status}
+            deliveredAt={order.deliveredAt}
+          />
 
           {/* Customer Info */}
           <Card>

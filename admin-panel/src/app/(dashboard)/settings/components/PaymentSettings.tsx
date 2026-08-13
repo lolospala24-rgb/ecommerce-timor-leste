@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CreditCard, Building, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { CreditCard, Building, AlertCircle, Eye, EyeOff, Percent } from 'lucide-react';
 import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
 
@@ -32,8 +32,11 @@ const buildFormData = (settings?: Settings) => ({
   bankSWIFT: settings?.bankSWIFT || '',
   bankTransferInstructions: settings?.bankTransferInstructions || 'Please transfer the exact amount and upload the payment proof.',
   autoConfirmBankTransfer: settings?.autoConfirmBankTransfer ?? false,
+  paymentExpiryHours: settings?.paymentExpiryHours ?? 48,
   minCODOrderAmount: settings?.minCODOrderAmount ?? 0,
   maxCODOrderAmount: settings?.maxCODOrderAmount ?? 1000,
+  defaultCommissionRate: settings?.defaultCommissionRate ?? 10,
+  minimumPayoutAmount: settings?.minimumPayoutAmount ?? 0,
 });
 
 export function PaymentSettings({ settings, onSettingsUpdated }: PaymentSettingsProps) {
@@ -211,8 +214,64 @@ export function PaymentSettings({ settings, onSettingsUpdated }: PaymentSettings
                   onCheckedChange={(checked) => handleChange('autoConfirmBankTransfer', checked)}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label>Payment Window (hours)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={formData.paymentExpiryHours}
+                  onChange={(e) => handleChange('paymentExpiryHours', parseFloat(e.target.value) || 0)}
+                  className="max-w-[160px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  A bank-transfer order with no receipt uploaded within this window is automatically
+                  cancelled and its reserved stock released back to the product. Runs hourly.
+                </p>
+              </div>
             </div>
           )}
+        </div>
+
+        {/* Seller Commission & Payout */}
+        <div className="space-y-4 pt-4 border-t">
+          <div className="flex items-center gap-3">
+            <Percent className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <Label className="text-base">Seller Commission &amp; Payout</Label>
+              <p className="text-sm text-muted-foreground">
+                Applies to orders paid from now on — orders already paid keep the commission rate they were
+                actually charged under.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 pl-8">
+            <div className="space-y-2">
+              <Label>Default Commission Rate (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={formData.defaultCommissionRate}
+                onChange={(e) => handleChange('defaultCommissionRate', parseFloat(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Percentage of each order&apos;s subtotal kept by the platform; the rest becomes the seller&apos;s earnings.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Minimum Payout Amount</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                value={formData.minimumPayoutAmount}
+                onChange={(e) => handleChange('minimumPayoutAmount', parseFloat(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">Set to 0 for no minimum.</p>
+            </div>
+          </div>
         </div>
 
         <Alert>

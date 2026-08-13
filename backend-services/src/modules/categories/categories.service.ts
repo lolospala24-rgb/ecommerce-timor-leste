@@ -166,7 +166,19 @@ export class CategoriesService {
       this.prisma.category.count({ where }),
     ]);
 
-    return ResponseUtil.paginate(categories, total, page, limit);
+    // Flatten `_count.products` to `productCount`, matching the shape
+    // findBySlug() already returns — frontend listing/showcase cards read
+    // `productCount` directly and were silently always showing 0 without this.
+    const mapped = categories.map((category: any) => ({
+      ...category,
+      ...(category._count ? { productCount: category._count.products } : {}),
+      children: category.children?.map((child: any) => ({
+        ...child,
+        productCount: child._count?.products ?? 0,
+      })),
+    }));
+
+    return ResponseUtil.paginate(mapped, total, page, limit);
   }
 
   async findOne(id: number, includeProducts: boolean = false) {

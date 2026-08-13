@@ -70,12 +70,18 @@ async function bootstrap() {
     },
   }));
 
-  // Global filters. PrismaExceptionFilter (narrow @Catch on Prisma error
-  // types) must be registered before HttpExceptionFilter (bare @Catch(),
-  // matches everything) — Nest checks filters in registration order and
-  // stops at the first type match, so a catch-all filter registered first
-  // would always win and the Prisma-specific handling would never run.
-  app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionFilter());
+  // Global filters. This order looks backwards but is correct: Nest's
+  // RouterExceptionFilters.create() internally REVERSES the global filter
+  // list before matching (see node_modules/@nestjs/core/router/router-
+  // exception-filters.js), so the filter registered LAST is actually
+  // checked FIRST. HttpExceptionFilter's bare @Catch() (matches anything)
+  // must therefore be registered first and PrismaExceptionFilter's narrow
+  // @Catch(...) second, or the catch-all always wins and Prisma-specific
+  // error mapping never runs. Confirmed by live testing: with the previous
+  // (intuitive-looking) order, a genuine PrismaClientKnownRequestError
+  // (P2002) never reached PrismaExceptionFilter at all, even on a cold
+  // process start with no prior hot-reload.
+  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
   
   // Global interceptors
   app.useGlobalInterceptors(new TransformInterceptor(), new LoggingInterceptor());

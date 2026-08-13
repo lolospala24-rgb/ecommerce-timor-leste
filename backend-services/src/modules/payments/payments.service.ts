@@ -11,6 +11,9 @@ import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
+import { FinanceService } from '../finance/finance.service';
+import { RefundsService } from '../finance/refunds.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
@@ -24,6 +27,9 @@ export class PaymentsService {
     private mailService: MailService,
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
+    private financeService: FinanceService,
+    private refundsService: RefundsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto, userId: number) {
@@ -70,9 +76,13 @@ export class PaymentsService {
       paymentData.status = PaymentStatus.PENDING;
     }
 
-    // If Bank Transfer, require proof upload
+    // If Bank Transfer, require proof upload — and give it a deadline.
+    // PaymentExpiryJob sweeps anything still unpaid with no proof past this.
     if (createPaymentDto.paymentMethod === PaymentMethod.BANK_TRANSFER) {
       paymentData.status = PaymentStatus.PENDING;
+      const { paymentExpiryHours } = await this.settingsService.getSettings();
+      const hours = Number(paymentExpiryHours ?? 48);
+      paymentData.expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
     }
 
     const payment = await this.prisma.payment.create({
@@ -97,7 +107,7 @@ export class PaymentsService {
     }
 
     // Clear cache
-    await this.clearPaymentCache();
+    await this.clearPaymentCache(payment.id, order.id);
 
     return payment;
   }
@@ -129,8 +139,16 @@ export class PaymentsService {
 
     // Update payment status
     const updatedPayment = await this.prisma.$transaction(async (prisma) => {
-      const updated = await prisma.payment.update({
-        where: { id },
+      // Conditional updateMany, not update(): the PENDING check above ran
+      // outside this transaction, so two concurrent confirm/reject calls on
+      // the same payment could both pass it before either write lands. The
+      // `status: PENDING` guard in the where-clause makes the transition
+      // itself atomic — only the first caller's write actually matches a
+      // row; the loser gets count 0 and a clean error instead of silently
+      // double-processing the same payment (mirrors the stock-reservation
+      // guard pattern in OrdersService.create).
+      const result = await prisma.payment.updateMany({
+        where: { id, status: PaymentStatus.PENDING },
         data: {
           status: PaymentStatus.PAID,
           paidAt: new Date(),
@@ -139,6 +157,10 @@ export class PaymentsService {
         },
       });
 
+      if (result.count === 0) {
+        throw new BadRequestException('Payment is already processed');
+      }
+
       // Update order status
       await prisma.order.update({
         where: { id: payment.orderId },
@@ -146,6 +168,8 @@ export class PaymentsService {
           status: OrderStatus.PAID,
         },
       });
+
+      await this.financeService.recordSaleOnPaymentConfirmed(prisma, payment.orderId);
 
       // Log admin action
       await prisma.adminLog.create({
@@ -161,7 +185,7 @@ export class PaymentsService {
         },
       });
 
-      return updated;
+      return prisma.payment.findUniqueOrThrow({ where: { id } });
     });
 
     // Send payment confirmation email
@@ -179,8 +203,18 @@ export class PaymentsService {
       payment.order,
     );
 
+    await this.notificationsService
+      .notifyPaymentApproved(
+        payment.order.customerId,
+        id,
+        payment.orderId,
+        payment.order.orderNumber,
+        updatedPayment.amount,
+      )
+      .catch((err) => console.error('Failed to send payment-approved notification:', err));
+
     // Clear cache
-    await this.clearPaymentCache(id);
+    await this.clearPaymentCache(id, payment.orderId);
 
     return updatedPayment;
   }
@@ -206,13 +240,18 @@ export class PaymentsService {
     }
 
     const updatedPayment = await this.prisma.$transaction(async (prisma) => {
-      const updated = await prisma.payment.update({
-        where: { id },
+      // Same atomic status-guard as confirmPayment — see the comment there.
+      const result = await prisma.payment.updateMany({
+        where: { id, status: PaymentStatus.PENDING },
         data: {
           status: PaymentStatus.FAILED,
           notes: reason,
         },
       });
+
+      if (result.count === 0) {
+        throw new BadRequestException('Payment is already processed');
+      }
 
       // Log admin action
       await prisma.adminLog.create({
@@ -228,7 +267,7 @@ export class PaymentsService {
         },
       });
 
-      return updated;
+      return prisma.payment.findUniqueOrThrow({ where: { id } });
     });
 
     // Send payment rejection email
@@ -239,7 +278,11 @@ export class PaymentsService {
       reason,
     );
 
-    await this.clearPaymentCache(id);
+    await this.notificationsService
+      .notifyPaymentRejected(payment.order.customerId, id, payment.orderId, payment.order.orderNumber, reason)
+      .catch((err) => console.error('Failed to send payment-rejected notification:', err));
+
+    await this.clearPaymentCache(id, payment.orderId);
 
     return updatedPayment;
   }
@@ -264,7 +307,10 @@ export class PaymentsService {
       throw new BadRequestException('Payment proof only required for bank transfer');
     }
 
-    if (payment.status !== PaymentStatus.PENDING) {
+    // FAILED is allowed too — a rejected receipt (wrong amount, unreadable
+    // scan, etc.) shouldn't dead-end the customer with no way to try again.
+    // Re-uploading resets it back to PENDING for another admin review pass.
+    if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.FAILED) {
       throw new BadRequestException('Payment is already processed');
     }
 
@@ -278,14 +324,24 @@ export class PaymentsService {
       where: { id: paymentId },
       data: {
         proofImage: result.secure_url,
+        status: PaymentStatus.PENDING,
+        notes: null,
       },
     });
 
-    await this.clearPaymentCache(paymentId);
+    await this.clearPaymentCache(paymentId, payment.orderId);
 
     const { autoConfirmBankTransfer } = await this.settingsService.getSettings();
     if (autoConfirmBankTransfer) {
       await this.autoConfirmBankTransfer(paymentId);
+    } else {
+      // The single most important admin alert in the bank-transfer flow —
+      // without this, an uploaded receipt sat unreviewed until an admin
+      // happened to browse the Payments page. See audit finding: previously
+      // this created no notification at all, not even an email.
+      await this.notificationsService
+        .notifyPaymentReceiptUploaded(paymentId, payment.orderId, payment.order.orderNumber, payment.amount)
+        .catch((err) => console.error('Failed to send payment-receipt-uploaded notification:', err));
     }
 
     return result.secure_url;
@@ -310,16 +366,24 @@ export class PaymentsService {
     if (!payment || payment.status !== PaymentStatus.PENDING) return;
 
     const updatedPayment = await this.prisma.$transaction(async (prisma) => {
-      const updated = await prisma.payment.update({
-        where: { id: paymentId },
+      // Same atomic status-guard as confirmPayment/rejectPayment.
+      const result = await prisma.payment.updateMany({
+        where: { id: paymentId, status: PaymentStatus.PENDING },
         data: { status: PaymentStatus.PAID, paidAt: new Date() },
       });
+      if (result.count === 0) return null;
+
       await prisma.order.update({
         where: { id: payment.orderId },
         data: { status: OrderStatus.PAID },
       });
-      return updated;
+
+      await this.financeService.recordSaleOnPaymentConfirmed(prisma, payment.orderId);
+
+      return prisma.payment.findUniqueOrThrow({ where: { id: paymentId } });
     });
+
+    if (!updatedPayment) return;
 
     await this.mailService.sendPaymentConfirmation(
       payment.order.customer.email,
@@ -333,7 +397,17 @@ export class PaymentsService {
       payment.order,
     );
 
-    await this.clearPaymentCache(paymentId);
+    await this.notificationsService
+      .notifyPaymentApproved(
+        payment.order.customerId,
+        paymentId,
+        payment.orderId,
+        payment.order.orderNumber,
+        updatedPayment.amount,
+      )
+      .catch((err) => console.error('Failed to send payment-approved notification:', err));
+
+    await this.clearPaymentCache(paymentId, payment.orderId);
   }
 
   async findAll(
@@ -634,74 +708,17 @@ export class PaymentsService {
     return payment;
   }
 
+  // Delegates to RefundsService, which creates a real Refund record (instead
+  // of just flipping Payment.status) and reverses the seller's ledger/
+  // balance — this button used to be a one-shot status flag with no
+  // financial reconciliation behind it at all. Kept as a single call so the
+  // admin Payments page's existing "Refund Payment" button doesn't need to
+  // change; it now goes through the same ledger-correct path as a
+  // customer-initiated refund request.
   async refundPayment(id: number, reason: string, adminId: number) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        order: {
-          include: {
-            customer: true,
-            seller: true,
-          },
-        },
-      },
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Payment not found');
-    }
-
-    if (payment.status !== PaymentStatus.PAID) {
-      throw new BadRequestException('Only paid payments can be refunded');
-    }
-
-    const updatedPayment = await this.prisma.$transaction(async (prisma) => {
-      const updated = await prisma.payment.update({
-        where: { id },
-        data: {
-          status: PaymentStatus.REFUNDED,
-          notes: `Refunded: ${reason}`,
-        },
-      });
-
-      // Update order status to cancelled
-      await prisma.order.update({
-        where: { id: payment.orderId },
-        data: {
-          status: OrderStatus.CANCELLED,
-          cancelledAt: new Date(),
-        },
-      });
-
-      // Log admin action
-      await prisma.adminLog.create({
-        data: {
-          adminId,
-          action: 'REFUND_PAYMENT',
-          targetType: 'PAYMENT',
-          targetId: id,
-          details: {
-            orderId: payment.orderId,
-            amount: payment.amount,
-            reason,
-          },
-        },
-      });
-
-      return updated;
-    });
-
-    // Send refund email
-    await this.mailService.sendPaymentRefundEmail(
-      payment.order.customer.email,
-      payment.order.customer.name,
-      payment.order,
-      reason,
-    );
-
-    await this.clearPaymentCache(id);
-
-    return updatedPayment;
+    const refund = await this.refundsService.createAndApproveFullRefund(id, reason, adminId);
+    await this.clearPaymentCache(id, refund.orderId);
+    return refund;
   }
 
   async getPaymentStats(userId: number) {
@@ -792,9 +809,18 @@ export class PaymentsService {
     return stats;
   }
 
-  private async clearPaymentCache(paymentId?: number) {
+  // orderId is optional only because create() doesn't have one to pass on
+  // the very first payment attempt failure path — every other call site
+  // always has the order loaded and should pass it. Without this, GET
+  // /orders/:id keeps serving a cached snapshot (up to 5 min old, real TTL
+  // even with Redis disabled via the in-memory fallback) that still shows
+  // the payment's old status/proofImage after upload/confirm/reject.
+  private async clearPaymentCache(paymentId?: number, orderId?: number) {
     if (paymentId) {
       await this.redisService.del(`payment:${paymentId}`);
+    }
+    if (orderId) {
+      await this.redisService.del(`order:${orderId}`);
     }
 
     const keys = await this.redisService.keys('payment:*');

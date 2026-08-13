@@ -105,12 +105,6 @@ export class AddressesController {
     return { data: this.addressesService.getSucosByPosto(municipality, posto) };
   }
 
-  @Public()
-  @Get('timor/validate')
-  validateAddress(@Body() address: any) {
-    return { data: this.addressesService.validateTimorAddress(address) };
-  }
-
   @Roles(Role.ADMIN)
   @Post('timor/seed')
   @HttpCode(HttpStatus.CREATED)

@@ -184,29 +184,6 @@ export const useProvinces = () => {
   };
 };
 
-export const useMunicipalities = () => {
-  const query = useQuery({
-    queryKey: ['locations', 'municipalities'],
-    queryFn: async () => {
-      const response = await api.get('/locations/countries/TL/provinces');
-      const raw = unwrapApiResponse(response);
-      const provinces = raw?.data ?? raw;
-      const municipalities = provinces.flatMap((province: any) =>
-        (province.municipalities || []).map((municipality: any) => ({
-          ...municipality,
-          provinceName: province.name,
-        })),
-      );
-      return municipalities;
-    },
-  });
-
-  return {
-    ...query,
-    municipalities: query.data,
-  };
-};
-
 export const usePostos = (municipality: string) => {
   const query = useQuery({
     queryKey: ['timor', 'postos', municipality],
@@ -241,6 +218,15 @@ export const useSucos = (municipality: string, posto: string) => {
   };
 };
 
+type ShippingZoneMunicipality = {
+  value: string;
+  label: string;
+  id?: number;
+  name: string;
+  provinceId: number | null;
+  provinceName: string | null;
+};
+
 export const useShippingZones = () => {
   const query = useQuery({
     queryKey: ['shipping', 'zones'],
@@ -253,46 +239,40 @@ export const useShippingZones = () => {
     refetchOnWindowFocus: false,
   });
 
-  type ShippingZoneMunicipality = {
-    value: string;
-    label: string;
-    id?: number;
-    name: string;
-    provinceId: number | null;
-    provinceName: string | null;
-  };
+  // Municipalities for address selection come from the real Municipality
+  // table (Timor-Leste's 13 official municipalities), not from shipping
+  // zones: a shipping zone can be province-wide or have no municipality
+  // attached at all, which previously surfaced as bogus "Municipality {id}"
+  // options that the backend's address validator then rejected.
+  const municipalitiesQuery = useQuery({
+    queryKey: ['locations', 'municipalities'],
+    queryFn: async () => {
+      const response = await api.get('/locations/municipalities');
+      const data = unwrapApiResponse(response);
+      return (data?.data ?? data ?? []) as Array<{
+        id: number;
+        name: string;
+        provinceId: number;
+        province?: { id: number; name: string } | null;
+      }>;
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const municipalities: ShippingZoneMunicipality[] = (municipalitiesQuery.data ?? []).map((m) => ({
+    value: String(m.id),
+    label: m.province && m.province.name !== m.name ? `${m.name} - ${m.province.name}` : m.name,
+    id: m.id,
+    name: m.name,
+    provinceId: m.provinceId ?? m.province?.id ?? null,
+    provinceName: m.province?.name ?? null,
+  }));
 
   return {
     ...query,
     zones: query.data,
-    municipalities: query.data ? Array.from(
-      new Map(
-        (query.data as any[])
-          .map((z) => {
-            const municipalityId = z.municipalityRef?.id ?? z.municipalityId;
-            const rawMunicipalityName = z.municipality ?? z.municipalityRef?.name ?? `Municipality ${z.id}`;
-            const rawProvinceName = z.province ?? z.provinceRef?.name ?? null;
-            const municipalityName = rawMunicipalityName?.trim();
-            const provinceName = rawProvinceName?.trim() || null;
-
-            if (!municipalityName || municipalityName.toLowerCase() === 'other municipalities') {
-              return null;
-            }
-
-            const value = municipalityId != null ? String(municipalityId) : municipalityName;
-            const label = provinceName ? `${municipalityName} - ${provinceName}` : municipalityName;
-
-            return [value, {
-              value,
-              label,
-              id: municipalityId,
-              name: municipalityName,
-              provinceId: z.provinceRef?.id ?? z.provinceId ?? null,
-              provinceName,
-            }];
-          })
-          .filter(Boolean) as [string, ShippingZoneMunicipality][],
-      ).values(),
-    ) : [],
+    municipalities,
+    municipalitiesLoading: municipalitiesQuery.isLoading,
   };
 };

@@ -88,8 +88,10 @@ export default function ShippingPage() {
   useEffect(() => {
     if (!user?.id) return;
 
+    // Admins land in the `admins` room automatically on connect (derived
+    // from the authenticated session), so no explicit join is needed here
+    // to receive fleet-wide order/shipment updates.
     const socket = getSocket();
-    socket.emit('join-order-room', { userId: user.id });
 
     const handleOrderUpdated = (payload: any) => {
       setShipments((prev) =>

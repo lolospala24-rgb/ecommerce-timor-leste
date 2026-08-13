@@ -25,6 +25,16 @@ export class CreateOrderDto {
   @IsOptional()
   shippingMethod?: string;
 
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  courierId?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  courierServiceId?: number;
+
   @IsNumber()
   @IsOptional()
   @Min(0)

@@ -191,6 +191,17 @@ export function unwrapApiData<T>(payload: unknown): T {
   return payload as T;
 }
 
+// Bank account numbers shouldn't sit in full plaintext in a list an admin
+// is just scanning — only the last 4 digits are shown by default; callers
+// that need the real value for an actual action (e.g. wiring a payout)
+// pair this with a reveal toggle rather than calling it unconditionally.
+export function maskAccountNumber(value: string | null | undefined): string {
+  if (!value) return '';
+  const digits = value.trim();
+  if (digits.length <= 4) return '*'.repeat(digits.length);
+  return `${'*'.repeat(digits.length - 4)}${digits.slice(-4)}`;
+}
+
 // Sort array by key
 export function sortBy<T>(array: T[], key: keyof T, order: 'asc' | 'desc' = 'asc'): T[] {
   return [...array].sort((a, b) => {

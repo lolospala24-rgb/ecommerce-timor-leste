@@ -140,7 +140,7 @@ export default function SellerDetailPage() {
                       {storeName}
                     </h1>
                     {seller.isVerified ? (
-                      <Badge className="bg-green-500 text-white gap-1">
+                      <Badge className="bg-green-600 text-white gap-1">
                         <CheckCircle className="h-3 w-3" />
                         Verified
                       </Badge>
@@ -158,7 +158,7 @@ export default function SellerDetailPage() {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                       <span className="font-medium text-foreground">
                         {seller.rating?.toFixed(1) || '0'}
                       </span>
@@ -222,94 +222,93 @@ export default function SellerDetailPage() {
         </div>
       )}
 
-      {/* Products Tabs */}
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold">Products</h2>
-          <ProductSort value={filters.sortBy} onChange={handleSortChange} />
-        </div>
+      {/* Products / Reviews */}
+      <Tabs defaultValue="products" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="products">
+            Products
+            <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">
+              {seller._count?.products || 0}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="reviews">
+            Reviews
+            {seller.totalReviews > 0 && (
+              <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">
+                {seller.totalReviews}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-        {productsLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-64 rounded-lg" />
-            ))}
+        <TabsContent value="products" className="space-y-4">
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <ProductSort value={filters.sortBy} onChange={handleSortChange} />
           </div>
-        ) : productsData?.data?.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium">No Products Available</h3>
-            <p className="text-muted-foreground">
-              This seller hasn't listed any products yet.
-            </p>
-          </div>
-        ) : (
-          <ProductGrid
-            products={productsData?.data || []}
-            pagination={productsData?.pagination}
-            onPageChange={handlePageChange}
-          />
-        )}
-      </div>
 
-      {/* Store Reviews Tab */}
-      <div className="mt-8">
-        <Tabs defaultValue="products" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="reviews">
-              Reviews
-              {seller.totalReviews > 0 && (
-                <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">
-                  {seller.totalReviews}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          {productsLoading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-64 rounded-lg" />
+              ))}
+            </div>
+          ) : productsData?.data?.length === 0 ? (
+            <div className="text-center py-12 border rounded-lg">
+              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No Products Available</h3>
+              <p className="text-muted-foreground">
+                This seller hasn't listed any products yet.
+              </p>
+            </div>
+          ) : (
+            <ProductGrid
+              products={productsData?.data || []}
+              pagination={productsData?.pagination}
+              onPageChange={handlePageChange}
+            />
+          )}
+        </TabsContent>
 
-          <TabsContent value="reviews">
-            {seller.totalReviews === 0 ? (
-              <div className="text-center py-12 border rounded-lg">
-                <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium">No Reviews Yet</h3>
-                <p className="text-muted-foreground">
-                  This seller hasn't received any reviews yet.
+        <TabsContent value="reviews">
+          {seller.totalReviews === 0 ? (
+            <div className="text-center py-12 border rounded-lg">
+              <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No Reviews Yet</h3>
+              <p className="text-muted-foreground">
+                This seller hasn't received any reviews yet.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-6 p-4 border rounded-lg bg-muted/30">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-primary">
+                  {seller.rating?.toFixed(1) || '0'}
+                </div>
+                <div className="flex items-center justify-center mt-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-4 w-4 ${
+                        star <= Math.round(seller.rating || 0)
+                          ? 'fill-amber-500 text-amber-500'
+                          : 'text-muted-foreground'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {seller.totalReviews} reviews
                 </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Review stats */}
-                <div className="flex items-center gap-6 p-4 border rounded-lg bg-muted/30">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-primary">
-                      {seller.rating?.toFixed(1) || '0'}
-                    </div>
-                    <div className="flex items-center justify-center mt-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <Star className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {seller.totalReviews} reviews
-                    </p>
-                  </div>
-                  <div className="flex-1">
-                    {/* Rating breakdown would go here */}
-                  </div>
-                </div>
-                {/* Reviews list would go here */}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Trust Badges */}
       <div className="grid gap-4 sm:grid-cols-3 pt-4 border-t">
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <CheckCircle className="h-5 w-5 text-green-500" />
+          <CheckCircle className="h-5 w-5 text-green-600" />
           <span>{seller.isVerified ? 'Verified Seller' : 'Verification Pending'}</span>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">

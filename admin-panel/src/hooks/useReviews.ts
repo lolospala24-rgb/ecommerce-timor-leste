@@ -12,6 +12,8 @@ export interface PendingReview {
   comment: string;
   images: string[];
   createdAt: string;
+  isApproved?: boolean;
+  rejectionReason?: string | null;
   user: {
     id: number;
     name: string;
@@ -40,9 +42,35 @@ export const usePendingReviews = (page: number = 1, limit: number = 20) => {
   return useQuery({
     queryKey: ['reviews', 'pending', page, limit],
     queryFn: async () => {
-      const response = await api.get<PendingReviewsResponse>(`/reviews/pending?page=${page}&limit=${limit}`);
-      return unwrapApiData<PendingReviewsResponse>(response.data);
+      const response = await api.get(`/reviews/pending?page=${page}&limit=${limit}`);
+      // Not unwrapApiData here — this payload is itself { data: Review[], pagination }
+      // and unwrapApiData's recursive unwrap would keep descending into that inner
+      // `data` array, discarding the `pagination` object entirely. The api client's
+      // interceptor already strips axios's own response wrapper, so `response` here
+      // is the backend envelope { status, data } — one single access gets us in.
+      return (response as unknown as { data: PendingReviewsResponse }).data;
     },
+  });
+};
+
+export type ReviewStatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+
+export const useAdminReviews = (
+  status: ReviewStatusFilter,
+  search: string,
+  page: number = 1,
+  limit: number = 20,
+) => {
+  return useQuery({
+    queryKey: ['reviews', 'admin', status, search, page, limit],
+    queryFn: async () => {
+      const params = new URLSearchParams({ status, page: String(page), limit: String(limit) });
+      if (search) params.set('search', search);
+      const response = await api.get(`/reviews/admin?${params.toString()}`);
+      // See usePendingReviews above — same shape, same reason to avoid unwrapApiData.
+      return (response as unknown as { data: PendingReviewsResponse }).data;
+    },
+    placeholderData: (previous) => previous,
   });
 };
 
@@ -56,6 +84,7 @@ export const useApproveReview = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'admin'] });
       toast.success('Review approved');
     },
     onError: (error: any) => {
@@ -74,6 +103,7 @@ export const useRejectReview = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'admin'] });
       toast.success('Review rejected');
     },
     onError: (error: any) => {

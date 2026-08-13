@@ -165,9 +165,10 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser('id') userId: number,
     @Body('reason') reason: string,
+    @Body('amount') amount?: number,
   ) {
-    const order = await this.ordersService.requestRefund(id, userId, reason);
-    return { message: 'Refund request submitted', data: order };
+    const refund = await this.ordersService.requestRefund(id, userId, reason, amount);
+    return { message: 'Refund request submitted', data: refund };
   }
 
   @Get('admin/all')

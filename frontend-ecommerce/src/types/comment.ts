@@ -1,23 +1,22 @@
-export interface Comment {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  content: string;
-  likes: number;
-  isLiked: boolean;
-  isPinned?: boolean;
-  isVerifiedBuyer?: boolean;
-  createdAt: string;
-  replies?: Comment[];
+export interface CommentAuthor {
+  id: number;
+  name: string;
 }
 
-export interface CommentResponse {
-  data: Comment[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+export interface Comment {
+  id: number;
+  videoId: number;
+  userId: number;
+  parentId: number | null;
+  content: string;
+  likes: number;
+  createdAt: string;
+  updatedAt: string;
+  user: CommentAuthor;
+  replies: Comment[];
+}
+
+export interface CommentListResult {
+  items: Comment[];
+  total: number;
 }

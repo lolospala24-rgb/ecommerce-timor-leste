@@ -118,9 +118,10 @@ export const useOrderNotifications = () => {
 
     loadNotifications();
 
+    // Own room membership (order updates + notifications) is derived
+    // server-side from the authenticated session on connect — no join
+    // needed here.
     const socket = getSocket();
-    socket.emit('join-order-room', { userId: user.id });
-    socket.emit('join-notifications-room', { userId: user.id });
 
     const onOrderUpdated = (payload: any) => {
       if (payload?.userId != user.id) return;

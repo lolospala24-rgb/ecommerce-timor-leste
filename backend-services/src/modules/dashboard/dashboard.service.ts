@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { MUNICIPALITY_COORDINATES } from './municipality-coordinates';
 
 @Injectable()
 export class DashboardService {
@@ -196,6 +197,89 @@ export class DashboardService {
     await this.redisService.set(cacheKey, JSON.stringify(dashboardData), 300);
 
     return dashboardData;
+  }
+
+  // Sales by Region — groups DELIVERED orders by the delivery address's
+  // municipality. Uses the same "revenue" convention as the rest of this
+  // dashboard (OrderStatus.DELIVERED + Order.total, not Payment.status +
+  // Order.subtotal — that's the separate seller-ledger/commission
+  // convention over in FinanceService).
+  async getSalesByRegion(period: 'day' | 'week' | 'month' | 'year' = 'month') {
+    const cacheKey = `dashboard:admin:sales-by-region:${period}`;
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'day':
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        break;
+      case 'week':
+        startDate = new Date(now.setDate(now.getDate() - 7));
+        break;
+      case 'month':
+        startDate = new Date(now.setMonth(now.getMonth() - 1));
+        break;
+      case 'year':
+        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        break;
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: OrderStatus.DELIVERED,
+        createdAt: { gte: startDate },
+      },
+      select: {
+        total: true,
+        address: {
+          select: {
+            municipality: true,
+            municipalityRef: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const grouped = new Map<string, { sales: number; orderCount: number }>();
+    for (const order of orders) {
+      // The FK relation is the source of truth; the denormalized string on
+      // Address is a fallback for any row where it's out of sync.
+      const name = order.address?.municipalityRef?.name || order.address?.municipality;
+      if (!name) continue;
+
+      const entry = grouped.get(name) ?? { sales: 0, orderCount: 0 };
+      entry.sales += order.total;
+      entry.orderCount += 1;
+      grouped.set(name, entry);
+    }
+
+    const result = Array.from(grouped.entries())
+      .map(([municipality, stats]) => {
+        const coordinates = MUNICIPALITY_COORDINATES[municipality];
+        // A municipality name that doesn't match the known list (e.g. a
+        // data-entry typo on an old address) can't be placed on the map —
+        // omit it rather than guess at coordinates.
+        if (!coordinates) return null;
+        return {
+          municipality,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          sales: stats.sales,
+          orderCount: stats.orderCount,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((a, b) => b.sales - a.sales);
+
+    await this.redisService.set(cacheKey, JSON.stringify(result), 300);
+
+    return result;
   }
 
   async getAdminRevenue(period: 'day' | 'week' | 'month' | 'year') {

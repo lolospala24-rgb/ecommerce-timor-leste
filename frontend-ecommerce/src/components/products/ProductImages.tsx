@@ -234,7 +234,7 @@ export function ProductImages({
             {!activeVideoUrl && (
             <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 pointer-events-none">
               {discount > 0 && (
-                <Badge className="w-fit border-0 bg-red-500 px-2.5 py-1 text-xs font-semibold text-white shadow-md">
+                <Badge className="w-fit border-0 bg-red-600 px-2.5 py-1 text-xs font-semibold text-white shadow-md">
                   -{discount}% OFF
                 </Badge>
               )}

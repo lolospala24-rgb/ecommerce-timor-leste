@@ -9,12 +9,13 @@ import { CartsModule } from '../carts/carts.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ShippingModule } from '../shipping/shipping.module';
 import { SettingsModule } from '../settings/settings.module';
-import { OrderEventsGateway } from './order-events.gateway';
+import { FinanceModule } from '../finance/finance.module';
+import { PaymentExpiryJob } from './payment-expiry.job';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, SettingsModule],
+  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, SettingsModule, FinanceModule],
   controllers: [OrdersController],
-  providers: [OrdersService, OrderEventsGateway],
+  providers: [OrdersService, PaymentExpiryJob],
   exports: [OrdersService],
 })
 export class OrdersModule {}

@@ -39,6 +39,18 @@ export class SystemSettingsDto {
   @Min(0)
   serviceFee?: number;
 
+  // Seller finance
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(100)
+  defaultCommissionRate?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  minimumPayoutAmount?: number;
+
   // System toggles
   @IsBoolean()
   @IsOptional()

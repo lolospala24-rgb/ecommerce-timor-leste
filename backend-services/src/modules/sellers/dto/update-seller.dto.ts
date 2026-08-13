@@ -35,4 +35,19 @@ export class UpdateSellerDto {
   @IsOptional()
   @MaxLength(1000)
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  bankName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  bankAccountName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  bankAccountNumber?: string;
 }

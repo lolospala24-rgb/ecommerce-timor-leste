@@ -11,6 +11,7 @@ export class PaymentEntity implements Payment {
   transactionId: string | null;
   notes: string | null;
   paidAt: Date | null;
+  expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -25,6 +26,7 @@ export class PaymentEntity implements Payment {
       PAID: 'green',
       FAILED: 'red',
       REFUNDED: 'orange',
+      PARTIALLY_REFUNDED: 'orange',
     };
     return colors[this.status];
   }
@@ -36,6 +38,7 @@ export class PaymentEntity implements Payment {
       PAID: 'Paid',
       FAILED: 'Failed',
       REFUNDED: 'Refunded',
+      PARTIALLY_REFUNDED: 'Partially Refunded',
     };
     return labels[this.status];
   }

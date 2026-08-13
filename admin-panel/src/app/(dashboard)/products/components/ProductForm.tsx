@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,19 +16,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { useCategories } from '@/hooks/useCategories';
 import { useSellers } from '@/hooks/useSellers';
+import { useProductTypes } from '@/hooks/useProductTypes';
 import { useAuthStore } from '@/stores/authStore';
+import { fieldsToNameList } from '@/lib/productType';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, X, ListChecks, Layers, TrendingUp } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
   nameTetum: z.string().optional(),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   descriptionTetum: z.string().optional(),
+  brand: z.string().optional(),
   price: z.number().min(0, 'Price must be positive'),
   comparePrice: z.number().optional().nullable(),
   cost: z.number().optional().nullable(),
@@ -40,12 +45,14 @@ const productSchema = z.object({
   categoryId: z.number().min(1, 'Please select a category'),
   subCategoryId: z.number().optional().nullable(),
   sellerId: z.number().min(1, 'Please select a seller'),
+  typeId: z.number().optional().nullable(),
   isActive: z.boolean(),
   isFeatured: z.boolean(),
   slug: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
+type SpecRow = { key: string; value: string };
 
 interface ProductFormProps {
   initialData?: any;
@@ -53,12 +60,30 @@ interface ProductFormProps {
   onCancel: () => void;
 }
 
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
+const specsToRows = (specifications?: Record<string, unknown> | null): SpecRow[] => {
+  const entries = Object.entries(specifications ?? {}).map(([key, value]) => ({
+    key,
+    value: String(value ?? ''),
+  }));
+  return entries.length > 0 ? entries : [{ key: '', value: '' }];
+};
+
 export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormProps) {
   const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [specRows, setSpecRows] = useState<SpecRow[]>(() => specsToRows(initialData?.specifications));
   const [isLoading, setIsLoading] = useState(false);
   const [sellerError, setSellerError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('basic');
   const { data: categories } = useCategories({ page: 1, limit: 100 });
   const { data: sellers } = useSellers({ page: 1, limit: 100, isVerified: true });
+  const { data: productTypes } = useProductTypes();
   const { user, isAuthenticated } = useAuthStore();
 
   const {
@@ -74,6 +99,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       nameTetum: initialData?.nameTetum || '',
       description: initialData?.description || '',
       descriptionTetum: initialData?.descriptionTetum || '',
+      brand: initialData?.brand || '',
       price: initialData?.price ?? 0,
       comparePrice: initialData?.comparePrice ?? null,
       cost: initialData?.cost ?? null,
@@ -85,6 +111,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       categoryId: initialData?.categoryId || undefined,
       subCategoryId: initialData?.subCategoryId || undefined,
       sellerId: initialData?.sellerId || undefined,
+      typeId: initialData?.type?.id ?? initialData?.typeId ?? null,
       isActive: initialData?.isActive ?? true,
       isFeatured: initialData?.isFeatured ?? false,
       slug: initialData?.slug || '',
@@ -140,6 +167,47 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
     }
   }, [selectedSubCategoryId, subcategories, setValue]);
 
+  const productTypeList: any[] = Array.isArray(productTypes)
+    ? productTypes
+    : Array.isArray((productTypes as any)?.data)
+    ? (productTypes as any).data
+    : [];
+  const selectedTypeId = watch('typeId');
+  const selectedType = productTypeList.find((t) => t.id === selectedTypeId);
+  const typeFieldNames = fieldsToNameList(selectedType?.fields);
+
+  // Specification row helpers
+  const handleSpecRowChange = (index: number, field: 'key' | 'value', value: string) => {
+    setSpecRows((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+  const handleAddSpecRow = () => setSpecRows((prev) => [...prev, { key: '', value: '' }]);
+  const handleRemoveSpecRow = (index: number) => setSpecRows((prev) => prev.filter((_, i) => i !== index));
+
+  // Live helpers
+  const nameValue = watch('name');
+  const slugValue = watch('slug');
+  const slugPreview = slugValue?.trim() ? slugify(slugValue) : slugify(nameValue || '');
+  const descriptionValue = watch('description') || '';
+  const descriptionTetumValue = watch('descriptionTetum') || '';
+  const priceValue = watch('price');
+  const costValue = watch('cost');
+  const margin = useMemo(() => {
+    if (!priceValue || !costValue || costValue <= 0) return null;
+    const profit = priceValue - costValue;
+    return {
+      profit,
+      percent: (profit / priceValue) * 100,
+    };
+  }, [priceValue, costValue]);
+
+  const basicTabHasError = !!(errors.name || errors.description || errors.categoryId || errors.sellerId);
+  const pricingTabHasError = !!(errors.price || errors.stock);
+  const mediaTabHasError = !!errors.videoUrl;
+
   const onSubmit = async (data: ProductFormData) => {
     // Check if user is seller
     if (user?.role !== 'SELLER' && user?.role !== 'ADMIN') {
@@ -165,11 +233,20 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       // takes priority over the parent selected in the top-level dropdown.
       const effectiveCategoryId = data.subCategoryId ? Number(data.subCategoryId) : Number(data.categoryId);
 
+      const specifications = specRows.reduce<Record<string, string>>((acc, row) => {
+        const key = row.key.trim();
+        const value = row.value.trim();
+        if (key && value) acc[key] = value;
+        return acc;
+      }, {});
+
       const payload = {
         name: data.name,
         nameTetum: data.nameTetum || null,
         description: data.description,
         descriptionTetum: data.descriptionTetum || null,
+        brand: data.brand || null,
+        specifications,
         price: Number(data.price),
         comparePrice: data.comparePrice ? Number(data.comparePrice) : null,
         cost: data.cost ? Number(data.cost) : null,
@@ -179,6 +256,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         videoUrl: data.videoUrl || null,
         weight: data.weight ? Number(data.weight) : null,
         categoryId: effectiveCategoryId,
+        typeId: data.typeId || null,
         sellerId: Number(resolvedSellerId),
         isActive: Boolean(data.isActive),
         isFeatured: Boolean(data.isFeatured),
@@ -197,10 +275,10 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       onSuccess();
     } catch (error: any) {
       console.error('❌ Product save error:', error);
-      
+
       if (error.response) {
         console.log('📋 Error response data:', error.response.data);
-        
+
         const errorData = error.response.data;
         if (errorData.message) {
           toast.error(`Error: ${errorData.message}`);
@@ -216,6 +294,19 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onInvalid = () => {
+    // Jump the admin to whichever tab holds the first validation error,
+    // since fields on inactive tabs are unmounted and their errors would
+    // otherwise be invisible.
+    if (errors.name || errors.description || errors.categoryId || errors.sellerId) {
+      setActiveTab('basic');
+    } else if (errors.price || errors.stock) {
+      setActiveTab('pricing');
+    } else if (errors.videoUrl) {
+      setActiveTab('media');
     }
   };
 
@@ -237,229 +328,330 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-4">
-            <div>
-              <Label>Product Name (Portuguese) *</Label>
-              <Input 
-                {...register('name')} 
-                placeholder="Enter product name"
-              />
-              {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-            </div>
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="basic">
+              Basic Info
+              {basicTabHasError && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="pricing">
+              Pricing &amp; Stock
+              {pricingTabHasError && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="media">
+              Media &amp; Type
+              {mediaTabHasError && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
+            </TabsTrigger>
+            <TabsTrigger value="organize">Specs &amp; SEO</TabsTrigger>
+          </TabsList>
 
-            <div>
-              <Label>Product Name (Tetun)</Label>
-              <Input 
-                {...register('nameTetum')} 
-                placeholder="Naran produtu iha Tetun"
-              />
-            </div>
-
-            <div>
-              <Label>Category *</Label>
-              <Select
-                value={watch('categoryId')?.toString() || ''}
-                onValueChange={(value) => setValue('categoryId', parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories?.data?.
-                    filter((category: any) => category.parentId === null)
-                    .map((category: any) => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {errors.categoryId && <p className="text-sm text-red-500">{errors.categoryId.message}</p>}
-            </div>
-            {subcategories.length > 0 && (
+          {/* ============ BASIC INFO ============ */}
+          <TabsContent value="basic" className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Sub-Category</Label>
-                <Select
-                  value={watch('subCategoryId')?.toString() || ''}
-                  onValueChange={(value) =>
-                    setValue('subCategoryId', value === 'none' ? undefined : parseInt(value))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub-category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No sub-category</SelectItem>
-                    {subcategories.map((subcategory: any) => (
-                      <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                        {selectedCategoryName ? `${selectedCategoryName} > ${subcategory.name}` : subcategory.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Product Name (Portuguese) *</Label>
+                <Input {...register('name')} placeholder="Enter product name" />
+                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
               </div>
-            )}
 
-            <div>
-              <Label>Seller *</Label>
-              {user?.role === 'SELLER' ? (
-                <Input
-                  value={user.seller?.storeName || 'Your store'}
-                  disabled
-                  className="bg-muted"
-                />
-              ) : (
+              <div>
+                <Label>Product Name (Tetun)</Label>
+                <Input {...register('nameTetum')} placeholder="Naran produtu iha Tetun" />
+              </div>
+
+              <div>
+                <Label>Category *</Label>
                 <Select
-                  value={watch('sellerId')?.toString() || ''}
-                  onValueChange={(value) => setValue('sellerId', parseInt(value))}
+                  value={watch('categoryId')?.toString() || ''}
+                  onValueChange={(value) => setValue('categoryId', parseInt(value))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select seller" />
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sellers?.data?.map((seller: any) => (
-                      <SelectItem key={seller.id} value={seller.id.toString()}>
-                        {seller.storeName}
-                      </SelectItem>
-                    ))}
+                    {categories?.data
+                      ?.filter((category: any) => category.parentId === null)
+                      .map((category: any) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                {errors.categoryId && <p className="text-sm text-red-500">{errors.categoryId.message}</p>}
+              </div>
+
+              {subcategories.length > 0 && (
+                <div>
+                  <Label>Sub-Category</Label>
+                  <Select
+                    value={watch('subCategoryId')?.toString() || ''}
+                    onValueChange={(value) =>
+                      setValue('subCategoryId', value === 'none' ? undefined : parseInt(value))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sub-category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No sub-category</SelectItem>
+                      {subcategories.map((subcategory: any) => (
+                        <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                          {selectedCategoryName ? `${selectedCategoryName} > ${subcategory.name}` : subcategory.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-              {errors.sellerId && <p className="text-sm text-red-500">{errors.sellerId.message}</p>}
+
+              <div>
+                <Label>Seller *</Label>
+                {user?.role === 'SELLER' ? (
+                  <Input value={user.seller?.storeName || 'Your store'} disabled className="bg-muted" />
+                ) : (
+                  <Select
+                    value={watch('sellerId')?.toString() || ''}
+                    onValueChange={(value) => setValue('sellerId', parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select seller" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sellers?.data?.map((seller: any) => (
+                        <SelectItem key={seller.id} value={seller.id.toString()}>
+                          {seller.storeName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.sellerId && <p className="text-sm text-red-500">{errors.sellerId.message}</p>}
+              </div>
+
+              <div>
+                <Label>Brand</Label>
+                <Input {...register('brand')} placeholder="e.g. Nike" />
+              </div>
             </div>
 
             <div>
-              <Label>Price ($) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...register('price', { valueAsNumber: true })}
-                placeholder="0.00"
+              <div className="flex items-center justify-between">
+                <Label>Description (Portuguese) *</Label>
+                <span
+                  className={`text-xs ${
+                    descriptionValue.length > 0 && descriptionValue.length < 20
+                      ? 'text-red-500'
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  {descriptionValue.length}/5000 (min 20)
+                </span>
+              </div>
+              <Textarea
+                rows={5}
+                {...register('description')}
+                placeholder="Describe your product in detail (at least 20 characters)..."
               />
-              {errors.price && <p className="text-sm text-red-500">{errors.price.message}</p>}
+              {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
             </div>
 
             <div>
-              <Label>Compare Price ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...register('comparePrice', { valueAsNumber: true })}
-                placeholder="0.00"
-              />
+              <div className="flex items-center justify-between">
+                <Label>Description (Tetun)</Label>
+                <span className="text-xs text-muted-foreground">{descriptionTetumValue.length}/5000</span>
+              </div>
+              <Textarea rows={5} {...register('descriptionTetum')} placeholder="Deskrisaun produtu iha Tetun..." />
             </div>
+          </TabsContent>
 
-            <div>
-              <Label>Cost ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...register('cost', { valueAsNumber: true })}
-                placeholder="0.00"
-              />
+          {/* ============ PRICING & STOCK ============ */}
+          <TabsContent value="pricing" className="space-y-4 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Price ($) *</Label>
+                <Input type="number" step="0.01" {...register('price', { valueAsNumber: true })} placeholder="0.00" />
+                {errors.price && <p className="text-sm text-red-500">{errors.price.message}</p>}
+              </div>
+
+              <div>
+                <Label>Compare Price ($)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...register('comparePrice', { valueAsNumber: true })}
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Shown as a strikethrough "was" price</p>
+              </div>
+
+              <div>
+                <Label>Cost ($)</Label>
+                <Input type="number" step="0.01" {...register('cost', { valueAsNumber: true })} placeholder="0.00" />
+                <p className="text-xs text-muted-foreground mt-1">Your cost — not shown to customers</p>
+              </div>
+
+              <div>
+                <Label>Profit Margin</Label>
+                <div className="h-9 flex items-center">
+                  {margin ? (
+                    <Badge variant={margin.profit >= 0 ? 'default' : 'destructive'} className="gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      ${margin.profit.toFixed(2)} ({margin.percent.toFixed(0)}%)
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Enter price and cost to see margin</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Stock *</Label>
+                <Input type="number" {...register('stock', { valueAsNumber: true })} placeholder="0" />
+                {errors.stock && <p className="text-sm text-red-500">{errors.stock.message}</p>}
+              </div>
+
+              <div>
+                <Label>Weight (kg)</Label>
+                <Input type="number" step="0.1" {...register('weight', { valueAsNumber: true })} placeholder="0.0" />
+              </div>
+
+              <div>
+                <Label>SKU</Label>
+                <Input {...register('sku')} placeholder="SKU-001" />
+              </div>
+
+              <div>
+                <Label>Barcode</Label>
+                <Input {...register('barcode')} placeholder="1234567890" />
+              </div>
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Right Column */}
-          <div className="space-y-4">
+          {/* ============ MEDIA & TYPE ============ */}
+          <TabsContent value="media" className="space-y-4 pt-4">
             <div>
-              <Label>Stock *</Label>
-              <Input 
-                type="number" 
-                {...register('stock', { valueAsNumber: true })} 
-                placeholder="0"
-              />
-              {errors.stock && <p className="text-sm text-red-500">{errors.stock.message}</p>}
-            </div>
-
-            <div>
-              <Label>SKU</Label>
-              <Input {...register('sku')} placeholder="SKU-001" />
-            </div>
-
-            <div>
-              <Label>Barcode</Label>
-              <Input {...register('barcode')} placeholder="1234567890" />
+              <Label>Product Images</Label>
+              <ImageUpload images={images} setImages={setImages} maxImages={10} />
             </div>
 
             <div>
               <Label>Video URL</Label>
-              <Input
-                type="url"
-                {...register('videoUrl')}
-                placeholder="https://example.com/video.mp4"
-              />
-              {errors.videoUrl && (
-                <p className="text-sm text-red-500">{errors.videoUrl.message}</p>
-              )}
+              <Input type="url" {...register('videoUrl')} placeholder="https://example.com/video.mp4" />
+              {errors.videoUrl && <p className="text-sm text-red-500">{errors.videoUrl.message}</p>}
             </div>
 
             <div>
-              <Label>Weight (kg)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                {...register('weight', { valueAsNumber: true })}
-                placeholder="0.0"
-              />
+              <Label className="flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5" />
+                Product Type
+              </Label>
+              <Select
+                value={selectedTypeId ? selectedTypeId.toString() : 'none'}
+                onValueChange={(value) => setValue('typeId', value === 'none' ? null : parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a product type (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No product type</SelectItem>
+                  {productTypeList.map((type: any) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {typeFieldNames.length > 0
+                  ? `Variant fields for this type: ${typeFieldNames.join(', ')}`
+                  : 'Defines variant fields (e.g. Color, Size) shown on the storefront. Manage types from the product detail page.'}
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* ============ SPECIFICATIONS & SEO ============ */}
+          <TabsContent value="organize" className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <ListChecks className="h-3.5 w-3.5" />
+                Specifications
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                General product details (e.g. Material, Origin, Warranty) shown on the storefront product page.
+              </p>
+              <div className="space-y-2">
+                {specRows.map((row, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Field (e.g., Material)"
+                      value={row.key}
+                      onChange={(e) => handleSpecRowChange(index, 'key', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Value (e.g., 100% Cotton)"
+                      value={row.value}
+                      onChange={(e) => handleSpecRowChange(index, 'value', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveSpecRow(index)}
+                      disabled={specRows.length === 1}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={handleAddSpecRow}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Field
+                </Button>
+              </div>
             </div>
 
-            <div>
-              <Label>Slug (URL)</Label>
-              <Input {...register('slug')} placeholder="auto-generated if empty" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Slug (URL)</Label>
+                <Input {...register('slug')} placeholder="auto-generated if empty" />
+                {slugPreview && (
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
+                    Preview: /products/<span className="font-mono">{slugPreview}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="isActive">Active</Label>
-              <Switch
-                id="isActive"
-                checked={isActive}
-                onCheckedChange={(checked) => setValue('isActive', checked)}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="isActive">Active</Label>
+                  <p className="text-xs text-muted-foreground">Visible to customers</p>
+                </div>
+                <Switch id="isActive" checked={isActive} onCheckedChange={(checked) => setValue('isActive', checked)} />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="isFeatured">Featured</Label>
+                  <p className="text-xs text-muted-foreground">Highlighted on the homepage</p>
+                </div>
+                <Switch
+                  id="isFeatured"
+                  checked={isFeatured}
+                  onCheckedChange={(checked) => setValue('isFeatured', checked)}
+                />
+              </div>
             </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="isFeatured">Featured</Label>
-              <Switch
-                id="isFeatured"
-                checked={isFeatured}
-                onCheckedChange={(checked) => setValue('isFeatured', checked)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Description */}
-        <div>
-          <Label>Description (Portuguese) *</Label>
-          <Textarea 
-            rows={5} 
-            {...register('description')} 
-            placeholder="Describe your product in detail (at least 20 characters)..."
-          />
-          {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
-        </div>
-
-        <div>
-          <Label>Description (Tetun)</Label>
-          <Textarea 
-            rows={5} 
-            {...register('descriptionTetum')} 
-            placeholder="Deskrisaun produtu iha Tetun..."
-          />
-        </div>
-
-        {/* Images */}
-        <div>
-          <Label>Product Images</Label>
-          <ImageUpload images={images} setImages={setImages} maxImages={10} />
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 border-t pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
@@ -469,8 +661,10 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
               </>
+            ) : initialData?.id ? (
+              'Update Product'
             ) : (
-              initialData?.id ? 'Update Product' : 'Create Product'
+              'Create Product'
             )}
           </Button>
         </div>

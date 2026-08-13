@@ -136,6 +136,63 @@ export const useOrder = (id?: number | null) => {
   });
 };
 
+export interface InvoiceData {
+  id: number;
+  orderNumber: string;
+  status: string;
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  serviceFee: number;
+  total: number | null;
+  paymentMethod: string | null;
+  trackingNumber: string | null;
+  notes: string | null;
+  createdAt: string;
+  customer: { name: string; email: string; phone: string | null };
+  seller: { storeName: string; storePhone: string; storeEmail: string | null; storeAddress: string };
+  items: Array<{
+    id: number;
+    quantity: number;
+    price: number;
+    total: number;
+    product: { id: number; name: string; price: number; sku: string | null; thumbnail: string | null };
+    variant: { sku: string; attributes: Record<string, string> } | null;
+  }>;
+  address: {
+    street: string | null;
+    village: string | null;
+    suco: string;
+    postoAdmin: string | null;
+    municipality: string | null;
+    reference: string | null;
+    phone: string | null;
+  };
+  payment: {
+    method: string;
+    status: string;
+    amount: number;
+    paidAt: string | null;
+    transactionId: string | null;
+  } | null;
+}
+
+// GET /orders/invoice/:id — a distinct, deliberately narrower read than
+// useOrder(): no timeline, no seller userId, just what a professional
+// invoice document needs (see orders.service.ts#getInvoice).
+export const useInvoice = (id?: number | null) => {
+  return useQuery({
+    queryKey: ['orders', id, 'invoice'],
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await api.get(`/orders/invoice/${id}`);
+      const data = response.data?.data || response.data || response;
+      return data as InvoiceData;
+    },
+    enabled: !!id,
+  });
+};
+
 export const useUserOrders = (filters?: { page?: number; limit?: number; status?: string }) => {
   return useQuery({
     queryKey: ['orders', 'my-orders', filters],
@@ -170,7 +227,7 @@ export const useUpdateOrderStatus = () => {
   return useMutation({
     mutationFn: async ({ id, status, trackingNumber }: { id: number; status: string; trackingNumber?: string }) => {
       const response = await api.patch(`/orders/${id}/status`, { status, trackingNumber });
-      return response.data || response;
+      return response.data?.data || response.data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -189,7 +246,7 @@ export const useCancelOrder = () => {
   return useMutation({
     mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
       const response = await api.post(`/orders/${id}/cancel`, { reason });
-      return response.data || response;
+      return response.data?.data || response.data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -207,7 +264,7 @@ export const useOrderStats = () => {
     queryKey: ['orders', 'stats'],
     queryFn: async () => {
       const response = await api.get('/orders/stats');
-      return response.data || response;
+      return response.data?.data || response.data;
     },
   });
 };

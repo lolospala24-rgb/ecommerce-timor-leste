@@ -15,11 +15,11 @@ import {
   DefaultValuePipe,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { SendNotificationDto } from './dto/send-notification.dto';
+import { SendNotificationDto, BroadcastNotificationDto } from './dto/send-notification.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { Role } from '@prisma/client';
+import { Role, NotificationCategory } from '@prisma/client';
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -33,18 +33,8 @@ export class NotificationsController {
   @Post('broadcast')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.CREATED)
-  async broadcastNotification(
-    @Body('title') title: string,
-    @Body('message') message: string,
-    @Body('type') type: string,
-    @Body('data') data?: any,
-  ) {
-    const result = await this.notificationsService.broadcastNotification({
-      title,
-      message,
-      type,
-      data,
-    });
+  async broadcastNotification(@Body() dto: BroadcastNotificationDto) {
+    const result = await this.notificationsService.broadcastNotification(dto);
     return { message: 'Broadcast notification sent', data: result };
   }
   @Get()
@@ -54,12 +44,14 @@ export class NotificationsController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('unreadOnly', new DefaultValuePipe(false), ParseBoolPipe) unreadOnly: boolean,
     @Query('type') type?: string,
+    @Query('category') category?: NotificationCategory,
   ) {
     const result = await this.notificationsService.getUserNotifications(userId, {
       page,
       limit,
       unreadOnly,
       type,
+      category,
     });
     return result;
   }

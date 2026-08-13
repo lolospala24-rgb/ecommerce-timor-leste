@@ -1,5 +1,33 @@
 import api from '@/lib/api';
-import { Comment, CommentResponse } from '@/types/comment';
+import { Comment, CommentListResult } from '@/types/comment';
+
+// See the matching comment in video.service.ts — the backend double-wraps
+// every response (global interceptor + this module's own `{success,data}`
+// envelope), so the real payload is `response.data.data`, not `response.data`.
+function unwrapList(response: any): { items: any[]; total: number } {
+  const inner = response?.data;
+  const items = Array.isArray(inner?.data) ? inner.data : [];
+  return { items, total: Number(inner?.total ?? items.length) };
+}
+
+function unwrapItem(response: any): any {
+  return response?.data?.data;
+}
+
+function normalizeComment(raw: any): Comment {
+  return {
+    id: Number(raw.id),
+    videoId: Number(raw.videoId),
+    userId: Number(raw.userId),
+    parentId: raw.parentId != null ? Number(raw.parentId) : null,
+    content: raw.content,
+    likes: Number(raw.likes ?? 0),
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt ?? raw.createdAt,
+    user: { id: Number(raw.user?.id ?? 0), name: raw.user?.name ?? 'User' },
+    replies: Array.isArray(raw.replies) ? raw.replies.map(normalizeComment) : [],
+  };
+}
 
 class CommentService {
   private static instance: CommentService;
@@ -11,52 +39,24 @@ class CommentService {
     return CommentService.instance;
   }
 
-  async getComments(videoId: string, page: number = 1, limit: number = 10): Promise<CommentResponse> {
-    try {
-      const response = await api.get<any>(`/videos/${videoId}/comments?page=${page}&limit=${limit}`);
-      const payload = response?.data ?? response;
-      const data = Array.isArray(payload) ? payload : payload?.data ?? payload?.items ?? [];
-      const total = Number(payload?.total ?? payload?.meta?.total ?? data.length ?? 0);
-      const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
-
-      return {
-        data,
-        meta: {
-          page,
-          limit,
-          total,
-          totalPages,
-        },
-      };
-    } catch {
-      return {
-        data: [],
-        meta: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 1,
-        },
-      };
-    }
+  async getComments(videoId: number, page = 1, limit = 20): Promise<CommentListResult> {
+    const response = await api.get(`/videos/${videoId}/comments?page=${page}&limit=${limit}`);
+    const { items, total } = unwrapList(response);
+    return { items: items.map(normalizeComment), total };
   }
 
-  async createComment(videoId: string, content: string): Promise<Comment> {
-    // `api` unwraps the response to the JSON body at runtime (see lib/api.ts
-    // interceptor), but axios's own types don't know that — hence the cast.
-    return api.post<Comment>(`/videos/${videoId}/comments`, { content }) as unknown as Promise<Comment>;
+  async createComment(videoId: number, content: string, parentId?: number): Promise<Comment> {
+    const response = await api.post(`/videos/${videoId}/comments`, { content, parentId });
+    return normalizeComment(unwrapItem(response));
   }
 
-  async likeComment(commentId: string): Promise<{ likes: number; isLiked: boolean }> {
-    return api.post<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`) as unknown as Promise<{ likes: number; isLiked: boolean }>;
+  async deleteComment(commentId: number): Promise<void> {
+    await api.delete(`/videos/comments/${commentId}`);
   }
 
-  async unlikeComment(commentId: string): Promise<{ likes: number; isLiked: boolean }> {
-    return api.delete<{ likes: number; isLiked: boolean }>(`/comments/${commentId}/like`) as unknown as Promise<{ likes: number; isLiked: boolean }>;
-  }
-
-  async deleteComment(commentId: string): Promise<void> {
-    await api.delete(`/comments/${commentId}`);
+  async likeComment(commentId: number): Promise<{ likes: number }> {
+    const response = await api.post(`/videos/comments/${commentId}/like`);
+    return unwrapItem(response) ?? { likes: 0 };
   }
 }
 

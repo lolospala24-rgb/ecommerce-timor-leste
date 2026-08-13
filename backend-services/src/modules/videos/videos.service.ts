@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { VideosRepository } from './videos.repository';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class VideosService {
@@ -102,8 +104,8 @@ export class VideosService {
     return updated;
   }
 
-  async findById(id: number) {
-    const video = await this.repo.findById(id);
+  async findById(id: number, viewerId?: number | null) {
+    const video = await this.repo.findById(id, viewerId);
     if (!video) throw new NotFoundException('Video not found');
     return video;
   }
@@ -120,18 +122,21 @@ export class VideosService {
     return this.repo.delete(id);
   }
 
-  async feed(query: any) {
-    return this.repo.findFeed(query);
+  async feed(query: any, viewerId?: number | null) {
+    return this.repo.findFeed(query, viewerId);
   }
 
-  async incrementAnalytics(id: number, action: 'views' | 'likes' | 'shares') {
+  async adminList(query: any) {
+    return this.repo.findAllAdmin(query);
+  }
+
+  async adminListComments(query: any) {
+    return this.repo.findAllComments(query);
+  }
+
+  async incrementAnalytics(id: number, action: 'views' | 'shares') {
     await this.findById(id);
     return this.repo.incrementField(id, action);
-  }
-
-  async decrementLikes(id: number) {
-    await this.findById(id);
-    return this.repo.decrementField(id, 'likes');
   }
 
   async getVideoProducts(id: number) {
@@ -139,8 +144,77 @@ export class VideosService {
     return this.repo.findProductsByVideoId(id);
   }
 
-  async getRecommendations(id: number) {
+  async getRecommendations(id: number, viewerId?: number | null) {
     await this.findById(id);
-    return this.repo.findRecommendations(id);
+    return this.repo.findRecommendations(id, viewerId);
+  }
+
+  // ==================== Likes ====================
+
+  async likeVideo(id: number, userId: number) {
+    await this.findById(id);
+    const result = await this.repo.likeVideo(id, userId);
+    return { liked: true, likes: result?.likes ?? 0 };
+  }
+
+  async unlikeVideo(id: number, userId: number) {
+    await this.findById(id);
+    const result = await this.repo.unlikeVideo(id, userId);
+    return { liked: false, likes: result?.likes ?? 0 };
+  }
+
+  // ==================== Saves / Bookmarks ====================
+
+  async saveVideo(id: number, userId: number) {
+    await this.findById(id);
+    const saves = await this.repo.saveVideo(id, userId);
+    return { saved: true, saves };
+  }
+
+  async unsaveVideo(id: number, userId: number) {
+    await this.findById(id);
+    const saves = await this.repo.unsaveVideo(id, userId);
+    return { saved: false, saves };
+  }
+
+  async getSavedVideos(userId: number, pagination: { page?: number; limit?: number }) {
+    return this.repo.findSavedByUser(userId, pagination);
+  }
+
+  // ==================== Comments ====================
+
+  async getComments(videoId: number, pagination: { page?: number; limit?: number }) {
+    await this.findById(videoId);
+    return this.repo.findComments(videoId, pagination);
+  }
+
+  async addComment(videoId: number, userId: number, dto: CreateCommentDto) {
+    await this.findById(videoId);
+
+    if (dto.parentId) {
+      const parent = await this.repo.findCommentById(dto.parentId);
+      if (!parent || parent.videoId !== videoId) {
+        throw new BadRequestException('Parent comment not found on this video');
+      }
+    }
+
+    return this.repo.createComment(videoId, userId, dto.content, dto.parentId);
+  }
+
+  async deleteComment(commentId: number, userId: number, userRole: string) {
+    const comment = await this.repo.findCommentById(commentId);
+    if (!comment) throw new NotFoundException('Comment not found');
+
+    if (comment.userId !== userId && userRole !== Role.ADMIN) {
+      throw new ForbiddenException('You can only delete your own comments');
+    }
+
+    await this.repo.deleteComment(commentId);
+  }
+
+  async likeComment(commentId: number) {
+    const comment = await this.repo.findCommentById(commentId);
+    if (!comment) throw new NotFoundException('Comment not found');
+    return this.repo.likeComment(commentId);
   }
 }

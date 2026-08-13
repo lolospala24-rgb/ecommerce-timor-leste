@@ -11,13 +11,26 @@ import { ImageUpload } from '@/components/shared/ImageUpload';
 import { useRegisterSeller } from '@/hooks/useSellers';
 import { Loader2 } from 'lucide-react';
 
+// Backend (RegisterSellerDto) requires digits-only, no spaces/dashes:
+// /^[+]?[0-9]{8,15}$/. Validating against that same pattern here — after
+// stripping the formatting characters the placeholders below suggest —
+// catches the mismatch before it round-trips to a 400.
+const PHONE_PATTERN = /^[+]?[0-9]{8,15}$/;
+const normalizePhone = (value: string) => value.replace(/[\s-]/g, '');
+
 const sellerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   name: z.string().min(2, 'Owner name is required'),
-  phone: z.string().min(8, 'Phone number is required'),
+  phone: z
+    .string()
+    .min(8, 'Phone number is required')
+    .refine((v) => PHONE_PATTERN.test(normalizePhone(v)), 'Enter a valid phone number (8-15 digits)'),
   storeName: z.string().min(2, 'Store name is required'),
-  storePhone: z.string().min(8, 'Store phone is required'),
+  storePhone: z
+    .string()
+    .min(8, 'Store phone is required')
+    .refine((v) => PHONE_PATTERN.test(normalizePhone(v)), 'Enter a valid phone number (8-15 digits)'),
   storeEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   storeAddress: z.string().min(5, 'Store address is required'),
   storeLogo: z.string().optional().or(z.literal('')),
@@ -60,20 +73,26 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
   const [storeBanner, setStoreBanner] = useState<string>('');
 
   const onSubmit = async (values: CreateSellerFormValues) => {
-    await mutateAsync({
-      email: values.email,
-      password: values.password,
-      name: values.name,
-      phone: values.phone,
-      storeName: values.storeName,
-      storePhone: values.storePhone,
-      storeEmail: values.storeEmail || undefined,
-      storeAddress: values.storeAddress,
-      storeLogo: storeLogo || undefined,
-      storeBanner: storeBanner || undefined,
-      description: values.description || undefined,
-    });
-    onSuccess();
+    try {
+      await mutateAsync({
+        email: values.email,
+        password: values.password,
+        name: values.name,
+        phone: normalizePhone(values.phone),
+        storeName: values.storeName,
+        storePhone: normalizePhone(values.storePhone),
+        storeEmail: values.storeEmail || undefined,
+        storeAddress: values.storeAddress,
+        storeLogo: storeLogo || undefined,
+        storeBanner: storeBanner || undefined,
+        description: values.description || undefined,
+      });
+      onSuccess();
+    } catch {
+      // useRegisterSeller's onError already shows a toast with the specific
+      // reason — nothing else to do, just don't let it surface as an
+      // unhandled promise rejection.
+    }
   };
 
   return (

@@ -63,20 +63,20 @@ export const API_ENDPOINTS = {
 
 // Order Status
 export const ORDER_STATUS = {
-  PENDING: { value: 'PENDING', label: 'Pending', color: 'bg-yellow-500' },
-  PAID: { value: 'PAID', label: 'Paid', color: 'bg-blue-500' },
-  PROCESSING: { value: 'PROCESSING', label: 'Processing', color: 'bg-purple-500' },
-  SHIPPING: { value: 'SHIPPING', label: 'In Transit', color: 'bg-indigo-500' },
-  DELIVERED: { value: 'DELIVERED', label: 'Delivered', color: 'bg-green-500' },
-  CANCELLED: { value: 'CANCELLED', label: 'Cancelled', color: 'bg-red-500' },
+  PENDING: { value: 'PENDING', label: 'Pending', color: 'bg-amber-500' },
+  PAID: { value: 'PAID', label: 'Paid', color: 'bg-green-600' },
+  PROCESSING: { value: 'PROCESSING', label: 'Processing', color: 'bg-blue-600' },
+  SHIPPING: { value: 'SHIPPING', label: 'In Transit', color: 'bg-blue-600' },
+  DELIVERED: { value: 'DELIVERED', label: 'Delivered', color: 'bg-green-600' },
+  CANCELLED: { value: 'CANCELLED', label: 'Cancelled', color: 'bg-red-600' },
 } as const;
 
 // Payment Status
 export const PAYMENT_STATUS = {
-  PENDING: { value: 'PENDING', label: 'Pending', color: 'bg-yellow-500' },
-  PAID: { value: 'PAID', label: 'Paid', color: 'bg-green-500' },
-  FAILED: { value: 'FAILED', label: 'Failed', color: 'bg-red-500' },
-  REFUNDED: { value: 'REFUNDED', label: 'Refunded', color: 'bg-orange-500' },
+  PENDING: { value: 'PENDING', label: 'Pending', color: 'bg-amber-500' },
+  PAID: { value: 'PAID', label: 'Paid', color: 'bg-green-600' },
+  FAILED: { value: 'FAILED', label: 'Failed', color: 'bg-red-600' },
+  REFUNDED: { value: 'REFUNDED', label: 'Refunded', color: 'bg-slate-500' },
 } as const;
 
 // Payment Methods

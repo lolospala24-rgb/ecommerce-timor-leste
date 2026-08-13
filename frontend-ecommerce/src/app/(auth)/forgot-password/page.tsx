@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
         <CardContent>
           <div className="text-center space-y-4">
             <div className="flex justify-center">
-              <CheckCircle className="h-12 w-12 text-green-500" />
+              <CheckCircle className="h-12 w-12 text-green-600" />
             </div>
             <Alert>
               <AlertDescription>

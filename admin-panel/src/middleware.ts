@@ -16,6 +16,9 @@ const protectedRoutes = [
   '/reviews',
   '/shipping',
   '/couriers',
+  '/municipalities',
+  '/shipping-rates',
+  '/shipping-dashboard',
   '/profile',
   '/settings',
 ];
@@ -29,6 +32,9 @@ const adminRoutes = [
   '/sellers',
   '/categories',
   '/payments',
+  '/refunds',
+  '/payouts',
+  '/finance',
   '/reports',
   '/settings',
 ];

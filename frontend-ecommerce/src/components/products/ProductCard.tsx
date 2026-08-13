@@ -136,7 +136,7 @@ export function ProductCard({ product, showSeller = true, isLocal = false }: Pro
   return (
     <>
       <Card className="group flex h-full flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-        <div className="relative aspect-square overflow-hidden bg-gray-100">
+        <div className="relative aspect-square overflow-hidden bg-slate-100">
           <Link href={`/products/${product.slug}`} aria-label={product.name}>
             <Image
               src={imageSrc}
@@ -151,22 +151,22 @@ export function ProductCard({ product, showSeller = true, isLocal = false }: Pro
           {/* Badge stack */}
           <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
             {discount > 0 && (
-              <Badge className="bg-red-500 text-white hover:bg-red-500">-{discount}%</Badge>
+              <Badge className="bg-red-600 text-white hover:bg-red-600">-{discount}%</Badge>
             )}
             {isNew && (
-              <Badge className="bg-blue-500 text-white hover:bg-blue-500">New</Badge>
+              <Badge className="bg-blue-600 text-white hover:bg-blue-600">New</Badge>
             )}
             {product.isFeatured && (
               <Badge className="bg-amber-500 text-white hover:bg-amber-500">Featured</Badge>
             )}
             {isLocal && (
-              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Local</Badge>
+              <Badge className="bg-secondary text-secondary-foreground hover:bg-secondary">Local</Badge>
             )}
           </div>
 
           {product.stock === 0 && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
-              <Badge className="bg-red-500 px-4 py-2 text-sm text-white">Out of Stock</Badge>
+              <Badge className="bg-red-600 px-4 py-2 text-sm text-white">Out of Stock</Badge>
             </div>
           )}
 
@@ -179,7 +179,7 @@ export function ProductCard({ product, showSeller = true, isLocal = false }: Pro
               onClick={handleWishlist}
               aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
             >
-              <Heart className={cn('h-4 w-4', isWishlisted && 'fill-red-500 text-red-500')} />
+              <Heart className={cn('h-4 w-4', isWishlisted && 'fill-red-600 text-red-600')} />
             </Button>
             <Button
               variant="secondary"

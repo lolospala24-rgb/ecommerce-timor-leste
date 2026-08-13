@@ -3,8 +3,8 @@ import { Type } from 'class-transformer';
 
 export class FilterVideoDto {
   @IsOptional()
-  @IsIn(['popular', 'trending', 'latest'])
-  filter?: 'popular' | 'trending' | 'latest';
+  @IsIn(['popular', 'trending', 'latest', 'following'])
+  filter?: 'popular' | 'trending' | 'latest' | 'following';
 
   @IsOptional()
   @Type(() => Number)

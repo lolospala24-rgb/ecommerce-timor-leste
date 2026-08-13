@@ -17,8 +17,18 @@ export interface Seller {
   verifiedAt: string | null;
   verifiedBy: number | null;
   rejectionReason: string | null;
+  bankName: string | null;
+  bankAccountName: string | null;
+  bankAccountNumber: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SellerBalance {
+  pendingAmount: number;
+  availableAmount: number;
+  paidOutAmount: number;
+  refundedAmount: number;
 }
 
 // Seller with relations
@@ -33,6 +43,7 @@ export interface SellerWithRelations extends Seller {
   rating?: number;
   totalReviews?: number;
   totalRevenue?: number;
+  balance?: SellerBalance;
 }
 
 // Seller summary

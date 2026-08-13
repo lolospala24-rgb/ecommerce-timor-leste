@@ -19,8 +19,17 @@ interface Seller {
   verifiedAt: string | null;
   verifiedBy: number | null;
   rejectionReason: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNumber?: string | null;
   createdAt: string;
   updatedAt: string;
+  balance?: {
+    pendingAmount: number;
+    availableAmount: number;
+    paidOutAmount: number;
+    refundedAmount: number;
+  };
   user?: {
     id: number;
     email: string;

@@ -135,6 +135,14 @@ export class CartsService {
       throw new BadRequestException('Product is not available');
     }
 
+    // The frontend already blocks Add to Cart/Buy Now until a full variant
+    // combination is chosen, but that's a UX guard, not a security boundary
+    // — a direct API call could omit variantId entirely and silently get
+    // priced/stocked off the base product instead. Enforce it here too.
+    if (product.hasVariants && !variantId) {
+      throw new BadRequestException('Please select a variant for this product');
+    }
+
     let variant = null;
     if (variantId) {
       variant = await this.prisma.productVariant.findUnique({
@@ -319,6 +327,9 @@ export class CartsService {
         const prod = await this.productsService.findOne(item.productId);
         if (!prod) throw new NotFoundException(`Product ${item.productId} not found`);
         if (!prod.isActive) throw new BadRequestException(`Product ${item.productId} is not available`);
+        if (prod.hasVariants && !item.variantId) {
+          throw new BadRequestException(`Please select a variant for product ${item.productId}`);
+        }
 
         let variant = null;
         if (item.variantId) {

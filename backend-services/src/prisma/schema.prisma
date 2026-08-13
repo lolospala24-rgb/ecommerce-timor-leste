@@ -15,6 +15,28 @@ enum Role {
   CUSTOMER
 }
 
+// Domain grouping for Notification.category — lets the admin panel filter
+// ("Orders", "Payments", ...) without parsing the free-form `type` string.
+enum NotificationCategory {
+  ORDER
+  PAYMENT
+  SHIPPING
+  SELLER
+  PRODUCT
+  CUSTOMER
+  SYSTEM
+  SECURITY
+}
+
+// Urgency, independent of category — drives icon/color and which events
+// play a sound (see notification-priority docs in NotificationsService).
+enum NotificationPriority {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -34,6 +56,7 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
 }
 
 enum ShippingStatus {
@@ -76,6 +99,10 @@ model User {
   helpfulVotes    ReviewHelpful[]
   reviewReports   ReviewReport[]
   verifiedSellers Seller[]        @relation("AdminVerifiesSeller")
+  videoLikes      VideoLike[]
+  videoSaves      VideoSave[]
+  videoComments   VideoComment[]
+  sellerFollows   SellerFollow[]
 
   @@map("users")
 }
@@ -94,6 +121,12 @@ model Seller {
   verifiedAt      DateTime?
   verifiedBy      Int?
   rejectionReason String?
+  // Payout destination. Optional — a seller can be verified and trading
+  // before ever filling these in; PayoutsService requires them to be set
+  // before a payout request can be created (see finance/payouts.service.ts).
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -102,6 +135,10 @@ model Seller {
   products        Product[]
   orders          Order[]
   verifiedByAdmin User?     @relation("AdminVerifiesSeller", fields: [verifiedBy], references: [id])
+  balance         SellerBalance?
+  ledgerEntries   SellerLedgerEntry[]
+  payouts         Payout[]
+  followers       SellerFollow[]
 
   @@map("sellers")
 }
@@ -188,6 +225,7 @@ model Product {
   variants          ProductVariant[]
   productAttributes ProductAttribute[]
   videos            Video[]
+  homepageSectionEntries HomepageSectionProduct[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -242,9 +280,11 @@ model ProductVariant {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems CartItem[]
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
+  @@index([productId])
   @@map("product_variants")
 }
 
@@ -303,6 +343,15 @@ model Order {
   shippingCost          Float          @default(0)
   taxAmount             Float          @default(0)
   serviceFee            Float          @default(0)
+  // Commission snapshot — written once, by FinanceService, at the moment
+  // this order's Payment is confirmed PAID. Deliberately NOT computed live
+  // from SystemSettings.defaultCommissionRate: if the admin changes the
+  // rate tomorrow, orders paid today must keep the rate they were actually
+  // charged under (see schema doc-comment on SystemSettings.defaultCommissionRate).
+  // Null until payment is confirmed.
+  commissionRate        Float?
+  commissionAmount      Float?
+  sellerNetAmount       Float?
   paymentMethod         PaymentMethod?
   status                OrderStatus    @default(PENDING)
   shippingMethod        String?
@@ -320,12 +369,15 @@ model Order {
   updatedAt             DateTime       @updatedAt
 
   // Relations
-  customer     User          @relation(fields: [customerId], references: [id])
-  seller       Seller        @relation(fields: [sellerId], references: [id])
-  items        OrderItem[]
-  payment      Payment?
-  address      Address       @relation(fields: [addressId], references: [id])
-  shippingZone ShippingZone? @relation(fields: [shippingZoneId], references: [id])
+  customer      User          @relation(fields: [customerId], references: [id])
+  seller        Seller        @relation(fields: [sellerId], references: [id])
+  items         OrderItem[]
+  payment       Payment?
+  address       Address       @relation(fields: [addressId], references: [id])
+  shippingZone  ShippingZone? @relation(fields: [shippingZoneId], references: [id])
+  refunds       Refund[]
+  ledgerEntries SellerLedgerEntry[]
+  platformLedgerEntries PlatformLedgerEntry[]
 
   @@index([customerId])
   @@index([sellerId])
@@ -340,15 +392,24 @@ model OrderItem {
   id        Int      @id @default(autoincrement())
   orderId   Int
   productId Int
+  variantId Int?
   quantity  Int
   price     Float
   total     Float
   createdAt DateTime @default(now())
 
   // Relations
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  // Explicit Restrict (Prisma's default for an optional relation is
+  // SetNull, not Restrict) — this blocks hard-deleting a variant that any
+  // historical order line still references. Deactivate (isActive: false)
+  // instead; see ProductsService.deleteVariant, which also enforces this
+  // at the application layer with a clear error message before the DB
+  // constraint would ever be hit.
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
 
+  @@index([variantId])
   @@map("order_items")
 }
 
@@ -362,13 +423,263 @@ model Payment {
   transactionId String?
   notes         String?
   paidAt        DateTime?
+  // Bank-transfer only — set at creation to now + SystemSettings.paymentExpiryHours.
+  // A PaymentExpiryJob sweeps PENDING transfers with no proofImage past this
+  // and expires them (see payments/payment-expiry.job.ts). A receipt already
+  // uploaded and awaiting admin review is never auto-expired, even if this
+  // timestamp has passed — only an abandoned payment is.
+  expiresAt     DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   // Relations
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds Refund[]
 
   @@map("payments")
+}
+
+// ============================================================================
+// Seller Finance — Commission, Balance, Ledger, Payout, Refund
+// ============================================================================
+// One Order always belongs to exactly one Seller (see Order.sellerId) —
+// multi-seller carts are split into one Order per seller at checkout
+// (OrdersService.create). That means there is no cross-seller allocation
+// problem to solve here: an order's commission/net figures apply to that
+// order's single seller directly. FinanceService is the only writer of
+// SellerBalance/SellerLedgerEntry — never mutate those tables directly.
+
+enum LedgerEntryType {
+  SALE                 // + gross (order.subtotal) into pending, on payment confirmed
+  COMMISSION           // - platform's cut, into pending, alongside SALE
+  RELEASE              // pending -> available transfer, on order delivered
+  REFUND               // - seller's net share, reverses SALE+COMMISSION (pending or available,
+                        // whichever currently holds it — see FinanceService.reverseEarningsOnRefund)
+  COMMISSION_REVERSAL  // documents the platform's commission being reversed proportionally on a
+                        // refund (Refund.commissionReversed) — zero seller-balance-bucket deltas,
+                        // since commission was never in SellerBalance to begin with (see REFUND);
+                        // this entry exists purely so the ledger has a complete record of the event
+  PAYOUT               // - available, on payout paid
+  ADJUSTMENT           // manual admin correction, or a refund that exceeds what's
+                        // left in pending+available (balance is allowed to go
+                        // negative rather than block the refund — see RefundsService)
+  RESYNC               // corrects a PRE-EXISTING gap between a stored SellerBalance bucket and
+                        // what its own ledger already summed to (e.g. after an incident like
+                        // SOP-13). Always written with delta=0 — an Adjustment's delta necessarily
+                        // moves stored and ledger together, which can never close a gap that
+                        // already exists between them; RESYNC sets stored directly to the
+                        // ledger-implied value instead, and the zero-delta entry is purely a
+                        // dated, attributed record of "this bucket was force-aligned here."
+}
+
+// One row per seller. Always derived by summing this seller's
+// SellerLedgerEntry rows — FinanceService keeps it in sync transactionally
+// on every write so reads don't need to re-aggregate the ledger.
+model SellerBalance {
+  id      Int @id @default(autoincrement())
+  sellerId Int @unique
+  pendingAmount Float @default(0)
+  availableAmount Float @default(0)
+  // Reserved out of availableAmount the moment a payout is created
+  // (PayoutsService.createPayout) and moved into paidOutAmount when marked
+  // paid, or back into availableAmount if rejected — always equal to the
+  // sum of this seller's Payout rows currently in PENDING/APPROVED status.
+  processingAmount Float @default(0)
+  paidOutAmount Float @default(0)
+  refundedAmount Float @default(0)
+  updatedAt DateTime @updatedAt
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@map("seller_balances")
+}
+
+// Append-only audit trail. Every SellerBalance change must be accompanied
+// by a row here recording why — this is the source of truth for "why is
+// the balance what it is" (financial reconciliation), not just a log.
+model SellerLedgerEntry {
+  id                    Int             @id @default(autoincrement())
+  sellerId              Int
+  orderId               Int?
+  payoutId              Int?
+  refundId              Int?
+  type                   LedgerEntryType
+  // One delta column per SellerBalance bucket. A pure transfer between two
+  // buckets (RELEASE, PAYOUT reservation/completion) sets both the
+  // outgoing and incoming column on the SAME row — summing all deltas on a
+  // transfer row nets to zero by design, which is exactly why nothing may
+  // ever collapse them into a single "delta" number for display; each
+  // bucket's movement must be read (and shown) independently.
+  pendingDelta           Float           @default(0)
+  availableDelta         Float           @default(0)
+  processingDelta        Float           @default(0)
+  paidOutDelta           Float           @default(0)
+  refundedDelta          Float           @default(0)
+  pendingBalanceAfter    Float
+  availableBalanceAfter  Float
+  processingBalanceAfter Float           @default(0)
+  paidOutBalanceAfter    Float           @default(0)
+  refundedBalanceAfter   Float           @default(0)
+  note                   String?
+  createdAt              DateTime        @default(now())
+
+  seller Seller  @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  // Restrict, not the Prisma default SetNull — an order with ledger history
+  // must be un-deletable by ANY means, not just through OrdersService's own
+  // application-level guard. See the migration note for why this matters.
+  order  Order?  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payout Payout? @relation(fields: [payoutId], references: [id])
+  refund Refund? @relation(fields: [refundId], references: [id])
+
+  @@index([sellerId])
+  @@index([orderId])
+  @@map("seller_ledger_entries")
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Payout {
+  id                Int          @id @default(autoincrement())
+  sellerId          Int
+  amount            Float
+  status            PayoutStatus @default(PENDING)
+  // Snapshotted from Seller.bank* at request time — a seller changing their
+  // bank details later must not silently redirect a payout already in flight.
+  bankName          String
+  bankAccountName   String
+  bankAccountNumber String
+  requestedAt       DateTime     @default(now())
+  processedAt       DateTime?
+  processedBy       Int?
+  adminNote         String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  seller        Seller              @relation(fields: [sellerId], references: [id])
+  ledgerEntries SellerLedgerEntry[]
+
+  @@index([sellerId])
+  @@map("payouts")
+}
+
+enum RefundType {
+  FULL
+  PARTIAL
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Refund {
+  id          Int          @id @default(autoincrement())
+  paymentId   Int
+  orderId     Int
+  amount      Float
+  // Proportional slice of Order.commissionAmount reversed alongside the
+  // seller's net share — set once, at approval time, by the same
+  // proportion FinanceService already uses for the seller side. 0 until
+  // approved. This is what makes Finance Overview's "Platform Net Revenue"
+  // a real number instead of a query-time estimate.
+  commissionReversed Float @default(0)
+  reason      String
+  type        RefundType
+  status      RefundStatus @default(PENDING)
+  requestedBy Int
+  requestedAt DateTime     @default(now())
+  processedBy Int?
+  processedAt DateTime?
+  adminNote   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  payment       Payment             @relation(fields: [paymentId], references: [id])
+  order         Order               @relation(fields: [orderId], references: [id])
+  ledgerEntries SellerLedgerEntry[]
+  platformLedgerEntries PlatformLedgerEntry[]
+
+  @@index([paymentId])
+  @@index([orderId])
+  @@map("refunds")
+}
+
+// ============================================================================
+// Platform Finance — Commission Revenue, Shipping, Tax
+// ============================================================================
+// Mirrors the Seller Finance section above exactly: one maintained balance
+// row + an append-only ledger explaining every change to it. Before this,
+// Order.shippingCost and Order.taxAmount were collected from the customer
+// (folded into Payment.amount) but never credited anywhere — not to the
+// seller, not to any platform account — so the money had no tracked
+// destination once payment was confirmed. This closes that gap using the
+// same "one writer, ledger is the source of truth" pattern FinanceService
+// already uses for sellers, rather than inventing a second architecture.
+//
+// "Held" buckets (shippingHeld, taxHeld) are money collected but not yet
+// remitted — shipping is presumed owed to whichever courier fulfills the
+// order, tax is owed to the tax authority. This app has no courier-invoicing
+// or tax-filing integration, so remittance is a manual admin action
+// (FinanceService.recordPlatformRemittance) that records money paid out,
+// not an automated payout workflow.
+enum PlatformLedgerType {
+  COMMISSION          // + platform's commission revenue, on payment confirmed (mirrors seller COMMISSION)
+  SHIPPING_COLLECTED  // + shipping fee collected from customer, on payment confirmed
+  TAX_COLLECTED       // + tax collected from customer, on payment confirmed
+  COMMISSION_REVERSAL // - proportional reversal on an approved refund
+  SHIPPING_REVERSAL   // - proportional reversal on an approved refund
+  TAX_REVERSAL        // - proportional reversal on an approved refund
+  REMITTANCE          // - manual admin action: shipping paid out to a courier, or tax remitted to the authority
+  ADJUSTMENT          // manual correction, mirrors SellerLedgerEntry ADJUSTMENT
+  RESYNC              // reconciliation correction, mirrors SellerLedgerEntry RESYNC
+}
+
+// Singleton row (same "findFirst, create if missing" convention as
+// SystemSettings) — there is exactly one platform, so no key column.
+model PlatformBalance {
+  id                Int      @id @default(autoincrement())
+  commissionRevenue Float    @default(0)
+  shippingHeld      Float    @default(0)
+  shippingRemitted  Float    @default(0)
+  taxHeld           Float    @default(0)
+  taxRemitted       Float    @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@map("platform_balance")
+}
+
+model PlatformLedgerEntry {
+  id                            Int                @id @default(autoincrement())
+  orderId                       Int?
+  refundId                      Int?
+  type                          PlatformLedgerType
+  commissionDelta               Float              @default(0)
+  shippingHeldDelta             Float              @default(0)
+  shippingRemittedDelta         Float              @default(0)
+  taxHeldDelta                  Float              @default(0)
+  taxRemittedDelta              Float              @default(0)
+  commissionBalanceAfter        Float
+  shippingHeldBalanceAfter      Float
+  shippingRemittedBalanceAfter  Float              @default(0)
+  taxHeldBalanceAfter           Float
+  taxRemittedBalanceAfter       Float              @default(0)
+  note                          String?
+  createdAt                     DateTime           @default(now())
+
+  // Restrict, not the Prisma default SetNull — same reasoning as
+  // SellerLedgerEntry.order: an order with ledger history must stay
+  // un-deletable through any path, not just an application-level guard.
+  order  Order?  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refund Refund? @relation(fields: [refundId], references: [id])
+
+  @@index([orderId])
+  @@map("platform_ledger_entries")
 }
 
 model Country {
@@ -420,7 +731,10 @@ model Video {
   updatedAt    DateTime    @updatedAt
 
   // Relations
-  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  likedBy  VideoLike[]
+  savedBy  VideoSave[]
+  comments VideoComment[]
 
   @@index([productId])
   @@map("videos")
@@ -430,6 +744,79 @@ enum VideoStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+// Per-user like on a Video — dedups via the unique constraint and backs the
+// real "isLiked" state the video-shopping feed needs. Video.likes stays as
+// a denormalized counter kept in sync alongside these rows (VideosService),
+// so existing trending sort (`orderBy likes desc`) keeps working unchanged.
+model VideoLike {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@index([userId])
+  @@map("video_likes")
+}
+
+// Per-user "save/bookmark" on a Video.
+model VideoSave {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, userId])
+  @@index([userId])
+  @@map("video_saves")
+}
+
+// Comments on a Video, with one level of replies via parentId. `likes` is a
+// simple anonymous counter — same idiom already used on Video (likes/views/
+// shares) — rather than a second per-user join table, to keep this addition
+// proportionate to what the redesign actually needs.
+model VideoComment {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  userId    Int
+  parentId  Int?
+  content   String   @db.Text
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  video   Video          @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  VideoComment?  @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies VideoComment[] @relation("VideoCommentReplies")
+
+  @@index([videoId])
+  @@index([parentId])
+  @@map("video_comments")
+}
+
+// Per-user follow of a Seller/creator — backs the Follow button and
+// follower count on the video-shopping creator header.
+model SellerFollow {
+  id        Int      @id @default(autoincrement())
+  sellerId  Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, userId])
+  @@index([userId])
+  @@map("seller_follows")
 }
 
 model Municipality {
@@ -459,7 +846,7 @@ model Address {
   municipalityId     Int
   province           String?
   municipality       String?
-  administrativePost String?
+  postoAdmin         String?  @map("administrativePost")
   suco               String
   village            String?
   street             String?
@@ -488,6 +875,7 @@ model Courier {
   id          Int      @id @default(autoincrement())
   name        String
   code        String   @unique
+  description String?
   phone       String?
   website     String?
   trackingUrl String?
@@ -612,6 +1000,16 @@ model SystemSettings {
   taxRate         Float  @default(8)
   serviceFee      Float  @default(4.5)
 
+  // Seller finance. defaultCommissionRate is a live setting — it only
+  // affects orders paid AFTER a change. Orders already paid keep the rate
+  // snapshotted onto them at payment-confirm time (Order.commissionRate),
+  // so changing this here never rewrites historical earnings.
+  defaultCommissionRate Float @default(10)
+  minimumPayoutAmount   Float @default(0)
+  // Hours a BANK_TRANSFER payment stays PENDING with no receipt uploaded
+  // before PaymentExpiryJob auto-expires it and releases reserved stock.
+  paymentExpiryHours    Float @default(48)
+
   // System toggles
   maintenanceMode            Boolean @default(false)
   maintenanceMessage         String  @default("We are currently under maintenance. Please check back later.") @db.Text
@@ -676,6 +1074,11 @@ model Review {
   helpfulVotes  ReviewHelpful[]
   reviewReports ReviewReport[]
 
+  // One review per customer per product. The service layer already checks
+  // this before insert, but that check-then-write isn't atomic — two
+  // concurrent submits from the same user could both pass it. This is the
+  // actual guarantee; the app-level check just gives a friendlier error.
+  @@unique([productId, userId])
   @@index([productId])
   @@index([userId])
   @@map("reviews")
@@ -717,7 +1120,25 @@ model Notification {
   userId    Int
   title     String
   message   String
+  // Specific event name (e.g. "PAYMENT_RECEIPT_UPLOADED", "ORDER_CREATED") —
+  // see NotificationEvent in notifications.constants.ts for the closed set.
+  // `category` is the coarser domain grouping used for filtering/tabs.
   type      String
+  category  NotificationCategory @default(SYSTEM)
+  priority  NotificationPriority @default(INFO)
+  // Polymorphic reference to the resource this notification is about (e.g.
+  // entityType="PAYMENT", entityId=42) so the admin UI can route a click
+  // straight to it. No FK — entityType varies per row, and the referenced
+  // row may later be deleted; the UI handles a missing target gracefully
+  // instead of relying on a DB constraint.
+  entityType String?
+  entityId   Int?
+  // Who/what triggered this notification (e.g. the admin who approved a
+  // payment, the customer who uploaded a receipt). Null for system-generated
+  // events (e.g. a stock-threshold cron). No FK for the same reason as
+  // entityId — an actor's account outliving or outlasting the notification
+  // must never cascade-delete it.
+  actorId   Int?
   isRead    Boolean   @default(false)
   data      Json?
   readAt    DateTime?
@@ -729,5 +1150,67 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([category])
+  @@index([entityType, entityId])
   @@map("notifications")
+}
+
+// ============================================================================
+// Homepage Section Engine
+// ============================================================================
+// Replaces one-off hardcoded homepage sections (Featured/New Arrivals/
+// Popular/Local were each a separate frontend component + backend endpoint)
+// with a single configurable engine: a HomepageSection picks a RULE, the
+// rule resolves a product list server-side, and the frontend renders every
+// section through one generic renderer regardless of rule. Only rules with
+// real, existing data behind them are implemented (see HomepageSectionRule
+// doc-comment below) — no per-section boolean flags on Product.
+enum HomepageSectionRule {
+  MANUAL // admin-curated list via HomepageSectionProduct, ordered by position
+  NEWEST // isActive + stock>0, orderBy createdAt desc
+  POPULAR // isActive + stock>0, ranked by wishlist + approved review count
+  BEST_SELLING // isActive, ranked by delivered OrderItem count
+  LOCAL // isActive + stock>0 within a specific category (config.categoryId) — same mechanism as CATEGORY, kept as a distinct rule for merchandising clarity since "local products" is a real, named customer-facing concept, not a generic category browse
+  ON_SALE // isActive + stock>0 + comparePrice > price
+  LIMITED_STOCK // isActive + 0 < stock <= config.stockThreshold (default 5)
+  CATEGORY // isActive + stock>0 within config.categoryId
+}
+
+model HomepageSection {
+  id           Int                 @id @default(autoincrement())
+  name         String // internal/admin-facing label, e.g. "Featured Products"
+  title        String // customer-facing heading
+  subtitle     String?
+  type         String              @default("PRODUCT_COLLECTION") // future-proofed for BANNER/CATEGORY/CAMPAIGN non-product sections; only PRODUCT_COLLECTION exists today
+  rule         HomepageSectionRule
+  config       Json                @default("{}") // rule-specific params: {categoryId} for LOCAL/CATEGORY, {stockThreshold} for LIMITED_STOCK
+  sort         String?             // optional override of a rule's default ordering: newest|oldest|price_asc|price_desc|popularity|sales — ignored by MANUAL (always position-ordered)
+  productLimit Int                 @default(8)
+  displayOrder Int                 @default(0)
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  products HomepageSectionProduct[]
+
+  @@index([isActive, displayOrder])
+  @@map("homepage_sections")
+}
+
+// Manual product curation for MANUAL-rule sections. Deliberately generic
+// (not tied to "featured" specifically) so any section, not just one
+// hardcoded concept, can have an admin-picked, positioned product list.
+model HomepageSectionProduct {
+  id        Int      @id @default(autoincrement())
+  sectionId Int
+  productId Int
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  section HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, productId])
+  @@index([sectionId, position])
+  @@map("homepage_section_products")
 }

@@ -8,6 +8,10 @@ const contentSecurityPolicy = [
   // Tailwind/Mapbox GL inject inline styles at runtime.
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com https://api.mapbox.com https://*.tiles.mapbox.com",
+  // Video-shopping feed plays videos hosted on Cloudinary (see VideoPlayer)
+  // — without this, <video src> falls back to default-src 'self' and every
+  // video is silently blocked by the browser.
+  "media-src 'self' blob: https://res.cloudinary.com http://res.cloudinary.com",
   "font-src 'self' data:",
   // API calls (REST + websocket) go straight to the backend, plus Mapbox's geocoding/styles/telemetry endpoints.
   `connect-src 'self' ${apiUrl} ${apiWsUrl} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com`,

@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -72,8 +73,16 @@ export class PaymentsController {
     @Body('paymentId') paymentId: string,
     @CurrentUser('id') userId: number,
   ) {
+    const parsedPaymentId = parseInt(paymentId, 10);
+    if (!paymentId || !Number.isFinite(parsedPaymentId)) {
+      throw new BadRequestException('A valid paymentId is required');
+    }
+    if (!file) {
+      throw new BadRequestException('A proof image file is required');
+    }
+
     const proofUrl = await this.paymentsService.uploadPaymentProof(
-      parseInt(paymentId),
+      parsedPaymentId,
       file,
       userId,
     );

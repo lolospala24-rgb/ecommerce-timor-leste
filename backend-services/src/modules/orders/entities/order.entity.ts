@@ -9,6 +9,9 @@ export class OrderEntity implements Order {
   shippingCost: number;
   taxAmount: number;
   serviceFee: number;
+  commissionRate: number | null;
+  commissionAmount: number | null;
+  sellerNetAmount: number | null;
   total: number | null;
   status: OrderStatus;
   paymentMethod: PaymentMethod | null;

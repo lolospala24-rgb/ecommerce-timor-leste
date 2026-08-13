@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { DashboardStats, RevenueChartData, TopProduct } from '@/types/dashboard.types';
+import { DashboardStats, RevenueChartData, TopProduct, SalesByRegion } from '@/types/dashboard.types';
 
 interface DashboardResponse {
   overview: {
@@ -60,11 +60,26 @@ export const useDashboard = (period: 'day' | 'week' | 'month' | 'year' = 'month'
           data: [],
         },
         topProducts: [],
-        salesByRegion: [],
       };
     },
     retry: 2,
     staleTime: 60000, // 1 minute
+  });
+};
+
+export const useSalesByRegion = (period: 'day' | 'week' | 'month' | 'year' = 'month') => {
+  return useQuery({
+    queryKey: ['dashboard', 'sales-by-region', period],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (period) params.append('period', period);
+
+      const response = await api.get<SalesByRegion[]>(`/dashboard/admin/sales-by-region?${params.toString()}`);
+      const data = response.data || response;
+      return Array.isArray(data) ? data : [];
+    },
+    retry: 2,
+    staleTime: 60000,
   });
 };
 

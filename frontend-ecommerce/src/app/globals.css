@@ -2,27 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Color tokens — standardized palette (see CLAUDE-facing color
+   spec: Primary #1D4ED8/blue-700, Secondary #0F766E/teal-700,
+   Accent #F59E0B/amber-500 (rating/highlight/small-accent only,
+   never a main brand fill), Success #16A34A/green-600, Warning
+   #F59E0B/amber-500, Error #DC2626/red-600, Info #2563EB/blue-600.
+   Background/Surface/Text/Border all map onto Tailwind's slate
+   scale. Structural shadcn tokens (--accent, --muted) stay as
+   subtle neutral tints for component mechanics (dropdown/select
+   hover states etc.) rather than being repurposed as the bold
+   brand accent color — the brand accent is applied directly via
+   `amber-500`/`amber-600` utility classes at the specific call
+   sites the palette scopes it to (ratings, warning badges).
+   ============================================================ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
+    --background: 210 40% 98%;        /* slate-50  #F8FAFC */
+    --foreground: 222.2 84% 4.9%;     /* slate-900 #0F172A */
+    --card: 0 0% 100%;                /* white     #FFFFFF */
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --primary: 224 76% 48%;           /* blue-700  #1D4ED8 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 175 77% 26%;         /* teal-700  #0F766E */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 40% 96.1%;           /* slate-100 #F1F5F9 */
+    --muted-foreground: 215.4 16.3% 46.9%; /* slate-500 #64748B */
+    --accent: 210 40% 96.1%;          /* structural hover tint, not the brand accent — see note above */
     --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
+    --destructive: 0 72.2% 50.6%;     /* red-600   #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142.1 76.2% 36.3%;     /* green-600 #16A34A */
+    --success-foreground: 0 0% 100%;
+    --warning: 37.7 92.1% 50.2%;      /* amber-500 #F59E0B */
+    --warning-foreground: 0 0% 100%;
+    --info: 221.2 83.2% 53.3%;        /* blue-600  #2563EB */
+    --info-foreground: 0 0% 100%;
+    --border: 214.3 31.8% 91.4%;      /* slate-200 #E2E8F0 */
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 224 76% 48%;              /* matches --primary */
     --radius: 0.5rem;
   }
 
@@ -33,9 +53,9 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
+    --primary: 217.2 91.2% 59.8%;      /* blue-500 #3B82F6 — Primary Light, for contrast on dark bg */
     --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 173 66% 40%;          /* teal-500/600 range — Secondary Light, for contrast on dark bg */
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
@@ -43,9 +63,15 @@
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+    --success: 142.1 70.6% 45.3%;      /* green-500 — lighter, for contrast on dark bg */
+    --success-foreground: 210 40% 98%;
+    --warning: 43.3 96.4% 56.3%;       /* amber-400 — lighter, for contrast on dark bg */
+    --warning-foreground: 222.2 47.4% 11.2%;
+    --info: 217.2 91.2% 59.8%;         /* blue-500 — matches --primary in dark mode */
+    --info-foreground: 222.2 47.4% 11.2%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -165,7 +191,7 @@
 
 /* Gradient Text */
 .gradient-text {
-  @apply bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent;
+  @apply bg-gradient-to-r from-primary to-blue-900 bg-clip-text text-transparent;
 }
 
 /* Glass Effect */
@@ -236,7 +262,7 @@
 }
 
 .tooltip-content {
-  @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 -translate-y-1;
+  @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-white bg-slate-900 rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 -translate-y-1;
 }
 
 /* Focus States */
@@ -268,7 +294,7 @@
 
 .cart-badge::after {
   content: '';
-  @apply absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75;
+  @apply absolute inset-0 rounded-full bg-red-600 animate-ping opacity-75;
 }
 
 /* Skeleton Loading */

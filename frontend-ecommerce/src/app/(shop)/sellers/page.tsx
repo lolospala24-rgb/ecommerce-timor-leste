@@ -92,7 +92,7 @@ export default function SellersPage() {
               <p className="text-2xl font-bold">
                 {filteredSellers?.reduce((acc: number, seller: any) => acc + (seller._count?.products || 0), 0) || 0}
               </p>
-              <p className="text-sm text-muted-foreground">Total Products</p>
+              <p className="text-sm text-muted-foreground">Products (this page)</p>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function SellersPage() {
               <p className="text-2xl font-bold">
                 {filteredSellers?.reduce((acc: number, seller: any) => acc + (seller._count?.orders || 0), 0) || 0}
               </p>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
+              <p className="text-sm text-muted-foreground">Orders (this page)</p>
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ function SellerCard({ seller }: { seller: any }) {
                 {seller.storeName}
               </h3>
               {seller.isVerified && (
-                <Badge variant="default" className="text-xs bg-green-500">
+                <Badge variant="default" className="text-xs bg-green-600">
                   Verified
                 </Badge>
               )}
@@ -214,7 +214,7 @@ function SellerCard({ seller }: { seller: any }) {
             )}
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
-                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                 <span>{seller.rating?.toFixed(1) || '0'}</span>
               </div>
               <span>•</span>

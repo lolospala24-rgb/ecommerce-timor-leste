@@ -1,74 +1,85 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMemo, useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Eye, Heart, Share2, BarChart3, Sparkles, Plus, Loader2 } from 'lucide-react';
-import { VideoManagementTable } from './components/VideoManagementTable';
-import { VideoUploadForm } from './components/VideoUploadForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Play, Eye, Heart, MessageCircle, Sparkles, Plus, Search } from 'lucide-react';
+import { Pagination } from '@/components/shared/Pagination';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useAdminVideos, AdminVideo } from '@/hooks/useVideos';
+import { VideosTable } from './components/VideosTable';
+import { VideoForm } from './components/VideoForm';
+import { VideoPreviewDialog } from './components/VideoPreviewDialog';
+import { VideoCommentsModeration } from './components/VideoCommentsModeration';
 import { VideoAnalytics } from './components/VideoAnalytics';
-import { VideoSettings } from './components/VideoSettings';
 
-interface VideoSummary {
-  id: number;
-  title: string;
-  views?: number;
-  likes?: number;
-  shares?: number;
-  isActive?: boolean;
-}
+const PAGE_SIZE = 10;
 
-export default function VideoShopPage() {
+export default function VideoManagementPage() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [videos, setVideos] = useState<VideoSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<'all' | 'active' | 'draft'>('all');
+  const [page, setPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<AdminVideo | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<AdminVideo | null>(null);
 
-  useEffect(() => {
-    const loadVideos = async () => {
-      try {
-        const response = await fetch('/api/videos?limit=100');
-        const result = await response.json();
-        if (result?.success) {
-          const payload = Array.isArray(result.data) ? result.data : result.data?.items ?? [];
-          setVideos(payload);
-        }
-      } catch (error) {
-        console.error('Failed to load video summaries', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const debouncedSearch = useDebounce(search, 400);
 
-    loadVideos();
-  }, []);
+  // Overview totals must reflect every video regardless of the Manage tab's
+  // current filters — fetched separately from the filtered list below.
+  const { data: overviewData, isLoading: isLoadingOverview } = useAdminVideos({ status: 'all', limit: 200 });
+  const { data: listData, isLoading: isLoadingList, isFetching } = useAdminVideos({
+    search: debouncedSearch,
+    status,
+    page,
+    limit: PAGE_SIZE,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+
+  const overviewVideos = useMemo(() => overviewData?.items ?? [], [overviewData]);
+  const listVideos = listData?.items ?? [];
+  const total = listData?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const metrics = useMemo(() => {
-    const total = videos.length;
-    const views = videos.reduce((sum, item) => sum + (item.views || 0), 0);
-    const likes = videos.reduce((sum, item) => sum + (item.likes || 0), 0);
-    const shares = videos.reduce((sum, item) => sum + (item.shares || 0), 0);
+    const views = overviewVideos.reduce((sum, item) => sum + item.views, 0);
+    const likes = overviewVideos.reduce((sum, item) => sum + item.likes, 0);
+    const comments = overviewVideos.reduce((sum, item) => sum + (item._count?.comments ?? 0), 0);
 
     return [
-      { label: 'Total Video', value: total.toString(), change: `${videos.filter((item) => item.isActive).length} published`, icon: Play },
-      { label: 'Views', value: views.toLocaleString(), change: 'Live from backend', icon: Eye },
-      { label: 'Likes', value: likes.toLocaleString(), change: 'Live from backend', icon: Heart },
-      { label: 'Shares', value: shares.toLocaleString(), change: 'Live from backend', icon: Share2 },
+      {
+        label: 'Total Videos',
+        value: overviewVideos.length.toString(),
+        change: `${overviewVideos.filter((item) => item.isActive).length} published`,
+        icon: Play,
+      },
+      { label: 'Views', value: views.toLocaleString(), change: 'All time', icon: Eye },
+      { label: 'Likes', value: likes.toLocaleString(), change: 'All time', icon: Heart },
+      { label: 'Comments', value: comments.toLocaleString(), change: 'All time', icon: MessageCircle },
     ];
-  }, [videos]);
+  }, [overviewVideos]);
 
-  const funnel = useMemo(() => [
-    { label: 'Published Videos', value: videos.filter((item) => item.isActive).length.toString(), color: 'bg-blue-500' },
-    { label: 'Draft Videos', value: videos.filter((item) => !item.isActive).length.toString(), color: 'bg-violet-500' },
-    { label: 'Total Engagement', value: (videos.reduce((sum, item) => sum + (item.views || 0), 0) + videos.reduce((sum, item) => sum + (item.likes || 0), 0)).toLocaleString(), color: 'bg-emerald-500' },
-  ], [videos]);
+  const handleOpenCreate = () => {
+    setEditingVideo(null);
+    setFormOpen(true);
+  };
 
-  const heroCards = useMemo(() => [
-    { title: 'Video Management', description: 'Kelola video, status publish, dan preview.', href: '/dashboard/video-shop?tab=manage' },
-    { title: 'Analytics', description: 'Pantau performa video dan top product.', href: '/dashboard/video-shop?tab=analytics' },
-    { title: 'Settings', description: 'Atur autoplay, mute, infinite scroll, dan banner.', href: '/dashboard/video-shop?tab=settings' },
-  ], []);
+  const handleEdit = (video: AdminVideo) => {
+    setEditingVideo(video);
+    setFormOpen(true);
+  };
+
+  const handleFormSuccess = () => {
+    setFormOpen(false);
+    setEditingVideo(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -76,25 +87,22 @@ export default function VideoShopPage() {
         <div>
           <div className="flex items-center gap-2 text-sm text-primary">
             <Sparkles className="h-4 w-4" />
-            <span>Video Shop</span>
+            <span>Video Shopping</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard Video Shop</h1>
-          <p className="text-sm text-muted-foreground">Pantau performa konten video, status publikasi, dan metrik engagement.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Video Management</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload, publish, and moderate the videos that power the customer video-shopping feed.
+          </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/video-shop?tab=manage">
-            <Plus className="mr-2 h-4 w-4" />
-            Upload Video
-          </Link>
+        <Button onClick={handleOpenCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          Upload Video
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {loading ? (
-          <div className="col-span-full flex items-center justify-center rounded-lg border border-dashed p-8 text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Mengambil data dari backend...
-          </div>
+        {isLoadingOverview ? (
+          [...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
         ) : (
           metrics.map((item) => {
             const Icon = item.icon;
@@ -121,73 +129,120 @@ export default function VideoShopPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="manage">Management</TabsTrigger>
+          <TabsTrigger value="manage">Manage</TabsTrigger>
+          <TabsTrigger value="comments">Comments</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
+
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Funnel engagement
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {funnel.map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span>{item.label}</span>
-                      <span className="font-semibold">{item.value}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted">
-                      <div className={`h-2 rounded-full ${item.color}`} style={{ width: item.label === 'Conversion Rate' ? '60%' : '80%' }} />
-                    </div>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-5">
+              <h3 className="font-semibold">Recently uploaded</h3>
+              <p className="mt-1 text-sm text-muted-foreground">The 5 most recently uploaded videos.</p>
+              <div className="mt-4">
+                {isLoadingOverview ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-            <div className="grid gap-4">
-              {heroCards.map((item) => (
-                <Card key={item.title} className="border-0 shadow-sm">
-                  <CardContent className="p-5">
-                    <h3 className="font-semibold">{item.title}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
-                    <Button variant="outline" className="mt-4" asChild>
-                      <Link href={item.href}>Buka</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+                ) : (
+                  <VideosTable
+                    videos={[...overviewVideos]
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .slice(0, 5)}
+                    onEdit={handleEdit}
+                    onPreview={setPreviewVideo}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="manage" className="space-y-4">
-          <VideoUploadForm onSaved={() => {
-            setLoading(true);
-            fetch('/api/videos?limit=100')
-              .then((response) => response.json())
-              .then((result) => {
-                if (result?.success) {
-                  const payload = Array.isArray(result.data) ? result.data : result.data?.items ?? [];
-                  setVideos(payload);
-                }
-              })
-              .finally(() => setLoading(false));    
-          }} />
-          <VideoManagementTable />
+          <Card className="border-0 shadow-sm">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search video title..."
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
+                    className="pl-8"
+                  />
+                </div>
+                <Select
+                  value={status}
+                  onValueChange={(value) => {
+                    setStatus(value as typeof status);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="active">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {isLoadingList ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className={`transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
+                  <VideosTable videos={listVideos} onEdit={handleEdit} onPreview={setPreviewVideo} />
+                </div>
+              )}
+
+              {total > 0 && (
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={total}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
-          
+
+        <TabsContent value="comments" className="space-y-4">
+          <VideoCommentsModeration />
+        </TabsContent>
+
         <TabsContent value="analytics" className="space-y-4">
           <VideoAnalytics />
         </TabsContent>
-
-        <TabsContent value="settings" className="space-y-4">
-          <VideoSettings />
-        </TabsContent>
       </Tabs>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingVideo ? 'Edit Video' : 'Upload Video'}</DialogTitle>
+          </DialogHeader>
+          <VideoForm
+            key={editingVideo?.id ?? 'new'}
+            video={editingVideo}
+            onSuccess={handleFormSuccess}
+            onCancel={() => setFormOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <VideoPreviewDialog video={previewVideo} onOpenChange={(open) => !open && setPreviewVideo(null)} />
     </div>
   );
 }

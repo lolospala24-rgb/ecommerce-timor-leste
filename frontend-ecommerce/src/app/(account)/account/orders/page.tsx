@@ -12,13 +12,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, Truck, CheckCircle, Clock, XCircle, Eye } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING: { label: 'Pending', color: 'bg-yellow-500', icon: Clock },
-  PAID: { label: 'Paid', color: 'bg-blue-500', icon: Package },
-  PROCESSING: { label: 'Processing', color: 'bg-purple-500', icon: Package },
-  SHIPPING: { label: 'In Transit', color: 'bg-indigo-500', icon: Truck },
-  DELIVERED: { label: 'Delivered', color: 'bg-green-500', icon: CheckCircle },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-500', icon: XCircle },
+  PENDING: { label: 'Pending', color: 'bg-amber-500', icon: Clock },
+  PAID: { label: 'Paid', color: 'bg-green-600', icon: Package },
+  PROCESSING: { label: 'Processing', color: 'bg-blue-600', icon: Package },
+  SHIPPING: { label: 'In Transit', color: 'bg-blue-600', icon: Truck },
+  DELIVERED: { label: 'Delivered', color: 'bg-green-600', icon: CheckCircle },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-600', icon: XCircle },
 };
+
+// See the mirrored helper in (shop)/orders-shop/page.tsx — same reasoning:
+// order.status alone doesn't tell a customer their bank-transfer receipt
+// still needs uploading or was rejected.
+function getActionNeeded(order: any): string | null {
+  if (order.paymentMethod !== 'BANK_TRANSFER' || order.status === 'CANCELLED') return null;
+  if (!order.payment) return 'Payment needed';
+  if (order.payment.status === 'FAILED') return 'Receipt rejected — retry';
+  if (order.payment.status === 'PENDING' && !order.payment.proofImage) return 'Upload receipt';
+  return null;
+}
 
 export default function AccountOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
@@ -80,14 +91,15 @@ export default function AccountOrdersPage() {
           ) : (
             <div className="space-y-4">
               {data?.data.map((order: any) => {
-                const status = statusConfig[order.status] || { label: order.status, color: 'bg-gray-500', icon: Package };
+                const status = statusConfig[order.status] || { label: order.status, color: 'bg-slate-500', icon: Package };
                 const StatusIcon = status.icon;
+                const actionNeeded = getActionNeeded(order);
                 return (
                   <Card key={order.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Link href={`/account/orders/${order.id}`} className="hover:text-primary">
                               <h3 className="font-semibold">Order #{order.orderNumber}</h3>
                             </Link>
@@ -95,6 +107,11 @@ export default function AccountOrdersPage() {
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {status.label}
                             </Badge>
+                            {actionNeeded && (
+                              <Badge variant="outline" className="border-amber-500 text-slate-600">
+                                {actionNeeded}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {new Date(order.createdAt).toLocaleDateString()}

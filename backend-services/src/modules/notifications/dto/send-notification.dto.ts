@@ -5,10 +5,12 @@ import {
   IsOptional,
   IsBoolean,
   IsObject,
+  IsEnum,
   MinLength,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { NotificationCategory, NotificationPriority } from '@prisma/client';
 
 export class SendNotificationDto {
   @IsInt()
@@ -25,8 +27,34 @@ export class SendNotificationDto {
   @MaxLength(1000, { message: 'Message cannot exceed 1000 characters' })
   message: string;
 
+  // Specific event name — kept a free string (not an enum) since it's an
+  // open-ended, growing set of event identifiers (see NotificationEvent in
+  // notifications.constants.ts); `category` below is the closed, filterable
+  // domain grouping.
   @IsString()
-  type: 'ORDER' | 'PAYMENT' | 'SYSTEM' | 'PROMO' | 'REVIEW';
+  type: string;
+
+  @IsEnum(NotificationCategory)
+  @IsOptional()
+  category?: NotificationCategory;
+
+  @IsEnum(NotificationPriority)
+  @IsOptional()
+  priority?: NotificationPriority;
+
+  @IsString()
+  @IsOptional()
+  entityType?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  entityId?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  actorId?: number;
 
   @IsObject()
   @IsOptional()
@@ -49,11 +77,37 @@ export class BroadcastNotificationDto {
   message: string;
 
   @IsString()
-  type: 'ORDER' | 'PAYMENT' | 'SYSTEM' | 'PROMO' | 'REVIEW';
+  type: string;
+
+  @IsEnum(NotificationCategory)
+  @IsOptional()
+  category?: NotificationCategory;
+
+  @IsEnum(NotificationPriority)
+  @IsOptional()
+  priority?: NotificationPriority;
+
+  @IsString()
+  @IsOptional()
+  entityType?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  entityId?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  actorId?: number;
 
   @IsObject()
   @IsOptional()
   data?: any;
+
+  @IsBoolean()
+  @IsOptional()
+  sendEmail?: boolean = false;
 
   @IsObject()
   @IsOptional()

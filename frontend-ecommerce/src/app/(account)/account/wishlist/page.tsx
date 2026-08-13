@@ -94,7 +94,7 @@ export default function WishlistPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((product: any) => (
           <Card key={product.id} className="overflow-hidden group">
-            <div className="relative aspect-square overflow-hidden bg-gray-100">
+            <div className="relative aspect-square overflow-hidden bg-slate-100">
               <Link href={`/products/${product.slug}`}>
                 <Image
                   src={product.thumbnail || '/images/placeholder.png'}
