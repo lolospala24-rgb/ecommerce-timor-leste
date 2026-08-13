@@ -51,7 +51,7 @@ const nextConfig = {
   reactStrictMode: true,
   
   // swcMinify is now enabled by default in Next.js 15+ (removed this option)
-  // output: 'standalone', // optional
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
