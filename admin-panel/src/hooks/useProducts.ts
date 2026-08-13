@@ -140,7 +140,7 @@ export const useFeaturedProducts = (limit: number = 10) => {
   return useQuery({
     queryKey: ['products', 'featured', limit],
     queryFn: async () => {
-      const response = await api.get<Product[]>(`/products/featured?limit=${limit}`);
+      const response = await api.get<{ data: Product[] }>(`/products/featured?limit=${limit}`);
       return response.data.data;
     },
   });
@@ -150,7 +150,7 @@ export const useNewArrivals = (limit: number = 10) => {
   return useQuery({
     queryKey: ['products', 'new-arrivals', limit],
     queryFn: async () => {
-      const response = await api.get<Product[]>(`/products/new-arrivals?limit=${limit}`);
+      const response = await api.get<{ data: Product[] }>(`/products/new-arrivals?limit=${limit}`);
       return response.data.data;
     },
   });
@@ -160,7 +160,7 @@ export const useBestSellers = (limit: number = 10) => {
   return useQuery({
     queryKey: ['products', 'best-sellers', limit],
     queryFn: async () => {
-      const response = await api.get<Product[]>(`/products/best-sellers?limit=${limit}`);
+      const response = await api.get<{ data: Product[] }>(`/products/best-sellers?limit=${limit}`);
       return response.data.data;
     },
   });

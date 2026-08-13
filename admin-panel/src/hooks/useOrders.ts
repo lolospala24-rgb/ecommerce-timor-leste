@@ -123,8 +123,6 @@ export const useOrder = (id?: number | null) => {
       // The API returns { data: order } or just order
       const orderData = response.data?.data || response.data || response;
       
-      console.log('📦 Order detail response:', orderData);
-      
       // Ensure timeline exists
       if (orderData && !orderData.timeline) {
         orderData.timeline = [];

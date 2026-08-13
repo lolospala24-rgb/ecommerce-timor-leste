@@ -4,12 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { Video } from '@/types/video';
 import { useVideoLike } from '@/hooks/video/useVideoLike';
-
-function formatCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
+import { formatCompactNumber as formatCount } from '@/lib/formatters';
 
 export function LikeButton({ video }: { video: Video }) {
   const { toggleLike, isToggling } = useVideoLike(video);

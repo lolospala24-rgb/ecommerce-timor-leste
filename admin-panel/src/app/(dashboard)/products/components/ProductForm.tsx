@@ -274,11 +274,9 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
 
       onSuccess();
     } catch (error: any) {
-      console.error('❌ Product save error:', error);
+      console.error('Product save error:', error.response?.data ?? error);
 
       if (error.response) {
-        console.log('📋 Error response data:', error.response.data);
-
         const errorData = error.response.data;
         if (errorData.message) {
           toast.error(`Error: ${errorData.message}`);

@@ -16,9 +16,11 @@ export async function POST(request: NextRequest) {
             Authorization: `Bearer ${accessToken}`,
           },
         }
-      ).catch(() => {
-        // Ignore logout errors from backend
-        console.log('Backend logout error ignored');
+      ).catch((error) => {
+        // Cookies are cleared unconditionally below regardless of this
+        // outcome — still worth a warning if the backend session wasn't
+        // actually invalidated server-side.
+        console.warn('Backend logout call failed (cookies cleared anyway):', error);
       });
     }
 

@@ -19,12 +19,6 @@ export function ImageUpload({ images, setImages, maxImages = 10 }: ImageUploadPr
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    console.log('Files received:', acceptedFiles.map(f => ({
-      name: f.name,
-      type: f.type,
-      size: f.size
-    })));
-
     if (acceptedFiles.length === 0) {
       toast.error('No files selected');
       return;
@@ -70,10 +64,8 @@ export function ImageUpload({ images, setImages, maxImages = 10 }: ImageUploadPr
     });
 
     try {
-      console.log('Uploading files:', validFiles.map(f => f.name));
-
       const response = await api.post('/upload/images', formData, {
-        headers: { 
+        headers: {
           'Content-Type': 'multipart/form-data',
         },
         timeout: 60000,
@@ -82,8 +74,6 @@ export function ImageUpload({ images, setImages, maxImages = 10 }: ImageUploadPr
           setUploadProgress(percentCompleted);
         },
       });
-
-      console.log('Upload response:', response);
 
       const newImages = response.data?.data?.urls || response.data?.urls || [];
       

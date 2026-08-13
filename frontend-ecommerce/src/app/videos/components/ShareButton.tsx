@@ -4,12 +4,7 @@ import { Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Video } from '@/types/video';
 import { videoService } from '@/services/video.service';
-
-function formatCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
+import { formatCompactNumber as formatCount } from '@/lib/formatters';
 
 export function ShareButton({ video }: { video: Video }) {
   const handleShare = async () => {

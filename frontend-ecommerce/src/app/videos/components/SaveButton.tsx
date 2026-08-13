@@ -3,12 +3,7 @@
 import { Bookmark } from 'lucide-react';
 import { Video } from '@/types/video';
 import { useVideoSave } from '@/hooks/video/useVideoSave';
-
-function formatCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
+import { formatCompactNumber as formatCount } from '@/lib/formatters';
 
 export function SaveButton({ video }: { video: Video }) {
   const { toggleSave, isToggling } = useVideoSave(video);

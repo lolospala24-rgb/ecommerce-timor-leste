@@ -2,12 +2,7 @@ import Image from 'next/image';
 import { BadgeCheck } from 'lucide-react';
 import { Video } from '@/types/video';
 import { FollowButton } from './FollowButton';
-
-function formatCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value);
-}
+import { formatCompactNumber as formatCount } from '@/lib/formatters';
 
 interface CreatorHeaderProps {
   video: Video;

@@ -104,11 +104,7 @@ export function UpdateOrderStatus({ orderId, currentStatus, onUpdate, trigger }:
         payload.note = note.trim();
       }
 
-      console.log('📦 Updating order status:', payload);
-
-      const response = await api.patch(`/orders/${orderId}/status`, payload);
-      
-      console.log('✅ Response:', response);
+      await api.patch(`/orders/${orderId}/status`, payload);
 
       toast.success(`Order status updated to ${selectedStatusOption?.label}`);
       onUpdate();
@@ -118,11 +114,9 @@ export function UpdateOrderStatus({ orderId, currentStatus, onUpdate, trigger }:
       setTrackingNumber('');
       setNote('');
     } catch (err: any) {
-      console.error('❌ Update status error:', err);
-      
+      console.error('Update status error:', err.response?.data ?? err);
+
       if (err.response) {
-        console.log('📋 Error response:', err.response.data);
-        
         // Handle validation errors
         if (err.response.data?.errors) {
           const errorMessages = err.response.data.errors.join(', ');

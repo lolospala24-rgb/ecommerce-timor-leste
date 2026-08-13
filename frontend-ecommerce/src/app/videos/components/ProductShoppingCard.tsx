@@ -6,10 +6,7 @@ import { ArrowRight, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VideoProduct } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
-
-function formatPrice(value: number): string {
-  return `$${value.toFixed(2)}`;
-}
+import { formatCurrency as formatPrice } from '@/lib/formatters';
 
 export function ProductShoppingCard({ product }: { product: VideoProduct }) {
   const { addToCart } = useCart();
