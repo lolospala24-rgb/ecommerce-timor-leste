@@ -45,7 +45,7 @@ export function TopHeader() {
     },
     {
       label: 'Opsaun Avansadu',
-      href: '/settings',
+      href: '/account/settings',
       icon: Settings,
     },
     {
@@ -149,7 +149,7 @@ export function TopHeader() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/settings">
+                    <Link href="/account/settings">
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Link>
