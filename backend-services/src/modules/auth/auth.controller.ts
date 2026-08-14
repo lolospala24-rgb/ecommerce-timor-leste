@@ -38,10 +38,23 @@ export class AuthController {
   // COOKIE_DOMAIN only in production if the API and frontends share a
   // parent domain (e.g. `.example.com`); left unset it defaults to a
   // host-only cookie, which is what local development needs.
+  //
+  // `secure` defaults to NODE_ENV === 'production', but that broke login
+  // entirely on the first HTTP-only (no domain/SSL yet) VPS deploy: the
+  // browser silently drops a Secure cookie over a plain http:// connection,
+  // so the login response looked fine (200, Set-Cookie present) while
+  // every subsequent request was unauthenticated. COOKIE_SECURE lets ops
+  // opt out of Secure explicitly for that window instead of flipping
+  // NODE_ENV (which also gates unrelated things like console stripping) —
+  // set it back to unset/'true' once HTTPS is in front of the API.
   private cookieOptions(maxAgeMs: number) {
+    const secure =
+      process.env.COOKIE_SECURE !== undefined
+        ? process.env.COOKIE_SECURE === 'true'
+        : process.env.NODE_ENV === 'production';
     return {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure,
       sameSite: 'lax' as const,
       path: '/',
       maxAge: maxAgeMs,
