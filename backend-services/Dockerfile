@@ -9,7 +9,11 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate --schema src/prisma/schema.prisma --no-engine
+# --no-engine (used by the local `prisma:generate` script) targets Prisma
+# Accelerate/Data Proxy, which needs a prisma:// URL — this deployment
+# connects straight to MySQL via DATABASE_URL, so the client must bundle
+# the native query engine instead.
+RUN npx prisma generate --schema src/prisma/schema.prisma
 RUN npm run build
 
 FROM node:20-alpine AS runner
