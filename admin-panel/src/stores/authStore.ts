@@ -36,6 +36,14 @@ interface AuthState {
 // and doesn't need to. Anyone could forge this cookie in devtools, but that
 // only lets them see the dashboard shell; every API call still needs the
 // real httpOnly token, which the backend's RolesGuard verifies server-side.
+//
+// `secure` needs NEXT_PUBLIC_COOKIE_SECURE rather than NODE_ENV: Next.js
+// bakes NODE_ENV=production into every production build regardless of the
+// deploy environment, so a plain http:// deployment (no domain/SSL yet)
+// would always get a Secure cookie the browser silently refuses to store —
+// middleware then sees no session_role and bounces a freshly logged-in
+// admin straight back to /login. Set NEXT_PUBLIC_COOKIE_SECURE=false only
+// for that window; remove it once HTTPS is in front of this app.
 const SESSION_ROLE_COOKIE = 'session_role';
 
 export const useAuthStore = create<AuthState>()(
@@ -58,7 +66,7 @@ export const useAuthStore = create<AuthState>()(
           if (user?.role) {
             Cookies.set(SESSION_ROLE_COOKIE, user.role, {
               expires: 1,
-              secure: process.env.NODE_ENV === 'production',
+              secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== 'false',
               sameSite: 'lax',
             });
           }
@@ -104,7 +112,7 @@ export const useAuthStore = create<AuthState>()(
           if (userData?.role) {
             Cookies.set(SESSION_ROLE_COOKIE, userData.role, {
               expires: 1,
-              secure: process.env.NODE_ENV === 'production',
+              secure: process.env.NEXT_PUBLIC_COOKIE_SECURE !== 'false',
               sameSite: 'lax',
             });
           }
