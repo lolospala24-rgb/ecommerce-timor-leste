@@ -194,8 +194,8 @@ model Product {
   id               Int      @id @default(autoincrement())
   name             String
   nameTetum        String?
-  description      String
-  descriptionTetum String?
+  description      String   @db.Text
+  descriptionTetum String?  @db.Text
   price            Float
   comparePrice     Float?
   cost             Float?
