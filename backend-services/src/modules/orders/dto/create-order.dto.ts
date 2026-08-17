@@ -35,6 +35,17 @@ export class CreateOrderDto {
   @Type(() => Number)
   courierServiceId?: number;
 
+  // The exact shipping rate the customer selected at checkout (see
+  // GET /shipping/options). Passed straight through to
+  // ShippingService.calculateShippingCost so the charged rate is
+  // unambiguous the moment a courier offers more than one method at the
+  // same municipality — falling back to courierId + shippingMethod alone
+  // previously ignored which method was actually picked.
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  shippingZoneId?: number;
+
   @IsNumber()
   @IsOptional()
   @Min(0)

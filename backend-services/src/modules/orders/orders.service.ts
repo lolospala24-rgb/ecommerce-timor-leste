@@ -160,6 +160,7 @@ export class OrdersService {
         subtotal: group.subtotal,
         courierId: createOrderDto.courierId,
         courierServiceId: createOrderDto.courierServiceId,
+        shippingZoneId: createOrderDto.shippingZoneId,
       });
       const shippingCost = Number(shippingResult.shippingCost);
 

@@ -349,6 +349,7 @@ export class ShippingService {
     subtotal?: number;
     courierId?: number;
     courierServiceId?: number;
+    shippingZoneId?: number;
   }): Promise<{ shippingCost: number; shippingZoneId: number | null; courierName: string | null }> {
     const settings = await this.getShippingSettings();
 
@@ -358,6 +359,39 @@ export class ShippingService {
 
     if (settings.enableFreeShipping && typeof options.subtotal === 'number' && options.subtotal >= settings.freeShippingThreshold) {
       return { shippingCost: 0, shippingZoneId: null, courierName: null };
+    }
+
+    // The checkout page and the /shipping/options list it's built from
+    // always know the exact zone the customer picked — pass it straight
+    // through rather than re-deriving "the" rate from courier + method +
+    // municipality below, which is ambiguous the moment one courier offers
+    // more than one method at the same municipality (Standard/Express/Same
+    // Day) and previously ignored shippingMethod entirely, silently
+    // charging whichever rate happened to have the highest priority
+    // regardless of what the customer actually selected. If the requested
+    // zone no longer validates (deactivated between page load and order
+    // placement, courier/municipality deactivated, etc.) fall through to
+    // "no zone" rather than silently substituting a different one — the
+    // caller (see OrdersService.create) already rejects that explicitly
+    // instead of guessing.
+    if (options.shippingZoneId) {
+      const zone = await this.prisma.shippingZone.findFirst({
+        where: {
+          id: options.shippingZoneId,
+          status: 'ACTIVE',
+          AND: [
+            { OR: [{ courierId: null }, { courier: { status: 'ACTIVE' } }] },
+            { OR: [{ municipalityId: null }, { municipalityRef: { isActive: true } }] },
+          ],
+        },
+        include: { courier: true },
+      });
+
+      if (zone) {
+        return { shippingCost: zone.shippingCost, shippingZoneId: zone.id, courierName: zone.courier?.name ?? null };
+      }
+
+      return { shippingCost: settings.defaultShippingCost, shippingZoneId: null, courierName: null };
     }
 
     if (!options.municipality && !options.province && !options.municipalityId && !options.provinceId) {
@@ -380,6 +414,12 @@ export class ShippingService {
       ],
       ...(options.courierId ? { courierId: options.courierId } : {}),
       ...(options.courierServiceId ? { courierServiceId: options.courierServiceId } : {}),
+      // Without this, a courier offering several methods at one
+      // municipality (Standard/Express/Same Day) would ignore which one
+      // the customer picked and match whichever rate sorts first below.
+      ...(options.shippingMethod && options.shippingMethod !== 'LOCAL_PICKUP'
+        ? { shippingMethod: options.shippingMethod }
+        : {}),
     };
 
     if (options.municipalityId) {
@@ -477,14 +517,20 @@ export class ShippingService {
       orderBy: [{ priority: 'desc' }, { shippingCost: 'asc' }],
     });
 
-    // A municipality-specific rate always beats a province-wide fallback
-    // for the same courier — don't show both as separate choices.
-    const seenCouriers = new Set<number | null>();
+    // A municipality-specific rate always beats a province-wide fallback for
+    // the same courier + shipping method — don't show both as separate
+    // choices. Keyed on courier+method (not courier alone): a courier
+    // legitimately offers several methods (Standard/Express/Same Day) at
+    // one municipality, and those must all reach checkout as distinct,
+    // separately-priced options — only an exact specific/fallback overlap
+    // of the same method should collapse.
+    const seenCourierMethods = new Set<string>();
     const specific = zones.filter((z) => z.municipalityId === options.municipalityId);
     const fallback = zones.filter((z) => z.municipalityId == null);
     const deduped = [...specific, ...fallback].filter((zone) => {
-      if (seenCouriers.has(zone.courierId)) return false;
-      seenCouriers.add(zone.courierId);
+      const key = `${zone.courierId ?? 'none'}::${zone.shippingMethod ?? ''}`;
+      if (seenCourierMethods.has(key)) return false;
+      seenCourierMethods.add(key);
       return true;
     });
 

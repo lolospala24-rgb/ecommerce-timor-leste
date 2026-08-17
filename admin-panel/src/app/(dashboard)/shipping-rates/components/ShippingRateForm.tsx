@@ -226,7 +226,9 @@ export function ShippingRateForm({ initialData, onSuccess, onCancel }: ShippingR
           <Label htmlFor="priority">Priority</Label>
           <Input id="priority" type="number" {...register('priority')} />
           <p className="text-xs text-muted-foreground">
-            When more than one rate could match an order, the one with the higher priority wins.
+            Controls display order at checkout, and which rate wins when this courier also has a
+            broader province-wide fallback rate for the same method. Different shipping methods
+            for the same courier (e.g. Standard vs Express) all show at checkout regardless of priority.
           </p>
           {errors.priority && <p className="text-sm text-red-500">{errors.priority.message}</p>}
         </div>

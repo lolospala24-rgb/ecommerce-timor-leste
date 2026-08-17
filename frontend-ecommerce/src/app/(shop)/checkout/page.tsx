@@ -39,6 +39,7 @@ type ShippingOption = {
   courierId?: number;
   courierServiceId?: number;
   shippingMethod?: string;
+  shippingZoneId?: number;
 };
 
 // The backend resolves which couriers actually serve this address — the
@@ -47,15 +48,19 @@ type ShippingOption = {
 const mapApiShippingOptions = (apiOptions: any[] = []): ShippingOption[] =>
   apiOptions.map((option) => ({
     id: `zone-${option.shippingZoneId}`,
-    name: option.courierName || option.zoneName || 'Delivery',
+    // The method name (Standard/Express/Same Day Delivery) is the primary
+    // label — a courier can offer several of these at once, so leading
+    // with the courier name alone would show duplicate-looking cards.
+    name: option.shippingMethod || option.courierName || option.zoneName || 'Delivery',
     subtitle: option.estimatedDeliveryDays ? `${option.estimatedDeliveryDays} business days` : 'Estimated delivery',
     cost: Number(option.shippingCost ?? 0),
     eta: option.estimatedDeliveryDays ? `Arrives in ${option.estimatedDeliveryDays} days` : 'Estimated delivery',
     icon: Truck,
     source: 'zone',
-    courierLabel: [option.courierName, option.shippingMethod].filter(Boolean).join(' • ') || undefined,
+    courierLabel: option.courierName || undefined,
     courierId: option.courierId ?? undefined,
     shippingMethod: option.shippingMethod ?? undefined,
+    shippingZoneId: option.shippingZoneId ?? undefined,
   }));
 
 const paymentMethods = [
@@ -77,7 +82,7 @@ export default function CheckoutPage() {
   const [isShippingOptionsLoading, setIsShippingOptionsLoading] = useState(true);
   const [shippingOptionsError, setShippingOptionsError] = useState<string | null>(null);
   const [selectedShipping, setSelectedShipping] = useState('');
-  const [selectedShippingMeta, setSelectedShippingMeta] = useState<{ courierId?: number; courierServiceId?: number; shippingMethod?: string } | null>(null);
+  const [selectedShippingMeta, setSelectedShippingMeta] = useState<{ courierId?: number; courierServiceId?: number; shippingMethod?: string; shippingZoneId?: number } | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<'COD' | 'BANK_TRANSFER'>('COD');
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -242,7 +247,12 @@ export default function CheckoutPage() {
       const next = existing ?? shippingOptions[0] ?? null;
       setSelectedShippingMeta(
         next
-          ? { courierId: next.courierId, courierServiceId: next.courierServiceId, shippingMethod: next.shippingMethod }
+          ? {
+              courierId: next.courierId,
+              courierServiceId: next.courierServiceId,
+              shippingMethod: next.shippingMethod,
+              shippingZoneId: next.shippingZoneId,
+            }
           : null,
       );
       return next?.id ?? '';
@@ -294,6 +304,7 @@ export default function CheckoutPage() {
           subtotal,
           courierId: selectedShippingMeta?.courierId,
           courierServiceId: selectedShippingMeta?.courierServiceId,
+          shippingZoneId: selectedShippingMeta?.shippingZoneId,
         });
         setShippingCost(Number(resp?.data?.data?.shippingCost ?? 0));
       } catch (err) {
@@ -343,6 +354,7 @@ export default function CheckoutPage() {
         shippingMethod: selectedShippingMeta?.shippingMethod ?? selectedShipping,
         courierId: selectedShippingMeta?.courierId,
         courierServiceId: selectedShippingMeta?.courierServiceId,
+        shippingZoneId: selectedShippingMeta?.shippingZoneId,
         shippingFee: shippingCost,
         taxAmount: tax,
         serviceFee,
@@ -620,6 +632,7 @@ export default function CheckoutPage() {
                               courierId: option.courierId,
                               courierServiceId: option.courierServiceId,
                               shippingMethod: option.shippingMethod ?? option.id,
+                              shippingZoneId: option.shippingZoneId,
                             });
                           }}
                           className={`rounded-[16px] border p-4 text-left transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
