@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '@/types/video';
 import { VideoFeedItem } from './VideoFeedItem';
 import { VideoNavigationControls } from './VideoNavigationControls';
+import { VideoRightPanel } from './VideoRightPanel';
 import { VideoSkeleton } from './VideoSkeleton';
 
 interface VideoFeedProps {
@@ -75,6 +76,10 @@ export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPa
     [videos, activeId],
   );
 
+  const scrollToVideoId = useCallback((id: number) => {
+    itemRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -90,35 +95,46 @@ export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPa
   }, [scrollToOffset]);
 
   const activeIndex = videos.findIndex((v) => v.id === activeId);
+  const activeVideo = activeIndex >= 0 ? videos[activeIndex] : null;
+  const upNext = useMemo(
+    () => (activeIndex >= 0 ? videos.slice(activeIndex + 1, activeIndex + 4) : []),
+    [videos, activeIndex],
+  );
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center gap-6">
-      <div
-        ref={containerRef}
-        className="h-full w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {videos.map((video) => (
-          <VideoFeedItem
-            key={video.id}
-            video={video}
-            isActive={video.id === activeId}
-            ref={(el) => {
-              if (el) itemRefs.current.set(video.id, el);
-              else itemRefs.current.delete(video.id);
-            }}
+    <div className="flex h-full w-full items-stretch justify-center">
+      <div className="relative flex h-full flex-1 items-center justify-center gap-6">
+        <div
+          ref={containerRef}
+          className="h-full w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {videos.map((video) => (
+            <VideoFeedItem
+              key={video.id}
+              video={video}
+              isActive={video.id === activeId}
+              ref={(el) => {
+                if (el) itemRefs.current.set(video.id, el);
+                else itemRefs.current.delete(video.id);
+              }}
+            />
+          ))}
+          {isFetchingNextPage && <VideoSkeleton />}
+        </div>
+
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 lg:right-4">
+          <VideoNavigationControls
+            onPrevious={() => scrollToOffset(-1)}
+            onNext={() => scrollToOffset(1)}
+            canGoPrevious={activeIndex > 0}
+            canGoNext={activeIndex >= 0 && activeIndex < videos.length - 1}
           />
-        ))}
-        {isFetchingNextPage && <VideoSkeleton />}
+        </div>
       </div>
 
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 lg:right-4">
-        <VideoNavigationControls
-          onPrevious={() => scrollToOffset(-1)}
-          onNext={() => scrollToOffset(1)}
-          canGoPrevious={activeIndex > 0}
-          canGoNext={activeIndex >= 0 && activeIndex < videos.length - 1}
-        />
-      </div>
+      {activeVideo && (
+        <VideoRightPanel video={activeVideo} upNext={upNext} onSelectUpNext={scrollToVideoId} />
+      )}
     </div>
   );
 }

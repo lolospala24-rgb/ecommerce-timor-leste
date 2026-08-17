@@ -6,6 +6,7 @@ import { useVideos } from '@/hooks/useVideos';
 import { useAuthStore } from '@/stores/authStore';
 import { VideoFeed } from './components/VideoFeed';
 import { VideoFeedTabs, FeedTab } from './components/VideoFeedTabs';
+import { VideoSidebar } from './components/VideoSidebar';
 import { VideoEmptyState } from './components/VideoEmptyState';
 import { VideoErrorState } from './components/VideoErrorState';
 
@@ -18,15 +19,22 @@ const TAB_TO_FILTER: Record<FeedTab, 'latest' | 'trending' | 'following'> = {
 // The tab switcher lives in its own reserved strip — never overlaid on the
 // video — so it can never collide with the creator header or caption at
 // any breakpoint. Every state (loading/error/empty/loaded) renders through
-// this shell so the tabs stay usable and in a fixed spot regardless of
-// what's happening below.
+// this shell so the tabs/sidebar stay usable and in a fixed spot
+// regardless of what's happening below.
+//
+// The mobile/tablet tab strip and the desktop sidebar both drive the same
+// `tab` state — below `lg` there's no room for a persistent sidebar, so
+// the strip takes over; at `lg` and up the sidebar replaces it.
 function VideoPageShell({ tab, onTabChange, children }: { tab: FeedTab; onTabChange: (tab: FeedTab) => void; children: ReactNode }) {
   return (
-    <div className="flex h-[100dvh] w-full flex-col">
-      <div className="flex shrink-0 items-center justify-center py-3">
-        <VideoFeedTabs active={tab} onChange={onTabChange} />
+    <div className="flex h-full w-full">
+      <VideoSidebar activeTab={tab} onTabChange={onTabChange} />
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center justify-center py-3 lg:hidden">
+          <VideoFeedTabs active={tab} onChange={onTabChange} />
+        </div>
+        <div className="relative min-h-0 flex-1">{children}</div>
       </div>
-      <div className="relative min-h-0 flex-1">{children}</div>
     </div>
   );
 }
