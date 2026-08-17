@@ -94,7 +94,7 @@ export class ShippingController {
 
   @Public()
   @Post('shipping/calculate')
-  async calculateShipping(@Body() body: { municipalityId?: number; provinceId?: number; municipality?: string; province?: string; shippingMethod?: string; subtotal?: number; courierId?: number; courierServiceId?: number }) {
+  async calculateShipping(@Body() body: { municipalityId?: number; provinceId?: number; municipality?: string; province?: string; shippingMethod?: string; subtotal?: number; courierId?: number; courierServiceId?: number; shippingZoneId?: number }) {
     const result = await this.shippingService.calculateShippingCost({
       municipalityId: body.municipalityId,
       provinceId: body.provinceId,
@@ -104,6 +104,7 @@ export class ShippingController {
       subtotal: body.subtotal,
       courierId: body.courierId,
       courierServiceId: body.courierServiceId,
+      shippingZoneId: body.shippingZoneId,
     });
     return { data: result };
   }
