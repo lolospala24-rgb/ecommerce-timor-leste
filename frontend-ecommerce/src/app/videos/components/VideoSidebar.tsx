@@ -1,24 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Compass,
-  Users,
-  TrendingUp,
-  LayoutGrid,
-  Smartphone,
-  Shirt,
-  Home,
-  HeartPulse,
-  Dumbbell,
-  Car,
-  BookOpen,
-  Blocks,
-  MapPin,
-  Package,
-  type LucideIcon,
-} from 'lucide-react';
+import { Compass, Users, TrendingUp, LayoutGrid, type LucideIcon } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
+import { getCategoryIcon } from '@/lib/categoryIcons';
 import type { Category } from '@/types/category.types';
 import { FeedTab } from './VideoFeedTabs';
 
@@ -27,25 +12,6 @@ const FEED_NAV: { id: FeedTab; label: string; icon: LucideIcon }[] = [
   { id: 'following', label: 'Following', icon: Users },
   { id: 'trending', label: 'Trending', icon: TrendingUp },
 ];
-
-// Purely presentational — matched by keyword against the real category
-// name so the list still reads as "iconography," not fabricated data.
-// Anything unmatched falls back to a generic package icon.
-const CATEGORY_ICONS: { match: RegExp; icon: LucideIcon }[] = [
-  { match: /electronic/i, icon: Smartphone },
-  { match: /fashion|cloth|apparel/i, icon: Shirt },
-  { match: /home|living|furniture/i, icon: Home },
-  { match: /health|beauty/i, icon: HeartPulse },
-  { match: /sport/i, icon: Dumbbell },
-  { match: /auto|vehicle/i, icon: Car },
-  { match: /book|station/i, icon: BookOpen },
-  { match: /toy|game/i, icon: Blocks },
-  { match: /local/i, icon: MapPin },
-];
-
-function iconForCategory(name: string): LucideIcon {
-  return CATEGORY_ICONS.find((entry) => entry.match.test(name))?.icon ?? Package;
-}
 
 const FOOTER_LINKS = [
   { href: '/about', label: 'About' },
@@ -108,7 +74,7 @@ export function VideoSidebar({ activeTab, onTabChange }: VideoSidebarProps) {
           All Categories
         </Link>
         {categories.map((category) => {
-          const Icon = iconForCategory(category.name);
+          const Icon = getCategoryIcon(category.name);
           return (
             <Link
               key={category.id}
