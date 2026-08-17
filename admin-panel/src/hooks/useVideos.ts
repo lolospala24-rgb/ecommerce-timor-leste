@@ -146,6 +146,11 @@ export function useCreateVideo() {
     mutationFn: async (values: VideoFormValues) => {
       const response = await api.post('/videos', buildVideoFormData(values), {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // The shared client's 30s default is fine for JSON requests but too
+        // short once a video file is in the body — a few minutes' upload on
+        // a modest connection would otherwise be aborted client-side well
+        // before the server (or Cloudinary) has a chance to finish.
+        timeout: 120000,
       });
       return unwrapItem<AdminVideo>(response);
     },
@@ -166,6 +171,9 @@ export function useUpdateVideo() {
     mutationFn: async ({ id, values }: { id: number; values: Partial<VideoFormValues> }) => {
       const response = await api.patch(`/videos/${id}`, buildVideoFormData(values), {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // See useCreateVideo — a video file in the body needs more than the
+        // shared client's 30s JSON-request default.
+        timeout: 120000,
       });
       return unwrapItem<AdminVideo>(response);
     },
