@@ -7,6 +7,8 @@ import { unwrapApiData } from '@/lib/product';
 export interface PublicSettings {
   siteName: string;
   siteDescription: string;
+  logoUrl: string | null;
+  faviconUrl: string | null;
   contactEmail: string;
   contactPhone: string;
   address: string;

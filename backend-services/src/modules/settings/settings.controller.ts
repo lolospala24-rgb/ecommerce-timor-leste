@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SettingsService } from './settings.service';
 import { MailService } from '../../mail/mail.service';
 import { SystemSettingsDto } from './dto/system-settings.dto';
 import { TestEmailDto } from './dto/test-email.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('admin/settings')
 @Roles(Role.ADMIN)
@@ -24,6 +26,20 @@ export class SettingsController {
   async updateSettings(@Body() dto: SystemSettingsDto) {
     const settings = await this.settingsService.updateSettings(dto);
     return { message: 'Settings updated successfully', data: settings };
+  }
+
+  @Post('upload-logo')
+  @UseInterceptors(FileInterceptor('logo', multerConfig))
+  async uploadLogo(@UploadedFile() file: Express.Multer.File) {
+    const logoUrl = await this.settingsService.uploadLogo(file);
+    return { message: 'Logo uploaded successfully', data: { logoUrl } };
+  }
+
+  @Post('upload-favicon')
+  @UseInterceptors(FileInterceptor('favicon', multerConfig))
+  async uploadFavicon(@UploadedFile() file: Express.Multer.File) {
+    const faviconUrl = await this.settingsService.uploadFavicon(file);
+    return { message: 'Favicon uploaded successfully', data: { faviconUrl } };
   }
 
   @Post('clear-cache')

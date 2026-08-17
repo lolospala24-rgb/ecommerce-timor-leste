@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { SystemSettingsDto } from './dto/system-settings.dto';
 
 // Read-cache prefixes that are safe for an admin to blow away on demand —
@@ -35,6 +36,7 @@ export class SettingsService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   // The app always reads/writes a single row. Created on first read with
@@ -74,6 +76,8 @@ export class SettingsService {
     return {
       siteName: settings.siteName,
       siteDescription: settings.siteDescription,
+      logoUrl: settings.logoUrl,
+      faviconUrl: settings.faviconUrl,
       contactEmail: settings.contactEmail,
       contactPhone: settings.contactPhone,
       address: settings.address,
@@ -113,6 +117,58 @@ export class SettingsService {
 
     await this.redisService.del(SETTINGS_CACHE_KEY);
     return this.getAdminSettings();
+  }
+
+  async uploadLogo(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const current = await this.getSettings();
+
+    if (current.logoUrl) {
+      // Best-effort — the stored value is a full Cloudinary URL, not the
+      // public_id destroy() actually needs, so this frequently no-ops
+      // rather than actually deleting the old asset. Not worth failing the
+      // upload over a stale orphaned file in Cloudinary.
+      await this.cloudinaryService.deleteFile(current.logoUrl).catch(() => undefined);
+    }
+
+    const result = await this.cloudinaryService.uploadFile(file, {
+      folder: 'ecommerce-timor/branding',
+      transformation: { width: 400, height: 400, crop: 'limit' },
+    });
+
+    await this.prisma.systemSettings.update({
+      where: { id: current.id },
+      data: { logoUrl: result.secure_url },
+    });
+    await this.redisService.del(SETTINGS_CACHE_KEY);
+
+    return result.secure_url;
+  }
+
+  async uploadFavicon(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const current = await this.getSettings();
+
+    if (current.faviconUrl) {
+      await this.cloudinaryService.deleteFile(current.faviconUrl).catch(() => undefined);
+    }
+
+    const result = await this.cloudinaryService.uploadFile(file, {
+      folder: 'ecommerce-timor/branding',
+      transformation: { width: 64, height: 64, crop: 'fill' },
+    });
+
+    await this.prisma.systemSettings.update({
+      where: { id: current.id },
+      data: { faviconUrl: result.secure_url },
+    });
+    await this.redisService.del(SETTINGS_CACHE_KEY);
+
+    return result.secure_url;
   }
 
   async clearSettingsCache() {

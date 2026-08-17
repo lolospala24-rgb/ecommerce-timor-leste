@@ -1001,9 +1001,15 @@ model SystemSettings {
   id Int @id @default(autoincrement())
 
   // General / store identity
-  siteName        String @default("E-commerce Timor-Leste")
-  siteDescription String @default("Online marketplace for Timor-Leste") @db.Text
-  contactEmail    String @default("support@ecommercetimor.com")
+  siteName        String  @default("E-commerce Timor-Leste")
+  siteDescription String  @default("Online marketplace for Timor-Leste") @db.Text
+  // Branding assets — Cloudinary URLs, uploaded via
+  // POST /admin/settings/upload-logo and /upload-favicon. Null means "use
+  // the built-in text logo / default favicon.ico" rather than a broken
+  // image, so both are optional.
+  logoUrl         String?
+  faviconUrl      String?
+  contactEmail    String  @default("support@ecommercetimor.com")
   contactPhone    String @default("+670 1234 5678")
   address         String @default("Dili, Timor-Leste") @db.Text
   currency        String @default("USD")

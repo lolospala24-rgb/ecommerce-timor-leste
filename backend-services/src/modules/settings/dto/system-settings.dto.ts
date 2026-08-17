@@ -13,6 +13,18 @@ export class SystemSettingsDto {
   @IsOptional()
   siteDescription?: string;
 
+  // Normally set via the dedicated upload-logo/upload-favicon endpoints
+  // (which persist directly to the DB), but also settable here — e.g. an
+  // admin pasting an already-hosted URL, or clearing it with an empty
+  // string.
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  faviconUrl?: string;
+
   @IsEmail()
   @IsOptional()
   contactEmail?: string;

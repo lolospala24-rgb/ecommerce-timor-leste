@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -12,9 +13,101 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Globe, Percent, ReceiptText } from 'lucide-react';
+import { Globe, Percent, ReceiptText, Loader2, Upload, X, ImageIcon } from 'lucide-react';
 import { useSettings, type Settings } from '@/hooks/useSettings';
 import toast from 'react-hot-toast';
+
+const MAX_BRANDING_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+function validateBrandingImage(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return 'Only JPG, PNG, WEBP, or GIF images are allowed';
+  }
+  if (file.size > MAX_BRANDING_IMAGE_BYTES) {
+    return 'Image must be 5MB or smaller';
+  }
+  return null;
+}
+
+interface BrandingImageFieldProps {
+  label: string;
+  hint: string;
+  imageUrl?: string | null;
+  isUploading: boolean;
+  onUpload: (file: File) => Promise<unknown>;
+  onClear: () => void;
+  previewClassName: string;
+}
+
+// Shared by the Logo and Favicon fields below — both are a single real
+// image persisted immediately on upload (via the dedicated
+// upload-logo/upload-favicon endpoints), not part of the batched "Save
+// General Settings" submit, so a change here takes effect right away.
+function BrandingImageField({
+  label,
+  hint,
+  imageUrl,
+  isUploading,
+  onUpload,
+  onClear,
+  previewClassName,
+}: BrandingImageFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const error = validateBrandingImage(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    await onUpload(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-4">
+        <div className={`flex items-center justify-center overflow-hidden rounded-lg border bg-muted/30 ${previewClassName}`}>
+          {isUploading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          ) : imageUrl ? (
+            <Image src={imageUrl} alt={label} width={64} height={64} className="h-full w-full object-contain" unoptimized />
+          ) : (
+            <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={isUploading} onClick={() => inputRef.current?.click()}>
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              {imageUrl ? 'Replace' : 'Upload'}
+            </Button>
+            {imageUrl && (
+              <Button type="button" variant="ghost" size="sm" disabled={isUploading} onClick={onClear}>
+                <X className="mr-1.5 h-3.5 w-3.5" />
+                Remove
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ALLOWED_IMAGE_TYPES.join(',')}
+        className="hidden"
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+}
 
 interface GeneralSettingsProps {
   settings: Settings | undefined;
@@ -33,7 +126,7 @@ const buildFormData = (settings?: Settings) => ({
 });
 
 export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettingsProps) {
-  const { updateSettings } = useSettings();
+  const { updateSettings, uploadLogo, isUploadingLogo, uploadFavicon, isUploadingFavicon } = useSettings();
   const [formData, setFormData] = useState(() => buildFormData(settings));
   const [isSaving, setIsSaving] = useState(false);
 
@@ -43,6 +136,26 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleClearLogo = async () => {
+    try {
+      await updateSettings({ logoUrl: '' });
+      await onSettingsUpdated?.();
+      toast.success('Logo removed');
+    } catch {
+      toast.error('Failed to remove logo');
+    }
+  };
+
+  const handleClearFavicon = async () => {
+    try {
+      await updateSettings({ faviconUrl: '' });
+      await onSettingsUpdated?.();
+      toast.success('Favicon removed');
+    } catch {
+      toast.error('Failed to remove favicon');
+    }
   };
 
   const handleSubmit = async () => {
@@ -71,6 +184,27 @@ export function GeneralSettings({ settings, onSettingsUpdated }: GeneralSettings
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="grid gap-6 rounded-lg border p-4 sm:grid-cols-2">
+          <BrandingImageField
+            label="Site Logo"
+            hint="Shown in the storefront header in place of the text logo. Square images work best."
+            imageUrl={settings?.logoUrl}
+            isUploading={isUploadingLogo}
+            onUpload={(file) => uploadLogo(file)}
+            onClear={handleClearLogo}
+            previewClassName="h-16 w-16"
+          />
+          <BrandingImageField
+            label="Favicon"
+            hint="Shown in the browser tab. A small square icon (e.g. 64×64) works best."
+            imageUrl={settings?.faviconUrl}
+            isUploading={isUploadingFavicon}
+            onUpload={(file) => uploadFavicon(file)}
+            onClear={handleClearFavicon}
+            previewClassName="h-10 w-10"
+          />
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-lg border p-4">
             <div className="flex items-center gap-2 text-sm font-medium">

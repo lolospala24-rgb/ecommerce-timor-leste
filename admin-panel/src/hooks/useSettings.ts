@@ -9,6 +9,8 @@ export interface Settings {
   // General / store identity
   siteName: string;
   siteDescription: string;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
   contactEmail: string;
   contactPhone: string;
   address: string;
@@ -109,6 +111,34 @@ export const useSettings = () => {
     },
   });
 
+  const uploadLogo = useMutation({
+    mutationFn: async (file: File) => {
+      const response = await apiClient.upload<{ logoUrl: string }>('/admin/settings/upload-logo', file, 'logo');
+      return unwrapApiData<{ logoUrl: string }>(response.data);
+    },
+    onSuccess: ({ logoUrl }) => {
+      queryClient.setQueryData<Settings | undefined>(['settings'], (prev) => (prev ? { ...prev, logoUrl } : prev));
+      toast.success('Logo uploaded');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to upload logo');
+    },
+  });
+
+  const uploadFavicon = useMutation({
+    mutationFn: async (file: File) => {
+      const response = await apiClient.upload<{ faviconUrl: string }>('/admin/settings/upload-favicon', file, 'favicon');
+      return unwrapApiData<{ faviconUrl: string }>(response.data);
+    },
+    onSuccess: ({ faviconUrl }) => {
+      queryClient.setQueryData<Settings | undefined>(['settings'], (prev) => (prev ? { ...prev, faviconUrl } : prev));
+      toast.success('Favicon uploaded');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to upload favicon');
+    },
+  });
+
   return {
     settings: query.data,
     isLoading: query.isLoading,
@@ -119,5 +149,9 @@ export const useSettings = () => {
     clearCache: clearCache.mutateAsync,
     clearLogs: clearLogs.mutateAsync,
     sendTestEmail: sendTestEmail.mutateAsync,
+    uploadLogo: uploadLogo.mutateAsync,
+    isUploadingLogo: uploadLogo.isPending,
+    uploadFavicon: uploadFavicon.mutateAsync,
+    isUploadingFavicon: uploadFavicon.isPending,
   };
 };

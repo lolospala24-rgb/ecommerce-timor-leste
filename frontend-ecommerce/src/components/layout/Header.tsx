@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useCart } from '@/hooks/useCart';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/uiStore';
 import { Input } from '@/components/ui/input';
@@ -44,6 +46,7 @@ import { Play } from 'lucide-react';
 export function Header() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { data: publicSettings } = usePublicSettings();
   const { totalItems, subtotal: cartSubtotal } = useCart();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useOrderNotifications();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -131,13 +134,22 @@ export function Header() {
       <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur-xl shadow-sm">
         <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-4">
-            {/* Logo */}
+            {/* Logo — the site name/logo are admin-editable (Settings → General),
+                so this reads real data instead of a hardcoded brand. */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-white font-bold text-sm">E</span>
-              </div>
+              {publicSettings?.logoUrl ? (
+                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="32px" className="object-contain" />
+                </div>
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">
+                    {(publicSettings?.siteName || 'E').charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
               <span className="font-bold text-lg hidden sm:block">
-                <span className="text-primary">E-</span>Commerce
+                {publicSettings?.siteName || 'E-Commerce'}
               </span>
             </Link>
 
