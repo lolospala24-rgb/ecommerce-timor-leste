@@ -69,7 +69,7 @@ export function VideoSidebar({ activeTab, onTabChange }: VideoSidebarProps) {
   const categories = ((categoriesResponse?.data as Category[]) ?? []).filter((c) => c.isActive !== false);
 
   return (
-    <aside className="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 lg:flex">
+    <aside className="hidden h-full w-56 shrink-0 flex-col overflow-y-auto border-r border-neutral-200 bg-white px-3 py-4 lg:flex">
       <nav className="space-y-1">
         {FEED_NAV.map((item) => {
           const Icon = item.icon;

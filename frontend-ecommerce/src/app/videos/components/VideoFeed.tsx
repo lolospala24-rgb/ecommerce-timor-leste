@@ -15,6 +15,17 @@ interface VideoFeedProps {
   initialVideoId?: number;
 }
 
+// A window of `size` indexes centered on `active`, clamped to
+// [0, total). Used by the position-dots indicator below — with infinite
+// scroll, `total` can grow into the hundreds, so it shows a scrolling
+// window around the current video rather than one dot per loaded item.
+function windowedIndexes(active: number, total: number, size: number): number[] {
+  if (total <= size) return Array.from({ length: total }, (_, i) => i);
+  let start = active - Math.floor(size / 2);
+  start = Math.max(0, Math.min(start, total - size));
+  return Array.from({ length: size }, (_, i) => start + i);
+}
+
 export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPage, initialVideoId }: VideoFeedProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -130,6 +141,25 @@ export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPa
             canGoNext={activeIndex >= 0 && activeIndex < videos.length - 1}
           />
         </div>
+
+        {activeIndex >= 0 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-1 hidden justify-center lg:flex">
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-2 shadow-sm backdrop-blur">
+              {windowedIndexes(activeIndex, videos.length, 7).map((index) => (
+                <button
+                  key={videos[index].id}
+                  type="button"
+                  onClick={() => scrollToVideoId(videos[index].id)}
+                  aria-label={`Go to video ${index + 1}`}
+                  aria-current={index === activeIndex}
+                  className={`h-1.5 rounded-full transition-all ${
+                    index === activeIndex ? 'w-5 bg-primary' : 'w-1.5 bg-neutral-300 hover:bg-neutral-400'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {activeVideo && (
