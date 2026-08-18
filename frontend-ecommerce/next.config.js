@@ -80,6 +80,12 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+          // Browsers ignore this over plain HTTP, so it's a no-op for the
+          // bare-IP fallback and harmless in local dev — only takes effect
+          // once a browser sees it over https://lolospala.com. No `preload`
+          // (that requires submitting the domain to browsers' built-in
+          // preload lists, which is effectively irreversible).
+          { key: 'Strict-Transport-Security', value: 'max-age=15552000; includeSubDomains' },
         ],
       },
     ];
