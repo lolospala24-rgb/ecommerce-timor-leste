@@ -66,8 +66,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # admin-panel (temporary, until a domain is pointed here)
-      - "8081:8081" # backend API (temporary, until a domain is pointed here)
+      # 8080/8081 (admin-panel / backend API IP+port access) removed now that
+      # lolospala.com is live — Docker publishes ports via iptables directly,
+      # which bypasses ufw, so `ufw allow`/`deny` alone can't gate them; the
+      # port mapping itself has to go. Routing now happens purely by
+      # hostname (admin.lolospala.com / api.lolospala.com) via nginx.
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/certbot/conf:/etc/letsencrypt:ro
