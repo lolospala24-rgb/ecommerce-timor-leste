@@ -39,7 +39,7 @@ export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPan
 
   return (
     <aside className="hidden h-full w-[360px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-neutral-200 bg-neutral-50/60 p-4 xl:flex">
-      {product && (
+      {video.enableShopping && product && (
         <div className="rounded-2xl border border-neutral-200 bg-white p-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-900">Products in this video</h3>
@@ -84,7 +84,7 @@ export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPan
         </div>
       )}
 
-      <VideoCommentsPanel videoId={video.id} />
+      {video.allowComments && <VideoCommentsPanel videoId={video.id} />}
 
       {creator && (
         <div className="rounded-2xl border border-neutral-200 bg-white p-4">

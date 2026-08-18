@@ -5,11 +5,20 @@ import { AxiosError } from 'axios';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
+export type VideoStatus = 'PENDING' | 'PUBLISHED' | 'SCHEDULED' | 'REJECTED';
+export type VideoVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+
 export interface AdminVideoSeller {
   id: number;
   storeName: string;
   storeLogo?: string | null;
   isVerified?: boolean;
+  _count?: { followers: number };
+}
+
+export interface AdminVideoCategory {
+  id: number;
+  name: string;
 }
 
 export interface AdminVideoProduct {
@@ -21,6 +30,7 @@ export interface AdminVideoProduct {
   thumbnail: string | null;
   stock?: number;
   seller?: AdminVideoSeller | null;
+  category?: AdminVideoCategory | null;
 }
 
 export interface AdminVideo {
@@ -29,7 +39,14 @@ export interface AdminVideo {
   description: string | null;
   videoUrl: string;
   thumbnailUrl: string | null;
-  isActive: boolean;
+  status: VideoStatus;
+  visibility: VideoVisibility;
+  allowComments: boolean;
+  allowLikes: boolean;
+  allowSharing: boolean;
+  allowSave: boolean;
+  enableShopping: boolean;
+  publishedAt: string | null;
   views: number;
   likes: number;
   shares: number;
@@ -41,11 +58,21 @@ export interface AdminVideo {
 
 export interface AdminVideoFilters {
   search?: string;
-  status?: 'active' | 'draft' | 'all';
+  status?: VideoStatus | 'all';
+  sellerId?: number;
+  categoryId?: number;
   page?: number;
   limit?: number;
   sortBy?: 'createdAt' | 'views' | 'likes' | 'comments';
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface VideoStatusCounts {
+  all: number;
+  PENDING: number;
+  PUBLISHED: number;
+  SCHEDULED: number;
+  REJECTED: number;
 }
 
 export interface VideoComment {
@@ -61,7 +88,17 @@ export interface VideoFormValues {
   title: string;
   description: string;
   productId: string;
-  isActive: boolean;
+  status: VideoStatus;
+  visibility: VideoVisibility;
+  allowComments: boolean;
+  allowLikes: boolean;
+  allowSharing: boolean;
+  allowSave: boolean;
+  enableShopping: boolean;
+  // Datetime-local input string (e.g. "2026-08-20T14:30") — converted to
+  // an ISO string in buildVideoFormData, required only when status is
+  // SCHEDULED (see VideosService.resolvePublishedAt on the backend).
+  publishedAt: string;
   videoFile: File | null;
   thumbnailFile: File | null;
 }
@@ -102,8 +139,19 @@ function buildVideoFormData(values: Partial<VideoFormValues>): FormData {
   const formData = new FormData();
   if (values.title !== undefined) formData.append('title', values.title);
   if (values.description !== undefined) formData.append('description', values.description);
-  if (values.isActive !== undefined) formData.append('isActive', String(values.isActive));
   if (values.productId) formData.append('productId', values.productId);
+  if (values.status !== undefined) formData.append('status', values.status);
+  if (values.visibility !== undefined) formData.append('visibility', values.visibility);
+  if (values.allowComments !== undefined) formData.append('allowComments', String(values.allowComments));
+  if (values.allowLikes !== undefined) formData.append('allowLikes', String(values.allowLikes));
+  if (values.allowSharing !== undefined) formData.append('allowSharing', String(values.allowSharing));
+  if (values.allowSave !== undefined) formData.append('allowSave', String(values.allowSave));
+  if (values.enableShopping !== undefined) formData.append('enableShopping', String(values.enableShopping));
+  if (values.publishedAt) {
+    // datetime-local has no timezone — new Date() interprets it in the
+    // browser's local zone, which is what the admin actually picked.
+    formData.append('publishedAt', new Date(values.publishedAt).toISOString());
+  }
   if (values.videoFile) formData.append('video', values.videoFile);
   if (values.thumbnailFile) formData.append('thumbnail', values.thumbnailFile);
   return formData;
@@ -116,6 +164,8 @@ export function useAdminVideos(filters: AdminVideoFilters = {}) {
       const params = new URLSearchParams();
       if (filters.search) params.set('search', filters.search);
       if (filters.status) params.set('status', filters.status);
+      if (filters.sellerId) params.set('sellerId', String(filters.sellerId));
+      if (filters.categoryId) params.set('categoryId', String(filters.categoryId));
       params.set('page', String(filters.page ?? 1));
       params.set('limit', String(filters.limit ?? 20));
       if (filters.sortBy) params.set('sortBy', filters.sortBy);
@@ -123,6 +173,17 @@ export function useAdminVideos(filters: AdminVideoFilters = {}) {
 
       const response = await api.get(`/videos?${params.toString()}`);
       return unwrapList<AdminVideo>(response);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useVideoStatusCounts() {
+  return useQuery({
+    queryKey: ['admin-videos', 'status-counts'],
+    queryFn: async () => {
+      const response = await api.get('/videos/status-counts');
+      return unwrapItem<VideoStatusCounts>(response);
     },
     staleTime: 30_000,
   });
@@ -137,6 +198,10 @@ export function useVideo(id: number | null) {
     },
     enabled: id != null,
   });
+}
+
+function invalidateVideoLists(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
 }
 
 export function useCreateVideo() {
@@ -155,7 +220,7 @@ export function useCreateVideo() {
       return unwrapItem<AdminVideo>(response);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+      invalidateVideoLists(queryClient);
       toast.success('Video created successfully');
     },
     onError: (error) => {
@@ -177,8 +242,9 @@ export function useUpdateVideo() {
       });
       return unwrapItem<AdminVideo>(response);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+    onSuccess: (_data, variables) => {
+      invalidateVideoLists(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['admin-video', variables.id] });
       toast.success('Video updated successfully');
     },
     onError: (error) => {
@@ -187,19 +253,22 @@ export function useUpdateVideo() {
   });
 }
 
-export function useToggleVideoStatus() {
+// Quick status transition (Publish/Reject/etc from the table row menu) —
+// same PATCH endpoint as useUpdateVideo, just a narrower one-field payload.
+export function useUpdateVideoStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      const response = await api.patch(`/videos/${id}`, buildVideoFormData({ isActive }), {
+    mutationFn: async ({ id, status, publishedAt }: { id: number; status: VideoStatus; publishedAt?: string }) => {
+      const response = await api.patch(`/videos/${id}`, buildVideoFormData({ status, publishedAt }), {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return unwrapItem<AdminVideo>(response);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
-      toast.success(variables.isActive ? 'Video published' : 'Video unpublished');
+      invalidateVideoLists(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['admin-video', variables.id] });
+      toast.success(`Video marked ${variables.status.toLowerCase()}`);
     },
     onError: (error) => {
       toast.error(extractErrorMessage(error, 'Failed to update video status'));
@@ -215,7 +284,7 @@ export function useDeleteVideo() {
       await api.delete(`/videos/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+      invalidateVideoLists(queryClient);
       toast.success('Video deleted successfully');
     },
     onError: (error) => {

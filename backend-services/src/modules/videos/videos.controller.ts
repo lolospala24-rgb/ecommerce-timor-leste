@@ -53,12 +53,14 @@ export class VideosController {
   }
 
   // Admin video list — every video regardless of publish state, with
-  // search/status filter/sort, for the Video Management table.
+  // search/status/seller/category filter/sort, for the Video Management table.
   @Roles(Role.ADMIN)
   @Get()
   async adminList(
     @Query('search') search?: string,
-    @Query('status') status?: 'active' | 'draft' | 'all',
+    @Query('status') status?: 'PENDING' | 'PUBLISHED' | 'SCHEDULED' | 'REJECTED' | 'all',
+    @Query('sellerId') sellerId?: string,
+    @Query('categoryId') categoryId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: 'createdAt' | 'views' | 'likes' | 'comments',
@@ -67,12 +69,24 @@ export class VideosController {
     const result = await this.service.adminList({
       search,
       status,
+      sellerId: sellerId ? parseInt(sellerId) : undefined,
+      categoryId: categoryId ? parseInt(categoryId) : undefined,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 20,
       sortBy,
       sortOrder,
     });
     return { success: true, data: result.items, total: result.total };
+  }
+
+  // Real counts behind the admin status tabs and the Video Shop sidebar
+  // submenu badges. Must come before ':id' for the same reason as
+  // 'comments'/'saved' above.
+  @Roles(Role.ADMIN)
+  @Get('status-counts')
+  async adminStatusCounts() {
+    const counts = await this.service.adminStatusCounts();
+    return { success: true, data: counts };
   }
 
   // Admin comment moderation — every comment across every video. Must come

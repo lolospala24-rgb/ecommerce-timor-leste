@@ -48,7 +48,7 @@ export const VideoFeedItem = forwardRef<HTMLDivElement, VideoFeedItemProps>(func
           <div className="flex items-end justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-col gap-3">
               <VideoCaption video={video} />
-              {video.product && <ProductShoppingCard product={video.product} />}
+              {video.enableShopping && video.product && <ProductShoppingCard product={video.product} />}
             </div>
             <VideoActionsRail video={video} onOpenComments={() => setCommentsOpen(true)} />
           </div>

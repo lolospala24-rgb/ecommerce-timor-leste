@@ -8,14 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Loader2, UploadCloud, Film, ImageIcon, X } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useCreateVideo, useUpdateVideo, AdminVideo } from '@/hooks/useVideos';
+import { useCreateVideo, VideoStatus } from '@/hooks/useVideos';
 
 interface VideoFormProps {
-  video: AdminVideo | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
@@ -23,17 +21,15 @@ interface VideoFormProps {
 const MAX_VIDEO_SIZE_MB = 100;
 const MAX_THUMBNAIL_SIZE_MB = 5;
 
-// Remounted by `key={video?.id ?? 'new'}` in the parent whenever the
-// target video changes, so initial state below only ever needs to run
-// once per target — no effect+setState prefill needed (see
-// https://react.dev/learn/you-might-not-need-an-effect#resetting-all-state-when-a-prop-changes).
-export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
-  const isEditing = !!video;
-  const [title, setTitle] = useState(video?.title ?? '');
-  const [description, setDescription] = useState(video?.description ?? '');
-  const [productId, setProductId] = useState(video?.product ? String(video.product.id) : '');
+// Upload-only — editing an existing video's status/visibility/toggles/etc
+// happens in VideoDetailPanel (the slide-in panel opened from a table row),
+// which already has its own PATCH flow via useUpdateVideo.
+export function VideoForm({ onSuccess, onCancel }: VideoFormProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [isActive, setIsActive] = useState(video?.isActive ?? true);
+  const [status, setStatus] = useState<VideoStatus>('PUBLISHED');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
@@ -42,30 +38,27 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
   const products = productsData?.data ?? [];
 
   const createVideo = useCreateVideo();
-  const updateVideo = useUpdateVideo();
-  const isSaving = createVideo.isPending || updateVideo.isPending;
+  const isSaving = createVideo.isPending;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!videoFile) return;
 
-    if (!isEditing && !videoFile) {
-      return;
-    }
-
-    const values = {
+    await createVideo.mutateAsync({
       title,
       description,
       productId,
-      isActive,
+      status,
+      visibility: 'PUBLIC',
+      allowComments: true,
+      allowLikes: true,
+      allowSharing: true,
+      allowSave: true,
+      enableShopping: true,
+      publishedAt: '',
       videoFile,
       thumbnailFile,
-    };
-
-    if (isEditing && video) {
-      await updateVideo.mutateAsync({ id: video.id, values });
-    } else {
-      await createVideo.mutateAsync(values);
-    }
+    });
 
     onSuccess();
   };
@@ -100,8 +93,8 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
     setThumbnailFile(file);
   };
 
-  const videoPreviewUrl = videoFile ? URL.createObjectURL(videoFile) : video?.videoUrl;
-  const thumbnailPreviewUrl = thumbnailFile ? URL.createObjectURL(thumbnailFile) : video?.thumbnailUrl;
+  const videoPreviewUrl = videoFile ? URL.createObjectURL(videoFile) : undefined;
+  const thumbnailPreviewUrl = thumbnailFile ? URL.createObjectURL(thumbnailFile) : undefined;
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
@@ -163,73 +156,66 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="video-file">Video file {isEditing && '(leave empty to keep current)'}</Label>
+          <Label htmlFor="video-file">Video file</Label>
           {videoPreviewUrl ? (
             <div className="relative overflow-hidden rounded-lg border bg-black">
               <video src={videoPreviewUrl} controls className="max-h-48 w-full object-contain" />
-              {videoFile && (
-                <button
-                  type="button"
-                  onClick={() => setVideoFile(null)}
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
-                  aria-label="Remove selected video"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setVideoFile(null)}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
+                aria-label="Remove selected video"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : (
             <div className="flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
               <Film className="mr-2 h-5 w-5" /> No video selected
             </div>
           )}
-          <Input
-            id="video-file"
-            type="file"
-            accept="video/*"
-            onChange={handleVideoFileChange}
-            required={!isEditing}
-          />
+          <Input id="video-file" type="file" accept="video/*" onChange={handleVideoFileChange} required />
           <p className="text-xs text-muted-foreground">Max {MAX_VIDEO_SIZE_MB}MB.</p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="thumbnail-file">Thumbnail {isEditing && '(leave empty to keep current)'}</Label>
+          <Label htmlFor="thumbnail-file">Thumbnail</Label>
           {thumbnailPreviewUrl ? (
             <div className="relative h-32 w-full overflow-hidden rounded-lg border bg-muted">
               <Image src={thumbnailPreviewUrl} alt="Thumbnail preview" fill className="object-cover" unoptimized />
-              {thumbnailFile && (
-                <button
-                  type="button"
-                  onClick={() => setThumbnailFile(null)}
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
-                  aria-label="Remove selected thumbnail"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setThumbnailFile(null)}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
+                aria-label="Remove selected thumbnail"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ) : (
             <div className="flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
               <ImageIcon className="mr-2 h-5 w-5" /> No thumbnail selected
             </div>
           )}
-          <Input
-            id="thumbnail-file"
-            type="file"
-            accept="image/*"
-            onChange={handleThumbnailFileChange}
-          />
+          <Input id="thumbnail-file" type="file" accept="image/*" onChange={handleThumbnailFileChange} />
           <p className="text-xs text-muted-foreground">Max {MAX_THUMBNAIL_SIZE_MB}MB.</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div>
-          <p className="font-medium">Publish</p>
-          <p className="text-sm text-muted-foreground">Whether this video is visible on the customer video feed.</p>
-        </div>
-        <Switch checked={isActive} onCheckedChange={setIsActive} />
+      <div className="space-y-2">
+        <Label>Initial status</Label>
+        <Select value={status} onValueChange={(value) => setStatus(value as VideoStatus)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PUBLISHED">Publish immediately</SelectItem>
+            <SelectItem value="PENDING">Save as pending (review later)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Scheduling and the rest of the publishing options are available after upload, from the video&apos;s detail panel.
+        </p>
       </div>
 
       <div className="flex justify-end gap-2">
@@ -238,7 +224,7 @@ export function VideoForm({ video, onSuccess, onCancel }: VideoFormProps) {
         </Button>
         <Button type="submit" disabled={isSaving}>
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-          {isEditing ? 'Save changes' : 'Upload video'}
+          Upload video
         </Button>
       </div>
     </form>

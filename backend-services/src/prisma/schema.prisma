@@ -720,19 +720,35 @@ model Province {
 }
 
 model Video {
-  id           Int         @id @default(autoincrement())
+  id           Int             @id @default(autoincrement())
   productId    Int?
   title        String
-  description  String?     @db.Text
+  description  String?         @db.Text
   videoUrl     String
   thumbnailUrl String?
-  status       VideoStatus @default(PUBLISHED)
-  views        Int         @default(0)
-  likes        Int         @default(0)
-  shares       Int         @default(0)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  // The admin content pipeline: PENDING (uploaded, awaiting an explicit
+  // publish decision), PUBLISHED (live in the customer feed), SCHEDULED
+  // (will auto-publish at publishedAt — see VideoScheduleJob), REJECTED
+  // (held back, not shown). Only PUBLISHED + visibility PUBLIC videos are
+  // ever returned by the customer-facing feed/recommendations queries.
+  status       VideoStatus     @default(PENDING)
+  visibility   VideoVisibility @default(PUBLIC)
+  // Per-video moderation/engagement toggles — checked by both the API
+  // (like/comment/save mutations reject when the relevant toggle is off)
+  // and the storefront (hides the corresponding action button entirely).
+  allowComments  Boolean @default(true)
+  allowLikes     Boolean @default(true)
+  allowSharing   Boolean @default(true)
+  allowSave      Boolean @default(true)
+  enableShopping Boolean @default(true)
+  // Set when status becomes PUBLISHED (immediately) or SCHEDULED (the
+  // future publish time VideoScheduleJob watches for).
+  publishedAt DateTime?
+  views       Int       @default(0)
+  likes       Int       @default(0)
+  shares      Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
   product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -741,13 +757,21 @@ model Video {
   comments VideoComment[]
 
   @@index([productId])
+  @@index([status])
   @@map("videos")
 }
 
 enum VideoStatus {
-  DRAFT
+  PENDING
   PUBLISHED
-  ARCHIVED
+  SCHEDULED
+  REJECTED
+}
+
+enum VideoVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
 }
 
 // Per-user like on a Video — dedups via the unique constraint and backs the

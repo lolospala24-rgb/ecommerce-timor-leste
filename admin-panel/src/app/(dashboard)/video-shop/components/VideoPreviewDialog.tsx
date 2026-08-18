@@ -1,9 +1,9 @@
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Eye, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import { AdminVideo } from '@/hooks/useVideos';
+import { VideoStatusBadge } from './VideoStatusBadge';
 
 interface VideoPreviewDialogProps {
   video: AdminVideo | null;
@@ -29,9 +29,7 @@ export function VideoPreviewDialog({ video, onOpenChange }: VideoPreviewDialogPr
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {video.title}
-                <Badge variant={video.isActive ? 'default' : 'secondary'}>
-                  {video.isActive ? 'Published' : 'Draft'}
-                </Badge>
+                <VideoStatusBadge status={video.status} />
               </DialogTitle>
             </DialogHeader>
 

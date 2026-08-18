@@ -62,6 +62,15 @@ export function normalizeVideo(raw: any): Video {
     isLiked: Boolean(raw.isLiked),
     isSaved: Boolean(raw.isSaved),
     isFollowingCreator: Boolean(raw.isFollowingCreator),
+    // Per-video moderation toggles set by the admin (Video Shop → video
+    // detail panel) — default true so a video from an older API response
+    // shape (before these existed) still behaves as fully-enabled rather
+    // than silently hiding every action.
+    allowComments: raw.allowComments ?? true,
+    allowLikes: raw.allowLikes ?? true,
+    allowSharing: raw.allowSharing ?? true,
+    allowSave: raw.allowSave ?? true,
+    enableShopping: raw.enableShopping ?? true,
   };
 }
 

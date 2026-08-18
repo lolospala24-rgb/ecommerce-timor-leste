@@ -26,6 +26,7 @@ export class VideosRepository {
           thumbnail: true,
           images: true,
           stock: true,
+          category: { select: { id: true, name: true } },
           seller: {
             select: {
               id: true,
@@ -89,7 +90,7 @@ export class VideosRepository {
 
   async findFeed({ filter, page = 1, limit = 20, categoryId }: any, userId?: number | null) {
     const skip = (page - 1) * limit;
-    const where: any = { isActive: true };
+    const where: any = { status: 'PUBLISHED', visibility: 'PUBLIC' };
     const productWhere: any = {};
 
     if (categoryId) {
@@ -137,13 +138,17 @@ export class VideosRepository {
   async findAllAdmin({
     search,
     status,
+    sellerId,
+    categoryId,
     page = 1,
     limit = 20,
     sortBy = 'createdAt',
     sortOrder = 'desc',
   }: {
     search?: string;
-    status?: 'active' | 'draft' | 'all';
+    status?: 'PENDING' | 'PUBLISHED' | 'SCHEDULED' | 'REJECTED' | 'all';
+    sellerId?: number;
+    categoryId?: number;
     page?: number;
     limit?: number;
     sortBy?: 'createdAt' | 'views' | 'likes' | 'comments';
@@ -156,8 +161,14 @@ export class VideosRepository {
       where.title = { contains: search };
     }
 
-    if (status === 'active') where.isActive = true;
-    if (status === 'draft') where.isActive = false;
+    if (status && status !== 'all') where.status = status;
+
+    if (sellerId || categoryId) {
+      where.product = {
+        ...(sellerId ? { sellerId } : {}),
+        ...(categoryId ? { categoryId } : {}),
+      };
+    }
 
     const orderBy =
       sortBy === 'comments'
@@ -176,6 +187,22 @@ export class VideosRepository {
     ]);
 
     return { items, total };
+  }
+
+  // Real counts behind the admin status tabs/sidebar badges — one grouped
+  // query rather than 4 separate `count()` calls.
+  async countByStatus() {
+    const groups = await this.prisma.video.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+
+    const counts = { PENDING: 0, PUBLISHED: 0, SCHEDULED: 0, REJECTED: 0 };
+    for (const group of groups) {
+      counts[group.status as keyof typeof counts] = group._count._all;
+    }
+
+    return { ...counts, all: Object.values(counts).reduce((sum, n) => sum + n, 0) };
   }
 
   async findAllComments({
@@ -246,7 +273,8 @@ export class VideosRepository {
   async findRecommendations(id: number, userId?: number | null, limit = 10) {
     const items = await this.prisma.video.findMany({
       where: {
-        isActive: true,
+        status: 'PUBLISHED',
+        visibility: 'PUBLIC',
         id: { not: id },
       },
       include: this.videoInclude(),

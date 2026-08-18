@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useVideoStatusCounts } from '@/hooks/useVideos';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -142,12 +143,22 @@ const bottomMenuItems: MenuItem[] = [
 // ============================================================
 //  SIDEBAR COMPONENT
 // ============================================================
+const VIDEO_STATUS_SUBLINKS: { status: string; label: string }[] = [
+  { status: '', label: 'All Videos' },
+  { status: 'PENDING', label: 'Pending Review' },
+  { status: 'PUBLISHED', label: 'Published' },
+  { status: 'SCHEDULED', label: 'Scheduled' },
+  { status: 'REJECTED', label: 'Rejected' },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { logout, user } = useAuthStore();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const { data: videoStatusCounts } = useVideoStatusCounts();
 
   // ============================================================
   //  CHECK MOBILE
@@ -302,7 +313,37 @@ export function Sidebar() {
                 </p>
               )}
               <div className="space-y-0.5">
-                {section.items.map((item) => renderMenuItem(item))}
+                {section.items.map((item) => (
+                  <div key={item.href}>
+                    {renderMenuItem(item)}
+                    {item.href === '/video-shop' && !collapsed && pathname.startsWith('/video-shop') && (
+                      <div className="ml-4 mt-0.5 space-y-0.5 border-l pl-3">
+                        {VIDEO_STATUS_SUBLINKS.map((sublink) => {
+                          const activeStatus = searchParams.get('status') ?? '';
+                          const active = activeStatus === sublink.status;
+                          const count = sublink.status
+                            ? videoStatusCounts?.[sublink.status as keyof typeof videoStatusCounts]
+                            : videoStatusCounts?.all;
+                          return (
+                            <Link
+                              key={sublink.label}
+                              href={sublink.status ? `/video-shop?status=${sublink.status}` : '/video-shop'}
+                              className={cn(
+                                'flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors',
+                                active
+                                  ? 'bg-primary/10 font-medium text-primary'
+                                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                              )}
+                            >
+                              {sublink.label}
+                              {count !== undefined && <span className="text-[10px]">{count}</span>}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           ))}

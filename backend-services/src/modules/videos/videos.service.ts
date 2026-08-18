@@ -13,14 +13,41 @@ export class VideosService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
+  // publishedAt is derived from status, not trusted verbatim from the DTO:
+  // PUBLISHED always means "now" (an admin can't backdate/postdate a live
+  // video by hand-editing this), SCHEDULED must carry the admin's chosen
+  // future time, and PENDING/REJECTED have none.
+  private resolvePublishedAt(status: string | undefined, requested?: string) {
+    if (status === 'PUBLISHED') return new Date();
+    if (status === 'SCHEDULED') {
+      if (!requested) {
+        throw new BadRequestException('publishedAt is required when scheduling a video');
+      }
+      const when = new Date(requested);
+      if (when.getTime() <= Date.now()) {
+        throw new BadRequestException('Scheduled publish time must be in the future');
+      }
+      return when;
+    }
+    return null;
+  }
+
   async create(dto: CreateVideoDto) {
+    const status = dto.status ?? 'PENDING';
     const data: any = {
       title: dto.title,
       description: dto.description,
       videoUrl: dto.videoUrl,
       thumbnailUrl: dto.thumbnailUrl,
       productId: dto.productId ?? null,
-      isActive: dto.isActive ?? true,
+      status,
+      visibility: dto.visibility,
+      allowComments: dto.allowComments,
+      allowLikes: dto.allowLikes,
+      allowSharing: dto.allowSharing,
+      allowSave: dto.allowSave,
+      enableShopping: dto.enableShopping,
+      publishedAt: this.resolvePublishedAt(status, dto.publishedAt),
     };
 
     const video = await this.repo.create(data);
@@ -58,13 +85,21 @@ export class VideosService {
       throw new BadRequestException('Video URL or uploaded video file is required');
     }
 
+    const status = dto.status ?? 'PENDING';
     const data: any = {
       title: dto.title,
       description: dto.description,
       videoUrl,
       thumbnailUrl,
       productId: dto.productId ?? null,
-      isActive: dto.isActive ?? true,
+      status,
+      visibility: dto.visibility,
+      allowComments: dto.allowComments,
+      allowLikes: dto.allowLikes,
+      allowSharing: dto.allowSharing,
+      allowSave: dto.allowSave,
+      enableShopping: dto.enableShopping,
+      publishedAt: this.resolvePublishedAt(status, dto.publishedAt),
     };
 
     const video = await this.repo.create(data);
@@ -80,6 +115,12 @@ export class VideosService {
     await this.findById(id);
 
     const data: any = { ...dto };
+    // Only recompute publishedAt when this update actually changes status —
+    // an edit that doesn't touch status (e.g. just the title) must leave
+    // the existing publish/schedule time alone.
+    if (dto.status) {
+      data.publishedAt = this.resolvePublishedAt(dto.status, dto.publishedAt);
+    }
 
     if (videoFile) {
       const uploadResult = await this.cloudinaryService.uploadFile(videoFile, {
@@ -130,12 +171,19 @@ export class VideosService {
     return this.repo.findAllAdmin(query);
   }
 
+  async adminStatusCounts() {
+    return this.repo.countByStatus();
+  }
+
   async adminListComments(query: any) {
     return this.repo.findAllComments(query);
   }
 
   async incrementAnalytics(id: number, action: 'views' | 'shares') {
-    await this.findById(id);
+    const video = await this.findById(id);
+    if (action === 'shares' && !video.allowSharing) {
+      throw new ForbiddenException('Sharing is disabled for this video');
+    }
     return this.repo.incrementField(id, action);
   }
 
@@ -152,7 +200,10 @@ export class VideosService {
   // ==================== Likes ====================
 
   async likeVideo(id: number, userId: number) {
-    await this.findById(id);
+    const video = await this.findById(id);
+    if (!video.allowLikes) {
+      throw new ForbiddenException('Likes are disabled for this video');
+    }
     const result = await this.repo.likeVideo(id, userId);
     return { liked: true, likes: result?.likes ?? 0 };
   }
@@ -166,7 +217,10 @@ export class VideosService {
   // ==================== Saves / Bookmarks ====================
 
   async saveVideo(id: number, userId: number) {
-    await this.findById(id);
+    const video = await this.findById(id);
+    if (!video.allowSave) {
+      throw new ForbiddenException('Saving is disabled for this video');
+    }
     const saves = await this.repo.saveVideo(id, userId);
     return { saved: true, saves };
   }
@@ -189,7 +243,10 @@ export class VideosService {
   }
 
   async addComment(videoId: number, userId: number, dto: CreateCommentDto) {
-    await this.findById(videoId);
+    const video = await this.findById(videoId);
+    if (!video.allowComments) {
+      throw new ForbiddenException('Comments are disabled for this video');
+    }
 
     if (dto.parentId) {
       const parent = await this.repo.findCommentById(dto.parentId);

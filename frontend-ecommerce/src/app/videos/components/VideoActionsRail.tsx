@@ -29,12 +29,12 @@ export function VideoActionsRail({ video, onOpenComments }: VideoActionsRailProp
         </div>
       )}
 
-      <LikeButton video={video} />
-      <CommentButton video={video} onOpen={onOpenComments} />
-      <SaveButton video={video} />
-      <ShareButton video={video} />
+      {video.allowLikes && <LikeButton video={video} />}
+      {video.allowComments && <CommentButton video={video} onOpen={onOpenComments} />}
+      {video.allowSave && <SaveButton video={video} />}
+      {video.allowSharing && <ShareButton video={video} />}
 
-      {video.product && (
+      {video.enableShopping && video.product && (
         <Link
           href={`/products/${video.product.slug}`}
           aria-label={`Shop ${video.product.name}`}

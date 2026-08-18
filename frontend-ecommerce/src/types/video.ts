@@ -43,6 +43,15 @@ export interface Video {
   isLiked: boolean;
   isSaved: boolean;
   isFollowingCreator: boolean;
+  // Per-video moderation toggles, set by the admin (Video Shop → video
+  // detail panel). The backend also enforces these server-side on the
+  // like/comment/save/share mutations — hiding the button here is a UX
+  // nicety, not the actual security boundary.
+  allowComments: boolean;
+  allowLikes: boolean;
+  allowSharing: boolean;
+  allowSave: boolean;
+  enableShopping: boolean;
 }
 
 export interface VideoListResult {

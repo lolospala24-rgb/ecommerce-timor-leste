@@ -281,7 +281,7 @@ async function main() {
             thumbnailUrl: video.thumbnailUrl,
             status: 'PUBLISHED',
             productId: product?.id ?? null,
-            isActive: true,
+            publishedAt: new Date(),
           },
         });
       } else {
@@ -293,7 +293,7 @@ async function main() {
             thumbnailUrl: video.thumbnailUrl,
             status: 'PUBLISHED',
             productId: product?.id ?? null,
-            isActive: true,
+            publishedAt: new Date(),
           },
         });
       }

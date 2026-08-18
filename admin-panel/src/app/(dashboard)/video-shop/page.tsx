@@ -1,244 +1,235 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Play, Eye, Heart, MessageCircle, Sparkles, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Pagination } from '@/components/shared/Pagination';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useAdminVideos, AdminVideo } from '@/hooks/useVideos';
+import { useSellers } from '@/hooks/useSellers';
+import { useCategories } from '@/hooks/useCategories';
+import { AdminVideo, VideoStatus, useAdminVideos, useVideoStatusCounts } from '@/hooks/useVideos';
 import { VideosTable } from './components/VideosTable';
 import { VideoForm } from './components/VideoForm';
 import { VideoPreviewDialog } from './components/VideoPreviewDialog';
-import { VideoCommentsModeration } from './components/VideoCommentsModeration';
-import { VideoAnalytics } from './components/VideoAnalytics';
+import { VideoDetailPanel } from './components/VideoDetailPanel';
 
 const PAGE_SIZE = 10;
 
+const STATUS_TABS: { id: VideoStatus | 'all'; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'PUBLISHED', label: 'Published' },
+  { id: 'PENDING', label: 'Pending' },
+  { id: 'SCHEDULED', label: 'Scheduled' },
+  { id: 'REJECTED', label: 'Rejected' },
+];
+
+const SORT_OPTIONS: { value: string; label: string; sortBy: 'createdAt' | 'views' | 'likes'; sortOrder: 'asc' | 'desc' }[] = [
+  { value: 'newest', label: 'Newest First', sortBy: 'createdAt', sortOrder: 'desc' },
+  { value: 'oldest', label: 'Oldest First', sortBy: 'createdAt', sortOrder: 'asc' },
+  { value: 'most-viewed', label: 'Most Viewed', sortBy: 'views', sortOrder: 'desc' },
+  { value: 'most-liked', label: 'Most Liked', sortBy: 'likes', sortOrder: 'desc' },
+];
+
+const VALID_STATUSES = new Set(['all', 'PENDING', 'PUBLISHED', 'SCHEDULED', 'REJECTED']);
+
 export default function VideoManagementPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get('status');
+  const [status, setStatus] = useState<VideoStatus | 'all'>(
+    initialStatus && VALID_STATUSES.has(initialStatus) ? (initialStatus as VideoStatus | 'all') : 'all',
+  );
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'draft'>('all');
+  const [sellerId, setSellerId] = useState<string>('all');
+  const [categoryId, setCategoryId] = useState<string>('all');
+  const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingVideo, setEditingVideo] = useState<AdminVideo | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [detailVideo, setDetailVideo] = useState<AdminVideo | null>(null);
   const [previewVideo, setPreviewVideo] = useState<AdminVideo | null>(null);
 
   const debouncedSearch = useDebounce(search, 400);
+  const sortOption = SORT_OPTIONS.find((o) => o.value === sort) ?? SORT_OPTIONS[0];
 
-  // Overview totals must reflect every video regardless of the Manage tab's
-  // current filters — fetched separately from the filtered list below.
-  const { data: overviewData, isLoading: isLoadingOverview } = useAdminVideos({ status: 'all', limit: 200 });
-  const { data: listData, isLoading: isLoadingList, isFetching } = useAdminVideos({
+  const { data: statusCounts } = useVideoStatusCounts();
+  const { data: sellersData } = useSellers({ limit: 100 });
+  const { data: categoriesData } = useCategories({ limit: 100 });
+
+  const { data: listData, isLoading, isFetching } = useAdminVideos({
     search: debouncedSearch,
     status,
+    sellerId: sellerId !== 'all' ? Number(sellerId) : undefined,
+    categoryId: categoryId !== 'all' ? Number(categoryId) : undefined,
     page,
     limit: PAGE_SIZE,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
+    sortBy: sortOption.sortBy,
+    sortOrder: sortOption.sortOrder,
   });
 
-  const overviewVideos = useMemo(() => overviewData?.items ?? [], [overviewData]);
-  const listVideos = listData?.items ?? [];
+  const videos = listData?.items ?? [];
   const total = listData?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const metrics = useMemo(() => {
-    const views = overviewVideos.reduce((sum, item) => sum + item.views, 0);
-    const likes = overviewVideos.reduce((sum, item) => sum + item.likes, 0);
-    const comments = overviewVideos.reduce((sum, item) => sum + (item._count?.comments ?? 0), 0);
+  const sellers = sellersData?.data ?? [];
+  const categories = categoriesData?.data ?? [];
 
-    return [
-      {
-        label: 'Total Videos',
-        value: overviewVideos.length.toString(),
-        change: `${overviewVideos.filter((item) => item.isActive).length} published`,
-        icon: Play,
-      },
-      { label: 'Views', value: views.toLocaleString(), change: 'All time', icon: Eye },
-      { label: 'Likes', value: likes.toLocaleString(), change: 'All time', icon: Heart },
-      { label: 'Comments', value: comments.toLocaleString(), change: 'All time', icon: MessageCircle },
-    ];
-  }, [overviewVideos]);
-
-  const handleOpenCreate = () => {
-    setEditingVideo(null);
-    setFormOpen(true);
-  };
-
-  const handleEdit = (video: AdminVideo) => {
-    setEditingVideo(video);
-    setFormOpen(true);
-  };
-
-  const handleFormSuccess = () => {
-    setFormOpen(false);
-    setEditingVideo(null);
+  const handleStatusChange = (value: VideoStatus | 'all') => {
+    setStatus(value);
+    setPage(1);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-primary">
-            <Sparkles className="h-4 w-4" />
-            <span>Video Shopping</span>
+    <div className="flex h-full gap-0">
+      <div className="min-w-0 flex-1 space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">All Videos</h1>
+            <p className="text-sm text-muted-foreground">Manage all videos in your platform</p>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Video Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Upload, publish, and moderate the videos that power the customer video-shopping feed.
-          </p>
+          <Button onClick={() => setUploadOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Upload Video
+          </Button>
         </div>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Upload Video
-        </Button>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {isLoadingOverview ? (
-          [...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
-        ) : (
-          metrics.map((item) => {
-            const Icon = item.icon;
+        <div className="flex flex-wrap items-center gap-2 border-b pb-1">
+          {STATUS_TABS.map((tab) => {
+            const count = statusCounts?.[tab.id === 'all' ? 'all' : tab.id] ?? 0;
+            const active = status === tab.id;
             return (
-              <Card key={item.label} className="border-0 shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{item.label}</p>
-                      <p className="mt-2 text-2xl font-semibold">{item.value}</p>
-                    </div>
-                    <div className="rounded-full bg-primary/10 p-3 text-primary">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <p className="mt-4 text-sm text-emerald-600">{item.change}</p>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="manage">Manage</TabsTrigger>
-          <TabsTrigger value="comments">Comments</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-5">
-              <h3 className="font-semibold">Recently uploaded</h3>
-              <p className="mt-1 text-sm text-muted-foreground">The 5 most recently uploaded videos.</p>
-              <div className="mt-4">
-                {isLoadingOverview ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <VideosTable
-                    videos={[...overviewVideos]
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .slice(0, 5)}
-                    onEdit={handleEdit}
-                    onPreview={setPreviewVideo}
-                  />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="manage" className="space-y-4">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="space-y-4 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative w-full sm:w-72">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search video title..."
-                    value={search}
-                    onChange={(event) => {
-                      setSearch(event.target.value);
-                      setPage(1);
-                    }}
-                    className="pl-8"
-                  />
-                </div>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value as typeof status);
-                    setPage(1);
-                  }}
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleStatusChange(tab.id)}
+                className={`flex items-center gap-2 rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-xs ${
+                    active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                  }`}
                 >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-1 flex-wrap items-center gap-3">
+                <Select value={sellerId} onValueChange={(value) => { setSellerId(value); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-44">
+                    <SelectValue placeholder="All Sellers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sellers</SelectItem>
+                    {sellers.map((seller: any) => (
+                      <SelectItem key={seller.id} value={String(seller.id)}>
+                        {seller.storeName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={categoryId} onValueChange={(value) => { setCategoryId(value); setPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-44">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={sort} onValueChange={setSort}>
                   <SelectTrigger className="w-full sm:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="active">Published</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
+                    {SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {isLoadingList ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <div className={`transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
-                  <VideosTable videos={listVideos} onEdit={handleEdit} onPreview={setPreviewVideo} />
-                </div>
-              )}
+              <div className="relative w-full lg:w-72">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search videos..."
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  className="pl-8"
+                />
+              </div>
+            </div>
 
-              {total > 0 && (
+            {isLoading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Loading videos...</div>
+            ) : (
+              <div className={`transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
+                <VideosTable
+                  videos={videos}
+                  onOpen={setDetailVideo}
+                  onEdit={setDetailVideo}
+                  onPreview={setPreviewVideo}
+                />
+              </div>
+            )}
+
+            {total > 0 && (
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>
+                  Showing {(page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total} videos
+                </span>
                 <Pagination
                   currentPage={page}
                   totalPages={totalPages}
                   totalItems={total}
                   pageSize={PAGE_SIZE}
                   onPageChange={setPage}
+                  showTotal={false}
                 />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-        <TabsContent value="comments" className="space-y-4">
-          <VideoCommentsModeration />
-        </TabsContent>
+      {detailVideo && (
+        <VideoDetailPanel
+          video={detailVideo}
+          onClose={() => setDetailVideo(null)}
+          onPreview={setPreviewVideo}
+        />
+      )}
 
-        <TabsContent value="analytics" className="space-y-4">
-          <VideoAnalytics />
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingVideo ? 'Edit Video' : 'Upload Video'}</DialogTitle>
+            <DialogTitle>Upload Video</DialogTitle>
           </DialogHeader>
-          <VideoForm
-            key={editingVideo?.id ?? 'new'}
-            video={editingVideo}
-            onSuccess={handleFormSuccess}
-            onCancel={() => setFormOpen(false)}
-          />
+          <VideoForm onSuccess={() => setUploadOpen(false)} onCancel={() => setUploadOpen(false)} />
         </DialogContent>
       </Dialog>
 
