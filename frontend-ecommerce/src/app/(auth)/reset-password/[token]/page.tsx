@@ -91,9 +91,9 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <Card className="shadow-xl border-0">
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-2xl">Password Reset Successful</CardTitle>
+      <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+        <CardHeader className="space-y-1.5 pb-2 text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight">Password Reset Successful</CardTitle>
           <CardDescription>
             Your password has been reset successfully
           </CardDescription>
@@ -118,9 +118,9 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Card className="shadow-xl border-0">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl">Reset Password</CardTitle>
+    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+      <CardHeader className="space-y-1.5 pb-2 text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight">Reset Password</CardTitle>
         <CardDescription>
           Enter your new password below
         </CardDescription>
@@ -142,7 +142,7 @@ export default function ResetPasswordPage() {
                 id="newPassword"
                 type={showNewPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className="pl-10 pr-10"
+                className="h-11 pl-10 pr-10"
                 {...register('newPassword')}
               />
               <button
@@ -173,7 +173,7 @@ export default function ResetPasswordPage() {
                 id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className="pl-10 pr-10"
+                className="h-11 pl-10 pr-10"
                 {...register('confirmPassword')}
               />
               <button
@@ -195,7 +195,7 @@ export default function ResetPasswordPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

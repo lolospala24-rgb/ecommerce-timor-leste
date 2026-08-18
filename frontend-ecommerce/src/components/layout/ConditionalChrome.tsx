@@ -12,9 +12,15 @@ import { Footer } from './Footer';
 // scrolling page shell: the feed manages its own internal scroll (one
 // snapped video at a time), so letting the outer page scroll too would
 // fight that and let the layout grow past the viewport.
+const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+
 export function ConditionalChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isVideoShopping = pathname?.startsWith('/videos');
+  // Auth pages render their own minimal branded shell (see (auth)/layout.tsx)
+  // instead of the full storefront Header/Footer — cart, search, and the
+  // long footer link list are distractions on a sign-in/sign-up screen.
+  const isAuthPage = AUTH_ROUTES.some((route) => pathname?.startsWith(route));
 
   if (isVideoShopping) {
     return (
@@ -23,6 +29,10 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
         <main className="min-h-0 flex-1">{children}</main>
       </div>
     );
+  }
+
+  if (isAuthPage) {
+    return <main className="min-h-screen">{children}</main>;
   }
 
   return (

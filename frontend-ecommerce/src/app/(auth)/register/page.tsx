@@ -105,9 +105,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <Card className="shadow-xl border-0">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl">Create Account</CardTitle>
+    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+      <CardHeader className="space-y-1.5 pb-2 text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight">Create Account</CardTitle>
         <CardDescription>
           Join our community and start shopping today
         </CardDescription>
@@ -141,7 +141,7 @@ export default function RegisterPage() {
               <Input
                 id="name"
                 placeholder="John Doe"
-                className="pl-10"
+                className="h-11 pl-10"
                 {...register('name')}
               />
             </div>
@@ -158,7 +158,7 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                className="pl-10"
+                className="h-11 pl-10"
                 {...register('email')}
               />
             </div>
@@ -174,7 +174,7 @@ export default function RegisterPage() {
               <Input
                 id="phone"
                 placeholder="+670 1234 5678"
-                className="pl-10"
+                className="h-11 pl-10"
                 {...register('phone')}
               />
             </div>
@@ -191,7 +191,7 @@ export default function RegisterPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className="pl-10 pr-10"
+                className="h-11 pl-10 pr-10"
                 {...register('password')}
               />
               <button
@@ -222,7 +222,7 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className="pl-10 pr-10"
+                className="h-11 pl-10 pr-10"
                 {...register('confirmPassword')}
               />
               <button
@@ -266,7 +266,7 @@ export default function RegisterPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -59,9 +59,9 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <Card className="shadow-xl border-0">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl">Forgot Password</CardTitle>
+    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+      <CardHeader className="space-y-1.5 pb-2 text-center">
+        <CardTitle className="text-2xl font-bold tracking-tight">Forgot Password</CardTitle>
         <CardDescription>
           Enter your email address and we'll send you a link to reset your password
         </CardDescription>
@@ -112,7 +112,7 @@ export default function ForgotPasswordPage() {
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className="pl-10"
+                    className="h-11 pl-10"
                     {...register('email')}
                   />
                 </div>
@@ -123,7 +123,7 @@ export default function ForgotPasswordPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" size="lg" className="w-full font-semibold" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
