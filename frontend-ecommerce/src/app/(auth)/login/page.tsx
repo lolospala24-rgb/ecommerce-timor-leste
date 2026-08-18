@@ -20,6 +20,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { GoogleSignInButton } from '@/components/shared/GoogleSignInButton';
+import { isFirebaseConfigured } from '@/lib/firebase';
 import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -93,7 +95,21 @@ function LoginForm() {
               <AlertDescription>{error || storeError}</AlertDescription>
             </Alert>
           )}
-          
+
+          {isFirebaseConfigured() && (
+            <>
+              <GoogleSignInButton onError={setError} label="Sign in with Google" />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <div className="relative">

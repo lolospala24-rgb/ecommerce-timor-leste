@@ -46,6 +46,7 @@
     "cloudinary": "^2.10.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
+    "firebase-admin": "^14.2.0",
     "helmet": "^7.0.0",
     "ioredis": "^5.0.0",
     "multer": "^2.2.0",

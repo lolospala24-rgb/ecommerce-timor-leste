@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { FirebaseService } from './firebase.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { PrismaModule } from '../../prisma/prisma.module';
@@ -32,6 +33,7 @@ import { SettingsModule } from '../settings/settings.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    FirebaseService,
     JwtStrategy,
     LocalStrategy,
   ],

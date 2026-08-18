@@ -13,6 +13,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { SettingsService } from '../settings/settings.service';
+import { FirebaseService } from './firebase.service';
 import { hashPassword, comparePassword } from '../../common/utils/bcrypt.util';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -27,6 +28,7 @@ export class AuthService {
     private redisService: RedisService,
     private mailService: MailService,
     private settingsService: SettingsService,
+    private firebaseService: FirebaseService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -126,6 +128,64 @@ export class AuthService {
     return result;
   }
 
+  /**
+   * Google Sign-In via Firebase. The frontend obtains a Firebase ID token
+   * from the Google popup; this verifies it server-side, finds-or-creates
+   * the matching User row, then reuses login() so the session (JWT +
+   * cookies) is issued exactly the same way as email/password login.
+   */
+  async loginWithGoogle(idToken: string) {
+    const identity = await this.firebaseService.verifyGoogleIdToken(idToken);
+
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ googleId: identity.uid }, { email: identity.email }] },
+      include: { seller: true },
+    });
+
+    if (user) {
+      if (!user.isActive) {
+        throw new UnauthorizedException('Account is disabled. Please contact support.');
+      }
+      // Link a Google identity onto an existing email/password account the
+      // first time it's used, without touching its password.
+      if (!user.googleId) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId: identity.uid,
+            emailVerified: true,
+            avatar: user.avatar ?? identity.picture,
+          },
+          include: { seller: true },
+        });
+      }
+    } else {
+      const settings = await this.settingsService.getSettings();
+      if (!settings.registrationOpen) {
+        throw new BadRequestException('New registrations are currently closed');
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          email: identity.email,
+          name: identity.name,
+          password: null,
+          provider: 'GOOGLE',
+          googleId: identity.uid,
+          avatar: identity.picture,
+          emailVerified: true,
+          role: 'CUSTOMER',
+        },
+        include: { seller: true },
+      });
+
+      await this.mailService.sendWelcomeEmail(user.email, user.name);
+    }
+
+    const { password: _password, ...safeUser } = user;
+    return this.login(safeUser);
+  }
+
   private async recordFailedLogin(lockKey: string, attempts: number): Promise<void> {
     await this.redisService.set(lockKey, String(attempts + 1), 15 * 60);
   }
@@ -172,6 +232,8 @@ export class AuthService {
         role: true,
         isActive: true,
         emailVerified: true,
+        avatar: true,
+        provider: true,
         seller: {
           select: {
             id: true,
@@ -337,6 +399,12 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'This account signs in with Google and has no password to change.',
+      );
     }
 
     const isPasswordValid = await comparePassword(

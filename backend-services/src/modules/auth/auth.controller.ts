@@ -20,6 +20,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -94,6 +95,20 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access_token, refresh_token, ...safeResult } = await this.authService.login(req.user);
+    this.setAuthCookies(res, access_token, refresh_token);
+    return safeResult;
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  async loginWithGoogle(
+    @Body() googleLoginDto: GoogleLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { access_token, refresh_token, ...safeResult } =
+      await this.authService.loginWithGoogle(googleLoginDto.idToken);
     this.setAuthCookies(res, access_token, refresh_token);
     return safeResult;
   }

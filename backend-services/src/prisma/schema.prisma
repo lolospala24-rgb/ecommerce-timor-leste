@@ -71,25 +71,36 @@ enum ShippingStatus {
   FAILED
 }
 
+// How the user authenticates. GOOGLE accounts have no password — they sign
+// in via Firebase, which already verifies the email, so User.password is
+// nullable and emailVerified is set true at creation for that provider.
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
 // ==================== MODELS ====================
 
 model User {
-  id                      Int       @id @default(autoincrement())
-  email                   String    @unique
-  password                String
+  id                      Int          @id @default(autoincrement())
+  email                   String       @unique
+  password                String?
   name                    String
   phone                   String?
-  role                    Role      @default(CUSTOMER)
-  isActive                Boolean   @default(true)
-  emailVerified           Boolean   @default(false)
+  role                    Role         @default(CUSTOMER)
+  provider                AuthProvider @default(EMAIL)
+  googleId                String?      @unique
+  avatar                  String?
+  isActive                Boolean      @default(true)
+  emailVerified           Boolean      @default(false)
   emailVerificationToken  String?
   emailVerificationExpiry DateTime?
   resetToken              String?
   resetExpiry             DateTime?
   refreshToken            String?
   lastLoginAt             DateTime?
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   // Relations
   seller          Seller?
