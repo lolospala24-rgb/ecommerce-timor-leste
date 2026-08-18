@@ -1,5 +1,11 @@
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+// Firebase Auth's popup sign-in calls the Identity Toolkit/Secure Token REST
+// APIs directly from the browser (blocked by a bare connect-src 'self'), and
+// uses a hidden iframe on the project's authDomain for cross-window session
+// sync (blocked by a bare frame-src 'self') — both silently fail as the
+// generic Firebase "auth/internal-error" without these.
+const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -13,11 +19,13 @@ const contentSecurityPolicy = [
   // video is silently blocked by the browser.
   "media-src 'self' blob: https://res.cloudinary.com http://res.cloudinary.com",
   "font-src 'self' data:",
-  // API calls (REST + websocket) go straight to the backend, plus Mapbox's geocoding/styles/telemetry endpoints.
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com`,
+  // API calls (REST + websocket) go straight to the backend, plus Mapbox's
+  // geocoding/styles/telemetry endpoints and Firebase Auth's REST APIs
+  // (Google sign-in — see firebaseAuthDomain comment above).
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com`,
   // Mapbox GL renders via web workers loaded from blob: URLs.
   "worker-src 'self' blob:",
-  "frame-src 'self'",
+  `frame-src 'self'${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
