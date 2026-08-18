@@ -148,13 +148,13 @@ export class AuthService {
       }
       // Link a Google identity onto an existing email/password account the
       // first time it's used, without touching its password.
-      if (!user.googleId) {
+      if (!(user as any).googleId) {
         user = await this.prisma.user.update({
           where: { id: user.id },
           data: {
             googleId: identity.uid,
             emailVerified: true,
-            avatar: user.avatar ?? identity.picture,
+            avatar: (user as any).avatar ?? identity.picture,
           },
           include: { seller: true },
         });

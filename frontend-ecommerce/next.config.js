@@ -10,7 +10,10 @@ const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const contentSecurityPolicy = [
   "default-src 'self'",
   // Next.js needs 'unsafe-inline'/'unsafe-eval' for its runtime + hydration scripts.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // Firebase Auth's Google popup flow loads Google's gapi loader
+  // (apis.google.com/js/api.js) to manage the cross-window session — without
+  // it the popup silently fails as the generic "auth/internal-error".
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com",
   // Tailwind/Mapbox GL inject inline styles at runtime.
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com https://api.mapbox.com https://*.tiles.mapbox.com",
