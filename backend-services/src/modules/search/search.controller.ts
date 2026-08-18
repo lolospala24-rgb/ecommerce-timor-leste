@@ -11,7 +11,7 @@ import {
   DefaultValuePipe,
 } from '@nestjs/common';
 import { SearchService } from './search.service';
-import { SearchQueryDto, AdvancedSearchDto } from './dto/search-query.dto';
+import { SearchQueryDto, AdvancedSearchDto, AiSearchQueryDto } from './dto/search-query.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -25,6 +25,16 @@ export class SearchController {
   @Get()
   async search(@Query() searchQuery: SearchQueryDto) {
     const result = await this.searchService.search(searchQuery);
+    return result;
+  }
+
+  @Get('ai')
+  async aiSearch(@Query() aiSearchQuery: AiSearchQueryDto) {
+    const result = await this.searchService.aiSearch({
+      query: aiSearchQuery.q,
+      page: aiSearchQuery.page ?? 1,
+      limit: aiSearchQuery.limit ?? 20,
+    });
     return result;
   }
 

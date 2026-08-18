@@ -10,7 +10,7 @@ import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/uiStore';
-import { Input } from '@/components/ui/input';
+import { SearchAiBar } from '@/components/shared/SearchAiBar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +51,6 @@ export function Header() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useOrderNotifications();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const { cartOpen, setCartOpen } = useUIStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [checkoutPreview, setCheckoutPreview] = useState({
@@ -67,15 +66,6 @@ export function Header() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchOpen(false);
-      setSearchQuery('');
-    }
   };
 
   useEffect(() => {
@@ -165,16 +155,7 @@ export function Header() {
             </nav>
 
             <div className="hidden md:block flex-1 max-w-md">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="w-full pl-9 pr-4 h-9 bg-muted/50 border-0 focus-visible:ring-1"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </form>
+              <SearchAiBar className="w-full" />
             </div>
 
             {/* Actions */}
@@ -393,17 +374,12 @@ export function Header() {
       {/* Mobile Search Dialog */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-background md:hidden">
-          <div className="flex items-center border-b p-4">
-            <form onSubmit={handleSearch} className="flex-1">
-              <Input
-                type="search"
-                placeholder="Search products..."
-                className="w-full"
-                autoFocus
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </form>
+          <div className="flex items-center gap-2 border-b p-4">
+            <SearchAiBar
+              className="flex-1"
+              autoFocus
+              onNavigate={() => setSearchOpen(false)}
+            />
             <Button variant="ghost" size="icon" onClick={() => setSearchOpen(false)}>
               <X className="h-5 w-5" />
             </Button>

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { SearchQueryDto, AdvancedSearchDto } from './dto/search-query.dto';
+import { AiSearchService } from './ai-search.service';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { OrderStatus } from '@prisma/client';
 
@@ -14,7 +15,37 @@ export class SearchService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private aiSearchService: AiSearchService,
   ) {}
+
+  isAiSearchEnabled(): boolean {
+    return this.aiSearchService.isEnabled();
+  }
+
+  async aiSearch(params: { query: string; page: number; limit: number }) {
+    const { query, page, limit } = params;
+
+    const filters = await this.aiSearchService.parseQuery(query);
+
+    const results = await this.searchProducts({
+      query: filters.keywords,
+      page,
+      limit,
+      sortBy: 'relevance',
+      sortOrder: 'desc',
+      minPrice: filters.minPrice ?? undefined,
+      maxPrice: filters.maxPrice ?? undefined,
+      categoryId: filters.categoryId ?? undefined,
+    });
+
+    await this.trackSearch(query);
+
+    return {
+      query,
+      filters,
+      ...results,
+    };
+  }
 
   async search(searchQuery: SearchQueryDto) {
     const { q, type, page = 1, limit = 20 } = searchQuery;

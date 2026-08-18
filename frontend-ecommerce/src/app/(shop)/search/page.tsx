@@ -16,7 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, Package, Store, FolderTree, X, Filter } from 'lucide-react';
+import { Search, Package, Store, FolderTree, X, Filter, Sparkles } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -57,6 +57,11 @@ function SearchPageContent() {
   const query = searchParams.get('q') || '';
   const category = searchParams.get('category') || '';
   const seller = searchParams.get('seller') || '';
+  const minPrice = searchParams.get('minPrice') || '';
+  const maxPrice = searchParams.get('maxPrice') || '';
+  // Set only when this search came from the AI search bar — used to show
+  // "AI understood: ..." context instead of pretending it was a plain query.
+  const aiQuery = searchParams.get('aiQuery') || '';
 
   const [searchQuery, setSearchQuery] = useState(query);
   const [filters, setFilters] = useState({
@@ -65,6 +70,8 @@ function SearchPageContent() {
     search: query,
     categoryId: category ? parseInt(category) : undefined,
     sellerId: seller ? parseInt(seller) : undefined,
+    minPrice: minPrice ? parseFloat(minPrice) : undefined,
+    maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
     sortBy: 'relevance' as string,
   });
   const [activeTab, setActiveTab] = useState('products');
@@ -79,13 +86,17 @@ function SearchPageContent() {
     const q = searchParams.get('q') || '';
     const categoryId = searchParams.get('category');
     const sellerId = searchParams.get('seller');
-    
+    const min = searchParams.get('minPrice');
+    const max = searchParams.get('maxPrice');
+
     setSearchQuery(q);
     setFilters(prev => ({
       ...prev,
       search: q,
       categoryId: categoryId ? parseInt(categoryId) : undefined,
       sellerId: sellerId ? parseInt(sellerId) : undefined,
+      minPrice: min ? parseFloat(min) : undefined,
+      maxPrice: max ? parseFloat(max) : undefined,
       page: 1,
     }));
   }, [searchParams]);
@@ -127,14 +138,18 @@ function SearchPageContent() {
       search: searchQuery,
       categoryId: undefined,
       sellerId: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
       sortBy: 'relevance',
     });
     router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
-  const hasActiveFilters = 
+  const hasActiveFilters =
     filters.categoryId !== undefined ||
-    filters.sellerId !== undefined;
+    filters.sellerId !== undefined ||
+    filters.minPrice !== undefined ||
+    filters.maxPrice !== undefined;
 
   // Render search results
   const renderProducts = () => {
@@ -366,6 +381,25 @@ function SearchPageContent() {
               </span>
             )}
           </p>
+        )}
+        {aiQuery && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <span>AI understood "{aiQuery}" as:</span>
+            <Badge variant="secondary" className="font-normal">{query || 'any product'}</Badge>
+            {filters.categoryId && (
+              <Badge variant="secondary" className="font-normal">
+                {categoriesData?.data?.find((c: any) => c.id === filters.categoryId)?.name || 'category'}
+              </Badge>
+            )}
+            {(filters.minPrice !== undefined || filters.maxPrice !== undefined) && (
+              <Badge variant="secondary" className="font-normal">
+                {filters.minPrice !== undefined ? `$${filters.minPrice}` : '$0'}
+                {' - '}
+                {filters.maxPrice !== undefined ? `$${filters.maxPrice}` : 'any'}
+              </Badge>
+            )}
+          </div>
         )}
       </div>
 
