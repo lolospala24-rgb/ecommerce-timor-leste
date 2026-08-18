@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { isFirebaseConfigured, signInWithGoogle } from '@/lib/firebase';
 import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/lib/utils';
 
 interface GoogleSignInButtonProps {
   onError?: (message: string) => void;
@@ -13,28 +14,28 @@ interface GoogleSignInButtonProps {
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+    <svg viewBox="0 0 48 48" className="h-[18px] w-[18px]" aria-hidden="true">
       <path
         fill="#4285F4"
-        d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z"
+        d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17Z"
       />
       <path
         fill="#34A853"
-        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.88-3c-1.08.72-2.46 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.26v3.1A12 12 0 0 0 12 24Z"
+        d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7A22 22 0 0 0 24 46Z"
       />
       <path
         fill="#FBBC05"
-        d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.26A12 12 0 0 0 0 12c0 1.94.46 3.77 1.26 5.38l4.01-3.1Z"
+        d="M11.69 28.18A13.2 13.2 0 0 1 11 24c0-1.45.25-2.86.69-4.18v-5.7H4.34A22 22 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7Z"
       />
       <path
         fill="#EA4335"
-        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.26 6.62l4.01 3.1c.95-2.85 3.6-4.97 6.73-4.97Z"
+        d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2A22 22 0 0 0 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07Z"
       />
     </svg>
   );
 }
 
-export function GoogleSignInButton({ onError, label = 'Continue with Google' }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({ onError, label = 'Login with Google' }: GoogleSignInButtonProps) {
   const { loginWithGoogle } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,16 +65,21 @@ export function GoogleSignInButton({ onError, label = 'Continue with Google' }: 
     <Button
       type="button"
       variant="outline"
-      className="w-full"
+      size="lg"
+      className={cn(
+        'group relative w-full justify-center gap-2.5 rounded-xl border-slate-200 bg-white text-[15px] font-semibold text-slate-800 shadow-sm',
+        'transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md active:scale-[0.99]',
+        'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800',
+      )}
       disabled={isSubmitting}
       onClick={handleClick}
     >
       {isSubmitting ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className="h-[18px] w-[18px] animate-spin text-muted-foreground" />
       ) : (
-        <span className="mr-2 inline-flex"><GoogleIcon /></span>
+        <GoogleIcon />
       )}
-      {label}
+      <span>{isSubmitting ? 'Signing in…' : label}</span>
     </Button>
   );
 }
