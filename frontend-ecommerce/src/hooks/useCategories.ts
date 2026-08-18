@@ -81,11 +81,16 @@ function buildCategoryProductsParams(filters: CategoryListingFilters): URLSearch
   if (filters.minRating !== undefined) params.set('minRating', String(filters.minRating));
   if (filters.brand?.length) params.set('brand', filters.brand.join(','));
   if (Object.keys(filters.attributes).length > 0) {
-    const attrObj: Record<string, string | string[]> = {};
+    // Always send arrays — a bare string gets comma-split server-side to
+    // support hand-written API calls, which would mangle a spec value that
+    // legitimately contains a comma (e.g. "Sizes Available": "P, M, G, GG").
+    const attrObj: Record<string, string[]> = {};
     Object.entries(filters.attributes).forEach(([key, values]) => {
-      attrObj[key] = values.length === 1 ? values[0] : values;
+      if (values.length > 0) attrObj[key] = values;
     });
-    params.set('attributes', JSON.stringify(attrObj));
+    if (Object.keys(attrObj).length > 0) {
+      params.set('attributes', JSON.stringify(attrObj));
+    }
   }
   return params;
 }

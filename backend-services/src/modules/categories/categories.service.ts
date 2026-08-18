@@ -841,7 +841,7 @@ export class CategoriesService {
     const attributeFilters = this.parseAttributeFilters(attributes);
     if (attributeFilters.length > 0) {
       where.AND = attributeFilters.map((filter) => ({
-        attributes: {
+        productAttributes: {
           some: {
             key: filter.key,
             value: { in: filter.values },
@@ -1066,14 +1066,13 @@ export class CategoriesService {
       const parsed = JSON.parse(attributes);
       if (!parsed || typeof parsed !== 'object') return [];
 
+      // A single value is kept as one atomic string, not comma-split — real
+      // spec values (e.g. "Sizes Available": "P, M, G, GG") can legitimately
+      // contain commas, and splitting them here breaks the equality match
+      // against the stored ProductAttribute.value.
       return Object.entries(parsed).map(([key, value]) => ({
         key,
-        values: Array.isArray(value)
-          ? value.map(String)
-          : String(value)
-              .split(',')
-              .map((v) => v.trim())
-              .filter(Boolean),
+        values: Array.isArray(value) ? value.map(String) : [String(value)],
       }));
     } catch {
       return [];
