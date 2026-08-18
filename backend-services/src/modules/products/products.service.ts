@@ -133,6 +133,8 @@ export class ProductsService {
       },
     });
 
+    await this.syncProductAttributes(product.id, product.specifications);
+
     // Clear cache
     await this.clearProductCache();
 
@@ -618,10 +620,45 @@ export class ProductsService {
       },
     });
 
+    await this.syncProductAttributes(id, updatedProduct.specifications);
+
     // Clear cache
     await this.clearProductCache(id);
 
     return updatedProduct;
+  }
+
+  /**
+   * Mirrors Product.specifications (the JSON key-value pairs admins edit in
+   * ProductSpecifications) into the ProductAttribute EAV table, which is
+   * what the category dynamic-filter facet builder (CategoriesService.
+   * buildFilterFacets) actually reads. Without this, spec-based filters
+   * (e.g. "Material", "RAM") never appear on category pages even though
+   * the data exists.
+   */
+  private async syncProductAttributes(
+    productId: number,
+    specifications: unknown,
+  ) {
+    const entries = Object.entries(
+      (specifications as Record<string, unknown>) ?? {},
+    )
+      .map(([key, value]) => ({
+        key: key.trim(),
+        value: String(value ?? '').trim(),
+      }))
+      .filter((entry) => entry.key && entry.value);
+
+    await this.prisma.$transaction([
+      this.prisma.productAttribute.deleteMany({ where: { productId } }),
+      ...(entries.length > 0
+        ? [
+            this.prisma.productAttribute.createMany({
+              data: entries.map((entry) => ({ productId, ...entry })),
+            }),
+          ]
+        : []),
+    ]);
   }
 
   async remove(id: number, userId: number) {
