@@ -224,7 +224,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
           <div className="grid gap-4 sm:grid-cols-2">
             <BannerImageField
               label="Desktop Image (required)"
-              hint="Recommended 800×600. Shown in the 2×2 desktop grid."
+              hint="Recommended 800×600. The first 3 active banners (by position) form the desktop hero: 1 large + 2 stacked."
               imageUrl={form.desktopImage}
               isUploading={uploadingField === 'desktop'}
               onUpload={(file) => handleUpload('desktop', file)}

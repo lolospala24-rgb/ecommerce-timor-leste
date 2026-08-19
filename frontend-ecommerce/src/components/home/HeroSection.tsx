@@ -11,16 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/formatters';
 
 const AUTOPLAY_INTERVAL_MS = 5000;
-
-// 4 banners → strict 2x2. Fewer banners get a hand-tuned span so the grid
-// never leaves an empty/broken cell — this only matters until an admin has
-// filled out all 4 slides.
-function gridCellClass(index: number, total: number): string {
-  if (total === 1) return 'col-span-2 row-span-2';
-  if (total === 2) return 'col-span-1 row-span-2';
-  if (total === 3) return index === 0 ? 'col-span-1 row-span-2' : 'col-span-1 row-span-1';
-  return 'col-span-1 row-span-1';
-}
+const DESKTOP_HERO_HEIGHT = 'h-[280px] xl:h-[320px]';
 
 function BannerContent({ banner, compact = false }: { banner: HeroBanner; compact?: boolean }) {
   const hasDiscount = banner.comparePrice != null && banner.price != null && banner.comparePrice > banner.price;
@@ -83,7 +74,7 @@ function BannerCard({ banner, imageKey, className = '', compact = false, priorit
   return (
     <Link
       href={href}
-      className={`group relative block h-full w-full overflow-hidden bg-muted ${className}`}
+      className={`group relative block h-full w-full overflow-hidden rounded-2xl bg-muted ${className}`}
     >
       <Image
         src={image}
@@ -98,22 +89,50 @@ function BannerCard({ banner, imageKey, className = '', compact = false, priorit
   );
 }
 
+// Matches the real Shopee homepage hero: one large banner on the left plus
+// up to two smaller banners stacked on the right, each its own rounded
+// card with a visible gap between them (not a seamless borderless merge).
+// Caps at 3 banners because that's the composition this layout is built
+// for — additional configured banners don't have a slot here.
 function DesktopHeroGrid({ banners }: { banners: HeroBanner[] }) {
-  const shown = banners.slice(0, 4);
+  const shown = banners.slice(0, 3);
+  if (shown.length === 0) return null;
 
+  if (shown.length === 1) {
+    return (
+      <div className="hidden lg:block">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+          <BannerCard banner={shown[0]} imageKey="desktopImage" className={`w-full ${DESKTOP_HERO_HEIGHT}`} priority />
+        </div>
+      </div>
+    );
+  }
+
+  if (shown.length === 2) {
+    return (
+      <div className="hidden lg:block">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+          <div className={`grid grid-cols-2 gap-3 ${DESKTOP_HERO_HEIGHT}`}>
+            {shown.map((banner, index) => (
+              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" priority={index === 0} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const [main, ...secondary] = shown;
   return (
     <div className="hidden lg:block">
       <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid h-[420px] grid-cols-2 grid-rows-2 gap-0 overflow-hidden rounded-2xl">
-          {shown.map((banner, index) => (
-            <BannerCard
-              key={banner.id}
-              banner={banner}
-              imageKey="desktopImage"
-              className={gridCellClass(index, shown.length)}
-              priority={index === 0}
-            />
-          ))}
+        <div className={`grid gap-3 ${DESKTOP_HERO_HEIGHT}`} style={{ gridTemplateColumns: '2fr 1fr' }}>
+          <BannerCard banner={main} imageKey="desktopImage" className="h-full w-full" priority />
+          <div className="grid gap-3" style={{ gridTemplateRows: `repeat(${secondary.length}, 1fr)` }}>
+            {secondary.map((banner) => (
+              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -189,7 +208,7 @@ function HeroSkeleton() {
     <>
       <div className="hidden lg:block">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
-          <Skeleton className="h-[420px] w-full rounded-2xl" />
+          <Skeleton className={`w-full rounded-2xl ${DESKTOP_HERO_HEIGHT}`} />
         </div>
       </div>
       <div className="lg:hidden px-4 sm:px-6 py-4">
