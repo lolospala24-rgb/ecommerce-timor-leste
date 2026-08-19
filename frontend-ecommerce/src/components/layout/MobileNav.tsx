@@ -18,6 +18,7 @@ import {
   X,
   HelpCircle,
   Smartphone,
+  Play,
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -28,6 +29,7 @@ interface MobileNavProps {
 const mainMenuItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/products', label: 'Products', icon: Package },
+  { href: '/videos', label: 'Video Shop', icon: Play },
   { href: '/categories', label: 'Categories', icon: FolderTree },
   { href: '/sellers', label: 'Sellers', icon: Store },
   { href: '/cart', label: 'Cart', icon: ShoppingCart },

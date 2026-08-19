@@ -172,8 +172,10 @@ export function Header() {
 
               {/* Theme Toggle removed from here - moved to TopHeader */}
 
-              {/* Wishlist */}
-              <Link href="/account/wishlist">
+              {/* Wishlist — hidden on mobile, already reachable via the
+                  hamburger menu (MobileNav); keeping it here too just
+                  crowded the narrow action row alongside search/cart/user. */}
+              <Link href="/account/wishlist" className="hidden md:block">
                 <Button variant="ghost" size="icon" className="h-9 w-9">
                   <Heart className="h-4 w-4" />
                 </Button>
@@ -192,7 +194,7 @@ export function Header() {
                       )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80 p-0">
+                  <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] p-0">
                     <div className="flex items-center justify-between border-b px-4 py-3">
                       <div>
                         <p className="text-sm font-semibold">Notifications</p>

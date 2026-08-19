@@ -76,22 +76,26 @@ export function TopHeader() {
           </div>
 
           {/* Right side - Menu items */}
-          <div className="flex items-center gap-4">
-            {topMenuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </Link>
-              );
-            })}
-
-            <span className="text-muted-foreground/30">|</span>
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* These four links are also in the mobile hamburger menu
+                (MobileNav) — showing them here too just crowded this thin
+                bar on narrow phones, so they're desktop-only here. */}
+            <div className="hidden md:flex items-center gap-4">
+              {topMenuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{item.label}</span>
+                  </Link>
+                );
+              })}
+              <span className="text-muted-foreground/30">|</span>
+            </div>
 
             {/* Theme Toggle in Top Bar */}
             <button
