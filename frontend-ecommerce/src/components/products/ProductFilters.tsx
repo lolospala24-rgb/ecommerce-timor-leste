@@ -60,7 +60,12 @@ export interface ProductFiltersType {
   isNew?: boolean;
 }
 
-interface Category {
+// Deliberately narrower than the canonical Category in types/category.types
+// — this is just the shape a filter dropdown needs (facet count, not the
+// full entity with children/filterConfig/etc). Named distinctly so it
+// doesn't shadow the domain type by having the same name with a different
+// shape.
+interface CategoryFilterOption {
   id: number;
   name: string;
   nameTetum?: string;
@@ -79,7 +84,7 @@ interface Brand {
 interface ProductFiltersProps {
   filters: ProductFiltersType;
   onFilterChange: (filters: Partial<ProductFiltersType>) => void;
-  categories?: Category[];
+  categories?: CategoryFilterOption[];
   brands?: Brand[];
   className?: string;
   showSearch?: boolean;

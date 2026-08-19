@@ -5,8 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSellers } from '@/hooks/useSellers';
 import { SearchInput } from '@/components/shared/SearchInput';
+import { Pagination } from '@/components/shared/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Store, Star, Package, ShoppingBag, MapPin, ChevronRight } from 'lucide-react';
 
@@ -128,34 +128,15 @@ export default function SellersPage() {
 
       {/* Pagination */}
       {data?.pagination && data.pagination.totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-6">
-          <Button
-            variant="outline"
-            onClick={() => setFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-            disabled={filters.page === 1}
-          >
-            Previous
-          </Button>
-          <div className="flex items-center gap-1">
-            {[...Array(data.pagination.totalPages)].map((_, i) => (
-              <Button
-                key={i}
-                variant={filters.page === i + 1 ? 'default' : 'outline'}
-                className="h-9 w-9"
-                onClick={() => setFilters(prev => ({ ...prev, page: i + 1 }))}
-              >
-                {i + 1}
-              </Button>
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-            disabled={filters.page === data.pagination.totalPages}
-          >
-            Next
-          </Button>
-        </div>
+        <Pagination
+          currentPage={filters.page}
+          totalPages={data.pagination.totalPages}
+          totalItems={data.pagination.total}
+          pageSize={data.pagination.limit}
+          onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
+          showTotal={false}
+          className="mt-6"
+        />
       )}
     </div>
   );

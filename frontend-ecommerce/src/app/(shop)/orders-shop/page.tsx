@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/shared/Pagination';
 import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Eye } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
@@ -175,34 +176,15 @@ export default function OrdersPage() {
 
           {/* Pagination */}
           {data?.pagination && data.pagination.totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </Button>
-              <div className="flex items-center gap-1">
-                {[...Array(data.pagination.totalPages)].map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={page === i + 1 ? 'default' : 'outline'}
-                    className="h-9 w-9"
-                    onClick={() => setPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))}
-                disabled={page === data.pagination.totalPages}
-              >
-                Next
-              </Button>
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={data.pagination.totalPages}
+              totalItems={data.pagination.total}
+              pageSize={data.pagination.limit}
+              onPageChange={setPage}
+              showTotal={false}
+              className="mt-6"
+            />
           )}
         </TabsContent>
       </Tabs>

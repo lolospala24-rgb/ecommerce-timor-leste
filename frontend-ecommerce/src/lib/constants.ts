@@ -120,10 +120,10 @@ export const UPLOAD_LIMITS = {
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
 } as const;
 
-// Local storage keys
+// Local storage keys. Auth tokens are httpOnly cookies set by the backend
+// (never readable from JS), so there's intentionally no ACCESS_TOKEN/
+// REFRESH_TOKEN entry here.
 export const STORAGE_KEYS = {
-  ACCESS_TOKEN: 'access_token',
-  REFRESH_TOKEN: 'refresh_token',
   USER: 'user',
   THEME: 'theme',
   CART: 'cart',

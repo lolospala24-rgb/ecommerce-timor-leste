@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/shared/Pagination';
 import { Package, Truck, CheckCircle, Clock, XCircle, Eye } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -143,36 +144,15 @@ export default function AccountOrdersPage() {
           )}
 
           {data?.pagination && data.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6 overflow-x-auto pb-1">
-              <Button
-                variant="outline"
-                className="shrink-0"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                Previous
-              </Button>
-              <div className="flex items-center gap-1 shrink-0">
-                {[...Array(data.pagination.totalPages)].map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={page === i + 1 ? 'default' : 'outline'}
-                    className="h-9 w-9 shrink-0"
-                    onClick={() => setPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                className="shrink-0"
-                onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))}
-                disabled={page === data.pagination.totalPages}
-              >
-                Next
-              </Button>
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={data.pagination.totalPages}
+              totalItems={data.pagination.total}
+              pageSize={data.pagination.limit}
+              onPageChange={setPage}
+              showTotal={false}
+              className="mt-6"
+            />
           )}
         </TabsContent>
       </Tabs>

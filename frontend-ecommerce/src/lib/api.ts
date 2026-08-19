@@ -74,7 +74,10 @@ api.interceptors.response.use(
         status: status ?? 'NO_RESPONSE',
         code: error.code,
         message,
-        responseData: data,
+        // Full response body (may include field-level validation detail)
+        // is only useful for local debugging — don't ship it to every
+        // visitor's production console.
+        ...(process.env.NODE_ENV !== 'production' ? { responseData: data } : {}),
       });
     }
 

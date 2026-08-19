@@ -95,7 +95,7 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={user?.avatar} alt={user?.name} />
+                <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
                 <AvatarFallback className="bg-primary/10 text-primary text-lg">
                   {user?.name ? getInitials(user.name) : 'U'}
                 </AvatarFallback>
