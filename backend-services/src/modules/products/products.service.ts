@@ -18,6 +18,7 @@ import { UpdateVariantDto } from './dto/update-variant.dto';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
 
 @Injectable()
 export class ProductsService {
@@ -57,17 +58,23 @@ export class ProductsService {
       }
     }
 
-    // Generate slug
-    let slug = createProductDto.slug;
-    if (!slug) {
-      slug = this.generateSlug(createProductDto.name);
-    } else {
-      const slugExists = await this.prisma.product.findFirst({
-        where: { slug },
-      });
-      if (slugExists) {
+    // Generate slug. An explicit slug from the admin form must be exactly
+    // what they typed (just sanitized) or rejected if taken — silently
+    // rewriting a deliberate choice would be confusing. An auto-generated
+    // one (from the name) has no such expectation, so collisions resolve
+    // automatically with a -2, -3, ... suffix instead of failing the
+    // whole product creation.
+    const isSlugTaken = async (candidate: string) =>
+      !!(await this.prisma.product.findFirst({ where: { slug: candidate } }));
+
+    let slug: string;
+    if (createProductDto.slug) {
+      slug = generateSlugBase(createProductDto.slug);
+      if (await isSlugTaken(slug)) {
         throw new ConflictException('Slug already exists');
       }
+    } else {
+      slug = await generateUniqueSlug(generateSlugBase(createProductDto.name), isSlugTaken);
     }
 
     // Upload images to Cloudinary and/or use pre-uploaded URLs
@@ -547,11 +554,15 @@ export class ProductsService {
     // Check ownership
     await this.assertCanManageProduct(product, userId, 'You do not have permission to update this product');
 
-    // Check slug uniqueness if being updated
+    // Slug is only ever touched here if the admin explicitly changed it —
+    // a name edit alone must never regenerate the slug, or every existing
+    // /products/[slug] link and bookmark to this product would break.
+    let nextSlug: string | undefined;
     if (updateProductDto.slug && updateProductDto.slug !== product.slug) {
+      nextSlug = generateSlugBase(updateProductDto.slug);
       const slugExists = await this.prisma.product.findFirst({
         where: {
-          slug: updateProductDto.slug,
+          slug: nextSlug,
           NOT: { id },
         },
       });
@@ -598,7 +609,7 @@ export class ProductsService {
         typeId: updateProductDto.typeId,
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
-        slug: updateProductDto.slug,
+        slug: nextSlug,
         ...(Array.isArray(updateProductDto.images) && {
           images: updateProductDto.images,
           thumbnail: updateProductDto.images[0] || null,
@@ -877,8 +888,10 @@ export class ProductsService {
       throw new ForbiddenException('You can only clone your own products');
     }
 
-    // Generate new slug
-    const newSlug = this.generateSlug(`${originalProduct.name}-copy`);
+    const newSlug = await generateUniqueSlug(
+      generateSlugBase(`${originalProduct.name}-copy`),
+      async (candidate) => !!(await this.prisma.product.findFirst({ where: { slug: candidate } })),
+    );
 
     const clonedProduct = await this.prisma.product.create({
       data: {
@@ -1845,7 +1858,7 @@ export class ProductsService {
   }
 
   async createProductType(createProductTypeDto: CreateProductTypeDto) {
-    const slug = createProductTypeDto.slug || this.generateSlug(createProductTypeDto.name);
+    const slug = createProductTypeDto.slug || generateSlugBase(createProductTypeDto.name);
     const existingType = await this.prisma.productType.findFirst({
       where: {
         OR: [
@@ -2077,14 +2090,6 @@ export class ProductsService {
     if (images.length > maxProductImages) {
       throw new BadRequestException(`A variant can have at most ${maxProductImages} images`);
     }
-  }
-
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, '')
-      .replace(/\s+/g, '-')
-      .substring(0, 50);
   }
 
   private async clearProductCache(productId?: number) {

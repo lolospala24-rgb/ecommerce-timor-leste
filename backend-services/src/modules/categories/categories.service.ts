@@ -10,6 +10,7 @@ import { RedisService } from '../../redis/redis.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
 import { CategoryProductsQueryDto } from './dto/category-products-query.dto';
 import { Prisma } from '@prisma/client';
 import {
@@ -37,17 +38,20 @@ export class CategoriesService {
       throw new ConflictException('Category with this name already exists');
     }
 
-    // Check if slug is unique or generate one
-    let slug = createCategoryDto.slug;
-    if (!slug) {
-      slug = this.generateSlug(createCategoryDto.name);
-    } else {
-      const slugExists = await this.prisma.category.findFirst({
-        where: { slug },
-      });
-      if (slugExists) {
+    // An explicit slug is sanitized then rejected if taken; an
+    // auto-generated one (from the name) resolves collisions itself with
+    // a -2, -3, ... suffix instead of failing category creation.
+    const isSlugTaken = async (candidate: string) =>
+      !!(await this.prisma.category.findFirst({ where: { slug: candidate } }));
+
+    let slug: string;
+    if (createCategoryDto.slug) {
+      slug = generateSlugBase(createCategoryDto.slug);
+      if (await isSlugTaken(slug)) {
         throw new ConflictException('Slug already exists');
       }
+    } else {
+      slug = await generateUniqueSlug(generateSlugBase(createCategoryDto.name), isSlugTaken);
     }
 
     // Check if parent category exists
@@ -327,11 +331,14 @@ export class CategoriesService {
       }
     }
 
-    // Check slug uniqueness if being updated
+    // Slug only changes if explicitly requested — a name edit alone must
+    // never regenerate it, or existing /categories/[slug] links break.
+    let nextSlug: string | undefined;
     if (updateCategoryDto.slug && updateCategoryDto.slug !== category.slug) {
+      nextSlug = generateSlugBase(updateCategoryDto.slug);
       const slugExists = await this.prisma.category.findFirst({
         where: {
-          slug: updateCategoryDto.slug,
+          slug: nextSlug,
           NOT: { id },
         },
       });
@@ -372,7 +379,7 @@ export class CategoriesService {
         isActive: updateCategoryDto.isActive,
         isFeatured: updateCategoryDto.isFeatured,
         order: updateCategoryDto.order,
-        slug: updateCategoryDto.slug,
+        slug: nextSlug,
       },
     });
 
@@ -1132,14 +1139,6 @@ export class CategoriesService {
       currentId = category.parentId;
     }
     return false;
-  }
-
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, '')
-      .replace(/\s+/g, '-')
-      .substring(0, 50);
   }
 
   private async clearCategoryCache(categoryId?: number) {
