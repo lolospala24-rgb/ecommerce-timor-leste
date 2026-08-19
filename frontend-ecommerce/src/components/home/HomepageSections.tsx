@@ -44,7 +44,7 @@ function SectionSkeleton() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-96 rounded-xl" />
           ))}
@@ -82,7 +82,7 @@ function ProductSection({ section }: { section: HomepageSection }) {
           </Button>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
           {section.products.map((product) => (
             <ProductCard key={product.id} product={product} isLocal={section.rule === 'LOCAL'} />
           ))}

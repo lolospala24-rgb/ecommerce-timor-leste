@@ -56,7 +56,7 @@ export default function WishlistPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-72 rounded-lg" />
           ))}
@@ -91,7 +91,7 @@ export default function WishlistPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {items.map((product: any) => (
           <Card key={product.id} className="overflow-hidden group">
             <div className="relative aspect-square overflow-hidden bg-slate-100">
