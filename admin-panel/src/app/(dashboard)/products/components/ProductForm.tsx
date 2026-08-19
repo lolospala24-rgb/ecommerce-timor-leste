@@ -24,9 +24,10 @@ import { useSellers } from '@/hooks/useSellers';
 import { useProductTypes } from '@/hooks/useProductTypes';
 import { useAuthStore } from '@/stores/authStore';
 import { fieldsToNameList } from '@/lib/productType';
+import { previewSlug } from '@/lib/slug';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Loader2, AlertCircle, Plus, X, ListChecks, Layers, TrendingUp } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, X, ListChecks, Layers, TrendingUp, Wand2 } from 'lucide-react';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -59,13 +60,6 @@ interface ProductFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
-
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
 
 const specsToRows = (specifications?: Record<string, unknown> | null): SpecRow[] => {
   const entries = Object.entries(specifications ?? {}).map(([key, value]) => ({
@@ -190,7 +184,8 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
   // Live helpers
   const nameValue = watch('name');
   const slugValue = watch('slug');
-  const slugPreview = slugValue?.trim() ? slugify(slugValue) : slugify(nameValue || '');
+  const slugPreview = slugValue?.trim() ? previewSlug(slugValue) : previewSlug(nameValue || '');
+  const slugChangedFromSaved = !!(initialData?.slug && slugValue?.trim() && slugPreview !== initialData.slug);
   const descriptionValue = watch('description') || '';
   const descriptionTetumValue = watch('descriptionTetum') || '';
   const priceValue = watch('price');
@@ -615,10 +610,28 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Slug (URL)</Label>
-                <Input {...register('slug')} placeholder="auto-generated if empty" />
+                <div className="flex gap-2">
+                  <Input {...register('slug')} placeholder="auto-generated if empty" className="flex-1" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Generate from name"
+                    disabled={!nameValue?.trim()}
+                    onClick={() => setValue('slug', previewSlug(nameValue || ''), { shouldDirty: true })}
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                </div>
                 {slugPreview && (
                   <p className="text-xs text-muted-foreground mt-1 truncate">
-                    Preview: /products/<span className="font-mono">{slugPreview}</span>
+                    {slugValue?.trim() ? 'URL: ' : 'Auto-generated URL: '}/products/
+                    <span className="font-mono">{slugPreview}</span>
+                  </p>
+                )}
+                {slugChangedFromSaved && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Changing the slug will break any existing links to this product's page.
                   </p>
                 )}
               </div>

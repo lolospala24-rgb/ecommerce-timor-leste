@@ -17,9 +17,10 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ImageUpload } from '@/components/shared/ImageUpload';
+import { previewSlug } from '@/lib/slug';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -76,6 +77,10 @@ export function CategoryForm({
   });
 
   const parentId = watch('parentId');
+  const nameValue = watch('name');
+  const slugValue = watch('slug');
+  const slugPreview = slugValue?.trim() ? previewSlug(slugValue) : previewSlug(nameValue || '');
+  const slugChangedFromSaved = !!(initialData?.slug && slugValue?.trim() && slugPreview !== initialData.slug);
 
   useEffect(() => {
     reset(getInitialValues(initialData));
@@ -138,10 +143,30 @@ export function CategoryForm({
 
           <div>
             <Label>Slug (URL)</Label>
-            <Input {...register('slug')} placeholder="auto-generated if empty" />
-            <p className="text-xs text-muted-foreground mt-1">
-              Leave empty to auto-generate from name
-            </p>
+            <div className="flex gap-2">
+              <Input {...register('slug')} placeholder="auto-generated if empty" className="flex-1" />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="Generate from name"
+                disabled={!nameValue?.trim()}
+                onClick={() => setValue('slug', previewSlug(nameValue || ''), { shouldDirty: true })}
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
+            {slugPreview && (
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {slugValue?.trim() ? 'URL: ' : 'Auto-generated URL: '}/categories/
+                <span className="font-mono">{slugPreview}</span>
+              </p>
+            )}
+            {slugChangedFromSaved && (
+              <p className="text-xs text-amber-600 mt-1">
+                Changing the slug will break any existing links to this category's page.
+              </p>
+            )}
           </div>
 
           <div>
