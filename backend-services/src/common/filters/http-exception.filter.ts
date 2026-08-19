@@ -30,10 +30,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object') {
         message = (exceptionResponse as any).message || exception.message;
-        // Handle validation errors (array of messages)
+        // Handle validation errors (array of messages). Callers across the
+        // app only read `message` (not `errors`), so join the per-field
+        // messages into it instead of collapsing them to a generic string —
+        // otherwise users just see "Validation failed" with no indication
+        // of which field is wrong.
         if (Array.isArray((exceptionResponse as any).message)) {
           errors = (exceptionResponse as any).message;
-          message = 'Validation failed';
+          message = errors!.join('; ');
         }
       } else {
         message = exception.message;
