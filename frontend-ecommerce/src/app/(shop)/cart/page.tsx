@@ -13,11 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getCartItemKey } from '@/lib/cart';
+import { useShippingSettings } from '@/hooks/useShippingSettings';
 
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { items, isLoading, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
+  const { data: shippingSettings } = useShippingSettings();
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch cart when component mounts
@@ -82,6 +84,12 @@ export default function CartPage() {
   // Safe values with defaults
   const safeItems = Array.isArray(items) ? items : [];
   const safeSubtotal = safeItems.reduce((sum, item) => sum + (item?.price || 0) * (item?.quantity || 0), 0);
+
+  const freeShippingEnabled = !!shippingSettings?.enableFreeShipping;
+  const freeShippingThreshold = shippingSettings?.freeShippingThreshold ?? 0;
+  const qualifiesForFreeShipping =
+    freeShippingEnabled && freeShippingThreshold > 0 && safeSubtotal >= freeShippingThreshold;
+  const amountToFreeShipping = freeShippingThreshold - safeSubtotal;
 
   if (isLoading) {
     return (
@@ -159,6 +167,24 @@ export default function CartPage() {
                 </p>
               </div>
 
+              {/* Free shipping progress — only shown when the promotion is
+                  actually enabled, using the real admin-configured
+                  threshold rather than a guessed number. */}
+              {freeShippingEnabled && freeShippingThreshold > 0 && !qualifiesForFreeShipping && safeSubtotal > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Add ${amountToFreeShipping.toFixed(2)} more for free shipping</span>
+                    <span>{Math.round((safeSubtotal / freeShippingThreshold) * 100)}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min((safeSubtotal / freeShippingThreshold) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button
                 className="w-full"
                 size="lg"
@@ -175,10 +201,16 @@ export default function CartPage() {
                   <Shield className="h-4 w-4" />
                   <span>Secure Checkout</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Truck className="h-4 w-4" />
-                  <span>Free shipping on orders over $50</span>
-                </div>
+                {freeShippingEnabled && freeShippingThreshold > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Truck className="h-4 w-4" />
+                    <span>
+                      {qualifiesForFreeShipping
+                        ? 'You qualify for free shipping'
+                        : `Free shipping on orders over $${freeShippingThreshold.toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CreditCard className="h-4 w-4" />
                   <span>Multiple payment methods</span>
