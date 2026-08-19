@@ -95,10 +95,10 @@ export default function AccountOrdersPage() {
                 const StatusIcon = status.icon;
                 const actionNeeded = getActionNeeded(order);
                 return (
-                  <Card key={order.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
+                  <Card key={order.id} className="rounded-xl hover:shadow-md transition-shadow">
+                    <CardContent className="p-4 sm:p-6">
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <Link href={`/account/orders/${order.id}`} className="hover:text-primary">
                               <h3 className="font-semibold">Order #{order.orderNumber}</h3>
@@ -116,11 +116,11 @@ export default function AccountOrdersPage() {
                           <p className="text-sm text-muted-foreground">
                             {new Date(order.createdAt).toLocaleDateString()}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground truncate">
                             {order.items?.length || 0} items • {order.seller?.storeName || 'Unknown Seller'}
                           </p>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
                           <div className="text-right">
                             <p className="font-bold">${order.total.toFixed(2)}</p>
                             <p className="text-xs text-muted-foreground">
@@ -143,20 +143,21 @@ export default function AccountOrdersPage() {
           )}
 
           {data?.pagination && data.pagination.totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-6">
+            <div className="flex items-center justify-center gap-2 mt-6 overflow-x-auto pb-1">
               <Button
                 variant="outline"
+                className="shrink-0"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
                 Previous
               </Button>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 {[...Array(data.pagination.totalPages)].map((_, i) => (
                   <Button
                     key={i}
                     variant={page === i + 1 ? 'default' : 'outline'}
-                    className="h-9 w-9"
+                    className="h-9 w-9 shrink-0"
                     onClick={() => setPage(i + 1)}
                   >
                     {i + 1}
@@ -165,6 +166,7 @@ export default function AccountOrdersPage() {
               </div>
               <Button
                 variant="outline"
+                className="shrink-0"
                 onClick={() => setPage(p => Math.min(data.pagination.totalPages, p + 1))}
                 disabled={page === data.pagination.totalPages}
               >

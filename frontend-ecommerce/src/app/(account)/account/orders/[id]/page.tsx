@@ -78,19 +78,19 @@ export default function AccountOrderDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Order #{order.orderNumber}</h1>
-            <p className="text-muted-foreground">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">Order #{order.orderNumber}</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
               {new Date(order.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>
-        <Badge className={`${status.color} text-white px-4 py-2`}>
+        <Badge className={`${status.color} text-white px-4 py-2 self-start sm:self-auto ml-12 sm:ml-0`}>
           {status.label}
         </Badge>
       </div>
