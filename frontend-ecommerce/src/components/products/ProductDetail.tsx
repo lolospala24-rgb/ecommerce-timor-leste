@@ -26,9 +26,10 @@ import {
   ShoppingCart,
   Zap,
   Heart,
-  Share2,
+  Link2,
   Truck,
   Shield,
+  ShieldCheck,
   RotateCcw,
   Check,
   AlertCircle,
@@ -47,11 +48,6 @@ interface ProductDetailProps {
   product: Product;
   onAddToCart?: () => void;
 }
-
-const TRUST_ITEMS = [
-  { icon: Shield, label: '100% authentic products' },
-  { icon: RotateCcw, label: '7-day return policy' },
-] as const;
 
 export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const router = useRouter();
@@ -180,18 +176,37 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await navigator.share({
-        title: product.name,
-        text: `Check out ${product.name} on E-commerce Timor-Leste`,
-        url: window.location.href,
-      });
-    } catch {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied to clipboard!');
-    }
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success('Link copied to clipboard!');
   };
+
+  // Plain web share-intent URLs — no API keys or app registration needed,
+  // just standard links each platform exposes for this exact purpose.
+  const shareText = `Check out ${product.name} on ${settings?.siteName || 'our store'}`;
+  const shareLinks =
+    typeof window !== 'undefined'
+      ? [
+          {
+            label: 'Share on Facebook',
+            href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`,
+            className: 'bg-[#1877F2] hover:bg-[#1466d1]',
+            icon: FacebookIcon,
+          },
+          {
+            label: 'Share on WhatsApp',
+            href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${window.location.href}`)}`,
+            className: 'bg-[#25D366] hover:bg-[#1fbd5a]',
+            icon: WhatsAppIcon,
+          },
+          {
+            label: 'Share on Telegram',
+            href: `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(shareText)}`,
+            className: 'bg-[#26A5E4] hover:bg-[#1f8fc7]',
+            icon: TelegramIcon,
+          },
+        ]
+      : [];
 
   const subtotal = displayPrice * quantity;
 
@@ -308,12 +323,9 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
           </div>
 
-          {/* Price — primary blue is this storefront's established
-              commerce accent (see checkout's CTA and the header's cart
-              preview), kept for the truly transactional elements only so
-              it reads as "this is the money" rather than washing the whole
-              page in one color. */}
-          <div className="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 via-blue-50/40 to-background p-4">
+          {/* Price — plain layout, no card chrome, so the number itself
+              stays the focal point (matches the reference design). */}
+          <div className="space-y-2 border-y py-4">
             <div className="flex flex-wrap items-end gap-2.5">
               <span className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
                 ${displayPrice.toFixed(2)}
@@ -330,23 +342,21 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               )}
             </div>
             {!selectedVariant && priceVariesByOption && (
-              <p className="mt-1.5 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Price shown is the starting price — select options below to see the exact price.
               </p>
             )}
-            <div className="mt-3 flex items-center gap-2">
-              {displayStock > 0 ? (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/15">
-                  <Check className="h-3.5 w-3.5" />
-                  In stock · {displayStock} available
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 ring-1 ring-red-600/15">
-                  <AlertCircle className="h-3.5 w-3.5" />
-                  Out of stock
-                </div>
-              )}
-            </div>
+            {displayStock > 0 ? (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+                <Check className="h-4 w-4" />
+                In stock — {displayStock} available
+              </p>
+            ) : (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                Out of stock
+              </p>
+            )}
           </div>
 
           {/* Variants */}
@@ -368,7 +378,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
           {/* Mobile/tablet buy box — the sticky column-3 box only appears at
               xl+; below that this is the only way to buy. */}
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50/40 to-card p-4 shadow-sm xl:hidden">
+          <div className="rounded-xl border bg-card p-4 xl:hidden">
             <BuyBoxContent
               quantity={quantity}
               setQuantity={setQuantity}
@@ -382,24 +392,31 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               onAddToCart={handleAddToCart}
               onBuyNow={handleBuyNow}
               onWishlistToggle={handleWishlistToggle}
-              onShare={handleShare}
+              onCopyLink={handleCopyLink}
+              shareLinks={shareLinks}
               isWishlisted={isWishlisted}
             />
           </div>
 
           {/* Details tabs */}
-          <Tabs defaultValue="description" className="space-y-4">
-            <TabsList className="h-auto w-full justify-start gap-1 rounded-xl bg-muted/50 p-1 sm:w-auto">
-              <TabsTrigger value="description" className="rounded-lg px-5 py-2.5">
+          <Tabs defaultValue="description" className="space-y-0">
+            <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
+              <TabsTrigger
+                value="description"
+                className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
                 Description
               </TabsTrigger>
-              <TabsTrigger value="details" className="rounded-lg px-5 py-2.5">
+              <TabsTrigger
+                value="details"
+                className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
                 Specifications
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="description">
-              <div className="rounded-2xl border bg-card p-6">
+            <TabsContent value="description" className="mt-6">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="prose prose-sm max-w-none">
                   <p className="leading-relaxed text-foreground">{product.description}</p>
                   {product.descriptionTetum && (
@@ -411,6 +428,54 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                     </div>
                   )}
                 </div>
+
+                {product.seller && (
+                  <div className="h-fit rounded-2xl border bg-card p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Sold by
+                    </p>
+                    <Link href={`/sellers/${product.seller.id}`} className="group flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
+                        {product.seller.storeLogo ? (
+                          <Image
+                            src={product.seller.storeLogo}
+                            alt={product.seller.storeName}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        ) : (
+                          <Store className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {product.seller.storeName}
+                          </span>
+                          {product.seller.isVerified && (
+                            <BadgeCheck className="h-4 w-4 shrink-0 fill-info text-white" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {product.seller.isVerified ? 'Active seller' : 'Seller'}
+                        </p>
+                      </div>
+                    </Link>
+                    {product.seller.storeAddress && (
+                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{product.seller.storeAddress}</span>
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" className="mt-3 w-full" asChild>
+                      <Link href={`/sellers/${product.seller.id}`}>
+                        Visit Store
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -537,53 +602,8 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             </TabsContent>
           </Tabs>
 
-          {/* Seller */}
-          {product.seller && (
-            <div className="rounded-2xl border bg-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <Link href={`/sellers/${product.seller.id}`} className="group flex min-w-0 items-center gap-3">
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
-                    {product.seller.storeLogo ? (
-                      <Image
-                        src={product.seller.storeLogo}
-                        alt={product.seller.storeName}
-                        fill
-                        className="object-cover"
-                        sizes="48px"
-                      />
-                    ) : (
-                      <Store className="h-5 w-5 text-primary" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {product.seller.storeName}
-                      </span>
-                      {product.seller.isVerified && (
-                        <BadgeCheck className="h-4 w-4 shrink-0 fill-info text-white" />
-                      )}
-                    </div>
-                    {product.seller.storeAddress && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3 shrink-0" />
-                        <span className="truncate">{product.seller.storeAddress}</span>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/sellers/${product.seller.id}`}>
-                    Visit Store
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Shipping */}
-          <div className="rounded-2xl border bg-muted/20 p-4">
+          {/* Trust row */}
+          <div className="grid gap-4 border-t pt-6 sm:grid-cols-3">
             <div className="flex items-start gap-3">
               <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div className="min-w-0 text-sm">
@@ -592,32 +612,36 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                     ? `Ships from ${product.seller.storeAddress}`
                     : 'Shipping'}
                 </p>
-                <p className="mt-0.5 text-muted-foreground">
-                  Cost and delivery estimate are calculated at checkout based on your address.
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Cost and delivery estimate calculated at checkout.
                   {settings?.enableCOD && ' Cash on Delivery available.'}
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Trust badges */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {TRUST_ITEMS.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-3 rounded-xl border bg-muted/20 px-4 py-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Icon className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-xs font-medium leading-snug text-muted-foreground sm:text-sm">
-                  {label}
-                </span>
+            <div className="flex items-start gap-3">
+              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0 text-sm">
+                <p className="font-medium text-foreground">100% authentic products</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  We guarantee all products are original.
+                </p>
               </div>
-            ))}
+            </div>
+            <div className="flex items-start gap-3">
+              <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0 text-sm">
+                <p className="font-medium text-foreground">7-day return policy</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Not satisfied? Return within 7 days.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Column 3 — Sticky buy box (xl+ only) */}
         <div className="hidden xl:sticky xl:top-24 xl:block xl:self-start">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50/40 to-card p-5 shadow-sm">
+          <div className="rounded-xl border bg-card p-5">
             <BuyBoxContent
               quantity={quantity}
               setQuantity={setQuantity}
@@ -631,7 +655,8 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               onAddToCart={handleAddToCart}
               onBuyNow={handleBuyNow}
               onWishlistToggle={handleWishlistToggle}
-              onShare={handleShare}
+              onCopyLink={handleCopyLink}
+              shareLinks={shareLinks}
               isWishlisted={isWishlisted}
             />
           </div>
@@ -668,7 +693,8 @@ function BuyBoxContent({
   onAddToCart,
   onBuyNow,
   onWishlistToggle,
-  onShare,
+  onCopyLink,
+  shareLinks,
   isWishlisted,
 }: {
   quantity: number;
@@ -683,7 +709,8 @@ function BuyBoxContent({
   onAddToCart: () => void;
   onBuyNow: () => void;
   onWishlistToggle: () => void;
-  onShare: () => void;
+  onCopyLink: () => void;
+  shareLinks: { label: string; href: string; className: string; icon: (props: { className?: string }) => React.ReactElement }[];
   isWishlisted: boolean;
 }) {
   return (
@@ -752,22 +779,78 @@ function BuyBoxContent({
           )}
           Add to Cart
         </Button>
-      </div>
-
-      <div className="flex gap-2">
         <Button
+          size="lg"
           variant="outline"
-          className="h-10 flex-1"
+          className="h-12 w-full text-base font-semibold"
           onClick={onWishlistToggle}
           aria-label="Add to wishlist"
         >
-          <Heart className={cn('mr-2 h-4 w-4 transition-colors', isWishlisted && 'fill-red-600 text-red-600')} />
-          Wishlist
-        </Button>
-        <Button variant="outline" className="h-10 w-10 p-0" onClick={onShare} aria-label="Share product">
-          <Share2 className="h-4 w-4" />
+          <Heart className={cn('mr-2 h-5 w-5 transition-colors', isWishlisted && 'fill-red-600 text-red-600')} />
+          {isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
         </Button>
       </div>
+
+      <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 p-3">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div className="text-xs leading-relaxed">
+          <p className="font-medium text-foreground">Secure checkout guaranteed</p>
+          <p className="text-muted-foreground">Your payment information is safe with us.</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium text-foreground">Share this product</p>
+        <div className="flex gap-2">
+          {shareLinks.map(({ label, href, className, icon: Icon }) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={label}
+              className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors',
+                className,
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </a>
+          ))}
+          <button
+            type="button"
+            onClick={onCopyLink}
+            aria-label="Copy product link"
+            className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted"
+          >
+            <Link2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.89h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94Z" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.95 6.45 17.5 2 12.04 2Zm5.8 14c-.25.7-1.22 1.29-2.06 1.42-.55.08-1.26.15-3.66-.78-3.07-1.19-5.05-4.31-5.2-4.51-.15-.2-1.24-1.65-1.24-3.15s.78-2.23 1.06-2.53c.27-.3.6-.37.8-.37h.58c.19 0 .43-.07.68.52.25.6.87 2.1.94 2.25.08.15.13.32.03.52-.11.2-.16.32-.31.5-.15.18-.32.4-.46.53-.15.15-.31.31-.13.61.18.3.79 1.31 1.7 2.11 1.17 1.04 2.15 1.37 2.45 1.52.3.15.48.13.65-.07.18-.2.76-.88.96-1.18.2-.3.4-.25.68-.15.27.1 1.75.82 2.05.97.3.15.5.22.58.35.08.13.08.75-.17 1.45Z" />
+    </svg>
+  );
+}
+
+function TelegramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M21.94 5.36 18.6 20.24c-.25 1.1-.9 1.37-1.83.86l-5.06-3.73-2.44 2.35c-.27.27-.5.5-1.02.5l.36-5.15 9.37-8.47c.41-.36-.09-.56-.63-.2L6.4 12.6l-5.02-1.57c-1.09-.34-1.1-1.09.23-1.61L20.6 4.06c.91-.34 1.7.21 1.34 1.3Z" />
+    </svg>
   );
 }
