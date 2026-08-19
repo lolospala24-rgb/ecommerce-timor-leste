@@ -11,7 +11,6 @@ import { useProductVariantSelection } from '@/hooks/useProductVariantSelection';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QuantitySelector } from './QuantitySelector';
 import { ProductVariantSelector } from './ProductVariantSelector';
@@ -40,7 +39,6 @@ import {
   ChevronRight,
   BadgeCheck,
   MapPin,
-  Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -95,9 +93,20 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       ? displayComparePrice - displayPrice
       : 0;
 
-  // Only worth telling the customer "price may change" if it actually can —
-  // no point hinting at variation that doesn't exist for this product.
-  const priceVariesByOption = hasVariants && variants.some((variant) => variant.price !== product.price);
+  // Before any option is picked, show the real min–max span across variants
+  // (e.g. "$12.00 - $18.00") instead of a single starting price that
+  // understates what the product can actually cost.
+  const variantPriceRange =
+    !selectedVariant && hasVariants && variants.length > 0
+      ? variants.reduce(
+          (range, v) => ({
+            min: Math.min(range.min, v.price),
+            max: Math.max(range.max, v.price),
+          }),
+          { min: variants[0].price, max: variants[0].price },
+        )
+      : null;
+  const showPriceRange = !!variantPriceRange && variantPriceRange.min !== variantPriceRange.max;
 
   useEffect(() => {
     if (product?.id) {
@@ -121,9 +130,9 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     return true;
   };
 
-  // Mirrors the Add to Cart / Buy Now guard above, surfaced inline in the
-  // buy box so the customer doesn't have to click the button to find out
-  // why it's disabled.
+  // Mirrors the Add to Cart / Buy Now guard above, surfaced inline near the
+  // buttons so the customer doesn't have to click to find out why they're
+  // disabled.
   const selectionHint = !hasVariants || selectedVariant
     ? null
     : hasInvalidCombination
@@ -208,10 +217,10 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         ]
       : [];
 
-  const subtotal = displayPrice * quantity;
+  const buyDisabled = displayStock === 0 || (hasVariants && !selectedVariant);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
         <Link href="/" className="hover:text-primary transition-colors">
@@ -236,10 +245,10 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         <span className="font-medium text-foreground line-clamp-1">{product.name}</span>
       </nav>
 
-      {/* Main product section: gallery | info | sticky buy box */}
-      <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)_320px] xl:gap-8">
-        {/* Column 1 — Gallery */}
-        <div className="lg:sticky lg:top-24 lg:self-start">
+      {/* Main product section: gallery | info + buy, two columns */}
+      <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] xl:gap-10">
+        {/* Column 1 — Gallery + share/wishlist */}
+        <div className="lg:sticky lg:top-24 lg:self-start space-y-3">
           <ProductImages
             images={galleryImages}
             thumbnail={product.thumbnail}
@@ -258,10 +267,48 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               hasChosenVariant && selectedVariant?.images?.length,
             )}
           />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-muted-foreground">Share:</span>
+            <div className="flex items-center gap-1.5">
+              {shareLinks.map(({ label, href, className, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className={cn(
+                    'flex h-7 w-7 items-center justify-center rounded-full text-white transition-colors',
+                    className,
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </a>
+              ))}
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                aria-label="Copy product link"
+                className="flex h-7 w-7 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <span className="h-4 w-px bg-border" />
+            <button
+              type="button"
+              onClick={handleWishlistToggle}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-red-600"
+            >
+              <Heart className={cn('h-4 w-4 transition-colors', isWishlisted && 'fill-red-600 text-red-600')} />
+              {isWishlisted ? 'Wishlisted' : 'Wishlist'}
+            </button>
+          </div>
         </div>
 
-        {/* Column 2 — Info */}
-        <div className="min-w-0 space-y-6">
+        {/* Column 2 — Info + buy */}
+        <div className="min-w-0 space-y-5">
           {/* Title + stats */}
           <div className="space-y-2.5">
             {product.category && (
@@ -282,18 +329,18 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
-              {!!product.salesCount && (
-                <>
-                  <span>
-                    <span className="font-semibold text-primary">{product.salesCount}</span> sold
-                  </span>
-                  <span className="text-border">•</span>
-                </>
-              )}
               <span className="inline-flex items-center gap-1.5">
                 <RatingStars rating={product.rating || 0} size="sm" />
                 <span>({product.totalReviews || 0} reviews)</span>
               </span>
+              {!!product.salesCount && (
+                <>
+                  <span className="text-border">•</span>
+                  <span>
+                    <span className="font-semibold text-primary">{product.salesCount}</span> sold
+                  </span>
+                </>
+              )}
               {displaySku && (
                 <>
                   <span className="text-border">•</span>
@@ -323,13 +370,18 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
           </div>
 
-          {/* Price — plain layout, no card chrome, so the number itself
-              stays the focal point (matches the reference design). */}
-          <div className="space-y-2 border-y py-4">
+          {/* Price band */}
+          <div className="space-y-2 rounded-lg bg-muted/40 p-4">
             <div className="flex flex-wrap items-end gap-2.5">
-              <span className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-                ${displayPrice.toFixed(2)}
-              </span>
+              {showPriceRange ? (
+                <span className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+                  ${variantPriceRange!.min.toFixed(2)} - ${variantPriceRange!.max.toFixed(2)}
+                </span>
+              ) : (
+                <span className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+                  ${displayPrice.toFixed(2)}
+                </span>
+              )}
               {displayComparePrice && displayComparePrice > displayPrice && (
                 <span className="pb-1 text-base text-muted-foreground line-through">
                   ${displayComparePrice.toFixed(2)}
@@ -341,9 +393,9 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 </Badge>
               )}
             </div>
-            {!selectedVariant && priceVariesByOption && (
+            {showPriceRange && (
               <p className="text-xs text-muted-foreground">
-                Price shown is the starting price — select options below to see the exact price.
+                Select options below to see the exact price.
               </p>
             )}
             {displayStock > 0 ? (
@@ -357,6 +409,20 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 Out of stock
               </p>
             )}
+          </div>
+
+          {/* Shipping — quick reference; full cost/estimate is computed at
+              checkout against the buyer's real address, so no specific ETA
+              is claimed here. */}
+          <div className="flex items-start gap-3 text-sm">
+            <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <span className="font-medium text-foreground">Shipping</span>
+              <p className="text-xs text-muted-foreground">
+                Cost and delivery estimate calculated at checkout based on your address.
+                {settings?.enableCOD && ' Cash on Delivery available.'}
+              </p>
+            </div>
           </div>
 
           {/* Variants */}
@@ -376,289 +442,306 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             />
           )}
 
-          {/* Mobile/tablet buy box — the sticky column-3 box only appears at
-              xl+; below that this is the only way to buy. */}
-          <div className="rounded-xl border bg-card p-4 xl:hidden">
-            <BuyBoxContent
-              quantity={quantity}
-              setQuantity={setQuantity}
-              displayStock={displayStock}
-              subtotal={subtotal}
-              selectedVariantLabel={selectedVariantLabel}
-              selectionHint={selectionHint}
-              isAddingToCart={isAddingToCart}
-              isBuyingNow={isBuyingNow}
-              disabled={displayStock === 0 || (hasVariants && !selectedVariant)}
-              onAddToCart={handleAddToCart}
-              onBuyNow={handleBuyNow}
-              onWishlistToggle={handleWishlistToggle}
-              onCopyLink={handleCopyLink}
-              shareLinks={shareLinks}
-              isWishlisted={isWishlisted}
-            />
-          </div>
-
-          {/* Details tabs */}
-          <Tabs defaultValue="description" className="space-y-0">
-            <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
-              <TabsTrigger
-                value="description"
-                className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                Description
-              </TabsTrigger>
-              <TabsTrigger
-                value="details"
-                className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
-              >
-                Specifications
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="description" className="mt-6">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-                <div className="prose prose-sm max-w-none">
-                  <p className="leading-relaxed text-foreground">{product.description}</p>
-                  {product.descriptionTetum && (
-                    <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-5 not-prose">
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Tetun
-                      </p>
-                      <p className="text-muted-foreground leading-relaxed">{product.descriptionTetum}</p>
-                    </div>
-                  )}
-                </div>
-
-                {product.seller && (
-                  <div className="h-fit rounded-2xl border bg-card p-4">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Sold by
-                    </p>
-                    <Link href={`/sellers/${product.seller.id}`} className="group flex items-center gap-3">
-                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
-                        {product.seller.storeLogo ? (
-                          <Image
-                            src={product.seller.storeLogo}
-                            alt={product.seller.storeName}
-                            fill
-                            className="object-cover"
-                            sizes="48px"
-                          />
-                        ) : (
-                          <Store className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {product.seller.storeName}
-                          </span>
-                          {product.seller.isVerified && (
-                            <BadgeCheck className="h-4 w-4 shrink-0 fill-info text-white" />
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {product.seller.isVerified ? 'Active seller' : 'Seller'}
-                        </p>
-                      </div>
-                    </Link>
-                    {product.seller.storeAddress && (
-                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{product.seller.storeAddress}</span>
-                      </div>
-                    )}
-                    <Button variant="outline" size="sm" className="mt-3 w-full" asChild>
-                      <Link href={`/sellers/${product.seller.id}`}>
-                        Visit Store
-                        <ChevronRight className="ml-1 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="details">
-              <div className="rounded-2xl border bg-card p-6 space-y-8">
-                <div>
-                  <dl className="divide-y rounded-xl border">
-                    {product.category && (
-                      <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                        <dt className="text-sm text-muted-foreground">Category</dt>
-                        <dd className="col-span-1 text-sm font-medium sm:col-span-2">
-                          <Link
-                            href={`/categories/${product.category.slug}`}
-                            className="text-primary hover:underline"
-                          >
-                            {product.category.name}
-                          </Link>
-                        </dd>
-                      </div>
-                    )}
-                    {(displaySku || product.sku) && (
-                      <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                        <dt className="text-sm text-muted-foreground">SKU</dt>
-                        <dd className="col-span-1 font-mono text-sm font-medium sm:col-span-2">
-                          {displaySku || product.sku}
-                        </dd>
-                      </div>
-                    )}
-                    {product.type?.name && (
-                      <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                        <dt className="text-sm text-muted-foreground">Product type</dt>
-                        <dd className="col-span-1 text-sm font-medium sm:col-span-2">
-                          {product.type.name}
-                        </dd>
-                      </div>
-                    )}
-                    {product.weight && (
-                      <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                        <dt className="text-sm text-muted-foreground">Weight</dt>
-                        <dd className="col-span-1 text-sm font-medium sm:col-span-2">
-                          {product.weight} kg
-                        </dd>
-                      </div>
-                    )}
-                    {product.barcode && (
-                      <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
-                        <dt className="text-sm text-muted-foreground">Barcode</dt>
-                        <dd className="col-span-1 font-mono text-sm font-medium sm:col-span-2">
-                          {product.barcode}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </div>
-
-                {hasVariants && (
-                  <div>
-                    <h3 className="mb-5 text-lg font-semibold">All variants</h3>
-                    <div className="overflow-hidden rounded-xl border">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-muted/40 text-left">
-                              <th className="px-4 py-3 font-semibold">Variant</th>
-                              <th className="px-4 py-3 font-semibold">SKU</th>
-                              <th className="px-4 py-3 font-semibold">Price</th>
-                              <th className="px-4 py-3 font-semibold">Stock</th>
-                              <th className="px-4 py-3 font-semibold">Attributes</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {variants.map((variant) => {
-                              const isSelected = selectedVariant?.id === variant.id;
-                              return (
-                                <tr
-                                  key={variant.id}
-                                  className={cn('transition-colors', isSelected && 'bg-primary/5')}
-                                >
-                                  <td className="px-4 py-3.5 font-medium">
-                                    {formatVariantLabel(variant, attributeKeys, attributeLabels)}
-                                  </td>
-                                  <td className="px-4 py-3.5 font-mono text-muted-foreground">
-                                    {variant.sku}
-                                  </td>
-                                  <td className="px-4 py-3.5 font-semibold text-primary">
-                                    ${variant.price.toFixed(2)}
-                                  </td>
-                                  <td className="px-4 py-3.5">
-                                    <Badge
-                                      variant="outline"
-                                      className={cn(
-                                        'font-normal',
-                                        variant.stock > 0
-                                          ? 'border-green-200 text-green-600'
-                                          : 'border-red-200 text-red-600',
-                                      )}
-                                    >
-                                      {variant.stock}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-3.5">
-                                    <div className="flex flex-wrap gap-1">
-                                      {Object.entries(variant.attributes ?? {}).map(([key, value]) => (
-                                        <Badge
-                                          key={`${variant.id}-${key}`}
-                                          variant="secondary"
-                                          className="font-normal"
-                                        >
-                                          {attributeLabels[key] ?? key}: {value}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          {/* Trust row */}
-          <div className="grid gap-4 border-t pt-6 sm:grid-cols-3">
-            <div className="flex items-start gap-3">
-              <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0 text-sm">
-                <p className="font-medium text-foreground">
-                  {product.seller?.storeAddress
-                    ? `Ships from ${product.seller.storeAddress}`
-                    : 'Shipping'}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Cost and delivery estimate calculated at checkout.
-                  {settings?.enableCOD && ' Cash on Delivery available.'}
-                </p>
-              </div>
+          {/* Quantity + buy */}
+          <div className="space-y-4 border-t pt-5">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm font-medium text-foreground">Quantity</span>
+              <QuantitySelector quantity={quantity} setQuantity={setQuantity} max={displayStock} />
+              {displayStock > 0 && (
+                <span className="text-xs text-muted-foreground">Stock: {displayStock}</span>
+              )}
             </div>
-            <div className="flex items-start gap-3">
-              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0 text-sm">
-                <p className="font-medium text-foreground">100% authentic products</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  We guarantee all products are original.
-                </p>
+
+            {selectedVariantLabel && (
+              <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                <Tag className="h-4 w-4 shrink-0" />
+                <span className="truncate">{selectedVariantLabel}</span>
               </div>
+            )}
+
+            {selectionHint && (
+              <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{selectionHint}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 flex-1 border-primary text-base font-semibold text-primary hover:bg-primary/5"
+                disabled={buyDisabled || isAddingToCart}
+                onClick={handleAddToCart}
+              >
+                {isAddingToCart ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                )}
+                Add to Cart
+              </Button>
+              <Button
+                size="lg"
+                className="h-12 flex-1 bg-primary text-base font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-blue-800"
+                disabled={buyDisabled || isBuyingNow}
+                onClick={handleBuyNow}
+              >
+                {isBuyingNow ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <Zap className="mr-2 h-5 w-5" />
+                )}
+                Buy Now
+              </Button>
             </div>
-            <div className="flex items-start gap-3">
-              <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0 text-sm">
-                <p className="font-medium text-foreground">7-day return policy</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Not satisfied? Return within 7 days.
-                </p>
+
+            <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 p-3">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="text-xs leading-relaxed">
+                <p className="font-medium text-foreground">Secure checkout guaranteed</p>
+                <p className="text-muted-foreground">Your payment information is safe with us.</p>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Column 3 — Sticky buy box (xl+ only) */}
-        <div className="hidden xl:sticky xl:top-24 xl:block xl:self-start">
-          <div className="rounded-xl border bg-card p-5">
-            <BuyBoxContent
-              quantity={quantity}
-              setQuantity={setQuantity}
-              displayStock={displayStock}
-              subtotal={subtotal}
-              selectedVariantLabel={selectedVariantLabel}
-              selectionHint={selectionHint}
-              isAddingToCart={isAddingToCart}
-              isBuyingNow={isBuyingNow}
-              disabled={displayStock === 0 || (hasVariants && !selectedVariant)}
-              onAddToCart={handleAddToCart}
-              onBuyNow={handleBuyNow}
-              onWishlistToggle={handleWishlistToggle}
-              onCopyLink={handleCopyLink}
-              shareLinks={shareLinks}
-              isWishlisted={isWishlisted}
-            />
+      {/* Seller — its own section, real fields only (no chat/response-time
+          stats: this store has no messaging feature, and those numbers
+          aren't in the product API response — showing them would mean
+          making them up). */}
+      {product.seller && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5">
+          <Link href={`/sellers/${product.seller.id}`} className="group flex min-w-0 items-center gap-3">
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
+              {product.seller.storeLogo ? (
+                <Image
+                  src={product.seller.storeLogo}
+                  alt={product.seller.storeName}
+                  fill
+                  className="object-cover"
+                  sizes="56px"
+                />
+              ) : (
+                <Store className="h-6 w-6 text-primary" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {product.seller.storeName}
+                </span>
+                {product.seller.isVerified && (
+                  <BadgeCheck className="h-4 w-4 shrink-0 fill-info text-white" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {product.seller.isVerified ? 'Verified seller' : 'Seller'}
+              </p>
+              {product.seller.storeAddress && (
+                <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{product.seller.storeAddress}</span>
+                </div>
+              )}
+            </div>
+          </Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/sellers/${product.seller.id}`}>
+              Visit Store
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Details tabs */}
+      <Tabs defaultValue="description" className="space-y-0">
+        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
+          <TabsTrigger
+            value="description"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Description
+          </TabsTrigger>
+          <TabsTrigger
+            value="details"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Specifications
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="description" className="mt-6">
+          <div className="prose prose-sm max-w-none">
+            <p className="leading-relaxed text-foreground">{product.description}</p>
+            {product.descriptionTetum && (
+              <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-5 not-prose">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tetun
+                </p>
+                <p className="text-muted-foreground leading-relaxed">{product.descriptionTetum}</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="details">
+          <div className="rounded-2xl border bg-card p-6 space-y-8">
+            <div>
+              <dl className="divide-y rounded-xl border">
+                {product.category && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">Category</dt>
+                    <dd className="col-span-1 text-sm font-medium sm:col-span-2">
+                      <Link
+                        href={`/categories/${product.category.slug}`}
+                        className="text-primary hover:underline"
+                      >
+                        {product.category.name}
+                      </Link>
+                    </dd>
+                  </div>
+                )}
+                {(displaySku || product.sku) && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">SKU</dt>
+                    <dd className="col-span-1 font-mono text-sm font-medium sm:col-span-2">
+                      {displaySku || product.sku}
+                    </dd>
+                  </div>
+                )}
+                {product.type?.name && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">Product type</dt>
+                    <dd className="col-span-1 text-sm font-medium sm:col-span-2">
+                      {product.type.name}
+                    </dd>
+                  </div>
+                )}
+                {product.weight && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">Weight</dt>
+                    <dd className="col-span-1 text-sm font-medium sm:col-span-2">
+                      {product.weight} kg
+                    </dd>
+                  </div>
+                )}
+                {product.barcode && (
+                  <div className="grid grid-cols-2 gap-4 px-4 py-3.5 sm:grid-cols-3">
+                    <dt className="text-sm text-muted-foreground">Barcode</dt>
+                    <dd className="col-span-1 font-mono text-sm font-medium sm:col-span-2">
+                      {product.barcode}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+
+            {hasVariants && (
+              <div>
+                <h3 className="mb-5 text-lg font-semibold">All variants</h3>
+                <div className="overflow-hidden rounded-xl border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40 text-left">
+                          <th className="px-4 py-3 font-semibold">Variant</th>
+                          <th className="px-4 py-3 font-semibold">SKU</th>
+                          <th className="px-4 py-3 font-semibold">Price</th>
+                          <th className="px-4 py-3 font-semibold">Stock</th>
+                          <th className="px-4 py-3 font-semibold">Attributes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {variants.map((variant) => {
+                          const isSelected = selectedVariant?.id === variant.id;
+                          return (
+                            <tr
+                              key={variant.id}
+                              className={cn('transition-colors', isSelected && 'bg-primary/5')}
+                            >
+                              <td className="px-4 py-3.5 font-medium">
+                                {formatVariantLabel(variant, attributeKeys, attributeLabels)}
+                              </td>
+                              <td className="px-4 py-3.5 font-mono text-muted-foreground">
+                                {variant.sku}
+                              </td>
+                              <td className="px-4 py-3.5 font-semibold text-primary">
+                                ${variant.price.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'font-normal',
+                                    variant.stock > 0
+                                      ? 'border-green-200 text-green-600'
+                                      : 'border-red-200 text-red-600',
+                                  )}
+                                >
+                                  {variant.stock}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.entries(variant.attributes ?? {}).map(([key, value]) => (
+                                    <Badge
+                                      key={`${variant.id}-${key}`}
+                                      variant="secondary"
+                                      className="font-normal"
+                                    >
+                                      {attributeLabels[key] ?? key}: {value}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Trust row */}
+      <div className="grid gap-4 border-t pt-6 sm:grid-cols-3">
+        <div className="flex items-start gap-3">
+          <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0 text-sm">
+            <p className="font-medium text-foreground">
+              {product.seller?.storeAddress
+                ? `Ships from ${product.seller.storeAddress}`
+                : 'Shipping'}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Cost and delivery estimate calculated at checkout.
+              {settings?.enableCOD && ' Cash on Delivery available.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0 text-sm">
+            <p className="font-medium text-foreground">100% authentic products</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              We guarantee all products are original.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0 text-sm">
+            <p className="font-medium text-foreground">7-day return policy</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Not satisfied? Return within 7 days.
+            </p>
           </div>
         </div>
       </div>
@@ -674,159 +757,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       </div>
 
       <RelatedProducts currentProductId={product.id} />
-    </div>
-  );
-}
-
-// Shared between the sticky xl+ sidebar and the inline mobile/tablet card —
-// same real state and handlers, just two different places to render it.
-function BuyBoxContent({
-  quantity,
-  setQuantity,
-  displayStock,
-  subtotal,
-  selectedVariantLabel,
-  selectionHint,
-  isAddingToCart,
-  isBuyingNow,
-  disabled,
-  onAddToCart,
-  onBuyNow,
-  onWishlistToggle,
-  onCopyLink,
-  shareLinks,
-  isWishlisted,
-}: {
-  quantity: number;
-  setQuantity: (q: number) => void;
-  displayStock: number;
-  subtotal: number;
-  selectedVariantLabel: string | null;
-  selectionHint: string | null;
-  isAddingToCart: boolean;
-  isBuyingNow: boolean;
-  disabled: boolean;
-  onAddToCart: () => void;
-  onBuyNow: () => void;
-  onWishlistToggle: () => void;
-  onCopyLink: () => void;
-  shareLinks: { label: string; href: string; className: string; icon: (props: { className?: string }) => React.ReactElement }[];
-  isWishlisted: boolean;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Set quantity</p>
-        {displayStock > 0 && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Package className="h-3.5 w-3.5" />
-            Stock: {displayStock}
-          </span>
-        )}
-      </div>
-
-      {selectedVariantLabel && (
-        <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          <Tag className="h-4 w-4 shrink-0" />
-          <span className="truncate">{selectedVariantLabel}</span>
-        </div>
-      )}
-
-      {selectionHint && (
-        <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{selectionHint}</span>
-        </div>
-      )}
-
-      <QuantitySelector quantity={quantity} setQuantity={setQuantity} max={displayStock} />
-
-      <Separator />
-
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Subtotal</span>
-        <span className="text-xl font-bold text-primary">${subtotal.toFixed(2)}</span>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {/* Same primary-blue gradient as checkout's "Place Order" — the
-            two moments in the funnel that actually move money should look
-            like the same action, not two different brands. */}
-        <Button
-          size="lg"
-          className="h-12 w-full bg-gradient-to-r from-primary to-blue-600 text-base font-semibold text-white shadow-md shadow-primary/20 transition hover:-translate-y-0.5 hover:from-blue-900 hover:to-blue-700 hover:shadow-lg disabled:translate-y-0 disabled:shadow-md"
-          disabled={disabled || isBuyingNow}
-          onClick={onBuyNow}
-        >
-          {isBuyingNow ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            <Zap className="mr-2 h-5 w-5" />
-          )}
-          Buy Now
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          className="h-12 w-full border-primary text-base font-semibold text-primary hover:bg-blue-50 hover:text-primary"
-          disabled={disabled || isAddingToCart}
-          onClick={onAddToCart}
-        >
-          {isAddingToCart ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            <ShoppingCart className="mr-2 h-5 w-5" />
-          )}
-          Add to Cart
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          className="h-12 w-full text-base font-semibold"
-          onClick={onWishlistToggle}
-          aria-label="Add to wishlist"
-        >
-          <Heart className={cn('mr-2 h-5 w-5 transition-colors', isWishlisted && 'fill-red-600 text-red-600')} />
-          {isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
-        </Button>
-      </div>
-
-      <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 p-3">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <div className="text-xs leading-relaxed">
-          <p className="font-medium text-foreground">Secure checkout guaranteed</p>
-          <p className="text-muted-foreground">Your payment information is safe with us.</p>
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-medium text-foreground">Share this product</p>
-        <div className="flex gap-2">
-          {shareLinks.map(({ label, href, className, icon: Icon }) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={label}
-              className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors',
-                className,
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </a>
-          ))}
-          <button
-            type="button"
-            onClick={onCopyLink}
-            aria-label="Copy product link"
-            className="flex h-9 w-9 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted"
-          >
-            <Link2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
