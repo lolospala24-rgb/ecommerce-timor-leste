@@ -28,6 +28,7 @@ import {
   FileBarChart,
   Bell,
   Settings,
+  ImageIcon,
   Menu,
   X as XIcon,
   ChevronLeft,
@@ -57,6 +58,11 @@ interface MenuItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
+  // Only rendered for SELLER-role users — the rest of this menu isn't
+  // role-filtered at all yet (a separate, pre-existing gap), but a seller
+  // managing their own store profile is common enough to be worth gating
+  // narrowly here rather than showing it to admins/customers too.
+  sellerOnly?: boolean;
 }
 
 interface MenuSection {
@@ -75,6 +81,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/notifications', label: 'Notifications', icon: Bell },
+      { href: '/my-store', label: 'My Store', icon: ImageIcon, sellerOnly: true },
     ],
   },
   {
@@ -313,7 +320,9 @@ export function Sidebar() {
                 </p>
               )}
               <div className="space-y-0.5">
-                {section.items.map((item) => (
+                {section.items
+                  .filter((item) => !item.sellerOnly || user?.role === 'SELLER')
+                  .map((item) => (
                   <div key={item.href}>
                     {renderMenuItem(item)}
                     {item.href === '/video-shop' && !collapsed && pathname.startsWith('/video-shop') && (

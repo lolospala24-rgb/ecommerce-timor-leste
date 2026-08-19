@@ -212,7 +212,7 @@ export const useDeleteSeller = () => {
 
 export const useUploadStoreLogo = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
@@ -226,6 +226,50 @@ export const useUploadStoreLogo = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to upload logo');
+    },
+  });
+};
+
+export const useUploadStoreBanner = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('banner', file);
+      const response = await api.post('/sellers/upload-banner', formData);
+      return unwrapApiData(response.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sellers', 'my-store'] });
+      toast.success('Banner uploaded successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to upload banner');
+    },
+  });
+};
+
+export const useUpdateMyStore = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      storeName?: string;
+      storePhone?: string;
+      storeEmail?: string;
+      storeAddress?: string;
+      description?: string;
+    }) => {
+      const response = await api.patch('/sellers/my-store', data);
+      return unwrapApiData<Seller>(response.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sellers', 'my-store'] });
+      toast.success('Store updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update store');
     },
   });
 };
