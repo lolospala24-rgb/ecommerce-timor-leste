@@ -19,6 +19,7 @@ import { RatingStars } from '@/components/shared/RatingStars';
 import { ProductReviews } from './ProductReviews';
 import { RelatedProducts } from './RelatedProducts';
 import { RecentlyViewedSection } from './RecentlyViewedSection';
+import { ShippingEstimator } from './ShippingEstimator';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
@@ -422,19 +423,15 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
           </div>
 
-          {/* Shipping — quick reference; full cost/estimate is computed at
-              checkout against the buyer's real address, so no specific ETA
-              is claimed here. */}
-          <div className="flex items-start gap-3 text-sm">
-            <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <div>
-              <span className="font-medium text-foreground">Shipping</span>
-              <p className="text-xs text-muted-foreground">
-                Cost and delivery estimate calculated at checkout based on your address.
-                {settings?.enableCOD && ' Cash on Delivery available.'}
-              </p>
-            </div>
-          </div>
+          {/* Shipping — lets the buyer check real cost/ETA for their own
+              municipality before adding to cart, using the same public
+              shipping-options data checkout's courier picker is built
+              from. Final cost is still confirmed at checkout against the
+              buyer's actual saved address. */}
+          <ShippingEstimator />
+          {settings?.enableCOD && (
+            <p className="-mt-1 pl-8 text-xs text-muted-foreground">Cash on Delivery available.</p>
+          )}
 
           {/* Variants */}
           {hasVariants && (
