@@ -1,6 +1,8 @@
-﻿import { IsOptional, IsString, IsInt, IsEnum, IsBoolean, Min, Max } from 'class-validator';
+﻿import { IsOptional, IsString, IsInt, IsEnum, IsBoolean, IsIn, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Role } from '@prisma/client';
+
+const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'name', 'email', 'role', 'lastLoginAt'] as const;
 
 export class UserFilterDto {
   @IsOptional()
@@ -34,9 +36,11 @@ export class UserFilterDto {
   @IsBoolean()
   emailVerified?: boolean;
 
+  // Reaches Prisma's orderBy as a literal key — must be restricted to real
+  // columns rather than an arbitrary client-supplied string.
   @IsOptional()
-  @IsString()
-  sortBy?: string = 'createdAt';
+  @IsIn(SORTABLE_FIELDS)
+  sortBy?: (typeof SORTABLE_FIELDS)[number] = 'createdAt';
 
   @IsOptional()
   @IsEnum(['asc', 'desc'])

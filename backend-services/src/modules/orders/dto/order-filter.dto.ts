@@ -1,7 +1,9 @@
 ﻿// placeholder for src/modules/orders/dto/order-filter.dto.ts
-import { IsOptional, IsString, IsInt, IsEnum, Min } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsEnum, IsIn, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus } from '@prisma/client';
+
+const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'total', 'status', 'orderNumber'] as const;
 
 export class OrderFilterDto {
   @IsOptional()
@@ -28,11 +30,14 @@ export class OrderFilterDto {
   @IsString()
   endDate?: string;
 
+  // Reaches Prisma's orderBy as a literal key ([sortBy]: sortOrder) — must
+  // be restricted to real, intended columns rather than an arbitrary
+  // client-supplied string.
   @IsOptional()
-  @IsString()
-  sortBy?: string = 'createdAt';
+  @IsIn(SORTABLE_FIELDS)
+  sortBy?: (typeof SORTABLE_FIELDS)[number] = 'createdAt';
 
   @IsOptional()
-  @IsString()
+  @IsIn(['asc', 'desc'])
   sortOrder?: 'asc' | 'desc' = 'desc';
 }

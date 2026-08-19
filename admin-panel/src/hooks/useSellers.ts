@@ -82,9 +82,11 @@ export const useSellers = (filters?: SellerFilters) => {
 
 export const useSeller = (id: number) => {
   return useQuery({
-    queryKey: ['sellers', id],
+    queryKey: ['sellers', id, 'admin'],
     queryFn: async () => {
-      const response = await api.get<any>(`/sellers/${id}`);
+      // Admin-only endpoint — includes bank details, live balance, and
+      // recent orders that the public GET /sellers/:id no longer returns.
+      const response = await api.get<any>(`/sellers/${id}/admin`);
       return unwrapApiData<Seller>(response.data);
     },
     enabled: !!id,

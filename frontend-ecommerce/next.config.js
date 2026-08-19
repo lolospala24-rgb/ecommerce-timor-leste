@@ -35,6 +35,8 @@ const contentSecurityPolicy = [
   "object-src 'none'",
 ].join('; ');
 
+const permissionsPolicy = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -82,6 +84,7 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: permissionsPolicy },
           { key: 'Content-Security-Policy', value: contentSecurityPolicy },
           // Browsers ignore this over plain HTTP, so it's a no-op for the
           // bare-IP fallback and harmless in local dev — only takes effect

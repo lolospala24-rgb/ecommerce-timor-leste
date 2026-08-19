@@ -180,10 +180,95 @@ export class SellersService {
     return ResponseUtil.paginate(sellers, total, page, limit);
   }
 
+  // Public storefront profile — deliberately a narrow projection. This used
+  // to reuse the same full admin projection (bank details, live balance,
+  // real order rows with customer names), which meant anyone could pull a
+  // seller's bank account number and recent customers off GET /sellers/:id
+  // with no auth at all. Admin's detail view now calls findOneAdmin instead.
   async findOne(id: number) {
     const cacheKey = `seller:${id}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const seller = await this.prisma.seller.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        storeName: true,
+        storePhone: true,
+        storeEmail: true,
+        storeAddress: true,
+        storeLogo: true,
+        storeBanner: true,
+        description: true,
+        isVerified: true,
+        createdAt: true,
+        user: {
+          select: {
+            name: true,
+          },
+        },
+        products: {
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            stock: true,
+            thumbnail: true,
+            isActive: true,
+          },
+        },
+        _count: {
+          select: {
+            products: true,
+            orders: true,
+          },
+        },
+      },
+    });
+
+    if (!seller) {
+      throw new NotFoundException(`Seller with ID ${id} not found`);
+    }
+
+    const reviews = await this.prisma.review.aggregate({
+      where: {
+        product: {
+          sellerId: id,
+        },
+        isApproved: true,
+      },
+      _avg: {
+        rating: true,
+      },
+      _count: true,
+    });
+
+    const sellerWithRating = {
+      ...seller,
+      rating: reviews._avg.rating || 0,
+      totalReviews: reviews._count,
+    };
+
+    // Cache for 5 minutes
+    await this.redisService.set(cacheKey, JSON.stringify(sellerWithRating), 300);
+
+    return sellerWithRating;
+  }
+
+  // Admin-only full detail — everything findOne intentionally omits
+  // (bank details, live balance, real recent orders with customer names,
+  // total revenue). Only reachable via the @Roles(ADMIN) :id/admin route.
+  async findOneAdmin(id: number) {
+    const cacheKey = `seller:admin:${id}`;
+    const cached = await this.redisService.get(cacheKey);
+
     if (cached) {
       return JSON.parse(cached);
     }
@@ -213,9 +298,6 @@ export class SellersService {
             isActive: true,
           },
         },
-        // Was previously omitted entirely — the admin seller-detail page's
-        // "Recent Orders" tab reads seller.orders and always rendered
-        // "No orders found" regardless of reality, silently.
         orders: {
           take: 5,
           orderBy: { createdAt: 'desc' },
@@ -237,7 +319,6 @@ export class SellersService {
       throw new NotFoundException(`Seller with ID ${id} not found`);
     }
 
-    // Calculate rating
     const [reviews, revenueAgg] = await Promise.all([
       this.prisma.review.aggregate({
         where: {
@@ -251,9 +332,6 @@ export class SellersService {
         },
         _count: true,
       }),
-      // Was previously never computed — the admin seller-detail page's
-      // "Total Revenue" stat card read seller.totalRevenue, which this
-      // endpoint never returned, so it silently always rendered $0.
       this.prisma.order.aggregate({
         where: { sellerId: id, status: 'DELIVERED' },
         _sum: { total: true },
@@ -804,6 +882,7 @@ export class SellersService {
   private async clearSellerCache(sellerId?: number) {
     if (sellerId) {
       await this.redisService.del(`seller:${sellerId}`);
+      await this.redisService.del(`seller:admin:${sellerId}`);
     }
     await this.redisService.del('sellers:stats');
     // Clear paginated lists

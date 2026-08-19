@@ -334,7 +334,10 @@ export class ProductsService {
       case 'popularity':
         return { orderBy: { createdAt: 'desc' }, postSort: 'popularity' };
       default:
-        return { orderBy: { [sortBy || 'createdAt']: sortOrder } };
+        // sortBy is one of a fixed set of friendly option names above, not
+        // a raw column — an unrecognized value must not reach Prisma's
+        // orderBy key position unvalidated.
+        return { orderBy: { createdAt: 'desc' } };
     }
   }
 

@@ -93,6 +93,16 @@ export class SellersController {
     return { data: seller };
   }
 
+  // Full detail (bank info, live balance, recent orders with customer
+  // names) — admin-only. The public :id route above deliberately omits all
+  // of this.
+  @Get(':id/admin')
+  @Roles(Role.ADMIN)
+  async findOneAdmin(@Param('id', ParseIntPipe) id: number) {
+    const seller = await this.sellersService.findOneAdmin(id);
+    return { data: seller };
+  }
+
   @Patch('my-store')
   async updateMyStore(
     @CurrentUser('id') userId: number,
