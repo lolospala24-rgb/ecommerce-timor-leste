@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import mapboxgl from 'mapbox-gl';
+// The CSP-compliant build + worker avoids mapbox-gl's default worker, which
+// needs 'unsafe-eval' in script-src — the regular `mapbox-gl` entrypoint
+// would otherwise force that CSP relaxation just for this one map picker.
+import mapboxgl from 'mapbox-gl/dist/mapbox-gl-csp';
+import MapboxWorker from 'mapbox-gl/dist/mapbox-gl-csp-worker';
+
+mapboxgl.workerClass = MapboxWorker;
 
 type Location = {
   lat: number;
@@ -31,8 +37,6 @@ export default function MapboxPicker({
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
-  const leafletMapRef = useRef<any>(null);
-  const leafletMarkerRef = useRef<any>(null);
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState<Location | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -151,43 +155,6 @@ export default function MapboxPicker({
         setInitError(`Map initialization failed: ${msg}`);
         // eslint-disable-next-line no-console
         console.error('Map init error', err);
-        // Try Leaflet fallback
-        try {
-          // dynamic import Leaflet and initialize a fallback map
-          (async function initLeafletFallback() {
-            try {
-              const L = await (new Function("return import('leaflet')"))();
-              // inject CDN CSS if leaflet CSS not present
-              if (!document.querySelector('link[href*="leaflet.css"]')) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                document.head.appendChild(link);
-              }
-              if (!mapContainer.current) return;
-              leafletMapRef.current = L.map(mapContainer.current as any).setView([-8.5569, 125.5603], 6);
-              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap contributors',
-              }).addTo(leafletMapRef.current);
-
-              leafletMapRef.current.on('click', (e: any) => {
-                const { lat, lng } = e.latlng;
-                if (leafletMarkerRef.current) leafletMapRef.current.removeLayer(leafletMarkerRef.current);
-                leafletMarkerRef.current = L.marker([lat, lng]).addTo(leafletMapRef.current);
-                const loc: Location = { lat, lng, placeName: `${lat.toFixed(5)}, ${lng.toFixed(5)}` };
-                setPicked(loc);
-              });
-              // mark as initialized
-              setInitError(null);
-            } catch (leafErr) {
-              // eslint-disable-next-line no-console
-              console.error('Leaflet fallback failed', leafErr);
-            }
-          })();
-        } catch (e) {
-          // ignore
-        }
       }
     };
 
