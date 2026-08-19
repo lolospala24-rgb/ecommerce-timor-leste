@@ -102,7 +102,7 @@ export default function SellerDetailPage() {
         Back to Sellers
       </Button>
 
-      <div className="overflow-hidden rounded-3xl border border-border bg-background shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
         <div className="relative h-64 sm:h-72 lg:h-80 bg-slate-100">
           {seller.storeBanner ? (
             <Image
@@ -216,7 +216,7 @@ export default function SellerDetailPage() {
 
       {/* Store Description */}
       {seller.description && (
-        <div className="rounded-lg border p-4 bg-muted/30">
+        <div className="rounded-2xl border p-4 bg-muted/30">
           <h2 className="font-semibold mb-2">About the Store</h2>
           <p className="text-muted-foreground whitespace-pre-wrap">{seller.description}</p>
         </div>

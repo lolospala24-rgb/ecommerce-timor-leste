@@ -118,7 +118,7 @@ function ProductsPageContent() {
   return (
     <div className="flex flex-col md:flex-row gap-6 md:gap-8">
       {/* Sidebar Filters - Desktop */}
-      <aside className="hidden md:block w-64 flex-shrink-0">
+      <aside className="hidden md:block w-72 flex-shrink-0">
         <div className="sticky top-20 space-y-4">
           <ProductFilters
             filters={filters}
