@@ -33,3 +33,31 @@ export const multerConfig: MulterOptions = {
     fileSize: 5 * 1024 * 1024, // 5MB
   },
 };
+
+const ALLOWED_VIDEO_EXTENSIONS = /\.(mp4|webm|mov)$/i;
+const ALLOWED_VIDEO_MIME_TYPES = new Set([
+  'video/mp4',
+  'video/webm',
+  'video/quicktime', // .mov
+]);
+
+// Same memory-storage rationale as multerConfig above — CloudinaryService
+// streams file.buffer, so no `storage` override here either.
+export const videoMulterConfig: MulterOptions = {
+  fileFilter: (_req, file, callback) => {
+    if (
+      !ALLOWED_VIDEO_EXTENSIONS.test(file.originalname) ||
+      !ALLOWED_VIDEO_MIME_TYPES.has(file.mimetype)
+    ) {
+      callback(
+        new BadRequestException('Only MP4, WebM, and MOV video files are allowed'),
+        false,
+      );
+      return;
+    }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB
+  },
+};

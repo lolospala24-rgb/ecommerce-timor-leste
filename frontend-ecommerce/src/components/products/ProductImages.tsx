@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Maximize2, ZoomIn, X, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GalleryThumbnailItem } from '@/lib/product';
+import toast from 'react-hot-toast';
 
 interface ProductImagesProps {
   images: string[];
@@ -47,8 +48,13 @@ export function ProductImages({
   const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
   // Purely local to this component — selecting the video thumbnail never
   // touches mainImageUrl/onMainImageChange, so none of the existing image
-  // gallery state or callbacks are affected by it.
-  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  // gallery state or callbacks are affected by it. Defaults to the product
+  // video (if one exists) so it autoplays the moment the page opens,
+  // matching how Amazon/Shopee lead their gallery with the video.
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(
+    () => thumbnailGallery?.find((item) => item.type === 'video')?.videoUrl ?? null,
+  );
+  const isFirstMount = useRef(true);
   const mainRef = useRef<HTMLDivElement>(null);
 
   const carouselImages =
@@ -69,12 +75,21 @@ export function ProductImages({
 
   useEffect(() => {
     if (!mainImageUrl) return;
-    // The parent only ever drives image selection (variant swaps, etc.) —
-    // if it changes the active image out from under us, that means the
-    // user (or the page) picked an image, so drop out of video playback.
-    setActiveVideoUrl(null);
     const idx = carouselImages.indexOf(mainImageUrl);
     if (idx >= 0) setCurrentIndex(idx);
+
+    // The parent always supplies a real mainImageUrl from the first render
+    // (it falls back through the product's own images), so without this
+    // guard this effect would immediately clear the video-first default
+    // above on mount. After that, the parent only ever drives image
+    // selection (variant swaps, etc.) — if it changes the active image out
+    // from under us, that means the user (or the page) picked an image, so
+    // drop out of video playback.
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    setActiveVideoUrl(null);
   }, [mainImageUrl, carouselImages.join(',')]);
 
   const goTo = useCallback(
@@ -183,8 +198,8 @@ export function ProductImages({
           <div
             ref={mainRef}
             className={cn(
-              'group relative aspect-square overflow-hidden rounded-2xl border bg-gradient-to-b from-muted/40 to-muted/10 shadow-sm',
-              activeVideoUrl ? 'cursor-default' : 'cursor-zoom-in',
+              'group relative overflow-hidden rounded-2xl border bg-gradient-to-b from-muted/40 to-muted/10 shadow-sm',
+              activeVideoUrl ? 'aspect-video cursor-default bg-black' : 'aspect-square cursor-zoom-in',
             )}
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
@@ -208,7 +223,16 @@ export function ProductImages({
                 muted
                 loop
                 playsInline
-                className="h-full w-full object-contain p-4"
+                controls
+                preload="auto"
+                className="h-full w-full object-contain"
+                onError={() => {
+                  // Never leave a broken/black player on screen — fall back
+                  // to the product image gallery, same as if no video
+                  // existed at all.
+                  setActiveVideoUrl(null);
+                  toast.error('Video could not be loaded');
+                }}
               />
             ) : (
               <Image
@@ -230,15 +254,16 @@ export function ProductImages({
               />
             )}
 
-            {/* Badges */}
-            {!activeVideoUrl && (
+            {/* Badges — kept visible during video playback too, so the
+                discount/variant callout never disappears just because the
+                video is the active main-viewer content. */}
             <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 pointer-events-none">
               {discount > 0 && (
                 <Badge className="w-fit border-0 bg-red-600 px-2.5 py-1 text-xs font-semibold text-white shadow-md">
                   -{discount}% OFF
                 </Badge>
               )}
-              {galleryLabel && (
+              {!activeVideoUrl && galleryLabel && (
                 <Badge
                   variant="secondary"
                   className={cn(
@@ -250,7 +275,6 @@ export function ProductImages({
                 </Badge>
               )}
             </div>
-            )}
 
             {/* Image counter */}
             {!activeVideoUrl && carouselImages.length > 1 && (

@@ -54,4 +54,24 @@ export class UploadService {
       throw new BadRequestException(`Failed to upload image: ${errorMessage}`);
     }
   }
+
+  async uploadVideo(file: Express.Multer.File): Promise<string> {
+    try {
+      this.logger.log(`Uploading video: ${file.originalname}, size: ${file.size}`);
+
+      const result = await this.cloudinaryService.uploadFile(file, {
+        folder: 'ecommerce-timor/products/videos',
+        resource_type: 'video',
+        chunk_size: 6000000,
+        quality: 'auto:good',
+      });
+
+      this.logger.log(`Uploaded video: ${result.secure_url}`);
+      return result.secure_url;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to upload video: ${errorMessage}`);
+      throw new BadRequestException(`Failed to upload video: ${errorMessage}`);
+    }
+  }
 }

@@ -13,7 +13,7 @@ import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
-import { multerConfig } from '../../common/config/multer.config';
+import { multerConfig, videoMulterConfig } from '../../common/config/multer.config';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -61,6 +61,22 @@ export class UploadController {
     return {
       success: true,
       message: 'Image uploaded successfully',
+      data: { url },
+    };
+  }
+
+  @Post('video')
+  @Roles(Role.ADMIN, Role.SELLER)
+  @UseInterceptors(FileInterceptor('video', videoMulterConfig))
+  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No video provided');
+    }
+
+    const url = await this.uploadService.uploadVideo(file);
+    return {
+      success: true,
+      message: 'Video uploaded successfully',
       data: { url },
     };
   }

@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ImageUpload } from '@/components/shared/ImageUpload';
+import { VideoUpload } from '@/components/shared/VideoUpload';
 import { useCategories } from '@/hooks/useCategories';
 import { useSellers } from '@/hooks/useSellers';
 import { useProductTypes } from '@/hooks/useProductTypes';
@@ -41,7 +42,6 @@ const productSchema = z.object({
   stock: z.number().min(0, 'Stock must be positive'),
   sku: z.string().optional(),
   barcode: z.string().optional(),
-  videoUrl: z.union([z.literal(''), z.string().url('Please enter a valid video URL')]).optional(),
   weight: z.number().optional().nullable(),
   categoryId: z.number().min(1, 'Please select a category'),
   subCategoryId: z.number().optional().nullable(),
@@ -71,6 +71,7 @@ const specsToRows = (specifications?: Record<string, unknown> | null): SpecRow[]
 
 export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormProps) {
   const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [videoUrl, setVideoUrl] = useState<string>(initialData?.videoUrl || '');
   const [specRows, setSpecRows] = useState<SpecRow[]>(() => specsToRows(initialData?.specifications));
   const [isLoading, setIsLoading] = useState(false);
   const [sellerError, setSellerError] = useState<string | null>(null);
@@ -100,7 +101,6 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       stock: initialData?.stock ?? 0,
       sku: initialData?.sku || '',
       barcode: initialData?.barcode || '',
-      videoUrl: initialData?.videoUrl || '',
       weight: initialData?.weight ?? null,
       categoryId: initialData?.categoryId || undefined,
       subCategoryId: initialData?.subCategoryId || undefined,
@@ -201,7 +201,6 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
 
   const basicTabHasError = !!(errors.name || errors.description || errors.categoryId || errors.sellerId);
   const pricingTabHasError = !!(errors.price || errors.stock);
-  const mediaTabHasError = !!errors.videoUrl;
 
   const onSubmit = async (data: ProductFormData) => {
     // Check if user is seller
@@ -248,7 +247,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
         stock: Number(data.stock),
         sku: data.sku || null,
         barcode: data.barcode || null,
-        videoUrl: data.videoUrl || null,
+        videoUrl: videoUrl || null,
         weight: data.weight ? Number(data.weight) : null,
         categoryId: effectiveCategoryId,
         typeId: data.typeId || null,
@@ -298,8 +297,6 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       setActiveTab('basic');
     } else if (errors.price || errors.stock) {
       setActiveTab('pricing');
-    } else if (errors.videoUrl) {
-      setActiveTab('media');
     }
   };
 
@@ -332,10 +329,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
               Pricing &amp; Stock
               {pricingTabHasError && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
             </TabsTrigger>
-            <TabsTrigger value="media">
-              Media &amp; Type
-              {mediaTabHasError && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />}
-            </TabsTrigger>
+            <TabsTrigger value="media">Media &amp; Type</TabsTrigger>
             <TabsTrigger value="organize">Specs &amp; SEO</TabsTrigger>
           </TabsList>
 
@@ -530,9 +524,8 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
             </div>
 
             <div>
-              <Label>Video URL</Label>
-              <Input type="url" {...register('videoUrl')} placeholder="https://example.com/video.mp4" />
-              {errors.videoUrl && <p className="text-sm text-red-500">{errors.videoUrl.message}</p>}
+              <Label>Product Video</Label>
+              <VideoUpload videoUrl={videoUrl} onChange={setVideoUrl} />
             </div>
 
             <div>
