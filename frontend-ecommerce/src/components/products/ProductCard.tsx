@@ -44,24 +44,14 @@ interface ProductCardProps {
     createdAt?: string;
     rating?: number;
     totalReviews?: number;
-    category?: {
-      id: number;
-      name: string;
-      slug: string;
-    } | null;
-    seller?: {
-      id: number;
-      storeName: string;
-    };
   };
-  showSeller?: boolean;
   /** Set by sections that already know every product they render is local
    *  (e.g. the Local Products section) — there's no generic per-product
    *  "is local" flag from the API, so this is opt-in rather than guessed. */
   isLocal?: boolean;
 }
 
-export function ProductCard({ product, showSeller = true, isLocal = false }: ProductCardProps) {
+export function ProductCard({ product, isLocal = false }: ProductCardProps) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -195,21 +185,9 @@ export function ProductCard({ product, showSeller = true, isLocal = false }: Pro
 
         <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
           <CardContent className="flex-1 p-4 pb-2">
-            {product.category?.name && (
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
-                {product.category.name}
-              </p>
-            )}
-
             <h3 className="line-clamp-2 min-h-[2.5rem] font-medium leading-tight group-hover:text-primary transition-colors">
               {product.name}
             </h3>
-
-            {showSeller && product.seller && (
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                {product.seller.storeName}
-              </p>
-            )}
 
             <div className="mt-2">
               <RatingStars

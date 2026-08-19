@@ -15,7 +15,6 @@ interface ProductGridProps {
   };
   onPageChange?: (page: number) => void;
   columns?: 2 | 3 | 4;
-  showSeller?: boolean;
 }
 
 export function ProductGrid({
@@ -23,7 +22,6 @@ export function ProductGrid({
   pagination,
   onPageChange,
   columns = 4,
-  showSeller = true,
 }: ProductGridProps) {
   if (!products || products.length === 0) {
     return (
@@ -48,7 +46,6 @@ export function ProductGrid({
           <ProductCard
             key={product.id}
             product={product}
-            showSeller={showSeller}
           />
         ))}
       </div>
