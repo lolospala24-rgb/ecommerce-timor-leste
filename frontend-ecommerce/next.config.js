@@ -16,7 +16,10 @@ const contentSecurityPolicy = [
   // HTML output), which would have blocked the entire app's JS under
   // strict-dynamic. Reverted rather than ship it broken; needs a real
   // browser-devtools debugging session to revisit safely.
-  "script-src 'self' 'unsafe-inline' https://apis.google.com",
+  // Next.js dev-mode Fast Refresh/HMR (react-refresh-utils runtime) uses
+  // eval() internally, so 'unsafe-eval' is needed in dev only; production
+  // builds don't use eval-based HMR, so it stays out of the prod CSP.
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com`,
   // No nonce equivalent exists for inline style *attributes* (only <style>
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
