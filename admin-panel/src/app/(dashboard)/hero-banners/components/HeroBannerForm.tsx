@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Upload, ImageIcon } from 'lucide-react';
 import {
@@ -115,13 +114,7 @@ interface HeroBannerFormProps {
 }
 
 const EMPTY_FORM = {
-  badge: '',
   title: '',
-  subtitle: '',
-  description: '',
-  price: '',
-  comparePrice: '',
-  buttonText: '',
   buttonUrl: '',
   desktopImage: '',
   mobileImage: '',
@@ -143,13 +136,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
     if (!open) return;
     if (banner) {
       setForm({
-        badge: banner.badge || '',
         title: banner.title,
-        subtitle: banner.subtitle || '',
-        description: banner.description || '',
-        price: banner.price !== null ? String(banner.price) : '',
-        comparePrice: banner.comparePrice !== null ? String(banner.comparePrice) : '',
-        buttonText: banner.buttonText || '',
         buttonUrl: banner.buttonUrl || '',
         desktopImage: banner.desktopImage,
         mobileImage: banner.mobileImage || '',
@@ -179,7 +166,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) {
-      toast.error('Title is required');
+      toast.error('Label is required');
       return;
     }
     if (!form.desktopImage) {
@@ -188,13 +175,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
     }
 
     const payload: HeroBannerPayload = {
-      badge: form.badge.trim() || undefined,
       title: form.title.trim(),
-      subtitle: form.subtitle.trim() || undefined,
-      description: form.description.trim() || undefined,
-      price: form.price ? Number(form.price) : undefined,
-      comparePrice: form.comparePrice ? Number(form.comparePrice) : undefined,
-      buttonText: form.buttonText.trim() || undefined,
       buttonUrl: form.buttonUrl.trim() || undefined,
       desktopImage: form.desktopImage,
       mobileImage: form.mobileImage || undefined,
@@ -215,7 +196,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Hero Banner' : 'Add Hero Banner'}</DialogTitle>
         </DialogHeader>
@@ -238,48 +219,15 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="hero-badge">Badge (optional)</Label>
-              <Input id="hero-badge" value={form.badge} onChange={(e) => handleChange('badge', e.target.value)} placeholder="New Arrival" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hero-title">Title</Label>
-              <Input id="hero-title" value={form.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="Smartphone Terbaru 2024" required />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="hero-title">Label (admin only, not shown on the storefront)</Label>
+            <Input id="hero-title" value={form.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="e.g. Smartphone Promo" required />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="hero-subtitle">Subtitle (optional)</Label>
-              <Input id="hero-subtitle" value={form.subtitle} onChange={(e) => handleChange('subtitle', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hero-description">Description (optional)</Label>
-              <Input id="hero-description" value={form.description} onChange={(e) => handleChange('description', e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="hero-price">Price (optional)</Label>
-              <Input id="hero-price" type="number" min={0} step="0.01" value={form.price} onChange={(e) => handleChange('price', e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hero-compare-price">Compare Price (optional)</Label>
-              <Input id="hero-compare-price" type="number" min={0} step="0.01" value={form.comparePrice} onChange={(e) => handleChange('comparePrice', e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="hero-button-text">Button Text (optional)</Label>
-              <Input id="hero-button-text" value={form.buttonText} onChange={(e) => handleChange('buttonText', e.target.value)} placeholder="Shop Now" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hero-button-url">Button URL (optional)</Label>
-              <Input id="hero-button-url" value={form.buttonUrl} onChange={(e) => handleChange('buttonUrl', e.target.value)} placeholder="/categories/electronics" />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="hero-button-url">Link URL (optional)</Label>
+            <Input id="hero-button-url" value={form.buttonUrl} onChange={(e) => handleChange('buttonUrl', e.target.value)} placeholder="/categories/electronics" />
+            <p className="text-xs text-muted-foreground">Where customers land when they click this banner.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

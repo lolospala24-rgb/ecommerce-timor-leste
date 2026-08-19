@@ -136,7 +136,6 @@ export default function HeroBannersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{banner.title}</div>
-                      {banner.subtitle && <div className="text-xs text-muted-foreground">{banner.subtitle}</div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

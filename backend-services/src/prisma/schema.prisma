@@ -1273,15 +1273,14 @@ model HomepageSectionProduct {
 // optional — null means "no bound on that side", so a banner can be
 // scheduled to start later, end at a point, both, or neither (always on
 // while isActive).
+// Pure image banners — the image itself is the full designed graphic
+// (text, pricing, branding all baked in by whoever designs it), so there's
+// no separate title/price/badge overlay to manage here. `title` is an
+// admin-only label for identifying banners in the list — it is never
+// rendered on the storefront.
 model HeroBanner {
   id           Int       @id @default(autoincrement())
-  badge        String?
   title        String
-  subtitle     String?
-  description  String?
-  price        Float?
-  comparePrice Float?
-  buttonText   String?
   buttonUrl    String?
   desktopImage String
   mobileImage  String?

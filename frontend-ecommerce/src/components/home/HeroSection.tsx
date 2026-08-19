@@ -4,68 +4,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ArrowRight } from 'lucide-react';
 
 import { useHeroBanners, type HeroBanner } from '@/hooks/useHeroBanners';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/formatters';
 
 const AUTOPLAY_INTERVAL_MS = 5000;
 const DESKTOP_HERO_HEIGHT = 'h-[280px] xl:h-[320px]';
 
-function BannerContent({ banner, compact = false }: { banner: HeroBanner; compact?: boolean }) {
-  const hasDiscount = banner.comparePrice != null && banner.price != null && banner.comparePrice > banner.price;
-  const discountPercent = hasDiscount
-    ? Math.round(((banner.comparePrice! - banner.price!) / banner.comparePrice!) * 100)
-    : 0;
-
-  return (
-    <div className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/20 to-transparent ${compact ? 'p-4' : 'p-5 sm:p-6'}`}>
-      {banner.badge && (
-        <span className={`mb-2 w-fit rounded-full bg-white/15 backdrop-blur-sm text-white font-semibold border border-white/20 ${compact ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1'}`}>
-          {banner.badge}
-        </span>
-      )}
-      <h3 className={`font-bold text-white leading-tight line-clamp-2 ${compact ? 'text-base' : 'text-lg sm:text-xl'}`}>
-        {banner.title}
-      </h3>
-      {banner.subtitle && (
-        <p className={`text-white/80 line-clamp-1 ${compact ? 'text-xs mt-0.5' : 'text-sm mt-1'}`}>
-          {banner.subtitle}
-        </p>
-      )}
-      {(banner.price != null || hasDiscount) && (
-        <div className="mt-2 flex items-center gap-2">
-          {banner.price != null && (
-            <span className={`font-bold text-white ${compact ? 'text-sm' : 'text-base'}`}>
-              {formatCurrency(banner.price)}
-            </span>
-          )}
-          {hasDiscount && (
-            <>
-              <span className="text-white/50 text-xs line-through">{formatCurrency(banner.comparePrice!)}</span>
-              <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                -{discountPercent}%
-              </span>
-            </>
-          )}
-        </div>
-      )}
-      {banner.buttonText && (
-        <span className={`mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white font-semibold text-black transition-transform group-hover:scale-105 ${compact ? 'text-xs px-3 py-1.5' : 'text-sm px-4 py-2'}`}>
-          {banner.buttonText}
-          <ArrowRight className="h-3.5 w-3.5" />
-        </span>
-      )}
-    </div>
-  );
-}
-
-function BannerCard({ banner, imageKey, className = '', compact = false, priority = false }: {
+// Pure image banners — the image itself is the full designed graphic
+// (title, pricing, branding all baked in by whoever designs it), so this
+// just renders the image as a clickable link. No text/price overlay.
+function BannerCard({ banner, imageKey, className = '', priority = false }: {
   banner: HeroBanner;
   imageKey: 'desktopImage' | 'mobileImage';
   className?: string;
-  compact?: boolean;
   priority?: boolean;
 }) {
   const href = banner.buttonUrl || '/products';
@@ -81,10 +33,9 @@ function BannerCard({ banner, imageKey, className = '', compact = false, priorit
         alt={banner.title}
         fill
         className="object-cover transition-transform duration-500 group-hover:scale-105"
-        sizes={compact ? '100vw' : '50vw'}
+        sizes={imageKey === 'mobileImage' ? '100vw' : '50vw'}
         priority={priority}
       />
-      <BannerContent banner={banner} compact={compact} />
     </Link>
   );
 }
@@ -179,7 +130,7 @@ function MobileHeroCarousel({ banners }: { banners: HeroBanner[] }) {
         <div className="flex">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative aspect-[4/3] min-w-0 flex-[0_0_100%]">
-              <BannerCard banner={banner} imageKey="mobileImage" className="h-full w-full" compact priority={index === 0} />
+              <BannerCard banner={banner} imageKey="mobileImage" className="h-full w-full" priority={index === 0} />
             </div>
           ))}
         </div>
