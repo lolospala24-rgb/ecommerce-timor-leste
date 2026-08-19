@@ -91,6 +91,7 @@ const menuSections: MenuSection[] = [
       { href: '/categories', label: 'Categories', icon: FolderTree },
       { href: '/video-shop', label: 'Video Management', icon: Video },
       { href: '/homepage', label: 'Homepage', icon: LayoutTemplate },
+      { href: '/hero-banners', label: 'Hero Banners', icon: ImageIcon },
     ],
   },
   {

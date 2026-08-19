@@ -1265,3 +1265,33 @@ model HomepageSectionProduct {
   @@index([sectionId, position])
   @@map("homepage_section_products")
 }
+
+// Homepage hero/banner slides — admin-managed, image-led promotional
+// content (not tied to a specific product like HomepageSection is).
+// desktopImage is required; mobileImage is optional and falls back to
+// desktopImage on the storefront if unset. startDate/endDate are both
+// optional — null means "no bound on that side", so a banner can be
+// scheduled to start later, end at a point, both, or neither (always on
+// while isActive).
+model HeroBanner {
+  id           Int       @id @default(autoincrement())
+  badge        String?
+  title        String
+  subtitle     String?
+  description  String?
+  price        Float?
+  comparePrice Float?
+  buttonText   String?
+  buttonUrl    String?
+  desktopImage String
+  mobileImage  String?
+  position     Int       @default(0)
+  isActive     Boolean   @default(true)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isActive, position])
+  @@map("hero_banners")
+}

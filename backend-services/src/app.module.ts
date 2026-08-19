@@ -33,6 +33,7 @@ import { LocationsModule } from './modules/locations/locations.module';
 import { CouriersModule } from './modules/couriers/couriers.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
+import { HeroModule } from './modules/hero/hero.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -86,6 +87,7 @@ import { AppService } from './app.service';
     CouriersModule,
     VideosModule,
     HomepageModule,
+    HeroModule,
     FinanceModule,
   ],
   controllers: [AppController],
