@@ -18,6 +18,8 @@ import { ProductImages } from './ProductImages';
 import { RatingStars } from '@/components/shared/RatingStars';
 import { ProductReviews } from './ProductReviews';
 import { RelatedProducts } from './RelatedProducts';
+import { RecentlyViewedSection } from './RecentlyViewedSection';
+import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
 import { cn } from '@/lib/utils';
@@ -57,6 +59,15 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
   const { data: settings } = usePublicSettings();
+  const { addProduct: recordRecentlyViewed } = useRecentlyViewed();
+
+  useEffect(() => {
+    if (product.id) recordRecentlyViewed(product.id);
+    // Only re-run when the viewed product actually changes, not on every
+    // recordRecentlyViewed identity change (it's stable via useCallback,
+    // but this makes the intent explicit either way).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
 
   const {
     variants,
@@ -757,6 +768,8 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       </div>
 
       <RelatedProducts currentProductId={product.id} />
+
+      <RecentlyViewedSection excludeId={product.id} />
     </div>
   );
 }

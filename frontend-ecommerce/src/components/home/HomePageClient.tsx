@@ -5,6 +5,7 @@ import QuickMenu from '@/components/home/QuickMenu';
 import { CategoriesShowcase } from '@/components/home/CategoriesShowcase';
 import { HomepageSections } from '@/components/home/HomepageSections';
 import { TopSellers } from '@/components/home/TopSellers';
+import { RecentlyViewedSection } from '@/components/products/RecentlyViewedSection';
 
 // Product sections (Featured/New Arrivals/Popular/Local/...) are no longer
 // individual hardcoded components — HomepageSections fetches the admin-
@@ -19,6 +20,11 @@ export function HomePageClient() {
       <CategoriesShowcase />
       <HomepageSections />
       <TopSellers />
+      <section className="bg-background py-10">
+        <div className="container-custom">
+          <RecentlyViewedSection />
+        </div>
+      </section>
     </div>
   );
 }
