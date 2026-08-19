@@ -14,10 +14,11 @@ const DESKTOP_HERO_HEIGHT = 'h-[280px] xl:h-[320px]';
 // Pure image banners — the image itself is the full designed graphic
 // (title, pricing, branding all baked in by whoever designs it), so this
 // just renders the image as a clickable link. No text/price overlay.
-function BannerCard({ banner, imageKey, className = '', priority = false }: {
+function BannerCard({ banner, imageKey, className = '', sizes, priority = false }: {
   banner: HeroBanner;
   imageKey: 'desktopImage' | 'mobileImage';
   className?: string;
+  sizes: string;
   priority?: boolean;
 }) {
   const href = banner.buttonUrl || '/products';
@@ -26,14 +27,14 @@ function BannerCard({ banner, imageKey, className = '', priority = false }: {
   return (
     <Link
       href={href}
-      className={`group relative block h-full w-full overflow-hidden rounded-2xl bg-muted ${className}`}
+      className={`group relative block h-full w-full overflow-hidden rounded-2xl border border-slate-100 bg-muted shadow-sm transition-shadow duration-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${className}`}
     >
       <Image
         src={image}
         alt={banner.title}
         fill
         className="object-cover transition-transform duration-500 group-hover:scale-105"
-        sizes={imageKey === 'mobileImage' ? '100vw' : '50vw'}
+        sizes={sizes}
         priority={priority}
       />
     </Link>
@@ -52,8 +53,8 @@ function DesktopHeroGrid({ banners }: { banners: HeroBanner[] }) {
   if (shown.length === 1) {
     return (
       <div className="hidden lg:block">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
-          <BannerCard banner={shown[0]} imageKey="desktopImage" className={`w-full ${DESKTOP_HERO_HEIGHT}`} priority />
+        <div className="container-custom py-6 sm:py-8">
+          <BannerCard banner={shown[0]} imageKey="desktopImage" className={`w-full ${DESKTOP_HERO_HEIGHT}`} sizes="100vw" priority />
         </div>
       </div>
     );
@@ -62,10 +63,10 @@ function DesktopHeroGrid({ banners }: { banners: HeroBanner[] }) {
   if (shown.length === 2) {
     return (
       <div className="hidden lg:block">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+        <div className="container-custom py-6 sm:py-8">
           <div className={`grid grid-cols-2 gap-3 ${DESKTOP_HERO_HEIGHT}`}>
             {shown.map((banner, index) => (
-              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" priority={index === 0} />
+              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" sizes="50vw" priority={index === 0} />
             ))}
           </div>
         </div>
@@ -76,12 +77,12 @@ function DesktopHeroGrid({ banners }: { banners: HeroBanner[] }) {
   const [main, ...secondary] = shown;
   return (
     <div className="hidden lg:block">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className="container-custom py-6 sm:py-8">
         <div className={`grid gap-3 ${DESKTOP_HERO_HEIGHT}`} style={{ gridTemplateColumns: '2fr 1fr' }}>
-          <BannerCard banner={main} imageKey="desktopImage" className="h-full w-full" priority />
+          <BannerCard banner={main} imageKey="desktopImage" className="h-full w-full" sizes="66vw" priority />
           <div className="grid gap-3" style={{ gridTemplateRows: `repeat(${secondary.length}, 1fr)` }}>
             {secondary.map((banner) => (
-              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" />
+              <BannerCard key={banner.id} banner={banner} imageKey="desktopImage" className="h-full w-full" sizes="33vw" />
             ))}
           </div>
         </div>
@@ -125,12 +126,12 @@ function MobileHeroCarousel({ banners }: { banners: HeroBanner[] }) {
   }, [emblaApi, startAutoplay, stopAutoplay]);
 
   return (
-    <div className="lg:hidden px-4 sm:px-6 py-4">
+    <div className="lg:hidden px-4 pb-2 pt-4 sm:px-6">
       <div ref={emblaRef} className="overflow-hidden rounded-2xl">
         <div className="flex">
           {banners.map((banner, index) => (
             <div key={banner.id} className="relative aspect-[4/3] min-w-0 flex-[0_0_100%]">
-              <BannerCard banner={banner} imageKey="mobileImage" className="h-full w-full" priority={index === 0} />
+              <BannerCard banner={banner} imageKey="mobileImage" className="h-full w-full" sizes="100vw" priority={index === 0} />
             </div>
           ))}
         </div>
@@ -158,11 +159,11 @@ function HeroSkeleton() {
   return (
     <>
       <div className="hidden lg:block">
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 py-6">
+        <div className="container-custom py-6 sm:py-8">
           <Skeleton className={`w-full rounded-2xl ${DESKTOP_HERO_HEIGHT}`} />
         </div>
       </div>
-      <div className="lg:hidden px-4 sm:px-6 py-4">
+      <div className="lg:hidden px-4 pb-2 pt-4 sm:px-6">
         <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
       </div>
     </>
