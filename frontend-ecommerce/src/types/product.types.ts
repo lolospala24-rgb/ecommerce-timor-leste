@@ -42,6 +42,7 @@ export interface Product {
     storeName: string;
     storeLogo?: string | null;
     storeAddress?: string | null;
+    storePhone?: string | null;
     isVerified?: boolean;
   };
   type?: {
