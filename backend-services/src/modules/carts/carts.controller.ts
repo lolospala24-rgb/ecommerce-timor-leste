@@ -91,20 +91,4 @@ export class CartsController {
     return { message: 'Carts merged successfully', data: cart };
   }
 
-  @Post('apply-coupon')
-  @HttpCode(HttpStatus.OK)
-  async applyCoupon(
-    @CurrentUser('id') userId: number,
-    @Body('code') code: string,
-  ) {
-    const result = await this.cartsService.applyCoupon(userId, code);
-    return { message: 'Coupon applied', data: result };
-  }
-
-  @Delete('remove-coupon')
-  @HttpCode(HttpStatus.OK)
-  async removeCoupon(@CurrentUser('id') userId: number) {
-    const cart = await this.cartsService.removeCoupon(userId);
-    return { message: 'Coupon removed', data: cart };
-  }
 }

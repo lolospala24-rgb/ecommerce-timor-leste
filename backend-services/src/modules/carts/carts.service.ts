@@ -365,50 +365,6 @@ export class CartsService {
     return this.getCart(userId);
   }
 
-  async applyCoupon(userId: number, code: string) {
-    // Validate coupon (simplified - would check against a Coupon table)
-    // For now, just validate format
-    if (!code || code.length < 3) {
-      throw new BadRequestException('Invalid coupon code');
-    }
-
-    // Get cart
-    const cart = await this.getCart(userId);
-    
-    // Calculate discount (example: 10% off)
-    const subtotal = cart.summary.subtotal;
-    const discount = subtotal * 0.1; // 10% discount
-    const total = subtotal - discount;
-
-    const cartWithCoupon = {
-      ...cart,
-      coupon: {
-        code,
-        discount,
-        type: 'percentage',
-        value: 10,
-      },
-      summary: {
-        ...cart.summary,
-        discount,
-        total,
-      },
-    };
-
-    // Store coupon in cache (temporary)
-    await this.redisService.set(`cart:coupon:${userId}`, JSON.stringify({ code, discount }), 3600);
-
-    return cartWithCoupon;
-  }
-
-  async removeCoupon(userId: number) {
-    // Remove coupon from cache
-    await this.redisService.del(`cart:coupon:${userId}`);
-    
-    // Return cart without coupon
-    return this.getCart(userId);
-  }
-
   private calculateCartSummary(items: any[]) {
     let subtotal = 0;
     let totalItems = 0;
@@ -459,6 +415,5 @@ export class CartsService {
 
   private async clearCartCache(userId: number) {
     await this.redisService.del(`cart:user:${userId}`);
-    await this.redisService.del(`cart:coupon:${userId}`);
   }
 }

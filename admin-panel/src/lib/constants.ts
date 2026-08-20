@@ -83,8 +83,6 @@ export const API_ENDPOINTS = {
     UPDATE: '/carts/update',
     CLEAR: '/carts/clear',
     MERGE: '/carts/merge',
-    APPLY_COUPON: '/carts/apply-coupon',
-    REMOVE_COUPON: '/carts/remove-coupon',
   },
   REVIEWS: {
     BASE: '/reviews',

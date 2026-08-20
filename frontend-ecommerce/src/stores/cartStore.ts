@@ -18,8 +18,6 @@ interface CartState {
   updateQuantity: (productId: number, quantity: number, variantId?: number | null) => Promise<void>;
   clearCart: () => Promise<void>;
   mergeGuestCart: (items: CartItem[]) => Promise<void>;
-  applyCoupon: (code: string) => Promise<void>;
-  removeCoupon: () => Promise<void>;
 }
 
 const defaultState = {
@@ -224,42 +222,6 @@ export const useCartStore = create<CartState>()(
         }
       },
 
-      applyCoupon: async (code: string) => {
-        if (!code) {
-          toast.error('Please enter a coupon code');
-          return;
-        }
-        
-        set({ isLoading: true, error: null });
-        try {
-          await api.post('/carts/apply-coupon', { code });
-          await get().fetchCart();
-          set({ isLoading: false });
-          toast.success('Coupon applied successfully');
-        } catch (error: any) {
-          console.error('Apply coupon error:', error);
-          const errorMessage = error.response?.data?.message || 'Invalid coupon';
-          set({ error: errorMessage, isLoading: false });
-          toast.error(errorMessage);
-          throw error;
-        }
-      },
-
-      removeCoupon: async () => {
-        set({ isLoading: true, error: null });
-        try {
-          await api.delete('/carts/remove-coupon');
-          await get().fetchCart();
-          set({ isLoading: false });
-          toast.success('Coupon removed');
-        } catch (error: any) {
-          console.error('Remove coupon error:', error);
-          const errorMessage = error.response?.data?.message || 'Failed to remove coupon';
-          set({ error: errorMessage, isLoading: false });
-          toast.error(errorMessage);
-          throw error;
-        }
-      },
     }),
     {
       name: 'cart-storage',

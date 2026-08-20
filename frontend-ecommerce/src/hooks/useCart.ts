@@ -16,8 +16,6 @@ export const useCart = () => {
     clearCart,
     fetchCart,
     mergeGuestCart,
-    applyCoupon,
-    removeCoupon,
   } = useCartStore();
 
   const { isAuthenticated } = useAuthStore();
@@ -79,8 +77,6 @@ export const useCart = () => {
     updateQuantity,
     clearCart,
     fetchCart,
-    applyCoupon,
-    removeCoupon,
     isCartEmpty: items.length === 0,
   };
 };
