@@ -1,27 +1,28 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  ShoppingBag, 
-  Truck, 
-  Shield, 
-  Users, 
-  Award, 
-  Heart, 
-  Globe, 
-  Mail, 
-  Phone, 
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
+import {
+  ShoppingBag,
+  Truck,
+  Shield,
+  Users,
+  Heart,
+  Globe,
+  Mail,
+  Phone,
   MapPin,
   CheckCircle,
-  Clock,
   CreditCard,
   Store
 } from 'lucide-react';
 
 export default function AboutPage() {
+  const { data: settings, isLoading: settingsLoading } = usePublicSettings();
+
   const features = [
     {
       icon: ShoppingBag,
@@ -43,13 +44,6 @@ export default function AboutPage() {
       title: 'Local Community',
       description: 'Support local businesses and connect with sellers in your area.'
     },
-  ];
-
-  const stats = [
-    { label: 'Products', value: '10,000+', icon: ShoppingBag },
-    { label: 'Sellers', value: '500+', icon: Store },
-    { label: 'Orders Delivered', value: '50,000+', icon: Truck },
-    { label: 'Happy Customers', value: '25,000+', icon: Users },
   ];
 
   const values = [
@@ -102,28 +96,6 @@ export default function AboutPage() {
         {/* Background Decoration */}
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-blue-500/5 blur-3xl" />
-      </section>
-
-      {/* Stats */}
-      <section>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index} className="text-center">
-                <CardContent className="pt-6">
-                  <div className="flex justify-center">
-                    <div className="rounded-full bg-primary/10 p-3">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                  <p className="mt-3 text-3xl font-bold">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
       </section>
 
       {/* Our Mission */}
@@ -263,9 +235,16 @@ export default function AboutPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <a href="mailto:support@ecommercetimor.com" className="text-primary hover:underline">
-                support@ecommercetimor.com
-              </a>
+              {settingsLoading ? (
+                <Skeleton className="h-5 w-40" />
+              ) : (
+                <a
+                  href={`mailto:${settings?.contactEmail || 'support@ecommercetimor.com'}`}
+                  className="text-primary hover:underline"
+                >
+                  {settings?.contactEmail || 'support@ecommercetimor.com'}
+                </a>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -278,9 +257,16 @@ export default function AboutPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <a href="tel:+67012345678" className="text-primary hover:underline">
-                +670 1234 5678
-              </a>
+              {settingsLoading ? (
+                <Skeleton className="h-5 w-32" />
+              ) : (
+                <a
+                  href={`tel:${(settings?.contactPhone || '+670 1234 5678').replace(/\s+/g, '')}`}
+                  className="text-primary hover:underline"
+                >
+                  {settings?.contactPhone || '+670 1234 5678'}
+                </a>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -293,7 +279,11 @@ export default function AboutPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Dili, Timor-Leste</p>
+              {settingsLoading ? (
+                <Skeleton className="h-5 w-36" />
+              ) : (
+                <p className="text-muted-foreground">{settings?.address || 'Dili, Timor-Leste'}</p>
+              )}
             </CardContent>
           </Card>
         </div>
