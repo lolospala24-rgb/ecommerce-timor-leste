@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '@/types/video';
 import { VideoFeedItem } from './VideoFeedItem';
+import { VideoFeedItemPlaceholder } from './VideoFeedItemPlaceholder';
 import { VideoNavigationControls } from './VideoNavigationControls';
 import { VideoRightPanel } from './VideoRightPanel';
 import { VideoSkeleton } from './VideoSkeleton';
@@ -14,6 +15,14 @@ interface VideoFeedProps {
   fetchNextPage: () => void;
   initialVideoId?: number;
 }
+
+// How many videos on either side of the active one keep a real, mounted
+// <video> element. Infinite scroll can load hundreds of videos into
+// `videos` over a session — without this window, every one of them would
+// stay mounted (data-fetching, <video> tags and all) for as long as the
+// feed is open, which is the classic memory/performance failure mode for
+// this kind of endless-scroll video feed, especially on lower-end phones.
+const ACTIVE_WINDOW_SIZE = 2;
 
 // A window of `size` indexes centered on `active`, clamped to
 // [0, total). Used by the position-dots indicator below — with infinite
@@ -91,6 +100,14 @@ export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPa
     itemRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  const registerItemRef = useCallback(
+    (id: number) => (el: HTMLDivElement | null) => {
+      if (el) itemRefs.current.set(id, el);
+      else itemRefs.current.delete(id);
+    },
+    [],
+  );
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
@@ -119,17 +136,19 @@ export function VideoFeed({ videos, hasNextPage, isFetchingNextPage, fetchNextPa
           ref={containerRef}
           className="h-full w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {videos.map((video) => (
-            <VideoFeedItem
-              key={video.id}
-              video={video}
-              isActive={video.id === activeId}
-              ref={(el) => {
-                if (el) itemRefs.current.set(video.id, el);
-                else itemRefs.current.delete(video.id);
-              }}
-            />
-          ))}
+          {videos.map((video, index) => {
+            const isNearActive = activeIndex === -1 || Math.abs(index - activeIndex) <= ACTIVE_WINDOW_SIZE;
+            return isNearActive ? (
+              <VideoFeedItem
+                key={video.id}
+                video={video}
+                isActive={video.id === activeId}
+                ref={registerItemRef(video.id)}
+              />
+            ) : (
+              <VideoFeedItemPlaceholder key={video.id} video={video} ref={registerItemRef(video.id)} />
+            );
+          })}
           {isFetchingNextPage && <VideoSkeleton />}
         </div>
 
