@@ -29,6 +29,7 @@ import {
   Bell,
   Settings,
   ImageIcon,
+  TicketPercent,
   Menu,
   X as XIcon,
   ChevronLeft,
@@ -98,6 +99,7 @@ const menuSections: MenuSection[] = [
     label: 'Sales',
     items: [
       { href: '/orders', label: 'Orders', icon: ClipboardList },
+      { href: '/coupons', label: 'Coupons', icon: TicketPercent },
       { href: '/reviews', label: 'Reviews', icon: Star },
     ],
   },

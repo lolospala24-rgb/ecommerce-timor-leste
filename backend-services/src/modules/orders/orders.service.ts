@@ -15,6 +15,7 @@ import { ShippingService } from '../shipping/shipping.service';
 import { SettingsService } from '../settings/settings.service';
 import { FinanceService } from '../finance/finance.service';
 import { RefundsService } from '../finance/refunds.service';
+import { CouponsService } from '../coupons/coupons.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { LOW_STOCK_THRESHOLD, NotificationEvent } from '../notifications/notifications.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -38,6 +39,7 @@ export class OrdersService {
     private financeService: FinanceService,
     private refundsService: RefundsService,
     private notificationsGateway: NotificationsGateway,
+    private couponsService: CouponsService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
@@ -123,11 +125,36 @@ export class OrdersService {
       throw new BadRequestException('Bank transfer is currently unavailable');
     }
 
+    // Validate + atomically redeem the coupon (if any) once for the whole
+    // checkout, before any orders/stock changes happen — a coupon applies
+    // to the full cart, not per seller, and its discount amount is split
+    // proportionally across each seller's Order below (each seller gets
+    // its own Order row; see the seller-grouping loop above).
+    const cartSubtotal: number = Array.from(sellerGroups.values()).reduce(
+      (sum: number, g: any) => sum + g.subtotal,
+      0,
+    );
+    let appliedCoupon: { couponUsageId: number; totalDiscount: number } | null = null;
+    if (createOrderDto.couponCode) {
+      const { coupon, discountAmount } = await this.couponsService.validateForCustomer(
+        createOrderDto.couponCode,
+        userId,
+        cartSubtotal,
+      );
+      const usage = await this.prisma.$transaction((tx) =>
+        this.couponsService.recordUsage(tx, coupon, userId, discountAmount),
+      );
+      appliedCoupon = { couponUsageId: usage.id, totalDiscount: discountAmount };
+    }
+
     // Create orders for each seller
     const orders = [];
     const orderNumberPrefix = `ORD-${Date.now()}-`;
+    const sellerGroupList = Array.from(sellerGroups.values());
+    let distributedDiscount = 0;
 
-    for (const [_, group] of sellerGroups) {
+    for (let groupIndex = 0; groupIndex < sellerGroupList.length; groupIndex++) {
+      const group = sellerGroupList[groupIndex];
       if (!group.sellerId) {
         throw new BadRequestException('Invalid seller information for one or more cart items');
       }
@@ -181,15 +208,33 @@ export class OrdersService {
         throw new BadRequestException('Cart subtotal is invalid');
       }
 
+      // This seller's proportional share of the cart-wide coupon discount.
+      // The last group absorbs whatever's left after rounding every earlier
+      // share to the cent, so the shares always sum to exactly
+      // appliedCoupon.totalDiscount rather than drifting a cent off from
+      // rounding each share independently.
+      let discountShare = 0;
+      if (appliedCoupon) {
+        const isLastGroup = groupIndex === sellerGroupList.length - 1;
+        discountShare = isLastGroup
+          ? Math.round((appliedCoupon.totalDiscount - distributedDiscount) * 100) / 100
+          : Math.round(((appliedCoupon.totalDiscount * group.subtotal) / cartSubtotal) * 100) / 100;
+        distributedDiscount += discountShare;
+      }
+      const discountedSubtotal = Math.round((group.subtotal - discountShare) * 100) / 100;
+
       // Rounded to cents at the point of calculation — a percentage tax on
       // a subtotal that already has cents (e.g. 8% of $84.30 = $6.744) is a
       // real fractional-cent value, not float noise, and it must not
       // propagate unrounded into `total`/Payment.amount or every downstream
       // consumer (refund default amount, commission base, invoices) ends up
       // a fraction of a cent off the number the customer actually saw and paid.
-      const taxAmount = Math.round(((group.subtotal * taxRate) / 100) * 100) / 100;
+      // Tax is computed on the post-discount subtotal — the customer is
+      // taxed on what they actually paid for the goods, not the pre-coupon
+      // sticker price.
+      const taxAmount = Math.round(((discountedSubtotal * taxRate) / 100) * 100) / 100;
       const serviceFee = flatServiceFee;
-      const total = Math.round((group.subtotal + shippingCost + taxAmount + serviceFee) * 100) / 100;
+      const total = Math.round((discountedSubtotal + shippingCost + taxAmount + serviceFee) * 100) / 100;
       if (!Number.isFinite(total) || total < 0) {
         throw new BadRequestException('Order total is invalid');
       }
@@ -217,6 +262,8 @@ export class OrdersService {
         shippingCost,
         taxAmount,
         serviceFee,
+        discountAmount: discountShare,
+        couponUsageId: appliedCoupon?.couponUsageId ?? null,
         total,
         status: OrderStatus.PENDING,
         paymentMethod: createOrderDto.paymentMethod,

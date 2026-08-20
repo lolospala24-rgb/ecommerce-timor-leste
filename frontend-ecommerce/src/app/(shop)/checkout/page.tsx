@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Loader2,
   LucideIcon,
+  TicketPercent,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateOrder } from '@/hooks/useOrders';
@@ -23,6 +24,7 @@ import api from '@/lib/api';
 import { useAddresses } from '@/hooks/useAddresses';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { useCouponStore } from '@/stores/couponStore';
 import dynamic from 'next/dynamic';
 
 const PLACEHOLDER_IMAGE = '/images/placeholder.png';
@@ -76,6 +78,7 @@ export default function CheckoutPage() {
   const { items, isLoading: cartLoading, fetchCart, clearCart, mergeGuestCart } = useCartStore();
   const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { mutateAsync: createOrder, isPending: isPlacingOrder } = useCreateOrder();
+  const { appliedCoupon, clearCoupon } = useCouponStore();
 
   const [enableLocalPickup, setEnableLocalPickup] = useState(false);
   const [addressShippingOptions, setAddressShippingOptions] = useState<any[]>([]);
@@ -325,8 +328,16 @@ export default function CheckoutPage() {
   }, [safeItems]);
   const taxRate = Number(checkoutSettings.taxRate ?? 0);
   const serviceFee = subtotal > 0 ? Number(checkoutSettings.serviceFee ?? 0) * sellerCount : 0;
-  const tax = subtotal * (taxRate / 100);
-  const grandTotal = subtotal + shippingCost + tax + serviceFee;
+  // Capped defensively in case the cart changed since the coupon was
+  // applied on the cart page — the backend re-validates and recomputes
+  // this for real at order placement regardless (see OrdersService.create
+  // / CouponsService.validateForCustomer), so this is only a preview.
+  const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discountAmount, subtotal) : 0;
+  const discountedSubtotal = subtotal - discountAmount;
+  // Tax on the post-discount subtotal — matches the backend, which taxes
+  // what the customer actually paid for the goods, not the pre-coupon price.
+  const tax = discountedSubtotal * (taxRate / 100);
+  const grandTotal = discountedSubtotal + shippingCost + tax + serviceFee;
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
@@ -359,9 +370,11 @@ export default function CheckoutPage() {
         taxAmount: tax,
         serviceFee,
         notes,
+        couponCode: appliedCoupon?.code,
       });
 
       await clearCart();
+      clearCoupon();
       // Multi-seller checkouts create one order per seller — the backend
       // returns an array in that case. Land on the first order; the
       // customer can see the rest under "My Orders".
@@ -759,6 +772,15 @@ export default function CheckoutPage() {
 
             <div className="mt-6 space-y-3 border-t border-slate-200 pt-5 text-sm text-slate-600">
               <div className="flex items-center justify-between"><span>Product subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-green-600">
+                  <span className="flex items-center gap-1.5">
+                    <TicketPercent className="h-3.5 w-3.5" />
+                    Coupon ({appliedCoupon.code})
+                  </span>
+                  <span>-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between"><span>Shipping fee</span><span>${shippingCost.toFixed(2)}</span></div>
               <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
               <div className="flex items-center justify-between">

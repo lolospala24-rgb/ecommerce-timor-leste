@@ -10,10 +10,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ShippingModule } from '../shipping/shipping.module';
 import { SettingsModule } from '../settings/settings.module';
 import { FinanceModule } from '../finance/finance.module';
+import { CouponsModule } from '../coupons/coupons.module';
 import { PaymentExpiryJob } from './payment-expiry.job';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, SettingsModule, FinanceModule],
+  imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, SettingsModule, FinanceModule, CouponsModule],
   controllers: [OrdersController],
   providers: [OrdersService, PaymentExpiryJob],
   exports: [OrdersService],

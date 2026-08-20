@@ -67,4 +67,11 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  // Re-validated from scratch server-side against the customer's real cart
+  // subtotal in OrdersService.create — nothing about the discount is ever
+  // trusted from the client.
+  @IsString()
+  @IsOptional()
+  couponCode?: string;
 }

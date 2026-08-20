@@ -118,6 +118,7 @@ model User {
   videoSaves      VideoSave[]
   videoComments   VideoComment[]
   sellerFollows   SellerFollow[]
+  couponUsages    CouponUsage[]
 
   @@map("users")
 }
@@ -358,6 +359,12 @@ model Order {
   shippingCost          Float          @default(0)
   taxAmount             Float          @default(0)
   serviceFee            Float          @default(0)
+  // This order's proportional share of a cart-wide coupon discount (see
+  // CouponUsage) — a coupon applied at checkout is split across every
+  // seller's order in that checkout in proportion to each seller's share
+  // of the cart subtotal, since each seller gets its own Order row.
+  discountAmount        Float          @default(0)
+  couponUsageId         Int?
   // Commission snapshot — written once, by FinanceService, at the moment
   // this order's Payment is confirmed PAID. Deliberately NOT computed live
   // from SystemSettings.defaultCommissionRate: if the admin changes the
@@ -393,6 +400,7 @@ model Order {
   refunds       Refund[]
   ledgerEntries SellerLedgerEntry[]
   platformLedgerEntries PlatformLedgerEntry[]
+  couponUsage   CouponUsage?  @relation(fields: [couponUsageId], references: [id])
 
   @@index([customerId])
   @@index([sellerId])
@@ -400,6 +408,7 @@ model Order {
   @@index([orderNumber])
   @@index([addressId])
   @@index([shippingZoneId])
+  @@index([couponUsageId])
   @@map("orders")
 }
 
@@ -426,6 +435,60 @@ model OrderItem {
 
   @@index([variantId])
   @@map("order_items")
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// Platform-wide discount codes (not per-seller vouchers — a coupon applies
+// across a whole checkout, then OrdersService splits its discount
+// proportionally across each seller's Order row for that checkout).
+model Coupon {
+  id                Int                @id @default(autoincrement())
+  code              String             @unique
+  description       String?
+  discountType      CouponDiscountType
+  discountValue     Float
+  // Caps a PERCENTAGE discount's dollar value (e.g. "20% off, up to $10").
+  // Not meaningful for FIXED_AMOUNT, where discountValue is already the cap.
+  maxDiscountAmount Float?
+  minPurchaseAmount Float?
+  // Total redemptions allowed across every customer, enforced with an
+  // atomic conditional update (see CouponsService.recordUsage) — mirrors
+  // the same race-safe pattern OrdersService already uses for stock.
+  usageLimit        Int?
+  usageLimitPerUser Int                @default(1)
+  usedCount         Int                @default(0)
+  isActive          Boolean            @default(true)
+  startDate         DateTime?
+  endDate           DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  usages CouponUsage[]
+
+  @@index([isActive])
+  @@map("coupons")
+}
+
+// One row per checkout that redeemed a coupon (not one per Order — a
+// multi-seller checkout creates several Order rows that all reference the
+// same CouponUsage, since the coupon was only entered once).
+model CouponUsage {
+  id             Int      @id @default(autoincrement())
+  couponId       Int
+  userId         Int
+  discountAmount Float
+  createdAt      DateTime @default(now())
+
+  coupon Coupon  @relation(fields: [couponId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([couponId, userId])
+  @@map("coupon_usages")
 }
 
 model Payment {

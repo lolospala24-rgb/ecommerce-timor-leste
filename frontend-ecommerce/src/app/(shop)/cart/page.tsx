@@ -6,21 +6,27 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useCouponStore } from '@/stores/couponStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard } from 'lucide-react';
+import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getCartItemKey } from '@/lib/cart';
 import { useShippingSettings } from '@/hooks/useShippingSettings';
+import { useValidateCoupon } from '@/hooks/useCoupons';
 
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const { items, isLoading, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
   const { data: shippingSettings } = useShippingSettings();
+  const { appliedCoupon, setAppliedCoupon, clearCoupon } = useCouponStore();
+  const validateCoupon = useValidateCoupon();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
 
   // Fetch cart when component mounts
   useEffect(() => {
@@ -28,6 +34,15 @@ export default function CartPage() {
       fetchCart();
     }
   }, [isAuthenticated, fetchCart]);
+
+  // An emptied cart can no longer have a coupon meaningfully "applied" —
+  // drop it rather than carrying a stale discount into whatever the
+  // customer adds next.
+  useEffect(() => {
+    if (!isLoading && items.length === 0 && appliedCoupon) {
+      clearCoupon();
+    }
+  }, [isLoading, items.length, appliedCoupon, clearCoupon]);
 
   const handleQuantityChange = async (
     productId: number,
@@ -66,6 +81,31 @@ export default function CartPage() {
       await clearCart();
       toast.success('Cart cleared');
     }
+  };
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+    try {
+      const result = await validateCoupon.mutateAsync({ code, subtotal: safeSubtotal });
+      setAppliedCoupon({
+        code: result.code,
+        discountType: result.discountType,
+        discountValue: result.discountValue,
+        discountAmount: result.discountAmount,
+      });
+      setCouponInput('');
+      toast.success(`Coupon "${result.code}" applied`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Invalid coupon code');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    clearCoupon();
   };
 
   const handleCheckout = () => {
@@ -161,10 +201,63 @@ export default function CartPage() {
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-medium">${safeSubtotal.toFixed(2)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <span>-${appliedCoupon.discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <Separator />
                 <p className="text-xs text-muted-foreground">
                   Shipping, tax, and any service fee are calculated at checkout based on your delivery address.
                 </p>
+              </div>
+
+              {/* Coupon — validated against the real backend on Apply;
+                  final discount is re-validated again at order placement,
+                  this is only a preview. */}
+              <div className="space-y-2">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <TicketPercent className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-700">{appliedCoupon.code}</span>
+                      <span className="text-xs text-green-600">
+                        {appliedCoupon.discountType === 'PERCENTAGE'
+                          ? `-${appliedCoupon.discountValue}%`
+                          : `-$${appliedCoupon.discountValue.toFixed(2)}`}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={handleRemoveCoupon}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Coupon code"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      disabled={validateCoupon.isPending}
+                      className="h-9 flex-1 font-mono text-sm uppercase"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleApplyCoupon}
+                      disabled={validateCoupon.isPending}
+                      className="h-9"
+                    >
+                      {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Free shipping progress — only shown when the promotion is

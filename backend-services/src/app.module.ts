@@ -34,6 +34,7 @@ import { CouriersModule } from './modules/couriers/couriers.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
 import { HeroModule } from './modules/hero/hero.module';
+import { CouponsModule } from './modules/coupons/coupons.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -88,6 +89,7 @@ import { AppService } from './app.service';
     VideosModule,
     HomepageModule,
     HeroModule,
+    CouponsModule,
     FinanceModule,
   ],
   controllers: [AppController],
