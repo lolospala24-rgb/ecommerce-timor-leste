@@ -11,9 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { RatingStars } from '@/components/shared/RatingStars';
-import { ShoppingCart, Heart, Eye, Loader2 } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Loader2, Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import {
+  useNotifyMeStatus,
+  useSubscribeNotifyMe,
+  useUnsubscribeNotifyMe,
+} from '@/hooks/useStockNotifications';
 
 // Only loaded once a shopper actually opens Quick View — keeps the variant
 // selector / product-detail logic it pulls in out of every page that
@@ -60,6 +65,32 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
   const { isAuthenticated } = useAuthStore();
 
   const isWishlisted = isInWishlist(product.id);
+
+  const isOutOfStock = product.stock === 0;
+  const { data: notifyStatus } = useNotifyMeStatus(product.id, isAuthenticated && isOutOfStock);
+  const subscribeNotifyMe = useSubscribeNotifyMe(product.id);
+  const unsubscribeNotifyMe = useUnsubscribeNotifyMe(product.id);
+  const isSubscribed = !!notifyStatus?.subscribed;
+
+  const handleNotifyMe = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.error('Please login to get notified');
+      return;
+    }
+    try {
+      if (isSubscribed) {
+        await unsubscribeNotifyMe.mutateAsync();
+        toast.success('Notification cancelled');
+      } else {
+        await subscribeNotifyMe.mutateAsync();
+        toast.success("We'll notify you when it's back in stock!");
+      }
+    } catch {
+      // The axios interceptor already shows an error toast.
+    }
+  };
 
   const discount = product.comparePrice && product.comparePrice > product.price
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
@@ -217,24 +248,43 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
         </Link>
 
         <div className="px-4 pb-4">
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={handleAddToCart}
-            disabled={product.stock === 0 || isAddingToCart}
-          >
-            {isAddingToCart ? (
-              <>
+          {isOutOfStock ? (
+            <Button
+              size="sm"
+              variant={isSubscribed ? 'secondary' : 'outline'}
+              className="w-full"
+              onClick={handleNotifyMe}
+              disabled={subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending}
+            >
+              {subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Add to Cart
-              </>
-            )}
-          </Button>
+              ) : isSubscribed ? (
+                <BellRing className="mr-2 h-4 w-4" />
+              ) : (
+                <Bell className="mr-2 h-4 w-4" />
+              )}
+              {isSubscribed ? "We'll notify you" : 'Notify Me'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={handleAddToCart}
+              disabled={isAddingToCart}
+            >
+              {isAddingToCart ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Add to Cart
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </Card>
 

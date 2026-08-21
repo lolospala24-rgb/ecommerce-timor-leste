@@ -261,7 +261,9 @@ export function Header() {
                             onClick={() => {
                               markAsRead(notification.id);
                               setNotificationsOpen(false);
-                              if (notification.orderId) {
+                              if (notification.productSlug) {
+                                router.push(`/products/${notification.productSlug}`);
+                              } else if (notification.orderId) {
                                 router.push(`/account/orders/${notification.orderId}`);
                               }
                             }}

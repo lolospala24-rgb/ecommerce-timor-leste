@@ -119,6 +119,7 @@ model User {
   videoComments   VideoComment[]
   sellerFollows   SellerFollow[]
   couponUsages    CouponUsage[]
+  stockNotifications StockNotification[]
 
   @@map("users")
 }
@@ -242,6 +243,7 @@ model Product {
   productAttributes ProductAttribute[]
   videos            Video[]
   homepageSectionEntries HomepageSectionProduct[]
+  stockNotifications StockNotification[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -347,6 +349,26 @@ model WishlistItem {
   @@unique([userId, productId])
   @@index([userId])
   @@map("wishlist_items")
+}
+
+// A pending "notify me when back in stock" subscription. Rows are deleted
+// once the alert fires (see StockNotificationsService.notifySubscribers) —
+// there's no isActive/notifiedAt flag, so the unique constraint always
+// means "one open subscription per user+product," and a customer can
+// re-subscribe cleanly the next time the same product goes out of stock.
+model StockNotification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("stock_notifications")
 }
 
 model Order {

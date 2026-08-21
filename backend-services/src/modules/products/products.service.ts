@@ -19,6 +19,7 @@ import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
+import { StockNotificationsService } from '../stock-notifications/stock-notifications.service';
 
 @Injectable()
 export class ProductsService {
@@ -27,6 +28,7 @@ export class ProductsService {
     private redisService: RedisService,
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
+    private stockNotificationsService: StockNotificationsService,
   ) {}
 
   async create(
@@ -718,6 +720,17 @@ export class ProductsService {
     // Clear cache
     await this.clearProductCache(id);
 
+    // Fire "back in stock" alerts only on the actual 0 -> positive crossing
+    // (mirrors the low-stock-alert "fire once per crossing" convention in
+    // orders.service.ts) — not on every edit of an already-in-stock product.
+    if (product.stock === 0 && updatedProduct.stock > 0) {
+      void this.stockNotificationsService.notifySubscribers(
+        id,
+        updatedProduct.name,
+        updatedProduct.slug,
+      );
+    }
+
     return updatedProduct;
   }
 
@@ -923,6 +936,17 @@ export class ProductsService {
     });
 
     await this.clearProductCache(id);
+
+    // Same 0 -> positive crossing check as update() above — this is the
+    // dedicated restock endpoint, so it's the path actually expected to
+    // trigger these alerts in normal admin/seller usage.
+    if (product.stock === 0 && updatedProduct.stock > 0) {
+      void this.stockNotificationsService.notifySubscribers(
+        id,
+        updatedProduct.name,
+        updatedProduct.slug,
+      );
+    }
 
     return updatedProduct;
   }

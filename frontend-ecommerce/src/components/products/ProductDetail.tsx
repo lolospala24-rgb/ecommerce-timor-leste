@@ -42,8 +42,15 @@ import {
   ChevronRight,
   BadgeCheck,
   MapPin,
+  Bell,
+  BellRing,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import {
+  useNotifyMeStatus,
+  useSubscribeNotifyMe,
+  useUnsubscribeNotifyMe,
+} from '@/hooks/useStockNotifications';
 
 interface ProductDetailProps {
   product: Product;
@@ -101,6 +108,35 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     setMainImageUrl,
     hasChosenVariant,
   } = useProductVariantSelection(product);
+
+  // Scoped to simple (non-variant) products: Product.stock is the only
+  // field the backend's restock trigger watches (see
+  // ProductsService.update/updateStock) — a variant going back in stock
+  // doesn't necessarily change Product.stock, so offering this for
+  // variant products would be a promise the backend can't currently keep.
+  const canNotifyMe = !hasVariants && displayStock === 0;
+  const { data: notifyStatus } = useNotifyMeStatus(product.id, isAuthenticated && canNotifyMe);
+  const subscribeNotifyMe = useSubscribeNotifyMe(product.id);
+  const unsubscribeNotifyMe = useUnsubscribeNotifyMe(product.id);
+  const isSubscribedToRestock = !!notifyStatus?.subscribed;
+
+  const handleNotifyMe = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to get notified');
+      return;
+    }
+    try {
+      if (isSubscribedToRestock) {
+        await unsubscribeNotifyMe.mutateAsync();
+        toast.success('Notification cancelled');
+      } else {
+        await subscribeNotifyMe.mutateAsync();
+        toast.success("We'll notify you when it's back in stock!");
+      }
+    } catch {
+      // The axios interceptor already shows an error toast.
+    }
+  };
 
   const discount =
     displayComparePrice && displayComparePrice > displayPrice
@@ -423,10 +459,30 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 In stock — {displayStock} available
               </p>
             ) : (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-red-600">
-                <AlertCircle className="h-4 w-4" />
-                Out of stock
-              </p>
+              <div className="space-y-2">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  Out of stock
+                </p>
+                {canNotifyMe && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isSubscribedToRestock ? 'secondary' : 'outline'}
+                    onClick={handleNotifyMe}
+                    disabled={subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending}
+                  >
+                    {subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : isSubscribedToRestock ? (
+                      <BellRing className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Bell className="mr-2 h-4 w-4" />
+                    )}
+                    {isSubscribedToRestock ? "We'll notify you when it's back" : 'Notify Me When Available'}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 

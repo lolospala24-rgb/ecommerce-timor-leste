@@ -17,6 +17,11 @@ export interface CustomerNotification {
   isRead: boolean;
   trackingNumber?: string | null;
   note?: string | null;
+  // Only present on PRODUCT_BACK_IN_STOCK notifications (see
+  // NotificationsService.sendProductBackInStockNotification) — everything
+  // else here assumes an order notification, this is the one exception.
+  productId?: number | null;
+  productSlug?: string | null;
 }
 
 const formatStatusLabel = (status?: string) => {
@@ -61,6 +66,8 @@ const normalizeNotification = (item: any): CustomerNotification => ({
   isRead: Boolean(item.isRead),
   trackingNumber: item.data?.trackingNumber ?? item.trackingNumber ?? null,
   note: item.data?.note ?? item.note ?? item.data?.reason ?? null,
+  productId: item.data?.productId ?? null,
+  productSlug: item.data?.productSlug ?? null,
 });
 
 export const useOrderNotifications = () => {

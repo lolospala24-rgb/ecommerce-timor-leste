@@ -422,13 +422,20 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
-  async sendProductBackInStockNotification(userId: number, productId: number, productName: string) {
+  async sendProductBackInStockNotification(
+    userId: number,
+    productId: number,
+    productName: string,
+    productSlug: string,
+  ) {
     return this.sendNotification({
       userId,
       title: 'Back in Stock!',
       message: `${productName} is back in stock. Shop now before it runs out!`,
-      type: 'PROMO',
-      data: { productId },
+      type: NotificationEvent.PRODUCT_BACK_IN_STOCK,
+      entityType: 'PRODUCT',
+      entityId: productId,
+      data: { productId, productSlug },
       sendEmail: false,
     });
   }
