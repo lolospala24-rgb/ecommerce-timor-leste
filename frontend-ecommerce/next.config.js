@@ -38,7 +38,13 @@ const contentSecurityPolicy = [
   "object-src 'none'",
 ].join('; ');
 
-const permissionsPolicy = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
+// geolocation=(self): GoogleMapPicker's "My Location" button needs
+// navigator.geolocation, which this header blocks outright — for every
+// visitor, before the browser even shows a permission prompt — when set to
+// (), regardless of what the user allows in their own browser settings.
+// Scoped to (self) rather than opened further: still denied to any
+// embedded third-party iframe, only this site's own pages can request it.
+const permissionsPolicy = 'camera=(), microphone=(), geolocation=(self), payment=(), usb=()';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
