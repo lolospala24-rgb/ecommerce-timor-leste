@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   orderConfirmationTemplate,
   orderStatusUpdateTemplate,
+  getOrderStatusEmailHeading,
   paymentConfirmationTemplate,
   notificationEmailTemplate,
   testEmailTemplate,
@@ -129,15 +130,28 @@ export class MailService {
     await this.send(email, `Payment Confirmed — ${order.orderNumber}`, html);
   }
 
-  async sendOrderStatusUpdate(email: string, name: string, order: any) {
+  // `note` is passed explicitly rather than read off `order.notes` — the DB
+  // field can hold a note left on an *earlier* status change (e.g. "handed
+  // to courier" from when it moved to SHIPPING), which would be stale and
+  // misleading if shown again on a later, unrelated status email. Callers
+  // pass only the note that belongs to *this* transition.
+  async sendOrderStatusUpdate(email: string, name: string, order: any, note?: string | null) {
     if (!(await this.isEnabled('sendShippingUpdate'))) return;
     const html = orderStatusUpdateTemplate({
       customerName: name,
       orderNumber: order.orderNumber,
       status: order.status,
       trackingNumber: order.trackingNumber,
+      courier: order.courier,
+      note: note ?? null,
+      items: (order.items ?? []).map((item: any) => ({
+        name: item.product?.name ?? 'Item',
+        quantity: item.quantity,
+        total: item.total,
+      })),
+      total: order.total,
     });
-    await this.send(email, `Order Update — ${order.orderNumber}`, html);
+    await this.send(email, `${getOrderStatusEmailHeading(order.status)} — ${order.orderNumber}`, html);
   }
 
   async sendWelcomeEmail(email: string, name: string) {
@@ -166,9 +180,23 @@ export class MailService {
     return Promise.resolve();
   }
 
-  async sendOrderCancelledEmail(..._args: any[]) {
-    this.logger.debug(`sendOrderCancelledEmail`);
-    return Promise.resolve();
+  async sendOrderCancelledEmail(email: string, name: string, order: any, reason?: string) {
+    if (!(await this.isEnabled('sendShippingUpdate'))) return;
+    const html = orderStatusUpdateTemplate({
+      customerName: name,
+      orderNumber: order.orderNumber,
+      status: 'CANCELLED',
+      trackingNumber: null,
+      courier: null,
+      note: reason ?? null,
+      items: (order.items ?? []).map((item: any) => ({
+        name: item.product?.name ?? 'Item',
+        quantity: item.quantity,
+        total: item.total,
+      })),
+      total: order.total,
+    });
+    await this.send(email, `${getOrderStatusEmailHeading('CANCELLED')} — ${order.orderNumber}`, html);
   }
 
   async sendNotificationEmail(

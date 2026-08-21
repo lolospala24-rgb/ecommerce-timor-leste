@@ -914,7 +914,7 @@ export class OrdersService {
       userId: updatedOrder.customerId,
       title: `Order ${updatedOrder.orderNumber} updated`,
       message: messageParts.join(' '),
-      type: 'ORDER',
+      type: NotificationEvent.ORDER_STATUS_CHANGED,
       data: {
         orderId: updatedOrder.id,
         orderNumber: updatedOrder.orderNumber,
@@ -925,11 +925,14 @@ export class OrdersService {
       sendEmail: false,
     });
 
-    // Send status update email
+    // Send status update email — note is passed explicitly (not read from
+    // updatedOrder.notes) so an email about this transition never shows a
+    // note left on a previous, unrelated status change.
     await this.mailService.sendOrderStatusUpdate(
       order.customer.email,
       order.customer.name,
       updatedOrder,
+      updateOrderStatusDto.note,
     );
 
     // Clear cache
@@ -1025,11 +1028,13 @@ export class OrdersService {
       );
     }
 
-    // Send cancellation email
+    // Send cancellation email — cancelledOrder itself has no `items`
+    // (plain order.update(), no include), so the pre-update `order` fetch
+    // (which does include items.product) supplies them.
     await this.mailService.sendOrderCancelledEmail(
       order.customer.email,
       order.customer.name,
-      cancelledOrder,
+      { ...cancelledOrder, items: order.items },
       reason,
     );
 
@@ -1086,7 +1091,7 @@ export class OrdersService {
     await this.mailService.sendOrderCancelledEmail(
       order.customer.email,
       order.customer.name,
-      cancelledOrder,
+      { ...cancelledOrder, items: order.items },
       'Payment window expired — no receipt was uploaded in time',
     );
 

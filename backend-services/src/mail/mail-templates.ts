@@ -83,21 +83,83 @@ export function paymentConfirmationTemplate(params: {
   return layout('Payment Confirmed', body);
 }
 
+// Per-status copy for the order status email — keyed by OrderStatus. Kept
+// here (not inline in the template function) so the subject line
+// (MailService.sendOrderStatusUpdate) and the email heading always say the
+// same thing, via getOrderStatusEmailHeading below.
+const ORDER_STATUS_COPY: Record<string, { heading: string; message: (orderNumber: string) => string }> = {
+  PAID: {
+    heading: 'Payment Confirmed',
+    message: (n) => `We've confirmed your payment for order <strong>${n}</strong>. Your order is now being prepared.`,
+  },
+  PROCESSING: {
+    heading: 'Order Being Prepared',
+    message: (n) => `Your order <strong>${n}</strong> is now being processed and packed by the seller.`,
+  },
+  SHIPPING: {
+    heading: 'Order Shipped',
+    message: (n) => `Your order <strong>${n}</strong> is on its way!`,
+  },
+  DELIVERED: {
+    heading: 'Order Delivered',
+    message: (n) => `Your order <strong>${n}</strong> has been delivered. We hope you enjoy your purchase!`,
+  },
+  CANCELLED: {
+    heading: 'Order Cancelled',
+    message: (n) => `Your order <strong>${n}</strong> has been cancelled.`,
+  },
+};
+
+export function getOrderStatusEmailHeading(status: string): string {
+  return ORDER_STATUS_COPY[status]?.heading ?? 'Order Update';
+}
+
 export function orderStatusUpdateTemplate(params: {
   customerName: string;
   orderNumber: string;
   status: string;
   trackingNumber?: string | null;
+  courier?: string | null;
+  note?: string | null;
+  items: { name: string; quantity: number; total: number }[];
+  total: number;
 }) {
-  const tracking = params.trackingNumber
-    ? `<p>Tracking number: <strong>${params.trackingNumber}</strong></p>`
-    : '';
+  const copy = ORDER_STATUS_COPY[params.status];
+  const message = copy
+    ? copy.message(params.orderNumber)
+    : `Your order <strong>${params.orderNumber}</strong> status has been updated to <strong>${params.status}</strong>.`;
+
+  const details: string[] = [];
+  if (params.status === 'SHIPPING' && params.trackingNumber) {
+    details.push(
+      `<p>Tracking number: <strong>${params.trackingNumber}</strong>${params.courier ? ` (${params.courier})` : ''}</p>`,
+    );
+  }
+  if (params.note) {
+    const label = params.status === 'CANCELLED' ? 'Reason' : 'Note';
+    details.push(`<p>${label}: ${params.note}</p>`);
+  }
+
+  const rows = params.items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:6px 0;border-bottom:1px solid #e5e7eb;">${item.name} × ${item.quantity}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #e5e7eb;text-align:right;">${money(item.total)}</td>
+        </tr>`,
+    )
+    .join('');
+
   const body = `
     <p>Hi ${params.customerName},</p>
-    <p>Your order <strong>${params.orderNumber}</strong> status has been updated to
-    <strong>${params.status}</strong>.</p>
-    ${tracking}`;
-  return layout('Order Status Update', body);
+    <p>${message}</p>
+    ${details.join('')}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:14px;">
+      ${rows}
+      <tr><td style="font-weight:bold;padding-top:6px;">Total</td><td style="font-weight:bold;padding-top:6px;text-align:right;">${money(params.total)}</td></tr>
+    </table>`;
+
+  return layout(copy?.heading ?? 'Order Update', body);
 }
 
 export function welcomeEmailTemplate(params: { customerName: string }) {
