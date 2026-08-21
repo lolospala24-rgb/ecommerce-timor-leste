@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import 'mapbox-gl/dist/mapbox-gl.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome';

@@ -414,7 +414,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const MapboxPicker = dynamic(() => import('@/components/maps/MapboxPicker'), { ssr: false });
+  const GoogleMapPicker = dynamic(() => import('@/components/maps/GoogleMapPicker'), { ssr: false });
 
   const [showMap, setShowMap] = useState(false);
 
@@ -842,7 +842,7 @@ export default function CheckoutPage() {
         </aside>
       </div>
       {showMap && (
-        <MapboxPicker onSelect={handleUseMapLocation} onClose={() => setShowMap(false)} />
+        <GoogleMapPicker onSelect={handleUseMapLocation} onClose={() => setShowMap(false)} />
       )}
     </div>
   );
