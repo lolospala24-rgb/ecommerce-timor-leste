@@ -14,9 +14,10 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 import { getCartItemKey } from '@/lib/cart';
 import { useShippingSettings } from '@/hooks/useShippingSettings';
-import { useValidateCoupon } from '@/hooks/useCoupons';
+import { useValidateCoupon, useAvailableCoupons, type AvailableCoupon } from '@/hooks/useCoupons';
 
 export default function CartPage() {
   const router = useRouter();
@@ -83,8 +84,8 @@ export default function CartPage() {
     }
   };
 
-  const handleApplyCoupon = async () => {
-    const code = couponInput.trim();
+  const handleApplyCoupon = async (codeOverride?: string) => {
+    const code = (codeOverride ?? couponInput).trim();
     if (!code) {
       toast.error('Please enter a coupon code');
       return;
@@ -250,13 +251,21 @@ export default function CartPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleApplyCoupon}
+                      onClick={() => handleApplyCoupon()}
                       disabled={validateCoupon.isPending}
                       className="h-9"
                     >
                       {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
                     </Button>
                   </div>
+                )}
+
+                {!appliedCoupon && (
+                  <AvailableCouponsList
+                    subtotal={safeSubtotal}
+                    onUse={(code) => handleApplyCoupon(code)}
+                    isApplying={validateCoupon.isPending}
+                  />
                 )}
               </div>
 
@@ -312,6 +321,90 @@ export default function CartPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Coupons a customer could plausibly use, so they aren't limited to
+// blindly typing a code they'd have to already know from somewhere else
+// (an email, a social post) — matches the "browse available vouchers"
+// pattern of Shopee/Tokopedia. Coupons the cart hasn't reached the minimum
+// purchase for yet are shown, not hidden, with a clear "spend $X more" so
+// the customer knows they exist and how to unlock them.
+function AvailableCouponsList({
+  subtotal,
+  onUse,
+  isApplying,
+}: {
+  subtotal: number;
+  onUse: (code: string) => void;
+  isApplying: boolean;
+}) {
+  const { data: coupons, isLoading } = useAvailableCoupons(subtotal);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-14 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (!coupons || coupons.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Available Coupons
+      </p>
+      <div className="max-h-56 space-y-2 overflow-y-auto pr-0.5">
+        {coupons.map((coupon: AvailableCoupon) => (
+          <div
+            key={coupon.code}
+            className={cn(
+              'flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors',
+              coupon.meetsMinimum
+                ? 'border-primary/20 bg-primary/5'
+                : 'border-dashed bg-muted/30',
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                  coupon.meetsMinimum ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+                )}
+              >
+                <TicketPercent className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-mono text-sm font-semibold">{coupon.code}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {coupon.discountType === 'PERCENTAGE'
+                    ? `${coupon.discountValue}% off`
+                    : `$${coupon.discountValue.toFixed(2)} off`}
+                  {coupon.maxDiscountAmount ? ` (up to $${coupon.maxDiscountAmount.toFixed(2)})` : ''}
+                </p>
+                {!coupon.meetsMinimum && coupon.minPurchaseAmount != null && (
+                  <p className="text-xs font-medium text-amber-600">
+                    Spend ${(coupon.minPurchaseAmount - subtotal).toFixed(2)} more to unlock
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={coupon.meetsMinimum ? 'default' : 'outline'}
+              disabled={!coupon.meetsMinimum || isApplying}
+              onClick={() => onUse(coupon.code)}
+              className="h-8 shrink-0 px-3 text-xs"
+            >
+              Use
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   );

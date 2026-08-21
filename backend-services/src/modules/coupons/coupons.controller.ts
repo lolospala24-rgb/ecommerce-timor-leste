@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { CouponsService } from './coupons.service';
 import { CreateCouponDto } from './dto/create-coupon.dto';
@@ -44,6 +44,14 @@ export class CouponsController {
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.couponsService.remove(id);
+  }
+
+  // Every coupon the customer could plausibly use, for the cart page's
+  // "Available Coupons" list. Same auth rationale as /validate below.
+  @Get('available')
+  async listAvailable(@Query('subtotal') subtotal: string, @CurrentUser('id') userId: number) {
+    const data = await this.couponsService.listAvailableForCustomer(userId, Number(subtotal) || 0);
+    return { data };
   }
 
   // No @Public() — the global JwtAuthGuard requires login here, which is

@@ -171,6 +171,60 @@ export class CouponsService {
     return { coupon, discountAmount };
   }
 
+  // Powers the "Available Coupons" list on the cart page — every coupon the
+  // customer could plausibly use, not just one specific code. Coupons the
+  // customer hasn't hit their subtotal minimum for yet are still included
+  // (with meetsMinimum: false) rather than hidden, so the UI can show
+  // "spend $X more to unlock this" instead of the coupon just not existing.
+  async listAvailableForCustomer(userId: number, subtotal: number) {
+    const now = new Date();
+    const coupons = await this.prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        AND: [
+          { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const available: Array<{
+      code: string;
+      description: string | null;
+      discountType: CouponDiscountType;
+      discountValue: number;
+      minPurchaseAmount: number | null;
+      maxDiscountAmount: number | null;
+      meetsMinimum: boolean;
+      discountAmount: number;
+    }> = [];
+
+    for (const coupon of coupons) {
+      if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) continue;
+
+      const userUsageCount = await this.prisma.couponUsage.count({
+        where: { couponId: coupon.id, userId },
+      });
+      if (userUsageCount >= coupon.usageLimitPerUser) continue;
+
+      const meetsMinimum = !coupon.minPurchaseAmount || subtotal >= coupon.minPurchaseAmount;
+
+      available.push({
+        code: coupon.code,
+        description: coupon.description,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minPurchaseAmount: coupon.minPurchaseAmount,
+        maxDiscountAmount: coupon.maxDiscountAmount,
+        meetsMinimum,
+        discountAmount: meetsMinimum ? this.computeDiscountAmount(coupon, subtotal) : 0,
+      });
+    }
+
+    return available;
+  }
+
   // Atomically records one redemption — called from inside
   // OrdersService.create's transaction, right after validateForCustomer is
   // re-run against the customer's real, final cart subtotal. The

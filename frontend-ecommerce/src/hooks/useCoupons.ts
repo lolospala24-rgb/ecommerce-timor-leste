@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 export interface CouponValidationResult {
@@ -11,7 +11,33 @@ export interface CouponValidationResult {
   discountAmount: number;
 }
 
+export interface AvailableCoupon {
+  code: string;
+  description: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  minPurchaseAmount: number | null;
+  maxDiscountAmount: number | null;
+  meetsMinimum: boolean;
+  discountAmount: number;
+}
+
 const unwrapApiResponse = (response: any) => response?.data ?? response;
+
+// Every coupon the customer could plausibly use — including ones they
+// haven't hit the minimum purchase for yet (meetsMinimum: false), so the
+// cart page can show "spend $X more to unlock this" instead of hiding it.
+export const useAvailableCoupons = (subtotal: number) => {
+  return useQuery({
+    queryKey: ['coupons', 'available', subtotal],
+    queryFn: async () => {
+      const response = await api.get(`/coupons/available?subtotal=${subtotal}`);
+      const data = unwrapApiResponse(response);
+      return (data?.data ?? data ?? []) as AvailableCoupon[];
+    },
+    staleTime: 30_000,
+  });
+};
 
 // Preview-only — the final discount is always recomputed server-side again
 // at order placement (see backend CouponsService.validateForCustomer,
