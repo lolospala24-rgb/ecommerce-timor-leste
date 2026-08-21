@@ -89,6 +89,7 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState<'COD' | 'BANK_TRANSFER'>('COD');
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [checkoutSettings, setCheckoutSettings] = useState<{
     taxRate?: number;
     serviceFee?: number;
@@ -350,13 +351,31 @@ export default function CheckoutPage() {
       return;
     }
 
+    // isPlacingOrder (from useCreateOrder) only covers the createOrder call
+    // itself, leaving the guest-cart-merge step above it unguarded — a fast
+    // double-click could fire this whole function twice concurrently and
+    // create two orders from the same cart. This flag covers the entire
+    // function, not just the mutation.
+    if (isSubmittingOrder) return;
+    setIsSubmittingOrder(true);
+
     try {
-      if (safeItems.length > 0) {
-        try {
-          await mergeGuestCart(safeItems as any);
-        } catch {
-          // Ignore merge issues and continue with the current cart data from the backend.
+      // Safety net: fold in any leftover guest-cart items (added while
+      // signed out, e.g. this tab never mounted the merge-on-login effect
+      // in useCart.ts) before placing the order. This must merge the real
+      // guest cart from localStorage, never `safeItems` — safeItems is
+      // already the customer's authenticated backend cart, and merging a
+      // cart into itself doubles every quantity via the additive
+      // `existingQty + item.quantity` logic in carts.service.ts.
+      try {
+        const guestCartRaw = localStorage.getItem('guest_cart');
+        const guestItems = guestCartRaw ? JSON.parse(guestCartRaw) : [];
+        if (Array.isArray(guestItems) && guestItems.length > 0) {
+          await mergeGuestCart(guestItems as any);
+          localStorage.removeItem('guest_cart');
         }
+      } catch {
+        // Ignore merge issues and continue with the current cart data from the backend.
       }
 
       const order = await createOrder({
@@ -382,6 +401,8 @@ export default function CheckoutPage() {
       router.push(`/orders/success?orderId=${firstOrder?.id}`);
     } catch {
       // The hook already shows the error toast.
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -807,11 +828,11 @@ export default function CheckoutPage() {
 
             <button
               type="button"
-              disabled={!selectedAddressId || !selectedShipping || isPlacingOrder}
+              disabled={!selectedAddressId || !selectedShipping || isSubmittingOrder || isPlacingOrder}
               onClick={handlePlaceOrder}
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-900 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isPlacingOrder ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Place Order
+              {isSubmittingOrder || isPlacingOrder ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Place Order
             </button>
 
             <p className="mt-4 text-center text-sm text-slate-500">
