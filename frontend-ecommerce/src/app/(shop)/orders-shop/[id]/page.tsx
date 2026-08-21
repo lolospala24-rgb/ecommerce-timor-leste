@@ -269,6 +269,9 @@ export default function OrderDetailPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
+                    {order.address.recipientName && (
+                      <p className="font-medium text-foreground">Recipient: {order.address.recipientName}</p>
+                    )}
                     <p>{order.address.street && `${order.address.street}, `}</p>
                     <p>{order.address.village && `${order.address.village}, `}</p>
                     <p>{order.address.suco}, {order.address.postoAdmin}</p>

@@ -31,9 +31,8 @@ const addressSchema = z.object({
   municipality: z.string().trim().min(1, 'Please select a municipality'),
   postoAdmin: z.string().trim().min(2, 'Please enter a valid Posto Administrativo'),
   suco: z.string().trim().min(2, 'Please enter a valid Suco'),
-  village: z.string().trim().optional(),
-  street: z.string().trim().optional(),
   reference: z.string().trim().optional(),
+  recipientName: z.string().trim().optional(),
   phone: z.string().trim().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
@@ -63,9 +62,8 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       municipalityId: initialData?.municipalityId ? Number(initialData.municipalityId) : undefined,
       postoAdmin: initialData?.postoAdmin ?? '',
       suco: initialData?.suco ?? '',
-      village: initialData?.village ?? '',
-      street: initialData?.street ?? '',
       reference: initialData?.reference ?? initialData?.placeName ?? '',
+      recipientName: initialData?.recipientName ?? '',
       phone: initialData?.phone ?? '',
       latitude: initialData?.latitude != null ? Number(initialData.latitude) : undefined,
       longitude: initialData?.longitude != null ? Number(initialData.longitude) : undefined,
@@ -125,10 +123,10 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
   }, [selectedMunicipality, currentMunicipalityId, setValue]);
 
   // Address search — the whole point of this box is to let most customers
-  // skip typing Posto Administrativo/Suco/Village by hand, which are
-  // official Portuguese administrative terms many people don't know
-  // precisely. A search hit fills every field below; the customer can
-  // still edit anything (Google's Timor-Leste coverage isn't complete).
+  // skip typing Posto Administrativo/Suco by hand, which are official
+  // Portuguese administrative terms many people don't know precisely. A
+  // search hit fills every field below; the customer can still edit
+  // anything (Google's Timor-Leste coverage isn't complete).
   const { isLoaded: isSearchLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
@@ -142,8 +140,6 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
 
     const parts = extractLocationParts(place?.address_components, place?.formatted_address || place?.name || '');
 
-    if (parts.street) setValue('street', parts.street);
-    if (parts.village) setValue('village', parts.village);
     if (parts.suco) setValue('suco', parts.suco);
     if (parts.postoAdmin) setValue('postoAdmin', parts.postoAdmin);
     setValue('latitude', location.lat());
@@ -163,12 +159,12 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     }
   }, [setValue, typedMunicipalities, watch]);
 
-  // The 5 administrative-geography fields (Municipality/Posto Administrativo/
-  // Suco/Village/Street) are the actual source of past confusion — official
-  // terms, all required-looking, shown together as a wall of inputs. They're
-  // collapsed by default: search fills them silently, and most customers
-  // never need to look at them directly. Auto-expanded if there's nothing
-  // to summarize yet (fresh form, no search done) or if validation actually
+  // The 3 administrative-geography fields (Municipality/Posto Administrativo/
+  // Suco) are the actual source of past confusion — official terms, all
+  // required, shown together as a wall of inputs. They're collapsed by
+  // default: search fills them silently, and most customers never need to
+  // look at them directly. Auto-expanded if there's nothing to summarize
+  // yet (fresh form, no search done) or if validation actually
   // fails on one of the required ones — a hidden error would be worse than
   // the fields being visible.
   const [showDetails, setShowDetails] = useState(false);
@@ -196,9 +192,8 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       province,
       phone: data.phone?.trim() || undefined,
       label: data.label?.trim() || undefined,
-      village: data.village?.trim() || undefined,
-      street: data.street?.trim() || undefined,
       reference: data.reference?.trim() || undefined,
+      recipientName: data.recipientName?.trim() || undefined,
     };
 
     if (selectedMunicipality?.id != null) {
@@ -340,18 +335,6 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
               <p className="text-xs text-muted-foreground">The suco (village cluster) your address is in</p>
               {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="village">Village (Aldeia)</Label>
-                <Input id="village" placeholder="e.g., 12 de Novembro" {...register('village')} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="street">Street</Label>
-                <Input id="street" placeholder="Street name" {...register('street')} />
-              </div>
-            </div>
           </div>
         )}
 
@@ -363,18 +346,23 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
 
         {/* Label, contact, primary */}
         <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Label &amp; contact</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recipient &amp; contact</p>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="label">Save this address as</Label>
-              <Input id="label" placeholder="Home, Office, etc." {...register('label')} />
+              <Label htmlFor="recipientName">Recipient Name</Label>
+              <Input id="recipientName" placeholder="Who should the courier ask for?" {...register('recipientName')} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               <Input id="phone" placeholder="+670 1234 5678" {...register('phone')} />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="label">Save this address as</Label>
+            <Input id="label" placeholder="Home, Office, etc." {...register('label')} />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-input px-3 py-2.5">

@@ -18,6 +18,7 @@ export class AddressEntity implements Address {
   latitude: number | null;
   longitude: number | null;
   reference: string | null;
+  recipientName: string | null;
   phone: string | null;
   isPrimary: boolean;
   isActive: boolean;
@@ -43,6 +44,7 @@ export class AddressEntity implements Address {
   // Get address for shipping label
   getShippingLabel(): string {
     return `
+      ${this.recipientName ? `Recipient: ${this.recipientName}` : ''}
       ${this.street || ''}
       ${this.village ? `Village: ${this.village}` : ''}
       Suco: ${this.suco}

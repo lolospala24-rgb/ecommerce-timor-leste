@@ -57,6 +57,7 @@ interface Order {
     village: string | null;
     street: string | null;
     reference: string | null;
+    recipientName: string | null;
     phone: string | null;
   };
   payment?: {
@@ -170,6 +171,7 @@ export interface InvoiceData {
     postoAdmin: string | null;
     municipality: string | null;
     reference: string | null;
+    recipientName: string | null;
     phone: string | null;
   };
   payment: {

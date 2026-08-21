@@ -64,6 +64,11 @@ export class UpdateAddressDto {
   @MaxLength(500)
   reference?: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  recipientName?: string;
+
   @IsPhoneNumber()
   @IsOptional()
   phone?: string;

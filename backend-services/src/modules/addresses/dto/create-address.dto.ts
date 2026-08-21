@@ -61,6 +61,11 @@ export class CreateAddressDto {
   @MaxLength(500)
   reference?: string; // Near church, behind market, etc.
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  recipientName?: string; // Who to hand the delivery to — may not be the account holder
+
   @IsPhoneNumber()
   @IsOptional()
   phone?: string;

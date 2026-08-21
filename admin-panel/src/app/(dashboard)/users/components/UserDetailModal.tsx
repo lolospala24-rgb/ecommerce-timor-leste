@@ -325,6 +325,9 @@ export function UserDetailModal({
                           <Badge className="absolute top-2 right-2">Primary</Badge>
                         )}
                         <p className="font-medium">{address.label || 'Address'}</p>
+                        {address.recipientName && (
+                          <p className="text-sm text-muted-foreground mt-1">Recipient: {address.recipientName}</p>
+                        )}
                         <p className="text-sm text-muted-foreground mt-1">
                           {address.street && `${address.street}, `}
                           {address.village && `${address.village}, `}

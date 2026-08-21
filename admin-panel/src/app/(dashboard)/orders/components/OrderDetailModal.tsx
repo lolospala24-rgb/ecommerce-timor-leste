@@ -201,6 +201,12 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
               <TabsContent value="shipping" className="space-y-4">
                 {order.address && (
                   <div className="space-y-3">
+                    {(order.address as any).recipientName && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Recipient</p>
+                        <p>{(order.address as any).recipientName}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Address</p>
                       <p>

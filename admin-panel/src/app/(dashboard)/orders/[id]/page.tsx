@@ -91,14 +91,15 @@ export default function OrderDetailPage() {
   const items = order.items || [];
   const customer = order.customer || { name: 'N/A', email: 'N/A', phone: null };
   const seller = order.seller || { storeName: 'N/A', storePhone: null, storeEmail: null };
-  const address = order.address || { 
-    street: null, 
-    village: null, 
-    suco: 'N/A', 
-    postoAdmin: 'N/A', 
-    municipality: 'N/A', 
-    reference: null, 
-    phone: 'N/A' 
+  const address = order.address || {
+    street: null,
+    village: null,
+    suco: 'N/A',
+    postoAdmin: 'N/A',
+    municipality: 'N/A',
+    reference: null,
+    recipientName: null,
+    phone: 'N/A'
   };
   const payment = order.payment || { 
     method: 'N/A', 
@@ -209,6 +210,12 @@ export default function OrderDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {address.recipientName && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Recipient</p>
+                <p>{address.recipientName}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium text-muted-foreground">Address</p>
               <p>

@@ -979,6 +979,11 @@ model Address {
   longitude          Float?
   reference          String?
   phone              String?
+  // Who to hand the delivery to at this address — may not be the account
+  // holder (gift, office where a colleague receives it, etc.). Address.phone
+  // was already implicitly "the account owner's number"; this fills the
+  // matching gap for the name a courier should ask for on arrival.
+  recipientName      String?
   isPrimary          Boolean  @default(false)
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())

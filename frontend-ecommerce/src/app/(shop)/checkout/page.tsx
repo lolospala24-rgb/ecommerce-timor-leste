@@ -545,7 +545,10 @@ export default function CheckoutPage() {
                                   <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">Default</span>
                                 )}
                               </div>
-                              <p className="mt-2 text-sm text-slate-600">{address.phone}</p>
+                              {address.recipientName && (
+                                <p className="mt-2 text-sm font-medium text-slate-700">Recipient: {address.recipientName}</p>
+                              )}
+                              <p className="mt-1 text-sm text-slate-600">{address.phone}</p>
                               <p className="mt-1 text-sm leading-6 text-slate-600">
                                 {address.street ? `${address.street}, ` : ''}
                                 {address.village ? `${address.village}, ` : ''}

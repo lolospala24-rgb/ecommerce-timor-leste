@@ -98,6 +98,9 @@ export default function AddressesPage() {
                         </Badge>
                       )}
                     </div>
+                    {address.recipientName && (
+                      <p className="text-sm font-medium">Recipient: {address.recipientName}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {address.street && `${address.street}, `}
                       {address.village && `${address.village}, `}

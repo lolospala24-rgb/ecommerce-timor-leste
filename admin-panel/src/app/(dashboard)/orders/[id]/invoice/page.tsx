@@ -115,6 +115,9 @@ export default function InvoicePage() {
             <p className="mt-2 font-medium text-slate-900">{invoice.customer.name}</p>
             <p className="text-sm text-slate-600">{invoice.customer.email}</p>
             {invoice.customer.phone && <p className="text-sm text-slate-600">{invoice.customer.phone}</p>}
+            {invoice.address.recipientName && (
+              <p className="mt-1 text-sm font-medium text-slate-700">Deliver to: {invoice.address.recipientName}</p>
+            )}
             {addressLines.length > 0 && (
               <div className="mt-2 flex items-start gap-1.5 text-sm text-slate-600">
                 <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
