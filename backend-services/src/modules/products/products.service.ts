@@ -226,88 +226,167 @@ export class ProductsService {
       }
     }
 
-    const queryOptions: any = {
-      where,
-      orderBy,
-      include: {
-        seller: {
-          select: {
-            id: true,
-            storeName: true,
-            storeLogo: true,
-          },
+    const includeBase: any = {
+      seller: {
+        select: {
+          id: true,
+          storeName: true,
+          storeLogo: true,
         },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        reviews: {
-          where: { isApproved: true },
-          select: {
-            rating: true,
-          },
-        },
-        ...(postSort === 'best_selling'
-          ? { orderItems: { select: { quantity: true } } }
-          : {}),
-        ...(postSort === 'popularity'
-          ? { wishlistItems: { select: { id: true } } }
-          : {}),
       },
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      reviews: {
+        where: { isApproved: true },
+        select: {
+          rating: true,
+        },
+      },
+      ...(postSort === 'best_selling'
+        ? { orderItems: { select: { quantity: true } } }
+        : {}),
+      ...(postSort === 'popularity'
+        ? { wishlistItems: { select: { id: true } } }
+        : {}),
     };
 
-    if (!postSort) {
-      queryOptions.skip = skip;
-      queryOptions.take = limit;
+    // Calculate average rating for each product
+    const mapWithComputedFields = (products: any[]) =>
+      products.map((product: any) => {
+        const avgRating = product.reviews.length > 0
+          ? product.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / product.reviews.length
+          : 0;
+
+        const salesCount =
+          product.orderItems?.reduce((sum: number, item: any) => sum + item.quantity, 0) ?? 0;
+        const popularityScore =
+          (product.wishlistItems?.length ?? 0) + product.reviews.length;
+
+        const { reviews, orderItems, wishlistItems, ...productWithoutReviews } = product;
+        return {
+          ...productWithoutReviews,
+          rating: avgRating,
+          totalReviews: product.reviews.length,
+          salesCount,
+          popularityScore,
+        };
+      }) as any[];
+
+    if (postSort) {
+      // rating/best_selling/popularity can't be expressed as a Prisma
+      // orderBy (they're computed from related rows), so the whole matching
+      // set is fetched and sorted in memory, then paginated — same
+      // trade-off already accepted for this postSort path before this
+      // change.
+      const products = await this.prisma.product.findMany({ where, orderBy, include: includeBase } as any);
+      let productsWithRating = mapWithComputedFields(products);
+
+      if (minRating) {
+        productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
+      }
+
+      if (postSort === 'rating') {
+        productsWithRating.sort((a, b) => b.rating - a.rating);
+      } else if (postSort === 'best_selling') {
+        productsWithRating.sort((a, b) => b.salesCount - a.salesCount);
+      } else if (postSort === 'popularity') {
+        productsWithRating.sort((a, b) => b.popularityScore - a.popularityScore);
+      }
+
+      // Must run after the postSort re-sort above, otherwise that sort
+      // would re-interleave in-stock and out-of-stock items.
+      productsWithRating = this.sortInStockFirst(productsWithRating);
+
+      const filteredTotal = productsWithRating.length;
+      const paginatedProducts = productsWithRating.slice(skip, skip + limit);
+      return ResponseUtil.paginate(paginatedProducts, filteredTotal, page, limit);
     }
 
-    const [products, total] = await Promise.all([
-      this.prisma.product.findMany<any>(queryOptions),
-      this.prisma.product.count({ where }),
+    if (where.stock !== undefined) {
+      // Caller already scoped to in-stock-only or out-of-stock-only
+      // (inStock filter) — a single group, nothing to push to the bottom.
+      const [products, total] = await Promise.all([
+        this.prisma.product.findMany({ where, orderBy, include: includeBase, skip, take: limit } as any),
+        this.prisma.product.count({ where }),
+      ]);
+      let productsWithRating = mapWithComputedFields(products);
+      if (minRating) {
+        productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
+      }
+      const filteredTotal = minRating ? productsWithRating.length : total;
+      return ResponseUtil.paginate(productsWithRating, filteredTotal, page, limit);
+    }
+
+    // Default listing: out-of-stock products stay visible (so links,
+    // reviews, and wishlists don't break) but must never rank ahead of
+    // in-stock ones. Rather than fetching the whole catalog to sort/paginate
+    // in memory, the in-stock and out-of-stock groups are counted and
+    // queried separately, each with real DB-level skip/take, and stitched
+    // together at whichever page straddles the boundary between the two
+    // groups — so pagination stays correct and cheap at any catalog size.
+    const inStockWhere = { ...where, stock: { gt: 0 } };
+    const outOfStockWhere = { ...where, stock: 0 };
+
+    const [inStockCount, outOfStockCount] = await Promise.all([
+      this.prisma.product.count({ where: inStockWhere }),
+      this.prisma.product.count({ where: outOfStockWhere }),
     ]);
+    const total = inStockCount + outOfStockCount;
 
-    // Calculate average rating for each product
-    let productsWithRating = products.map((product: any) => {
-      const avgRating = product.reviews.length > 0
-        ? product.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / product.reviews.length
-        : 0;
+    let products: any[];
+    if (skip >= inStockCount) {
+      products = await this.prisma.product.findMany({
+        where: outOfStockWhere,
+        orderBy,
+        include: includeBase,
+        skip: skip - inStockCount,
+        take: limit,
+      } as any);
+    } else {
+      const takeInStock = Math.min(limit, inStockCount - skip);
+      const inStockProducts = await this.prisma.product.findMany({
+        where: inStockWhere,
+        orderBy,
+        include: includeBase,
+        skip,
+        take: takeInStock,
+      } as any);
+      const remaining = limit - takeInStock;
+      const outOfStockProducts = remaining > 0
+        ? await this.prisma.product.findMany({
+            where: outOfStockWhere,
+            orderBy,
+            include: includeBase,
+            skip: 0,
+            take: remaining,
+          } as any)
+        : [];
+      products = [...inStockProducts, ...outOfStockProducts];
+    }
 
-      const salesCount =
-        product.orderItems?.reduce((sum: number, item: any) => sum + item.quantity, 0) ?? 0;
-      const popularityScore =
-        (product.wishlistItems?.length ?? 0) + product.reviews.length;
-
-      const { reviews, orderItems, wishlistItems, ...productWithoutReviews } = product;
-      return {
-        ...productWithoutReviews,
-        rating: avgRating,
-        totalReviews: product.reviews.length,
-        salesCount,
-        popularityScore,
-      };
-    }) as any[];
-
+    let productsWithRating = mapWithComputedFields(products);
     if (minRating) {
       productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
     }
-
-    if (postSort === 'rating') {
-      productsWithRating.sort((a, b) => b.rating - a.rating);
-    } else if (postSort === 'best_selling') {
-      productsWithRating.sort((a, b) => b.salesCount - a.salesCount);
-    } else if (postSort === 'popularity') {
-      productsWithRating.sort((a, b) => b.popularityScore - a.popularityScore);
-    }
-
     const filteredTotal = minRating ? productsWithRating.length : total;
-    const paginatedProducts = postSort
-      ? productsWithRating.slice(skip, skip + limit)
-      : productsWithRating;
+    return ResponseUtil.paginate(productsWithRating, filteredTotal, page, limit);
+  }
 
-    return ResponseUtil.paginate(paginatedProducts, filteredTotal, page, limit);
+  // Stable partition: keeps whatever relative order the list already has
+  // within each group (the chosen sort, or a postSort re-sort) and only
+  // moves out-of-stock products after in-stock ones.
+  private sortInStockFirst<T extends { stock: number }>(products: T[]): T[] {
+    const inStock: T[] = [];
+    const outOfStock: T[] = [];
+    for (const p of products) {
+      (p.stock > 0 ? inStock : outOfStock).push(p);
+    }
+    return [...inStock, ...outOfStock];
   }
 
   private mapProductSort(sortBy?: string, sortOrder: 'asc' | 'desc' = 'desc'): {

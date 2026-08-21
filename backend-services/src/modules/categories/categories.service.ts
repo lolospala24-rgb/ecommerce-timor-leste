@@ -915,6 +915,14 @@ export class CategoriesService {
       productsWithRating.sort((a, b) => b.popularityScore - a.popularityScore);
     }
 
+    // Out-of-stock products stay visible (so links, reviews, and wishlists
+    // don't break) but must never rank ahead of in-stock ones — pushed to
+    // the end of whichever order was just established above, without
+    // disturbing relative order within either group.
+    const inStockProducts = productsWithRating.filter((p) => p.stock > 0);
+    const outOfStockProducts = productsWithRating.filter((p) => p.stock === 0);
+    productsWithRating = [...inStockProducts, ...outOfStockProducts];
+
     const total = productsWithRating.length;
     const paginated = productsWithRating.slice(skip, skip + limit).map(
       ({ salesCount, ...product }) => product,
