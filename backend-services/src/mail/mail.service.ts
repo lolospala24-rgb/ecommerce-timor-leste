@@ -58,6 +58,14 @@ export class MailService {
     };
   }
 
+  // Up to 3 attempts with a short backoff (1s, 2s) — covers the transient
+  // failures (SMTP connection blip, momentary DNS hiccup) that a single
+  // attempt has no chance against, without turning into a background queue.
+  // A permanent failure (bad credentials, unresolvable host) fails the same
+  // way on every attempt — that's an acceptable cost (a few extra seconds)
+  // for not having to tell transient and permanent failures apart here.
+  private static readonly SEND_MAX_ATTEMPTS = 3;
+
   private async send(to: string, subject: string, html: string): Promise<boolean> {
     const config = await this.resolveConfig();
     if (!config) {
@@ -65,27 +73,36 @@ export class MailService {
       return false;
     }
 
-    try {
-      const transporter = nodemailer.createTransport({
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
-        auth: config.user ? { user: config.user, pass: config.pass } : undefined,
-      });
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user ? { user: config.user, pass: config.pass } : undefined,
+    });
 
-      await transporter.sendMail({
-        from: `"${config.fromName}" <${config.fromEmail}>`,
-        to,
-        subject,
-        html,
-      });
+    for (let attempt = 1; attempt <= MailService.SEND_MAX_ATTEMPTS; attempt++) {
+      try {
+        await transporter.sendMail({
+          from: `"${config.fromName}" <${config.fromEmail}>`,
+          to,
+          subject,
+          html,
+        });
 
-      this.logger.log(`Sent "${subject}" to ${to}`);
-      return true;
-    } catch (error) {
-      this.logger.error(`Failed to send "${subject}" to ${to}`, error as Error);
-      return false;
+        this.logger.log(`Sent "${subject}" to ${to}${attempt > 1 ? ` (attempt ${attempt})` : ''}`);
+        return true;
+      } catch (error) {
+        const isLastAttempt = attempt === MailService.SEND_MAX_ATTEMPTS;
+        this.logger.error(
+          `Failed to send "${subject}" to ${to} (attempt ${attempt}/${MailService.SEND_MAX_ATTEMPTS})`,
+          error as Error,
+        );
+        if (isLastAttempt) return false;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
     }
+
+    return false;
   }
 
   private async isEnabled(flag: 'sendOrderConfirmation' | 'sendPaymentConfirmation' | 'sendShippingUpdate' | 'sendWelcomeEmail') {

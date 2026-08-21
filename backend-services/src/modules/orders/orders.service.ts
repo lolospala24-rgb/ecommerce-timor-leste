@@ -925,10 +925,14 @@ export class OrdersService {
       sendEmail: false,
     });
 
-    // Send status update email — note is passed explicitly (not read from
-    // updatedOrder.notes) so an email about this transition never shows a
-    // note left on a previous, unrelated status change.
-    await this.mailService.sendOrderStatusUpdate(
+    // Send status update email — fire-and-forget so the admin's
+    // status-change request doesn't wait on MailService's retry loop (up to
+    // ~3s across attempts if SMTP is having a bad moment); send() never
+    // throws, it always resolves to true/false, so there's nothing here to
+    // catch. Note is passed explicitly (not read from updatedOrder.notes)
+    // so an email about this transition never shows a note left on a
+    // previous, unrelated status change.
+    void this.mailService.sendOrderStatusUpdate(
       order.customer.email,
       order.customer.name,
       updatedOrder,
@@ -1028,10 +1032,11 @@ export class OrdersService {
       );
     }
 
-    // Send cancellation email — cancelledOrder itself has no `items`
-    // (plain order.update(), no include), so the pre-update `order` fetch
-    // (which does include items.product) supplies them.
-    await this.mailService.sendOrderCancelledEmail(
+    // Send cancellation email — fire-and-forget, same reasoning as
+    // updateStatus above. cancelledOrder itself has no `items` (plain
+    // order.update(), no include), so the pre-update `order` fetch (which
+    // does include items.product) supplies them.
+    void this.mailService.sendOrderCancelledEmail(
       order.customer.email,
       order.customer.name,
       { ...cancelledOrder, items: order.items },
@@ -1088,7 +1093,7 @@ export class OrdersService {
       data: { status: OrderStatus.CANCELLED, cancelledAt: new Date(), notes: 'Cancelled: payment expired, no receipt uploaded' },
     });
 
-    await this.mailService.sendOrderCancelledEmail(
+    void this.mailService.sendOrderCancelledEmail(
       order.customer.email,
       order.customer.name,
       { ...cancelledOrder, items: order.items },
