@@ -108,6 +108,33 @@ export function welcomeEmailTemplate(params: { customerName: string }) {
   return layout('Welcome!', body);
 }
 
+// Generic wrapper for the in-app notification system (NotificationsService.
+// sendNotification) — unlike the templates above, this isn't gated by an
+// admin Settings toggle; each call site (e.g.
+// sendProductBackInStockNotification) decides for itself whether to pass
+// sendEmail: true. title/message are already human-readable text built by
+// the caller, so this just reuses them rather than needing its own copy.
+export function notificationEmailTemplate(params: {
+  customerName: string;
+  title: string;
+  message: string;
+  actionUrl?: string;
+  actionLabel?: string;
+}) {
+  const button = params.actionUrl
+    ? `<p style="margin-top:20px;">
+         <a href="${params.actionUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;">
+           ${params.actionLabel || 'View Details'} &rarr;
+         </a>
+       </p>`
+    : '';
+  const body = `
+    <p>Hi ${params.customerName},</p>
+    <p>${params.message}</p>
+    ${button}`;
+  return layout(params.title, body);
+}
+
 export function testEmailTemplate() {
   const body = `<p>This is a test email confirming your SMTP settings are configured correctly.</p>`;
   return layout('Test Email', body);

@@ -33,6 +33,8 @@ import { RemoteImage } from '@/components/shared/RemoteImage';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { useNotifyMeWaitingCount } from '@/hooks/useStockNotifications';
+import { Bell } from 'lucide-react';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -40,6 +42,7 @@ export default function ProductDetailPage() {
   const productId = parseInt(params.id as string);
   const { data: product, isLoading, refetch } = useProduct(productId);
   const { data: variants = [], refetch: refetchVariants } = useProductVariants(productId);
+  const { data: waitingCount } = useNotifyMeWaitingCount(productId, product?.stock === 0);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -238,6 +241,12 @@ export default function ProductDetailPage() {
                 <Badge variant={product.stock > 0 ? 'default' : 'destructive'}>
                   {product.stock > 0 ? `${product.stock} units` : 'Out of Stock'}
                 </Badge>
+                {product.stock === 0 && !!waitingCount?.count && (
+                  <Badge variant="outline" className="ml-2 gap-1 border-amber-300 bg-amber-50 text-amber-700">
+                    <Bell className="h-3 w-3" />
+                    {waitingCount.count} waiting for restock
+                  </Badge>
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">SKU</p>

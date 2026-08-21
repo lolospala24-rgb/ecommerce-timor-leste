@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -53,6 +54,32 @@ export class StockNotificationsService {
       where: { userId_productId: { userId, productId } },
     });
     return { subscribed: !!existing };
+  }
+
+  // Admin/seller-only signal, not customer-facing — how many people are
+  // waiting on a restock, so the product owner can prioritize which
+  // out-of-stock items to replenish first. Scoped the same way
+  // ProductsService.assertCanManageProduct is (seller who owns the
+  // product, or an admin) — duplicated here in miniature rather than
+  // injecting ProductsService, which would create a module import cycle
+  // (ProductsModule already imports StockNotificationsModule).
+  async getWaitingCount(userId: number, productId: number) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const [seller, user] = await Promise.all([
+      this.prisma.seller.findUnique({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ]);
+    const canView = seller?.id === product.sellerId || user?.role === 'ADMIN';
+    if (!canView) {
+      throw new ForbiddenException("You do not have permission to view this product's waiting list");
+    }
+
+    const count = await this.prisma.stockNotification.count({ where: { productId } });
+    return { count };
   }
 
   // Called from ProductsService whenever a product's stock crosses from 0

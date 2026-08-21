@@ -19,6 +19,18 @@ export class StockNotificationsController {
     return { data };
   }
 
+  // Admin/seller-only — how many customers are waiting on this product's
+  // restock. Authorization (owning seller or admin) is enforced inside the
+  // service, not here, since it depends on the product's sellerId.
+  @Get('count')
+  async getWaitingCount(
+    @Param('productId', ParseIntPipe) productId: number,
+    @CurrentUser('id') userId: number,
+  ) {
+    const data = await this.stockNotificationsService.getWaitingCount(userId, productId);
+    return { data };
+  }
+
   @Post()
   async subscribe(
     @Param('productId', ParseIntPipe) productId: number,

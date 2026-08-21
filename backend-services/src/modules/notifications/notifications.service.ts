@@ -43,7 +43,7 @@ export class NotificationsService implements OnModuleInit {
   }
 
   async sendNotification(sendNotificationDto: SendNotificationDto) {
-    const { userId, title, message, type, data, sendEmail, entityType, entityId, actorId } =
+    const { userId, title, message, type, data, sendEmail, entityType, entityId, actorId, actionUrl } =
       sendNotificationDto;
     const { category, priority } = resolveClassification(
       type,
@@ -84,6 +84,7 @@ export class NotificationsService implements OnModuleInit {
         title,
         message,
         type,
+        actionUrl,
       );
     }
 
@@ -428,6 +429,7 @@ export class NotificationsService implements OnModuleInit {
     productName: string,
     productSlug: string,
   ) {
+    const frontendUrl = process.env.FRONTEND_URL;
     return this.sendNotification({
       userId,
       title: 'Back in Stock!',
@@ -436,7 +438,13 @@ export class NotificationsService implements OnModuleInit {
       entityType: 'PRODUCT',
       entityId: productId,
       data: { productId, productSlug },
-      sendEmail: false,
+      // This is a customer who deliberately asked to be alerted for this
+      // one product — unlike broadcast/promo mail, missing it because they
+      // weren't looking at the app that day defeats the point of the
+      // feature, so email is on by default here (see MailService.send —
+      // it's still a no-op if SMTP isn't configured, this never blocks).
+      sendEmail: true,
+      actionUrl: frontendUrl ? `${frontendUrl}/products/${productSlug}` : undefined,
     });
   }
 

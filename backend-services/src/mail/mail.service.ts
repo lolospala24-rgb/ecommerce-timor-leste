@@ -6,6 +6,7 @@ import {
   orderConfirmationTemplate,
   orderStatusUpdateTemplate,
   paymentConfirmationTemplate,
+  notificationEmailTemplate,
   testEmailTemplate,
   welcomeEmailTemplate,
 } from './mail-templates';
@@ -170,9 +171,16 @@ export class MailService {
     return Promise.resolve();
   }
 
-  async sendNotificationEmail(..._args: any[]) {
-    this.logger.debug(`sendNotificationEmail`);
-    return Promise.resolve();
+  async sendNotificationEmail(
+    to: string,
+    name: string,
+    title: string,
+    message: string,
+    _type: string,
+    actionUrl?: string,
+  ) {
+    const html = notificationEmailTemplate({ customerName: name, title, message, actionUrl });
+    await this.send(to, title, html);
   }
 
   // Review related

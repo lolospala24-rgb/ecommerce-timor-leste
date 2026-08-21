@@ -63,6 +63,13 @@ export class SendNotificationDto {
   @IsBoolean()
   @IsOptional()
   sendEmail?: boolean = false;
+
+  // Optional CTA link rendered as a button in the email (see
+  // notificationEmailTemplate) — e.g. a product or order URL. Ignored when
+  // sendEmail is false/omitted.
+  @IsString()
+  @IsOptional()
+  actionUrl?: string;
 }
 
 export class BroadcastNotificationDto {
