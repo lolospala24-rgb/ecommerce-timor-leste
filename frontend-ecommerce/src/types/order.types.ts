@@ -10,6 +10,9 @@ export interface Order {
   sellerId: number;
   subtotal: number;
   shippingCost: number;
+  taxAmount?: number;
+  serviceFee?: number;
+  discountAmount?: number;
   total: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
@@ -20,6 +23,7 @@ export interface Order {
   updatedAt: string;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  couponUsage?: { coupon: { code: string } } | null;
   customer?: {
     id: number;
     name: string;

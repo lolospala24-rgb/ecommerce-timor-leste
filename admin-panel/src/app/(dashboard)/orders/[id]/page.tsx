@@ -83,6 +83,10 @@ export default function OrderDetailPage() {
   const createdAt = order.createdAt || new Date().toISOString();
   const subtotal = order.subtotal || 0;
   const shippingCost = order.shippingCost || 0;
+  const taxAmount = order.taxAmount || 0;
+  const serviceFee = order.serviceFee || 0;
+  const discountAmount = order.discountAmount || 0;
+  const couponCode = order.couponUsage?.coupon?.code || null;
   const total = order.total || 0;
   const items = order.items || [];
   const customer = order.customer || { name: 'N/A', email: 'N/A', phone: null };
@@ -308,11 +312,38 @@ export default function OrderDetailPage() {
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>${typeof subtotal === 'number' ? subtotal.toFixed(2) : '0.00'}</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Coupon Discount{couponCode ? ` (${couponCode})` : ''}</span>
+                        <span>-${discountAmount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <Separator />
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping Cost</span>
                     <span>${typeof shippingCost === 'number' ? shippingCost.toFixed(2) : '0.00'}</span>
                   </div>
+                  {taxAmount > 0 && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Tax</span>
+                        <span>${taxAmount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                  {serviceFee > 0 && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Service Fee</span>
+                        <span>${serviceFee.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <Separator />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>

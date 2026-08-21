@@ -562,6 +562,7 @@ export class OrdersService {
           },
           payment: true,
           address: true,
+          couponUsage: { select: { coupon: { select: { code: true } } } },
         },
         orderBy: { [sortBy]: sortOrder },
       }),
@@ -611,6 +612,7 @@ export class OrdersService {
           },
           payment: true,
           address: true,
+          couponUsage: { select: { coupon: { select: { code: true } } } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -668,6 +670,7 @@ export class OrdersService {
           },
           payment: true,
           address: true,
+          couponUsage: { select: { coupon: { select: { code: true } } } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -722,6 +725,7 @@ export class OrdersService {
         },
         payment: true,
         address: true,
+        couponUsage: { select: { coupon: { select: { code: true } } } },
       },
     });
 
@@ -1196,6 +1200,7 @@ export class OrdersService {
           },
           payment: true,
           address: true,
+          couponUsage: { select: { coupon: { select: { code: true } } } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -1367,6 +1372,7 @@ export class OrdersService {
         },
         address: true,
         payment: true,
+        couponUsage: { select: { coupon: { select: { code: true } } } },
       },
     });
 

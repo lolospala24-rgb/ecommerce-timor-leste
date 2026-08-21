@@ -57,7 +57,9 @@ export default function InvoicePage() {
     );
   }
 
-  const total = invoice.total ?? invoice.subtotal + invoice.shippingCost + invoice.taxAmount + invoice.serviceFee;
+  const total =
+    invoice.total ??
+    invoice.subtotal + invoice.shippingCost + invoice.taxAmount + invoice.serviceFee - (invoice.discountAmount || 0);
   const addressLines = [
     invoice.address.street,
     invoice.address.village,
@@ -179,6 +181,12 @@ export default function InvoicePage() {
               <span>Subtotal</span>
               <span className="tabular-nums">{money(invoice.subtotal)}</span>
             </div>
+            {invoice.discountAmount > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>Discount{invoice.couponUsage?.coupon?.code ? ` (${invoice.couponUsage.coupon.code})` : ''}</span>
+                <span className="tabular-nums">-{money(invoice.discountAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-slate-600">
               <span>Shipping</span>
               <span className="tabular-nums">{money(invoice.shippingCost)}</span>

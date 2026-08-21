@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, PackageCheck, ArrowRight, ReceiptText, Truck, Home, Loader2 } from 'lucide-react';
+import { CheckCircle2, PackageCheck, ArrowRight, ReceiptText, Truck, Home, Loader2, TicketPercent } from 'lucide-react';
 import { useOrder } from '@/hooks/useOrders';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 
@@ -89,6 +89,21 @@ function OrderSuccessContent() {
                 <div>
                   <p className="text-sm font-medium text-slate-500">Order Total</p>
                   <p className="text-lg font-semibold">${Number(order.total).toFixed(2)}</p>
+                </div>
+              </div>
+            )}
+            {Number(order?.discountAmount ?? 0) > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <TicketPercent className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    Coupon{order.couponUsage?.coupon?.code ? ` (${order.couponUsage.coupon.code})` : ''}
+                  </p>
+                  <p className="text-lg font-semibold text-emerald-600">
+                    -${Number(order.discountAmount).toFixed(2)}
+                  </p>
                 </div>
               </div>
             )}

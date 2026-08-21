@@ -37,6 +37,7 @@ export class OrderEntity implements Order {
   seller?: any;
   payment?: any;
   timeline?: any[];
+  couponUsage?: any;
 
   constructor(partial: Partial<OrderEntity>) {
     Object.assign(this, partial);

@@ -9,6 +9,9 @@ interface Order {
   sellerId: number;
   subtotal: number;
   shippingCost: number;
+  taxAmount?: number;
+  serviceFee?: number;
+  discountAmount?: number;
   total: number;
   status: string;
   paymentMethod: string;
@@ -19,6 +22,7 @@ interface Order {
   updatedAt: string;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  couponUsage?: { coupon: { code: string } } | null;
   customer?: {
     id: number;
     name: string;
@@ -142,6 +146,8 @@ export interface InvoiceData {
   shippingCost: number;
   taxAmount: number;
   serviceFee: number;
+  discountAmount: number;
+  couponUsage: { coupon: { code: string } } | null;
   total: number | null;
   paymentMethod: string | null;
   trackingNumber: string | null;

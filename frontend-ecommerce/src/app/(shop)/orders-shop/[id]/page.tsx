@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User, TicketPercent } from 'lucide-react';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 import { RefundRequestPanel } from '@/components/orders/RefundRequestPanel';
 
@@ -179,6 +179,15 @@ export default function OrderDetailPage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>${order.subtotal.toFixed(2)}</span>
               </div>
+              {Number(order.discountAmount ?? 0) > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span className="flex items-center gap-1.5">
+                    <TicketPercent className="h-3.5 w-3.5" />
+                    Coupon{order.couponUsage?.coupon?.code ? ` (${order.couponUsage.coupon.code})` : ''}
+                  </span>
+                  <span>-${Number(order.discountAmount ?? 0).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shipping</span>
                 <span>${order.shippingCost.toFixed(2)}</span>
