@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, MapPin } from 'lucide-react';
 import { useCreateAddress, useUpdateAddress, useShippingZones } from '@/hooks/useAddresses';
+import {
+  GOOGLE_MAPS_API_KEY,
+  GOOGLE_MAPS_LIBRARIES,
+  TIMOR_LESTE_BOUNDS,
+  extractLocationParts,
+} from '@/lib/googleMapsAddress';
 
 const addressSchema = z.object({
   label: z.string().trim().optional(),
@@ -117,6 +124,48 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     }
   }, [selectedMunicipality, currentMunicipalityId, setValue]);
 
+  // Address search — the whole point of this box is to let most customers
+  // skip typing Posto Administrativo/Suco/Village by hand, which are
+  // official Portuguese administrative terms many people don't know
+  // precisely. A search hit fills every field below; the customer can
+  // still edit anything (Google's Timor-Leste coverage isn't complete).
+  const { isLoaded: isSearchLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  const handlePlaceChanged = useCallback(() => {
+    const place = autocompleteRef.current?.getPlace();
+    const location = place?.geometry?.location;
+    if (!location) return;
+
+    const parts = extractLocationParts(place?.address_components, place?.formatted_address || place?.name || '');
+
+    if (parts.street) setValue('street', parts.street);
+    if (parts.village) setValue('village', parts.village);
+    if (parts.suco) setValue('suco', parts.suco);
+    if (parts.postoAdmin) setValue('postoAdmin', parts.postoAdmin);
+    setValue('latitude', location.lat());
+    setValue('longitude', location.lng());
+    if (!watch('reference') && parts.placeName) setValue('reference', parts.placeName);
+
+    // Municipality is a dropdown tied to the real Municipality table, not
+    // free text — only auto-select it when the search result's name
+    // actually matches one of the 13 official options; otherwise leave it
+    // for the customer to pick (silently guessing wrong here would be
+    // worse than leaving it blank).
+    if (parts.municipality) {
+      const match = typedMunicipalities.find(
+        (m) => m.name.trim().toLowerCase() === parts.municipality!.trim().toLowerCase(),
+      );
+      if (match) setValue('municipality', match.value);
+    }
+
+    setAutoFilled(true);
+  }, [setValue, typedMunicipalities, watch]);
+
   const onSubmit = async (data: AddressFormData) => {
     setError('');
     const municipality = selectedMunicipality?.name?.trim() ?? data.municipality?.trim();
@@ -155,89 +204,141 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     }
   };
 
-  return (
-    <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-      <h4 className="font-medium">{initialData ? 'Edit Address' : 'Add New Address'}</h4>
+  const showAutoFilledBanner = autoFilled || (watch('latitude') != null && watch('longitude') != null);
 
+  return (
+    <div className="space-y-5">
       {error && <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
-      {watch('latitude') != null && watch('longitude') != null && (
-        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-foreground">
-          📍 Location pinned from map ({watch('latitude')?.toFixed(5)}, {watch('longitude')?.toFixed(5)}) — fields below were pre-filled, review and adjust as needed.
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Search — the fast path. Most customers should never need to type
+            Posto Administrativo/Suco by hand once they pick a result here. */}
         <div className="space-y-2">
-          <Label htmlFor="label">Address Label</Label>
-          <Input id="label" placeholder="Home, Office, etc." {...register('label')} />
+          <Label htmlFor="address-search">Find your address</Label>
+          {isSearchLoaded ? (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Autocomplete
+                onLoad={(ac) => {
+                  autocompleteRef.current = ac;
+                }}
+                onPlaceChanged={handlePlaceChanged}
+                options={{
+                  componentRestrictions: { country: 'tl' },
+                  bounds: TIMOR_LESTE_BOUNDS,
+                  strictBounds: true,
+                  fields: ['geometry', 'formatted_address', 'name', 'address_components'],
+                }}
+              >
+                <input
+                  id="address-search"
+                  type="text"
+                  placeholder="Start typing an address in Timor-Leste..."
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+              </Autocomplete>
+            </div>
+          ) : (
+            <Input disabled placeholder="Loading address search..." />
+          )}
+          <p className="text-xs text-muted-foreground">
+            Search and pick a result to fill in the fields below automatically — you can still edit anything after.
+          </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="municipality">Municipality *</Label>
-            <Controller
-              control={control}
-              name="municipality"
-              defaultValue={initialData?.municipality ?? (initialData?.municipalityId ? String(initialData.municipalityId) : '')}
-              render={({ field }) => (
-                <Select
-                  value={field.value ?? ''}
-                  onValueChange={(value) => field.onChange(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select municipality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(typedMunicipalities || []).map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.municipality && <p className="text-sm text-destructive">{errors.municipality.message}</p>}
+        {showAutoFilledBanner && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>Fields below were filled in automatically — please check they&apos;re correct before saving.</span>
+          </div>
+        )}
+
+        {/* Address details */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address details</p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="municipality">Municipality *</Label>
+              <Controller
+                control={control}
+                name="municipality"
+                defaultValue={initialData?.municipality ?? (initialData?.municipalityId ? String(initialData.municipalityId) : '')}
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select municipality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(typedMunicipalities || []).map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.municipality && <p className="text-sm text-destructive">{errors.municipality.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="postoAdmin">Posto Administrativo *</Label>
+              <Input id="postoAdmin" placeholder="e.g., Cristo Rei" {...register('postoAdmin')} />
+              <p className="text-xs text-muted-foreground">The sub-district your address is in</p>
+              {errors.postoAdmin && <p className="text-sm text-destructive">{errors.postoAdmin.message}</p>}
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="postoAdmin">Posto Administrativo *</Label>
-            <Input id="postoAdmin" placeholder="e.g., Cristo Rei" {...register('postoAdmin')} />
-            {errors.postoAdmin && <p className="text-sm text-destructive">{errors.postoAdmin.message}</p>}
+            <Label htmlFor="suco">Suco *</Label>
+            <Input id="suco" placeholder="e.g., Bidau Lecidere" {...register('suco')} />
+            <p className="text-xs text-muted-foreground">The suco (village cluster) your address is in</p>
+            {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="village">Village (Aldeia)</Label>
+              <Input id="village" placeholder="e.g., 12 de Novembro" {...register('village')} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="street">Street</Label>
+              <Input id="street" placeholder="Street name" {...register('street')} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reference">Reference Point</Label>
+            <Input id="reference" placeholder="Near church, behind market, etc." {...register('reference')} />
+            <p className="text-xs text-muted-foreground">Helps the courier find you — a nearby landmark is enough</p>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="suco">Suco *</Label>
-          <Input id="suco" placeholder="e.g., Bidau Lecidere" {...register('suco')} />
-          {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
-        </div>
+        {/* Label, contact, primary */}
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Label &amp; contact</p>
 
-        <div className="space-y-2">
-          <Label htmlFor="village">Village (Aldeia)</Label>
-          <Input id="village" placeholder="e.g., 12 de Novembro" {...register('village')} />
-        </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="label">Save this address as</Label>
+              <Input id="label" placeholder="Home, Office, etc." {...register('label')} />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="street">Street</Label>
-          <Input id="street" placeholder="Street name" {...register('street')} />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input id="phone" placeholder="+670 1234 5678" {...register('phone')} />
+            </div>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="reference">Reference Point</Label>
-          <Input id="reference" placeholder="Near church, behind market, etc." {...register('reference')} />
-          <p className="text-xs text-muted-foreground">Helpful for delivery in Timor-Leste</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone Number</Label>
-          <Input id="phone" placeholder="+670 1234 5678" {...register('phone')} />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Label htmlFor="isPrimary">Set as primary address</Label>
-          <Switch id="isPrimary" checked={!!watch('isPrimary')} onCheckedChange={(c) => setValue('isPrimary', c)} />
+          <div className="flex items-center justify-between rounded-lg border border-input px-3 py-2.5">
+            <Label htmlFor="isPrimary" className="cursor-pointer">Use as my default address</Label>
+            <Switch id="isPrimary" checked={!!watch('isPrimary')} onCheckedChange={(c) => setValue('isPrimary', c)} />
+          </div>
         </div>
 
         <div className="flex gap-3">
