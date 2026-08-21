@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, MapPin } from 'lucide-react';
+import { Loader2, Search, MapPin, ChevronDown } from 'lucide-react';
 import { useCreateAddress, useUpdateAddress, useShippingZones } from '@/hooks/useAddresses';
 import {
   GOOGLE_MAPS_API_KEY,
@@ -134,7 +134,6 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const [autoFilled, setAutoFilled] = useState(false);
 
   const handlePlaceChanged = useCallback(() => {
     const place = autocompleteRef.current?.getPlace();
@@ -162,9 +161,30 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       );
       if (match) setValue('municipality', match.value);
     }
-
-    setAutoFilled(true);
   }, [setValue, typedMunicipalities, watch]);
+
+  // The 5 administrative-geography fields (Municipality/Posto Administrativo/
+  // Suco/Village/Street) are the actual source of past confusion — official
+  // terms, all required-looking, shown together as a wall of inputs. They're
+  // collapsed by default: search fills them silently, and most customers
+  // never need to look at them directly. Auto-expanded if there's nothing
+  // to summarize yet (fresh form, no search done) or if validation actually
+  // fails on one of the required ones — a hidden error would be worse than
+  // the fields being visible.
+  const [showDetails, setShowDetails] = useState(false);
+  const watchedPostoAdmin = watch('postoAdmin');
+  const watchedSuco = watch('suco');
+  const hasAddressSummary = !!(watchedPostoAdmin && watchedSuco && selectedMunicipality);
+
+  useEffect(() => {
+    if (errors.municipality || errors.postoAdmin || errors.suco) {
+      setShowDetails(true);
+    }
+  }, [errors.municipality, errors.postoAdmin, errors.suco]);
+
+  const addressSummary = [watchedPostoAdmin, watchedSuco, selectedMunicipality?.name]
+    .filter(Boolean)
+    .join(', ');
 
   const onSubmit = async (data: AddressFormData) => {
     setError('');
@@ -203,8 +223,6 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       setError(err?.response?.data?.message || 'Failed to save address');
     }
   };
-
-  const showAutoFilledBanner = autoFilled || (watch('latitude') != null && watch('longitude') != null);
 
   return (
     <div className="space-y-5">
@@ -246,77 +264,101 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
           </p>
         </div>
 
-        {showAutoFilledBanner && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <span>Fields below were filled in automatically — please check they&apos;re correct before saving.</span>
+        {/* Collapsed by default — search already filled these in. Shown as
+            a plain-language summary instead of raw field names, with an
+            explicit way in for the two cases that need it: search missed
+            something, or the customer wants to double-check/change it. */}
+        {hasAddressSummary ? (
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex w-full items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-left"
+          >
+            <span className="flex min-w-0 items-start gap-2">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-foreground">{addressSummary}</span>
+                <span className="block text-xs text-muted-foreground">Address confirmed</span>
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+              {showDetails ? 'Hide' : 'Edit'}
+              <ChevronDown className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Can&apos;t find your address above? Enter it manually
+          </button>
+        )}
+
+        {showDetails && (
+          <div className="space-y-4 rounded-lg border border-input p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="municipality">Municipality *</Label>
+                <Controller
+                  control={control}
+                  name="municipality"
+                  defaultValue={initialData?.municipality ?? (initialData?.municipalityId ? String(initialData.municipalityId) : '')}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ''}
+                      onValueChange={(value) => field.onChange(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select municipality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(typedMunicipalities || []).map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.municipality && <p className="text-sm text-destructive">{errors.municipality.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="postoAdmin">Posto Administrativo *</Label>
+                <Input id="postoAdmin" placeholder="e.g., Cristo Rei" {...register('postoAdmin')} />
+                <p className="text-xs text-muted-foreground">The sub-district your address is in</p>
+                {errors.postoAdmin && <p className="text-sm text-destructive">{errors.postoAdmin.message}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="suco">Suco *</Label>
+              <Input id="suco" placeholder="e.g., Bidau Lecidere" {...register('suco')} />
+              <p className="text-xs text-muted-foreground">The suco (village cluster) your address is in</p>
+              {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="village">Village (Aldeia)</Label>
+                <Input id="village" placeholder="e.g., 12 de Novembro" {...register('village')} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="street">Street</Label>
+                <Input id="street" placeholder="Street name" {...register('street')} />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Address details */}
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Address details</p>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="municipality">Municipality *</Label>
-              <Controller
-                control={control}
-                name="municipality"
-                defaultValue={initialData?.municipality ?? (initialData?.municipalityId ? String(initialData.municipalityId) : '')}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? ''}
-                    onValueChange={(value) => field.onChange(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select municipality" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(typedMunicipalities || []).map((m) => (
-                        <SelectItem key={m.value} value={m.value}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.municipality && <p className="text-sm text-destructive">{errors.municipality.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postoAdmin">Posto Administrativo *</Label>
-              <Input id="postoAdmin" placeholder="e.g., Cristo Rei" {...register('postoAdmin')} />
-              <p className="text-xs text-muted-foreground">The sub-district your address is in</p>
-              {errors.postoAdmin && <p className="text-sm text-destructive">{errors.postoAdmin.message}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="suco">Suco *</Label>
-            <Input id="suco" placeholder="e.g., Bidau Lecidere" {...register('suco')} />
-            <p className="text-xs text-muted-foreground">The suco (village cluster) your address is in</p>
-            {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="village">Village (Aldeia)</Label>
-              <Input id="village" placeholder="e.g., 12 de Novembro" {...register('village')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="street">Street</Label>
-              <Input id="street" placeholder="Street name" {...register('street')} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="reference">Reference Point</Label>
-            <Input id="reference" placeholder="Near church, behind market, etc." {...register('reference')} />
-            <p className="text-xs text-muted-foreground">Helps the courier find you — a nearby landmark is enough</p>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="reference">Reference Point</Label>
+          <Input id="reference" placeholder="Near church, behind market, etc." {...register('reference')} />
+          <p className="text-xs text-muted-foreground">Helps the courier find you — a nearby landmark is enough</p>
         </div>
 
         {/* Label, contact, primary */}
