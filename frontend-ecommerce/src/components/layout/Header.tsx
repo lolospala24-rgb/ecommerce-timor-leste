@@ -22,6 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
+import { getInitials } from '@/lib/formatters';
 import { TopHeader } from './TopHeader';
 import { CartDrawer } from './CartDrawer';
 import { MobileNav } from './MobileNav';
@@ -58,15 +59,6 @@ export function Header() {
     taxRate: 0,
     serviceFee: 0,
   });
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -315,7 +307,7 @@ export function Header() {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
                         <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {user?.name ? getInitials(user.name) : 'U'}
+                          {getInitials(user?.name)}
                         </AvatarFallback>
                       </Avatar>
                     </Button>

@@ -26,7 +26,10 @@ const contentSecurityPolicy = [
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://maps.gstatic.com https://maps.googleapis.com",
+  // https://*.googleusercontent.com: Google Sign-In profile photos
+  // (lh3.googleusercontent.com etc. — Google load-balances across several
+  // lh1-lh6 subdomains, so this is a wildcard rather than one hardcoded host).
+  "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://maps.gstatic.com https://maps.googleapis.com https://*.googleusercontent.com",
   "media-src 'self' blob: https://res.cloudinary.com http://res.cloudinary.com",
   "font-src 'self' data:",
   `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com`,
