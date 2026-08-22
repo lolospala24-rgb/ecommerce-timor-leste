@@ -206,6 +206,15 @@ export default function AccountOrderDetailPage() {
                   <span className="font-mono text-xs">{order.trackingNumber}</span>
                 </div>
               )}
+              {order.assignedDriver && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Driver</span>
+                  <span>
+                    {order.assignedDriver.name}
+                    {order.assignedDriver.phone ? ` · ${order.assignedDriver.phone}` : ''}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -284,6 +293,42 @@ export default function AccountOrderDetailPage() {
                       </p>
                     )}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Live courier position — deliberately separate from the frozen
+              delivery snapshot above: this is the courier's current,
+              constantly-changing location, kept live via the same
+              useOrderRealtime() socket subscription already active on this
+              page (see order-updated events emitted from
+              OrdersService.updateCourierLocation). */}
+          {order.courierLatitude != null && order.courierLongitude != null && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Truck className="h-4 w-4" /> Live Delivery Location
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="font-mono text-xs text-muted-foreground">
+                  {order.courierLatitude.toFixed(5)}, {order.courierLongitude.toFixed(5)}
+                </p>
+                {order.courierLocationUpdatedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Last updated {new Date(order.courierLocationUpdatedAt).toLocaleTimeString()}
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${order.courierLatitude},${order.courierLongitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <MapPin className="h-3.5 w-3.5" /> View on Map
+                  </a>
                 </div>
               </CardContent>
             </Card>

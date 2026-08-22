@@ -40,6 +40,10 @@ export class OrderEntity implements Order {
   deliveryReference: string | null;
   deliveryLatitude: number | null;
   deliveryLongitude: number | null;
+  assignedDriverId: number | null;
+  courierLatitude: number | null;
+  courierLongitude: number | null;
+  courierLocationUpdatedAt: Date | null;
 
   // Additional fields
   items?: any[];
@@ -48,6 +52,7 @@ export class OrderEntity implements Order {
   payment?: any;
   timeline?: any[];
   couponUsage?: any;
+  assignedDriver?: any;
 
   constructor(partial: Partial<OrderEntity>) {
     Object.assign(this, partial);

@@ -73,6 +73,14 @@ interface Order {
   deliveryReference?: string | null;
   deliveryLatitude?: number | null;
   deliveryLongitude?: number | null;
+  // Live courier position — mutable, updated by the driver's own device or
+  // an external courier webhook. See Order.courierLatitude in schema.prisma.
+  assignedDriverId?: number | null;
+  assignedDriver?: { id: number; name: string; phone: string | null } | null;
+  courierLatitude?: number | null;
+  courierLongitude?: number | null;
+  courierLocationUpdatedAt?: string | null;
+  shippingStatus?: string;
   payment?: {
     id: number;
     amount: number;
@@ -265,6 +273,25 @@ export const useUpdateOrderStatus = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update order status');
+    },
+  });
+};
+
+export const useAssignDriver = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, driverId }: { id: number; driverId: number }) => {
+      const response = await api.patch(`/orders/${id}/assign-driver`, { driverId });
+      return response.data?.data || response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', variables.id] });
+      toast.success('Driver assigned successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to assign driver');
     },
   });
 };

@@ -29,6 +29,7 @@ export enum NotificationEvent {
   REVIEW_CREATED = 'REVIEW_CREATED',
   PROMO = 'PROMO',
   SYSTEM = 'SYSTEM',
+  DRIVER_ASSIGNED = 'DRIVER_ASSIGNED',
 }
 
 // Default category + priority per event — call sites can still override
@@ -55,4 +56,5 @@ export const NOTIFICATION_DEFAULTS: Record<
   [NotificationEvent.REVIEW_CREATED]: { category: 'CUSTOMER', priority: 'INFO' },
   [NotificationEvent.PROMO]: { category: 'SYSTEM', priority: 'INFO' },
   [NotificationEvent.SYSTEM]: { category: 'SYSTEM', priority: 'INFO' },
+  [NotificationEvent.DRIVER_ASSIGNED]: { category: 'SHIPPING', priority: 'INFO' },
 };

@@ -21,6 +21,10 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
   // instead of the full storefront Header/Footer — cart, search, and the
   // long footer link list are distractions on a sign-in/sign-up screen.
   const isAuthPage = AUTH_ROUTES.some((route) => pathname?.startsWith(route));
+  // The driver portal is a working tool for couriers, not a shopping
+  // surface — the cart/search/footer link list have no place there, and
+  // it renders its own minimal shell (see (driver)/layout.tsx) instead.
+  const isDriverPortal = pathname?.startsWith('/driver');
 
   if (isVideoShopping) {
     return (
@@ -31,7 +35,7 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
     );
   }
 
-  if (isAuthPage) {
+  if (isAuthPage || isDriverPortal) {
     return <main className="min-h-screen">{children}</main>;
   }
 

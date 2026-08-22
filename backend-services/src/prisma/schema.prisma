@@ -17,6 +17,7 @@ enum Role {
   ADMIN
   SELLER
   CUSTOMER
+  COURIER
 }
 
 // Domain grouping for Notification.category — lets the admin panel filter
@@ -120,6 +121,7 @@ model User {
   sellerFollows   SellerFollow[]
   couponUsages    CouponUsage[]
   stockNotifications StockNotification[]
+  assignedDeliveries Order[] @relation("OrderAssignedDriver")
 
   @@map("users")
 }
@@ -432,6 +434,17 @@ model Order {
   deliveryLatitude      Float?
   deliveryLongitude     Float?
 
+  // Live courier position — the opposite of the delivery snapshot above:
+  // deliberately mutable, most-recent-write-wins. Updated either by the
+  // assigned driver's own device (see OrdersController's courier-location
+  // endpoint) or by an external courier webhook. Never used for shipping
+  // calculation or as historical record; it's purely "where is my delivery
+  // right now" for the customer/admin to watch live.
+  assignedDriverId         Int?
+  courierLatitude          Float?
+  courierLongitude         Float?
+  courierLocationUpdatedAt DateTime?
+
   // Relations
   customer      User          @relation(fields: [customerId], references: [id])
   seller        Seller        @relation(fields: [sellerId], references: [id])
@@ -443,6 +456,7 @@ model Order {
   ledgerEntries SellerLedgerEntry[]
   platformLedgerEntries PlatformLedgerEntry[]
   couponUsage   CouponUsage?  @relation(fields: [couponUsageId], references: [id])
+  assignedDriver User?        @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
 
   @@index([customerId])
   @@index([sellerId])
@@ -451,6 +465,7 @@ model Order {
   @@index([addressId])
   @@index([shippingZoneId])
   @@index([couponUsageId])
+  @@index([assignedDriverId])
   @@map("orders")
 }
 

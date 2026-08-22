@@ -21,8 +21,11 @@ import { LOW_STOCK_THRESHOLD, NotificationEvent } from '../notifications/notific
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
+import { AssignDriverDto } from './dto/assign-driver.dto';
+import { UpdateCourierLocationDto } from './dto/update-courier-location.dto';
+import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
-import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod, PaymentStatus, Role, ShippingStatus } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
@@ -593,6 +596,7 @@ export class OrdersService {
           payment: true,
           address: true,
           couponUsage: { select: { coupon: { select: { code: true } } } },
+          assignedDriver: { select: { id: true, name: true, phone: true } },
         },
         orderBy: { [sortBy]: sortOrder },
       }),
@@ -756,6 +760,7 @@ export class OrdersService {
         payment: true,
         address: true,
         couponUsage: { select: { coupon: { select: { code: true } } } },
+        assignedDriver: { select: { id: true, name: true, phone: true } },
       },
     });
 
@@ -1286,20 +1291,37 @@ export class OrdersService {
     return stats;
   }
 
+  // Public, unauthenticated — anyone who has (or guesses) a tracking number
+  // can call this, so it must NEVER return the delivery snapshot's private
+  // fields (recipient name, phone, street address, exact destination GPS)
+  // or financial totals. An explicit `select` (not `include`, which would
+  // silently return every scalar column including those) is deliberate
+  // here — the opposite convention from every authenticated order-detail
+  // read elsewhere in this file.
   async trackOrder(trackingNumber: string) {
     const order = await this.prisma.order.findFirst({
       where: { trackingNumber },
-      include: {
-        customer: {
-          select: {
-            name: true,
-          },
-        },
-        seller: {
-          select: {
-            storeName: true,
-          },
-        },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        shippingStatus: true,
+        trackingNumber: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+        shippedAt: true,
+        deliveredAt: true,
+        cancelledAt: true,
+        estimatedDeliveryDate: true,
+        deliveryMunicipality: true,
+        courierLatitude: true,
+        courierLongitude: true,
+        courierLocationUpdatedAt: true,
+        payment: { select: { paidAt: true } },
+        customer: { select: { name: true } },
+        seller: { select: { storeName: true } },
+        assignedDriver: { select: { name: true } },
         items: {
           include: {
             product: {
@@ -1360,10 +1382,17 @@ export class OrdersService {
         id: order.id,
         orderNumber: order.orderNumber,
         customerName: order.customer?.name ?? 'Unknown',
-        location: order.address?.municipality ?? order.address?.suco ?? 'Unknown',
+        // Snapshot first (frozen at order creation), live address only as a
+        // fallback for orders placed before the snapshot fields existed —
+        // same rule as every other order-display surface (see Order model
+        // doc-comment in schema.prisma).
+        location: order.deliveryMunicipality ?? order.address?.municipality ?? order.address?.suco ?? 'Unknown',
         status: this.mapOrderStatusToShipmentStatus(order.status),
         rawStatus: order.status,
         trackingNumber: order.trackingNumber ?? null,
+        courierLatitude: order.courierLatitude ?? null,
+        courierLongitude: order.courierLongitude ?? null,
+        courierLocationUpdatedAt: order.courierLocationUpdatedAt ?? null,
         lastUpdate: order.updatedAt ? new Date(order.updatedAt).toLocaleString() : 'No update',
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
@@ -1560,6 +1589,246 @@ export class OrdersService {
     }
 
     return timeline;
+  }
+
+  // Assigns a courier/driver (a User with role=COURIER) to deliver this
+  // order. Deliberately separate from OrderStatus/shippingStatus — this is
+  // "who", not "what stage" — and never touches the financial OrderStatus
+  // lifecycle (that stays gated behind updateStatus/confirmDelivery).
+  async assignDriver(
+    orderId: number,
+    assignDriverDto: AssignDriverDto,
+    actingUserId: number,
+    actingUserRole: string,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (actingUserRole === 'SELLER') {
+      const seller = await this.prisma.seller.findUnique({ where: { userId: actingUserId } });
+      if (order.sellerId !== seller?.id) {
+        throw new ForbiddenException('You do not have permission to update this order');
+      }
+    }
+
+    const driver = await this.prisma.user.findUnique({ where: { id: assignDriverDto.driverId } });
+    if (!driver || driver.role !== Role.COURIER || !driver.isActive) {
+      throw new BadRequestException('driverId must reference an active user with the COURIER role');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { assignedDriverId: driver.id },
+      include: { assignedDriver: { select: { id: true, name: true, phone: true } } },
+    });
+
+    await this.clearOrderCache(orderId);
+
+    await this.notificationsService.sendNotification({
+      userId: driver.id,
+      title: `New delivery assigned: ${order.orderNumber}`,
+      message: `You've been assigned to deliver order ${order.orderNumber}.`,
+      type: NotificationEvent.DRIVER_ASSIGNED,
+      data: { orderId: order.id, orderNumber: order.orderNumber },
+      sendEmail: false,
+    });
+
+    this.notificationsGateway.emitOrderUpdated(orderId, {
+      orderId,
+      userId: order.customerId,
+      assignedDriverId: driver.id,
+      assignedDriverName: driver.name,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return updated;
+  }
+
+  // The assigned driver's own device pushes its current position while a
+  // delivery is in progress (browser geolocation, polled every N seconds —
+  // see the driver portal). Deliberately its own lightweight path, not
+  // routed through updateStatus: this fires far more often than a real
+  // status change and must never touch OrderStatus or shippingStatus.
+  async updateCourierLocation(
+    orderId: number,
+    driverUserId: number,
+    dto: UpdateCourierLocationDto,
+  ) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (order.assignedDriverId !== driverUserId) {
+      throw new ForbiddenException('You are not the assigned driver for this order');
+    }
+
+    const now = new Date();
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        courierLatitude: dto.latitude,
+        courierLongitude: dto.longitude,
+        courierLocationUpdatedAt: now,
+      },
+    });
+
+    // A location ping can arrive every few seconds — cheaper to bust just
+    // this order's cache entry than the full `clearOrderCache()` sweep
+    // (used by the much rarer assignment/status/webhook paths below).
+    await this.redisService.del(`order:${orderId}`);
+
+    this.notificationsGateway.emitOrderUpdated(orderId, {
+      orderId,
+      userId: order.customerId,
+      courierLatitude: dto.latitude,
+      courierLongitude: dto.longitude,
+      courierLocationUpdatedAt: now.toISOString(),
+    });
+
+    return { success: true };
+  }
+
+  // Driver-facing view: every order currently assigned to them, with enough
+  // of the delivery snapshot (destination address/reference/GPS pin) to
+  // actually find the customer — never the live Address relation, for the
+  // same immutability reasons as everywhere else in this file.
+  async getDriverDeliveries(driverUserId: number, pagination: { page: number; limit: number }) {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+    const where = { assignedDriverId: driverUserId };
+
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          shippingStatus: true,
+          trackingNumber: true,
+          deliveryRecipientName: true,
+          deliveryPhone: true,
+          deliveryMunicipality: true,
+          deliveryPostoAdmin: true,
+          deliverySuco: true,
+          deliveryVillage: true,
+          deliveryStreet: true,
+          deliveryReference: true,
+          deliveryLatitude: true,
+          deliveryLongitude: true,
+          courierLatitude: true,
+          courierLongitude: true,
+          courierLocationUpdatedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return ResponseUtil.paginate(orders, total, page, limit);
+  }
+
+  // Driver updates their own delivery-stage status (BOOKED/IN_TRANSIT/
+  // DELIVERED/FAILED) — the shipping-specific field, not the financial
+  // OrderStatus lifecycle. A courier marking "Delivered" here does not pay
+  // out COD or release seller earnings; that still requires the customer's
+  // confirmDelivery or staff's updateStatus, same as before this feature.
+  async updateShippingStatus(orderId: number, driverUserId: number, shippingStatus: ShippingStatus) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (order.assignedDriverId !== driverUserId) {
+      throw new ForbiddenException('You are not the assigned driver for this order');
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: { shippingStatus },
+    });
+
+    await this.clearOrderCache(orderId);
+
+    await this.notificationsService.sendNotification({
+      userId: order.customerId,
+      title: `Order ${order.orderNumber} delivery update`,
+      message: `Your delivery status changed to ${shippingStatus}.`,
+      type: NotificationEvent.ORDER_STATUS_CHANGED,
+      data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus },
+      sendEmail: false,
+    });
+
+    this.notificationsGateway.emitOrderUpdated(orderId, {
+      orderId,
+      userId: order.customerId,
+      shippingStatus,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return updated;
+  }
+
+  // Generic receiving side of a real courier's tracking webhook — see
+  // CourierWebhookGuard. Looks up by trackingNumber (the only identifier an
+  // external courier has), not order id.
+  async handleCourierWebhook(dto: CourierWebhookDto) {
+    const order = await this.prisma.order.findFirst({ where: { trackingNumber: dto.trackingNumber } });
+    if (!order) {
+      throw new NotFoundException(`Order with tracking number ${dto.trackingNumber} not found`);
+    }
+
+    const hasLat = dto.latitude != null;
+    const hasLng = dto.longitude != null;
+    if (hasLat !== hasLng) {
+      throw new BadRequestException('latitude and longitude must be provided together');
+    }
+
+    if (!dto.status && !hasLat) {
+      throw new BadRequestException('Provide at least a status or a latitude/longitude pair');
+    }
+
+    const now = new Date();
+    const updateData: any = {};
+    if (dto.status) {
+      updateData.shippingStatus = dto.status;
+    }
+    if (hasLat) {
+      updateData.courierLatitude = dto.latitude;
+      updateData.courierLongitude = dto.longitude;
+      updateData.courierLocationUpdatedAt = now;
+    }
+
+    await this.prisma.order.update({ where: { id: order.id }, data: updateData });
+    await this.redisService.del(`order:${order.id}`);
+
+    if (dto.status) {
+      await this.notificationsService.sendNotification({
+        userId: order.customerId,
+        title: `Order ${order.orderNumber} delivery update`,
+        message: dto.description || `Your delivery status changed to ${dto.status}.`,
+        type: NotificationEvent.ORDER_STATUS_CHANGED,
+        data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus: dto.status },
+        sendEmail: false,
+      });
+    }
+
+    this.notificationsGateway.emitOrderUpdated(order.id, {
+      orderId: order.id,
+      userId: order.customerId,
+      ...(dto.status ? { shippingStatus: dto.status } : {}),
+      ...(hasLat ? { courierLatitude: dto.latitude, courierLongitude: dto.longitude, courierLocationUpdatedAt: now.toISOString() } : {}),
+      updatedAt: now.toISOString(),
+    });
+
+    return { success: true };
   }
 
   private async clearOrderCache(orderId?: number) {

@@ -60,6 +60,8 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
         return 'bg-red-500';
       case 'SELLER':
         return 'bg-blue-500';
+      case 'COURIER':
+        return 'bg-amber-500';
       default:
         return 'bg-green-500';
     }
@@ -226,6 +228,12 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
                           >
                             <Shield className="mr-2 h-4 w-4" />
                             Make Seller
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleChangeRole(user, 'COURIER')}
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            Make Courier
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

@@ -17,10 +17,15 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderFilterDto } from './dto/order-filter.dto';
+import { AssignDriverDto } from './dto/assign-driver.dto';
+import { UpdateCourierLocationDto } from './dto/update-courier-location.dto';
+import { UpdateShippingStatusDto } from './dto/update-shipping-status.dto';
+import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { OrderOwnerGuard } from './guards/order-owner.guard';
+import { CourierWebhookGuard } from './guards/courier-webhook.guard';
 import { Role } from '@prisma/client';
 
 @Controller('orders')
@@ -107,6 +112,34 @@ export class OrdersController {
     return { data: order };
   }
 
+  @Get('driver/my-deliveries')
+  @Roles(Role.COURIER)
+  async getDriverDeliveries(
+    @CurrentUser('id') driverUserId: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.ordersService.getDriverDeliveries(driverUserId, {
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+    return result;
+  }
+
+  // External-courier tracking webhook — @Public because a real courier's
+  // system has no user account to authenticate as; secured instead by
+  // CourierWebhookGuard's shared-secret header. Also doubles as the
+  // integration point our own driver portal could call if it ever needs an
+  // unauthenticated fallback, though the portal normally uses the
+  // JWT-authenticated :id/courier-location / :id/shipping-status routes
+  // below.
+  @Post('webhook/tracking-update')
+  @Public()
+  @UseGuards(CourierWebhookGuard)
+  async courierWebhook(@Body() courierWebhookDto: CourierWebhookDto) {
+    return this.ordersService.handleCourierWebhook(courierWebhookDto);
+  }
+
   @Get(':id')
   @UseGuards(OrderOwnerGuard)
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -136,6 +169,44 @@ export class OrdersController {
       userRole,
     );
     return { message: 'Order status updated', data: order };
+  }
+
+  @Patch(':id/assign-driver')
+  @Roles(Role.SELLER, Role.ADMIN)
+  async assignDriver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() assignDriverDto: AssignDriverDto,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: string,
+  ) {
+    const order = await this.ordersService.assignDriver(id, assignDriverDto, userId, userRole);
+    return { message: 'Driver assigned', data: order };
+  }
+
+  @Post(':id/courier-location')
+  @HttpCode(HttpStatus.OK)
+  @Roles(Role.COURIER)
+  async updateCourierLocation(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCourierLocationDto: UpdateCourierLocationDto,
+    @CurrentUser('id') driverUserId: number,
+  ) {
+    return this.ordersService.updateCourierLocation(id, driverUserId, updateCourierLocationDto);
+  }
+
+  @Patch(':id/shipping-status')
+  @Roles(Role.COURIER)
+  async updateShippingStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateShippingStatusDto: UpdateShippingStatusDto,
+    @CurrentUser('id') driverUserId: number,
+  ) {
+    const order = await this.ordersService.updateShippingStatus(
+      id,
+      driverUserId,
+      updateShippingStatusDto.shippingStatus,
+    );
+    return { message: 'Shipping status updated', data: order };
   }
 
   @Post(':id/cancel')

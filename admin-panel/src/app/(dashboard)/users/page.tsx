@@ -15,10 +15,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserPlus, Download, RefreshCw } from 'lucide-react';
 import { UserDetailModal } from './components/UserDetailModal';
+import { CreateUserModal } from './components/CreateUserModal';
 
 export default function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -62,7 +64,7 @@ export default function UsersPage() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button>
+          <Button onClick={() => setShowCreateModal(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
             Add User
           </Button>
@@ -103,6 +105,14 @@ export default function UsersPage() {
           setSelectedUserId(null);
         }}
         onRefresh={refetch}
+      />
+
+      <CreateUserModal
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          refetch();
+        }}
       />
     </div>
   );

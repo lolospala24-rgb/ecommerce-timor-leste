@@ -52,8 +52,7 @@ function LoginFormSkeleton() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = getSafeRedirectPath(searchParams.get('redirect'), '/');
-  const { login, isLoading, isAuthenticated, error: storeError } = useAuthStore();
+  const { login, isLoading, isAuthenticated, user, error: storeError } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -66,10 +65,14 @@ function LoginForm() {
   });
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push(redirect);
-    }
-  }, [isAuthenticated, router, redirect]);
+    if (!isAuthenticated) return;
+    // Drivers have no use for the shop — send them straight to their
+    // delivery portal instead of the storefront, unless a specific
+    // ?redirect= was requested (e.g. deep-linking into /driver/123).
+    const defaultPath = user?.role === 'COURIER' ? '/driver' : '/';
+    const redirect = getSafeRedirectPath(searchParams.get('redirect'), defaultPath);
+    router.push(redirect);
+  }, [isAuthenticated, router, searchParams, user]);
 
   const onSubmit = async (data: LoginForm) => {
     setError(null);

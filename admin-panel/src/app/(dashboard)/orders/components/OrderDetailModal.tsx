@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrder } from '@/hooks/useOrders';
 import { UpdateOrderStatus } from './UpdateOrderStatus';
+import { AssignDriver } from './AssignDriver';
 import {
   Package,
   Truck,
@@ -266,6 +267,40 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Tracking Number</p>
                         <p className="font-mono text-sm">{order.trackingNumber}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Driver</p>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="text-sm">
+                          {order.assignedDriver ? `${order.assignedDriver.name}${order.assignedDriver.phone ? ` · ${order.assignedDriver.phone}` : ''}` : 'Not assigned'}
+                        </p>
+                        <AssignDriver
+                          orderId={order.id}
+                          currentDriverId={order.assignedDriverId}
+                          currentDriverName={order.assignedDriver?.name}
+                        />
+                      </div>
+                    </div>
+
+                    {order.courierLatitude != null && order.courierLongitude != null && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Live Delivery Location</p>
+                        <p className="font-mono text-sm">{order.courierLatitude.toFixed(5)}, {order.courierLongitude.toFixed(5)}</p>
+                        {order.courierLocationUpdatedAt && (
+                          <p className="text-xs text-muted-foreground">
+                            Last updated {new Date(order.courierLocationUpdatedAt).toLocaleTimeString()}
+                          </p>
+                        )}
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${order.courierLatitude},${order.courierLongitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                        >
+                          <MapPin className="h-3.5 w-3.5" /> View on Map
+                        </a>
                       </div>
                     )}
                   </div>
