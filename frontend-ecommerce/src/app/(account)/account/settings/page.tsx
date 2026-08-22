@@ -3,21 +3,12 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Bell, Lock, Globe, Moon, Sun, Shield } from 'lucide-react';
+import { Bell, Lock, Globe, Moon, Sun, Shield, Mail, Package } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { ChangePasswordDialog } from '@/components/account/ChangePasswordDialog';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [notifications, setNotifications] = useLocalStorage('notifications', {
-    email: true,
-    orderUpdates: true,
-    promotions: false,
-  });
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   return (
@@ -70,46 +61,29 @@ export default function SettingsPage() {
             <Bell className="h-5 w-5" />
             Notifications
           </CardTitle>
-          <CardDescription>Manage your notification preferences</CardDescription>
+          <CardDescription>How you're kept up to date</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <div>
-              <Label>Email Notifications</Label>
-              <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+              <p className="text-sm font-medium">Order &amp; account emails</p>
+              <p className="text-sm text-muted-foreground">
+                We email you automatically for order confirmation, payment, shipping updates, and
+                account security — these can't be turned off individually since they cover the
+                information you need to receive your orders.
+              </p>
             </div>
-            <Switch
-              checked={notifications.email}
-              onCheckedChange={(checked) =>
-                setNotifications({ ...notifications, email: checked })
-              }
-            />
           </div>
-          <Separator />
-          <div className="flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <Package className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <div>
-              <Label>Order Updates</Label>
-              <p className="text-sm text-muted-foreground">Get updates about your orders</p>
+              <p className="text-sm font-medium">Restock alerts</p>
+              <p className="text-sm text-muted-foreground">
+                Manage these per-product from the "Notify Me" button on any out-of-stock product
+                page, or in-app from the notification bell above.
+              </p>
             </div>
-            <Switch
-              checked={notifications.orderUpdates}
-              onCheckedChange={(checked) =>
-                setNotifications({ ...notifications, orderUpdates: checked })
-              }
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Promotions</Label>
-              <p className="text-sm text-muted-foreground">Receive promotional offers</p>
-            </div>
-            <Switch
-              checked={notifications.promotions}
-              onCheckedChange={(checked) =>
-                setNotifications({ ...notifications, promotions: checked })
-              }
-            />
           </div>
         </CardContent>
       </Card>

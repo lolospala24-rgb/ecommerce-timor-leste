@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
 import { unwrapApiData } from '@/lib/product';
+import { getInitials } from '@/lib/formatters';
 import toast from 'react-hot-toast';
 
 const profileSchema = z.object({
@@ -60,15 +61,6 @@ export default function ProfilePage() {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n: string) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -97,7 +89,7 @@ export default function ProfilePage() {
               <Avatar className="h-16 w-16">
                 <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
                 <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                  {user?.name ? getInitials(user.name) : 'U'}
+                  {getInitials(user?.name)}
                 </AvatarFallback>
               </Avatar>
               <div>

@@ -138,6 +138,19 @@ export const formatRating = (rating: number): string => {
   return rating.toFixed(1);
 };
 
+// Avatar-fallback initials — "Jose Ximenes" -> "JX", "Ana" -> "A"
+export const getInitials = (name: string | null | undefined): string => {
+  if (!name) return 'U';
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  return initials || 'U';
+};
+
 // Discount formatter
 export const formatDiscount = (originalPrice: number, discountedPrice: number): string => {
   const discount = ((originalPrice - discountedPrice) / originalPrice) * 100;

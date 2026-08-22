@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -10,12 +10,25 @@ import { Card } from '@/components/ui/card';
 import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import toast from 'react-hot-toast';
 
 export default function WishlistPage() {
   const { isAuthenticated } = useAuthStore();
   const { items, isLoading, removeItem, clearWishlist, fetchWishlist } = useWishlistStore();
   const { addItem, items: cartItems } = useCartStore();
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearAll = async () => {
+    setIsClearing(true);
+    try {
+      await clearWishlist();
+    } finally {
+      setIsClearing(false);
+      setConfirmClearOpen(false);
+    }
+  };
 
   // The wishlist store persists to localStorage, which can go stale across
   // devices/sessions — refresh from the backend whenever this page opens.
@@ -85,7 +98,7 @@ export default function WishlistPage() {
           <h1 className="text-2xl font-bold">My Wishlist</h1>
           <p className="text-muted-foreground">{items.length} items saved</p>
         </div>
-        <Button variant="destructive" size="sm" onClick={clearWishlist}>
+        <Button variant="destructive" size="sm" onClick={() => setConfirmClearOpen(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           Clear All
         </Button>
@@ -106,7 +119,7 @@ export default function WishlistPage() {
               <Button
                 variant="destructive"
                 size="icon"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                 onClick={() => handleRemove(product.id)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -133,6 +146,16 @@ export default function WishlistPage() {
           </Card>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="Clear Wishlist"
+        description="Are you sure you want to remove all items from your wishlist? This action cannot be undone."
+        confirmText="Clear All"
+        onConfirm={handleClearAll}
+        isLoading={isClearing}
+      />
     </div>
   );
 }

@@ -87,3 +87,46 @@ export const useCreateReview = () => {
     },
   })
 }
+
+interface UpdateReviewPayload {
+  id: number
+  rating: number
+  comment: string
+}
+
+// Backend rejects this once the review is already approved (see
+// ReviewsService.update) — editable only while still pending.
+export const useUpdateReview = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, ...data }: UpdateReviewPayload) => {
+      const response = await api.patch(`/reviews/${id}`, data)
+      return response.data.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'user'] })
+      toast.success('Review updated successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update review')
+    },
+  })
+}
+
+export const useDeleteReview = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/reviews/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'user'] })
+      toast.success('Review deleted')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete review')
+    },
+  })
+}

@@ -255,9 +255,11 @@ export default function AccountOrderDetailPage() {
                     {order.address.recipientName && (
                       <p className="font-medium text-foreground">Recipient: {order.address.recipientName}</p>
                     )}
-                    <p>{order.address.street && `${order.address.street}, `}</p>
-                    <p>{order.address.village && `${order.address.village}, `}</p>
-                    <p>{order.address.suco}, {order.address.postoAdmin}</p>
+                    <p>
+                      {[order.address.street, order.address.village, order.address.suco, order.address.postoAdmin]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
                     <p>{order.address.municipality}</p>
                     {order.address.reference && (
                       <p className="text-muted-foreground">Ref: {order.address.reference}</p>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { getInitials } from '@/lib/formatters';
 import {
   User,
   ShoppingBag,
@@ -60,8 +61,7 @@ export default function AccountLayout({
     return null;
   }
 
-  const initials =
-    user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  const initials = getInitials(user.name);
   const isActive = (href: string) => {
     const full = `/account${href}`;
     return pathname === full || pathname?.startsWith(`${full}/`);
