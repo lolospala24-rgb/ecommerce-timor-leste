@@ -390,10 +390,15 @@ export default function CheckoutPage() {
         serviceFee,
         notes,
         couponCode: appliedCoupon?.code,
+        deliveryLatitude: pinLocation?.lat,
+        deliveryLongitude: pinLocation?.lng,
+        deliveryReference: pinReference.trim() || undefined,
       });
 
       await clearCart();
       clearCoupon();
+      setPinLocation(null);
+      setPinReference('');
       // Multi-seller checkouts create one order per seller — the backend
       // returns an array in that case. Land on the first order; the
       // customer can see the rest under "My Orders".
@@ -418,22 +423,34 @@ export default function CheckoutPage() {
 
   const [showMap, setShowMap] = useState(false);
 
-  const handleUseMapLocation = (loc: any) => {
-    // Redirect to new address page with prefilled query params (no duplication in DB)
-    const params = new URLSearchParams();
-    if (loc.street) params.set('street', loc.street);
-    if (loc.village) params.set('village', loc.village);
-    if (loc.suco) params.set('suco', loc.suco);
-    if (loc.postoAdmin) params.set('postoAdmin', loc.postoAdmin);
-    if (loc.municipality) params.set('municipality', loc.municipality);
-    if (loc.placeName) params.set('placeName', loc.placeName);
-    params.set('lat', String(loc.lat));
-    params.set('lng', String(loc.lng));
-    params.set('redirect', '/checkout');
+  // "Pin Exact Location" — deliberately local-only, order-scoped state. This
+  // is NOT the same feature as "Add new address"'s map-assisted creation
+  // (still reachable via /account/addresses/new, untouched): picking a pin
+  // here never creates or edits a saved Address, never touches
+  // selectedAddressId, and never changes Municipality/shipping — it only
+  // captures a lat/lng (+ optional note) that rides along with THIS order,
+  // for the courier to find the exact spot. See CreateOrderDto.deliveryLatitude.
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number; placeName?: string; municipality?: string } | null>(null);
+  const [pinReference, setPinReference] = useState('');
 
+  const handlePinExactLocation = (loc: any) => {
+    setPinLocation({ lat: loc.lat, lng: loc.lng, placeName: loc.placeName, municipality: loc.municipality });
     setShowMap(false);
-    void router.push(`/account/addresses/new?${params.toString()}`);
   };
+
+  const handleRemovePin = () => {
+    setPinLocation(null);
+    setPinReference('');
+  };
+
+  // Purely informational — never blocks or silently changes anything. The
+  // pin's municipality is a best-effort reverse-geocode guess (see
+  // GoogleMapPicker/extractLocationParts), so a mismatch is a nudge to
+  // double-check, not proof of an error.
+  const pinMunicipalityMismatch =
+    !!pinLocation?.municipality &&
+    !!selectedAddress?.municipality &&
+    pinLocation.municipality.trim().toLowerCase() !== selectedAddress.municipality.trim().toLowerCase();
 
   if (cartLoading || (addressesLoading && !addresses)) {
     return (
@@ -581,13 +598,67 @@ export default function CheckoutPage() {
                     onClick={() => setShowMap(true)}
                     className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
-                    <MapPin className="h-4 w-4 text-primary" /> Pick on map
+                    <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
                   </button>
                   <Link href="/account/addresses" className="rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                     Manage addresses
                   </Link>
                 </div>
               </div>
+
+              {/* Exact Delivery Location — deliberately a separate card from
+                  Delivery Address above. Copy is explicit that this never
+                  changes the address or shipping fee, to head off the exact
+                  confusion this feature used to cause when the map redirected
+                  into "Add new address" instead. */}
+              {pinLocation && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <h2 className="text-base font-semibold">Exact Delivery Location</h2>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        {pinLocation.placeName || `${pinLocation.lat.toFixed(5)}, ${pinLocation.lng.toFixed(5)}`}
+                      </p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        This helps the courier find you for this order — it doesn't change your saved address or shipping fee.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePin}
+                      className="shrink-0 text-sm font-medium text-slate-500 transition hover:text-destructive"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  {pinMunicipalityMismatch && (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      This pin looks like it&apos;s in a different area ({pinLocation.municipality}) than your
+                      selected delivery address ({selectedAddress?.municipality}). Shipping is still calculated for{' '}
+                      {selectedAddress?.municipality} — please double-check the pin is correct.
+                    </div>
+                  )}
+
+                  <div className="mt-3 space-y-1.5">
+                    <label htmlFor="pin-reference" className="text-xs font-medium text-slate-600">
+                      Note for the courier (optional)
+                    </label>
+                    <input
+                      id="pin-reference"
+                      type="text"
+                      value={pinReference}
+                      onChange={(e) => setPinReference(e.target.value)}
+                      placeholder="e.g. blue gate, 2nd floor"
+                      maxLength={500}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
@@ -845,7 +916,7 @@ export default function CheckoutPage() {
         </aside>
       </div>
       {showMap && (
-        <GoogleMapPicker onSelect={handleUseMapLocation} onClose={() => setShowMap(false)} />
+        <GoogleMapPicker onSelect={handlePinExactLocation} onClose={() => setShowMap(false)} />
       )}
     </div>
   );

@@ -242,8 +242,12 @@ export default function AccountOrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Shipping Address */}
-          {order.address && (
+          {/* Shipping Address — reads the order's delivery snapshot first
+              (fixed at the moment this order was placed) and only falls
+              back to the live Address relation for orders placed before
+              the snapshot fields existed. Never re-derives from a since-edited
+              Address once a snapshot is present. */}
+          {(order.deliveryMunicipality || order.address) && (
             <Card>
               <CardHeader>
                 <CardTitle>Shipping Address</CardTitle>
@@ -252,19 +256,33 @@ export default function AccountOrderDetailPage() {
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    {order.address.recipientName && (
-                      <p className="font-medium text-foreground">Recipient: {order.address.recipientName}</p>
+                    {(order.deliveryRecipientName ?? order.address?.recipientName) && (
+                      <p className="font-medium text-foreground">
+                        Recipient: {order.deliveryRecipientName ?? order.address?.recipientName}
+                      </p>
                     )}
                     <p>
-                      {[order.address.street, order.address.village, order.address.suco, order.address.postoAdmin]
+                      {[
+                        order.deliveryStreet ?? order.address?.street,
+                        order.deliveryVillage ?? order.address?.village,
+                        order.deliverySuco ?? order.address?.suco,
+                        order.deliveryPostoAdmin ?? order.address?.postoAdmin,
+                      ]
                         .filter(Boolean)
                         .join(', ')}
                     </p>
-                    <p>{order.address.municipality}</p>
-                    {order.address.reference && (
-                      <p className="text-muted-foreground">Ref: {order.address.reference}</p>
+                    <p>{order.deliveryMunicipality ?? order.address?.municipality}</p>
+                    {(order.deliveryReference ?? order.address?.reference) && (
+                      <p className="text-muted-foreground">
+                        Ref: {order.deliveryReference ?? order.address?.reference}
+                      </p>
                     )}
-                    <p className="mt-1">Phone: {order.address.phone}</p>
+                    <p className="mt-1">Phone: {order.deliveryPhone ?? order.address?.phone}</p>
+                    {order.deliveryLatitude != null && order.deliveryLongitude != null && (
+                      <p className="mt-1 text-muted-foreground">
+                        Exact pin: {order.deliveryLatitude.toFixed(5)}, {order.deliveryLongitude.toFixed(5)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>

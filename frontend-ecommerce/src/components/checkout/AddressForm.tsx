@@ -41,6 +41,15 @@ const addressSchema = z.object({
 
 type AddressFormData = z.infer<typeof addressSchema>;
 
+// Shared, case/whitespace-insensitive municipality name comparator — used
+// both to prefill from an existing address and to auto-match a Places
+// search result, so the two code paths can't silently disagree on what
+// counts as a match.
+function municipalityNamesMatch(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 interface AddressFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -101,7 +110,7 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       }
 
       return (
-        m.name === initialData.municipality &&
+        municipalityNamesMatch(m.name, initialData.municipality) &&
         (initialData.province ? m.provinceName === initialData.province : true)
       );
     })?.value;
@@ -152,9 +161,7 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     // for the customer to pick (silently guessing wrong here would be
     // worse than leaving it blank).
     if (parts.municipality) {
-      const match = typedMunicipalities.find(
-        (m) => m.name.trim().toLowerCase() === parts.municipality!.trim().toLowerCase(),
-      );
+      const match = typedMunicipalities.find((m) => municipalityNamesMatch(m.name, parts.municipality));
       if (match) setValue('municipality', match.value);
     }
   }, [setValue, typedMunicipalities, watch]);

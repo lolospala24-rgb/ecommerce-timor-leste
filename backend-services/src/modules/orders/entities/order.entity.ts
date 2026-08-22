@@ -30,6 +30,16 @@ export class OrderEntity implements Order {
   cancelledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  deliveryRecipientName: string | null;
+  deliveryPhone: string | null;
+  deliveryMunicipality: string | null;
+  deliveryPostoAdmin: string | null;
+  deliverySuco: string | null;
+  deliveryVillage: string | null;
+  deliveryStreet: string | null;
+  deliveryReference: string | null;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
 
   // Additional fields
   items?: any[];

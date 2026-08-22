@@ -60,7 +60,7 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; courierId?: number; courierServiceId?: number; shippingZoneId?: number; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string; couponCode?: string }) => {
+    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; courierId?: number; courierServiceId?: number; shippingZoneId?: number; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string; couponCode?: string; deliveryLatitude?: number; deliveryLongitude?: number; deliveryReference?: string }) => {
       // Client-side validation: ensure cart has valid items before sending to backend
       const cartResp = await api.get('/carts');
       const cartData = cartResp?.data?.data ?? cartResp?.data ?? {};

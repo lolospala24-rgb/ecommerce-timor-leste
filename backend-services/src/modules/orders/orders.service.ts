@@ -111,6 +111,35 @@ export class OrdersService {
       throw new BadRequestException('Selected delivery address not found');
     }
 
+    // A lat/lng pair must arrive together — one without the other is a
+    // malformed request (the frontend's "Pin Exact Location" always sends
+    // both from the same map click), not a valid partial override.
+    const hasPinLat = createOrderDto.deliveryLatitude != null;
+    const hasPinLng = createOrderDto.deliveryLongitude != null;
+    if (hasPinLat !== hasPinLng) {
+      throw new BadRequestException('deliveryLatitude and deliveryLongitude must be provided together');
+    }
+
+    // Delivery snapshot — copied from the selected Address once, right now,
+    // so it never changes if the customer edits or deletes that Address
+    // later (see the Order model's doc-comment in schema.prisma). The
+    // optional map pin only ever overrides the two coordinate fields and
+    // the reference note — it never touches municipality/postoAdmin/suco,
+    // which is what shipping is calculated from (below, unchanged) and
+    // must never be silently altered by a GPS pin.
+    const deliverySnapshot = {
+      deliveryRecipientName: address.recipientName,
+      deliveryPhone: address.phone,
+      deliveryMunicipality: address.municipality,
+      deliveryPostoAdmin: address.postoAdmin,
+      deliverySuco: address.suco,
+      deliveryVillage: address.village,
+      deliveryStreet: address.street,
+      deliveryReference: createOrderDto.deliveryReference?.trim() || address.reference,
+      deliveryLatitude: hasPinLat ? createOrderDto.deliveryLatitude : address.latitude,
+      deliveryLongitude: hasPinLng ? createOrderDto.deliveryLongitude : address.longitude,
+    };
+
     // Tax rate and service fee are platform settings, not client input —
     // any taxAmount/serviceFee sent by the client is accepted for backward
     // compatibility but ignored below so a request can't undercharge itself.
@@ -271,6 +300,7 @@ export class OrdersService {
         shippingZoneId: shippingResult.shippingZoneId,
         courier: shippingResult.courierName,
         notes: createOrderDto.notes,
+        ...deliverySnapshot,
         items: {
           create: group.items.map((item) => {
             const unitPrice = item.variant?.price ?? item.product.price;

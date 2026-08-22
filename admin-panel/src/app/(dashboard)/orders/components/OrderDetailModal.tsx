@@ -199,12 +199,12 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
               </TabsContent>
 
               <TabsContent value="shipping" className="space-y-4">
-                {order.address && (
+                {(order.deliveryMunicipality || order.address) && (
                   <div className="space-y-3">
-                    {(order.address as any).recipientName && (
+                    {(order.deliveryRecipientName ?? (order.address as any)?.recipientName) && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Recipient</p>
-                        <p>{(order.address as any).recipientName}</p>
+                        <p>{order.deliveryRecipientName ?? (order.address as any)?.recipientName}</p>
                       </div>
                     )}
                     <div>
@@ -212,21 +212,33 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                       <p>
                         {(() => {
                           const a = order.address as any;
-                          const parts = [a.street, a.village, a.suco, a.postoAdmin, a.municipality].filter(Boolean);
+                          const parts = [
+                            order.deliveryStreet ?? a?.street,
+                            order.deliveryVillage ?? a?.village,
+                            order.deliverySuco ?? a?.suco,
+                            order.deliveryPostoAdmin ?? a?.postoAdmin,
+                            order.deliveryMunicipality ?? a?.municipality,
+                          ].filter(Boolean);
                           return parts.length ? parts.join(', ') : 'N/A';
                         })()}
                       </p>
                     </div>
-                    {order.address.reference && (
+                    {(order.deliveryReference ?? order.address?.reference) && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Reference</p>
-                        <p>{order.address.reference}</p>
+                        <p>{order.deliveryReference ?? order.address?.reference}</p>
                       </div>
                     )}
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                      <p>{order.address.phone ?? 'N/A'}</p>
+                      <p>{order.deliveryPhone ?? order.address?.phone ?? 'N/A'}</p>
                     </div>
+                    {order.deliveryLatitude != null && order.deliveryLongitude != null && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Exact Pin (for courier)</p>
+                        <p className="font-mono text-sm">{order.deliveryLatitude.toFixed(5)}, {order.deliveryLongitude.toFixed(5)}</p>
+                      </div>
+                    )}
                     {order.trackingNumber && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Tracking Number</p>

@@ -60,6 +60,19 @@ interface Order {
     recipientName: string | null;
     phone: string | null;
   };
+  // Delivery snapshot — copied once from the Address at order creation, see
+  // OrdersService.create in the backend. Preferred over `address` for display
+  // since it reflects what was actually true when this order was placed.
+  deliveryRecipientName?: string | null;
+  deliveryPhone?: string | null;
+  deliveryMunicipality?: string | null;
+  deliveryPostoAdmin?: string | null;
+  deliverySuco?: string | null;
+  deliveryVillage?: string | null;
+  deliveryStreet?: string | null;
+  deliveryReference?: string | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   payment?: {
     id: number;
     amount: number;
@@ -174,6 +187,16 @@ export interface InvoiceData {
     recipientName: string | null;
     phone: string | null;
   };
+  deliveryRecipientName?: string | null;
+  deliveryPhone?: string | null;
+  deliveryMunicipality?: string | null;
+  deliveryPostoAdmin?: string | null;
+  deliverySuco?: string | null;
+  deliveryVillage?: string | null;
+  deliveryStreet?: string | null;
+  deliveryReference?: string | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   payment: {
     method: string;
     status: string;

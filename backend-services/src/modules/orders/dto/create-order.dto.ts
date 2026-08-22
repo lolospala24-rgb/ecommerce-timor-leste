@@ -6,7 +6,9 @@ import {
   IsOptional,
   IsNotEmpty,
   Min,
+  Max,
   IsNumber,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod } from '@prisma/client';
@@ -74,4 +76,29 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   couponCode?: string;
+
+  // Checkout-only "pin exact location" override — see OrdersService.create's
+  // delivery snapshot. Deliberately separate from Address.latitude/longitude:
+  // this never gets written to the customer's saved Address, and never
+  // feeds into shipping-fee calculation (that stays keyed on addressId's
+  // municipality/province only). Falls back to the selected Address's own
+  // latitude/longitude/reference when omitted.
+  @IsNumber()
+  @IsOptional()
+  @Min(-90)
+  @Max(90)
+  @Type(() => Number)
+  deliveryLatitude?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(-180)
+  @Max(180)
+  @Type(() => Number)
+  deliveryLongitude?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  deliveryReference?: string;
 }

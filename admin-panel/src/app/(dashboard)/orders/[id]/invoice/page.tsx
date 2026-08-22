@@ -60,11 +60,16 @@ export default function InvoicePage() {
   const total =
     invoice.total ??
     invoice.subtotal + invoice.shippingCost + invoice.taxAmount + invoice.serviceFee - (invoice.discountAmount || 0);
+  // Delivery snapshot (fixed at order creation) takes priority over the live
+  // Address relation, which may have since been edited or deleted.
+  const deliveryRecipientName = invoice.deliveryRecipientName ?? invoice.address.recipientName;
   const addressLines = [
-    invoice.address.street,
-    invoice.address.village,
-    [invoice.address.suco, invoice.address.postoAdmin].filter(Boolean).join(', '),
-    invoice.address.municipality,
+    invoice.deliveryStreet ?? invoice.address.street,
+    invoice.deliveryVillage ?? invoice.address.village,
+    [invoice.deliverySuco ?? invoice.address.suco, invoice.deliveryPostoAdmin ?? invoice.address.postoAdmin]
+      .filter(Boolean)
+      .join(', '),
+    invoice.deliveryMunicipality ?? invoice.address.municipality,
   ].filter(Boolean);
 
   return (
@@ -115,8 +120,8 @@ export default function InvoicePage() {
             <p className="mt-2 font-medium text-slate-900">{invoice.customer.name}</p>
             <p className="text-sm text-slate-600">{invoice.customer.email}</p>
             {invoice.customer.phone && <p className="text-sm text-slate-600">{invoice.customer.phone}</p>}
-            {invoice.address.recipientName && (
-              <p className="mt-1 text-sm font-medium text-slate-700">Deliver to: {invoice.address.recipientName}</p>
+            {deliveryRecipientName && (
+              <p className="mt-1 text-sm font-medium text-slate-700">Deliver to: {deliveryRecipientName}</p>
             )}
             {addressLines.length > 0 && (
               <div className="mt-2 flex items-start gap-1.5 text-sm text-slate-600">

@@ -91,16 +91,21 @@ export default function OrderDetailPage() {
   const items = order.items || [];
   const customer = order.customer || { name: 'N/A', email: 'N/A', phone: null };
   const seller = order.seller || { storeName: 'N/A', storePhone: null, storeEmail: null };
-  const address = order.address || {
-    street: null,
-    village: null,
-    suco: 'N/A',
-    postoAdmin: 'N/A',
-    municipality: 'N/A',
-    reference: null,
-    recipientName: null,
-    phone: 'N/A'
+  // Delivery snapshot (fixed at order creation) takes priority over the live
+  // Address relation, which may have since been edited or deleted — see
+  // OrdersService.create's deliverySnapshot in the backend.
+  const address = {
+    street: order.deliveryStreet ?? order.address?.street ?? null,
+    village: order.deliveryVillage ?? order.address?.village ?? null,
+    suco: order.deliverySuco ?? order.address?.suco ?? 'N/A',
+    postoAdmin: order.deliveryPostoAdmin ?? order.address?.postoAdmin ?? 'N/A',
+    municipality: order.deliveryMunicipality ?? order.address?.municipality ?? 'N/A',
+    reference: order.deliveryReference ?? order.address?.reference ?? null,
+    recipientName: order.deliveryRecipientName ?? order.address?.recipientName ?? null,
+    phone: order.deliveryPhone ?? order.address?.phone ?? 'N/A',
   };
+  const deliveryLatitude = order.deliveryLatitude ?? null;
+  const deliveryLongitude = order.deliveryLongitude ?? null;
   const payment = order.payment || { 
     method: 'N/A', 
     status: 'N/A', 
@@ -234,6 +239,12 @@ export default function OrderDetailPage() {
               <p className="text-sm font-medium text-muted-foreground">Phone</p>
               <p>{address.phone || 'N/A'}</p>
             </div>
+            {deliveryLatitude != null && deliveryLongitude != null && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Exact Pin (for courier)</p>
+                <p className="font-mono text-sm">{deliveryLatitude.toFixed(5)}, {deliveryLongitude.toFixed(5)}</p>
+              </div>
+            )}
             {order.trackingNumber && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Tracking Number</p>

@@ -412,6 +412,26 @@ model Order {
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
+  // Delivery snapshot — copied once from the selected Address at order
+  // creation (see OrdersService.create), never re-read from `address` after
+  // that. Deliberately NOT derived live from the `address` relation below:
+  // that FK stays intact for lookups, but if the customer edits or deletes
+  // that Address later, an already-placed order must keep showing what was
+  // actually true when it was placed. deliveryLatitude/deliveryLongitude
+  // may come from a checkout-only map pin instead of the Address's own
+  // lat/lng (see CreateOrderDto) — that pin is scoped to this order only
+  // and is never written back to the Address.
+  deliveryRecipientName String?
+  deliveryPhone         String?
+  deliveryMunicipality  String?
+  deliveryPostoAdmin    String?
+  deliverySuco          String?
+  deliveryVillage       String?
+  deliveryStreet        String?
+  deliveryReference     String?
+  deliveryLatitude      Float?
+  deliveryLongitude     Float?
+
   // Relations
   customer      User          @relation(fields: [customerId], references: [id])
   seller        Seller        @relation(fields: [sellerId], references: [id])
