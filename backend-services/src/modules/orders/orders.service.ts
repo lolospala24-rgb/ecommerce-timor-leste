@@ -1796,6 +1796,15 @@ export class OrdersService {
           courierLocationUpdatedAt: true,
           createdAt: true,
           updatedAt: true,
+          // A driver needs to know what they're actually handing over, not
+          // just where — cash-on-delivery in particular means confirming
+          // the right items against what the customer expects.
+          items: {
+            select: {
+              quantity: true,
+              product: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.order.count({ where }),

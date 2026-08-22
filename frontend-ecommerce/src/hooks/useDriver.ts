@@ -1,8 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { getSocket } from '@/lib/socket';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface DriverDelivery {
   id: number;
@@ -25,6 +28,7 @@ export interface DriverDelivery {
   courierLocationUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  items: Array<{ quantity: number; product: { name: string } }>;
 }
 
 export const useDriverDeliveries = () => {
@@ -35,10 +39,38 @@ export const useDriverDeliveries = () => {
       const payload = response.data?.data ?? response.data;
       return (payload?.data ?? payload ?? []) as DriverDelivery[];
     },
-    // Assignments can arrive at any time — a driver checking their list
-    // shouldn't have to manually refresh to see a new delivery.
-    refetchInterval: 30_000,
+    // The realtime hook below covers new assignments instantly; this stays
+    // as a fallback in case the socket connection drops silently.
+    refetchInterval: 60_000,
   });
+};
+
+// A new assignment fires OrdersService.assignDriver's sendNotification,
+// which the gateway pushes to this driver's own `user:<id>` room as
+// `notifications:updated` — reusing that existing channel instead of
+// adding a driver-specific one. Refetching the whole list on any such
+// event is simpler than trying to patch a single order in, and this list
+// is small enough that it's cheap.
+export const useDriverRealtime = () => {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (!user?.id || user.role !== 'COURIER') return;
+
+    const socket = getSocket();
+    const onUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['driver', 'deliveries'] });
+    };
+
+    socket.on('notifications:updated', onUpdate);
+    socket.on('order-updated', onUpdate);
+
+    return () => {
+      socket.off('notifications:updated', onUpdate);
+      socket.off('order-updated', onUpdate);
+    };
+  }, [user?.id, user?.role, queryClient]);
 };
 
 export const useUpdateCourierLocation = () => {
