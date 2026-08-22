@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useOrder } from '@/hooks/useOrders';
+import { useOrder, useConfirmDelivery } from '@/hooks/useOrders';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +54,7 @@ export default function OrderDetailPage() {
   const orderId = parseInt(params.id as string);
   const { data: order, isLoading, refetch } = useOrder(orderId);
   useOrderRealtime(orderId);
+  const confirmDelivery = useConfirmDelivery();
 
   if (isLoading) {
     return (
@@ -99,6 +100,32 @@ export default function OrderDetailPage() {
           {statusLabels[order.status]}
         </Badge>
       </div>
+
+      {/* Courier marked this delivered but the customer hasn't confirmed
+          yet — status stays SHIPPING (and COD funds/seller earnings held)
+          until they do, or until DeliveryAutoConfirmJob's grace period
+          passes. See OrdersService.updateShippingStatus. */}
+      {order.status === 'SHIPPING' && order.shippingStatus === 'DELIVERED' && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+            <div>
+              <p className="text-sm font-semibold text-green-900">Your courier marked this order as delivered</p>
+              <p className="text-xs text-green-700">
+                Please confirm you received it. It will be confirmed automatically after a few days if we don't hear from you.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => confirmDelivery.mutate(order.id)}
+            disabled={confirmDelivery.isPending}
+            className="shrink-0 bg-green-600 hover:bg-green-700"
+          >
+            {confirmDelivery.isPending ? 'Confirming...' : "Yes, I've received it"}
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Order Items */}

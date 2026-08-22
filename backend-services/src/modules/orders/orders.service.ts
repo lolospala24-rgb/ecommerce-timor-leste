@@ -24,6 +24,7 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { UpdateCourierLocationDto } from './dto/update-courier-location.dto';
 import { CourierWebhookDto } from './dto/courier-webhook.dto';
+import { DELIVERY_AUTO_CONFIRM_GRACE_DAYS } from './orders.constants';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { OrderStatus, PaymentMethod, PaymentStatus, Role, ShippingStatus } from '@prisma/client';
 
@@ -1140,6 +1141,37 @@ export class OrdersService {
     return cancelledOrder;
   }
 
+  // Shared by confirmDelivery (customer-triggered) and autoConfirmDelivery
+  // (system-triggered, see DeliveryAutoConfirmJob) — both end at the exact
+  // same financial transition, just reached by a different trigger.
+  private async completeDelivery(id: number, paymentMethod: PaymentMethod | null) {
+    const confirmedOrder = await this.prisma.$transaction(async (tx) => {
+      if (paymentMethod === PaymentMethod.COD) {
+        await tx.payment.update({
+          where: { orderId: id },
+          data: { status: PaymentStatus.PAID, paidAt: new Date() },
+        });
+        await this.financeService.recordSaleOnPaymentConfirmed(tx, id);
+      }
+
+      const result = await tx.order.update({
+        where: { id },
+        data: {
+          status: OrderStatus.DELIVERED,
+          deliveredAt: new Date(),
+        },
+      });
+
+      await this.financeService.releaseEarningsOnDelivery(tx, id);
+
+      return result;
+    });
+
+    await this.clearOrderCache(id);
+
+    return confirmedOrder;
+  }
+
   async confirmDelivery(id: number, userId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -1162,29 +1194,52 @@ export class OrdersService {
       );
     }
 
-    const confirmedOrder = await this.prisma.$transaction(async (tx) => {
-      if (order.paymentMethod === PaymentMethod.COD) {
-        await tx.payment.update({
-          where: { orderId: id },
-          data: { status: PaymentStatus.PAID, paidAt: new Date() },
-        });
-        await this.financeService.recordSaleOnPaymentConfirmed(tx, id);
-      }
+    return this.completeDelivery(id, order.paymentMethod);
+  }
 
-      const result = await tx.order.update({
-        where: { id },
-        data: {
-          status: OrderStatus.DELIVERED,
-          deliveredAt: new Date(),
-        },
-      });
+  // System-triggered version of confirmDelivery — see
+  // DeliveryAutoConfirmJob. A driver marking shippingStatus DELIVERED
+  // starts a grace period (see updateShippingStatus); if the customer
+  // never confirms and never raises a refund, this closes the order out
+  // the same way an explicit confirmation would, so COD funds and seller
+  // earnings aren't held indefinitely by an unresponsive customer.
+  async autoConfirmDelivery(id: number) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order || order.status !== OrderStatus.SHIPPING) {
+      // Already handled some other way (cancelled, manually confirmed,
+      // etc.) between the job's query and now — nothing to do.
+      return null;
+    }
 
-      await this.financeService.releaseEarningsOnDelivery(tx, id);
+    const pendingRefund = await this.prisma.refund.findFirst({
+      where: { orderId: id, status: 'PENDING' },
+      select: { id: true },
+    });
+    if (pendingRefund) {
+      // A human needs to resolve this first — auto-confirming out from
+      // under an open refund dispute would be exactly the kind of silent,
+      // hard-to-reverse financial action this whole feature set has been
+      // designed to avoid.
+      return null;
+    }
 
-      return result;
+    const confirmedOrder = await this.completeDelivery(id, order.paymentMethod);
+
+    await this.notificationsService.sendNotification({
+      userId: order.customerId,
+      title: `Order ${order.orderNumber} delivery confirmed`,
+      message: "We didn't hear back from you, so this order was automatically confirmed as delivered.",
+      type: NotificationEvent.ORDER_STATUS_CHANGED,
+      data: { orderId: order.id, orderNumber: order.orderNumber, status: OrderStatus.DELIVERED, autoConfirmed: true },
+      sendEmail: false,
     });
 
-    await this.clearOrderCache(id);
+    this.notificationsGateway.emitOrderUpdated(id, {
+      orderId: id,
+      userId: order.customerId,
+      status: OrderStatus.DELIVERED,
+      updatedAt: new Date().toISOString(),
+    });
 
     return confirmedOrder;
   }
@@ -1312,6 +1367,7 @@ export class OrdersService {
         updatedAt: true,
         shippedAt: true,
         deliveredAt: true,
+        driverDeliveredAt: true,
         cancelledAt: true,
         estimatedDeliveryDate: true,
         deliveryMunicipality: true,
@@ -1570,11 +1626,24 @@ export class OrdersService {
       });
     }
 
+    // Shown as soon as the driver marks it, independent of whether the
+    // financial `status` has caught up yet — a customer watching this
+    // order mid-grace-period should see that it physically arrived, not
+    // just "Shipped" until someone confirms.
+    if (order.driverDeliveredAt) {
+      timeline.push({
+        status: 'Delivered by Courier',
+        date: order.driverDeliveredAt,
+        description: 'The courier marked this order as delivered. Please confirm you received it.',
+        completed: true,
+      });
+    }
+
     if (order.status === OrderStatus.DELIVERED) {
       timeline.push({
-        status: 'Delivered',
+        status: 'Delivery Confirmed',
         date: order.deliveredAt,
-        description: 'Your order has been delivered',
+        description: 'Delivery has been confirmed',
         completed: true,
       });
     }
@@ -1750,9 +1819,18 @@ export class OrdersService {
       throw new ForbiddenException('You are not the assigned driver for this order');
     }
 
+    const isDelivered = shippingStatus === ShippingStatus.DELIVERED;
+    const now = new Date();
+
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { shippingStatus },
+      data: {
+        shippingStatus,
+        // Only stamped the first time — a driver correcting FAILED back to
+        // DELIVERED later shouldn't restart someone else's grace period,
+        // though in practice this only ever fires once per order.
+        ...(isDelivered && !order.driverDeliveredAt ? { driverDeliveredAt: now } : {}),
+      },
     });
 
     await this.clearOrderCache(orderId);
@@ -1760,7 +1838,9 @@ export class OrdersService {
     await this.notificationsService.sendNotification({
       userId: order.customerId,
       title: `Order ${order.orderNumber} delivery update`,
-      message: `Your delivery status changed to ${shippingStatus}.`,
+      message: isDelivered
+        ? `Your order was delivered. Please confirm you received it — it will be automatically confirmed in ${DELIVERY_AUTO_CONFIRM_GRACE_DAYS} days if we don't hear from you.`
+        : `Your delivery status changed to ${shippingStatus}.`,
       type: NotificationEvent.ORDER_STATUS_CHANGED,
       data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus },
       sendEmail: false,
@@ -1770,7 +1850,8 @@ export class OrdersService {
       orderId,
       userId: order.customerId,
       shippingStatus,
-      updatedAt: new Date().toISOString(),
+      ...(isDelivered ? { driverDeliveredAt: now.toISOString() } : {}),
+      updatedAt: now.toISOString(),
     });
 
     return updated;
@@ -1796,9 +1877,13 @@ export class OrdersService {
     }
 
     const now = new Date();
+    const isDelivered = dto.status === ShippingStatus.DELIVERED;
     const updateData: any = {};
     if (dto.status) {
       updateData.shippingStatus = dto.status;
+      if (isDelivered && !order.driverDeliveredAt) {
+        updateData.driverDeliveredAt = now;
+      }
     }
     if (hasLat) {
       updateData.courierLatitude = dto.latitude;
@@ -1813,7 +1898,11 @@ export class OrdersService {
       await this.notificationsService.sendNotification({
         userId: order.customerId,
         title: `Order ${order.orderNumber} delivery update`,
-        message: dto.description || `Your delivery status changed to ${dto.status}.`,
+        message:
+          dto.description ||
+          (isDelivered
+            ? `Your order was delivered. Please confirm you received it — it will be automatically confirmed in ${DELIVERY_AUTO_CONFIRM_GRACE_DAYS} days if we don't hear from you.`
+            : `Your delivery status changed to ${dto.status}.`),
         type: NotificationEvent.ORDER_STATUS_CHANGED,
         data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus: dto.status },
         sendEmail: false,

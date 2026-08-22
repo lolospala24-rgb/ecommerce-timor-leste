@@ -22,6 +22,7 @@ import {
   Store,
   FileText,
   Navigation,
+  Clock,
 } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
@@ -152,6 +153,23 @@ export default function OrderDetailPage() {
           />
         </div>
       </div>
+
+      {/* Informational only — admin already has a way to force this via
+          "Update Status" -> DELIVERED if needed. This just surfaces that
+          the courier already dropped it off and the customer's grace
+          period is running (see DeliveryAutoConfirmJob). */}
+      {status === 'SHIPPING' && order.shippingStatus === 'DELIVERED' && (
+        <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Awaiting customer confirmation</p>
+            <p className="text-xs text-amber-700">
+              Courier marked this delivered{order.driverDeliveredAt ? ` on ${new Date(order.driverDeliveredAt).toLocaleString()}` : ''}.
+              It will auto-confirm in a few days if the customer doesn't respond.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Customer Information */}

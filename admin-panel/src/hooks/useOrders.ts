@@ -80,6 +80,7 @@ interface Order {
   courierLatitude?: number | null;
   courierLongitude?: number | null;
   courierLocationUpdatedAt?: string | null;
+  driverDeliveredAt?: string | null;
   shippingStatus?: string;
   payment?: {
     id: number;

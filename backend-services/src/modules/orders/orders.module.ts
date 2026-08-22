@@ -12,11 +12,12 @@ import { SettingsModule } from '../settings/settings.module';
 import { FinanceModule } from '../finance/finance.module';
 import { CouponsModule } from '../coupons/coupons.module';
 import { PaymentExpiryJob } from './payment-expiry.job';
+import { DeliveryAutoConfirmJob } from './delivery-auto-confirm.job';
 
 @Module({
   imports: [PrismaModule, RedisModule, MailModule, ProductsModule, CartsModule, NotificationsModule, ShippingModule, SettingsModule, FinanceModule, CouponsModule],
   controllers: [OrdersController],
-  providers: [OrdersService, PaymentExpiryJob],
+  providers: [OrdersService, PaymentExpiryJob, DeliveryAutoConfirmJob],
   exports: [OrdersService],
 })
 export class OrdersModule {}

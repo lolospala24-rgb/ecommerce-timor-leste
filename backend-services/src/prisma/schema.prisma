@@ -445,6 +445,15 @@ model Order {
   courierLongitude         Float?
   courierLocationUpdatedAt DateTime?
 
+  // When the driver (or an external courier webhook) marked shippingStatus
+  // DELIVERED — distinct from `deliveredAt`, which only fires when the
+  // financial `status` itself becomes DELIVERED (customer confirmation or
+  // staff override). A driver marking a physical drop-off doesn't release
+  // COD funds or seller earnings by itself (see OrdersService.
+  // updateShippingStatus's doc-comment); this timestamp is what
+  // DeliveryAutoConfirmJob measures the grace period against.
+  driverDeliveredAt DateTime?
+
   // Relations
   customer      User          @relation(fields: [customerId], references: [id])
   seller        Seller        @relation(fields: [sellerId], references: [id])

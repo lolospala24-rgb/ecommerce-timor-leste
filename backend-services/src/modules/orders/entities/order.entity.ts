@@ -44,6 +44,7 @@ export class OrderEntity implements Order {
   courierLatitude: number | null;
   courierLongitude: number | null;
   courierLocationUpdatedAt: Date | null;
+  driverDeliveredAt: Date | null;
 
   // Additional fields
   items?: any[];

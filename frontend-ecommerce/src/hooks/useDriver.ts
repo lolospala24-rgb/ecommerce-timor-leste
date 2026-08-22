@@ -62,9 +62,13 @@ export const useUpdateShippingStatus = () => {
       const response = await api.patch(`/orders/${orderId}/shipping-status`, { shippingStatus });
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['driver', 'deliveries'] });
-      toast.success('Status updated');
+      toast.success(
+        variables.shippingStatus === 'DELIVERED'
+          ? "Marked as delivered — the customer will be asked to confirm."
+          : 'Status updated',
+      );
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update status');

@@ -116,6 +116,25 @@ export const useCancelOrder = () => {
   });
 };
 
+export const useConfirmDelivery = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.post(`/orders/${id}/confirm-delivery`);
+      return response.data.data || response.data;
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', id] });
+      toast.success('Delivery confirmed — thank you!');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to confirm delivery');
+    },
+  });
+};
+
 export const useOrderRefunds = (orderId?: number | null) => {
   return useQuery({
     queryKey: ['orders', orderId, 'refunds'],
