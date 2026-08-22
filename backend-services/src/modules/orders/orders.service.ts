@@ -24,7 +24,7 @@ import { OrderFilterDto } from './dto/order-filter.dto';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { UpdateCourierLocationDto } from './dto/update-courier-location.dto';
 import { CourierWebhookDto } from './dto/courier-webhook.dto';
-import { DELIVERY_AUTO_CONFIRM_GRACE_DAYS } from './orders.constants';
+import { DELIVERY_AUTO_CONFIRM_GRACE_DAYS, SHIPPING_STATUS_TRANSITIONS } from './orders.constants';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { OrderStatus, PaymentMethod, PaymentStatus, Role, ShippingStatus } from '@prisma/client';
 
@@ -1687,9 +1687,19 @@ export class OrdersService {
       throw new BadRequestException('driverId must reference an active user with the COURIER role');
     }
 
+    // A previously-failed delivery being handed to a driver is a retry, not
+    // a repeat of the same failure — reset it to BOOKED so it actually
+    // shows up as actionable for them instead of sitting invisible in
+    // their History tab forever (FAILED -> BOOKED is the one transition
+    // SHIPPING_STATUS_TRANSITIONS allows precisely for this).
+    const isRetryAfterFailure = order.shippingStatus === ShippingStatus.FAILED;
+
     const updated = await this.prisma.order.update({
       where: { id: orderId },
-      data: { assignedDriverId: driver.id },
+      data: {
+        assignedDriverId: driver.id,
+        ...(isRetryAfterFailure ? { shippingStatus: ShippingStatus.BOOKED } : {}),
+      },
       include: { assignedDriver: { select: { id: true, name: true, phone: true } } },
     });
 
@@ -1704,11 +1714,24 @@ export class OrdersService {
       sendEmail: false,
     });
 
+    // Same courtesy every other delivery-stage change gives the customer —
+    // "who's bringing my order" is exactly what they've come to expect
+    // from shippingStatus notifications elsewhere in this file.
+    await this.notificationsService.sendNotification({
+      userId: order.customerId,
+      title: `Order ${order.orderNumber} delivery update`,
+      message: `${driver.name} has been assigned to deliver your order.`,
+      type: NotificationEvent.ORDER_STATUS_CHANGED,
+      data: { orderId: order.id, orderNumber: order.orderNumber, assignedDriverName: driver.name },
+      sendEmail: false,
+    });
+
     this.notificationsGateway.emitOrderUpdated(orderId, {
       orderId,
       userId: order.customerId,
       assignedDriverId: driver.id,
       assignedDriverName: driver.name,
+      ...(isRetryAfterFailure ? { shippingStatus: ShippingStatus.BOOKED } : {}),
       updatedAt: new Date().toISOString(),
     });
 
@@ -1813,19 +1836,94 @@ export class OrdersService {
     return ResponseUtil.paginate(orders, total, page, limit);
   }
 
-  // Driver updates their own delivery-stage status (BOOKED/IN_TRANSIT/
-  // DELIVERED/FAILED) — the shipping-specific field, not the financial
-  // OrderStatus lifecycle. A courier marking "Delivered" here does not pay
-  // out COD or release seller earnings; that still requires the customer's
-  // confirmDelivery or staff's updateStatus, same as before this feature.
-  async updateShippingStatus(orderId: number, driverUserId: number, shippingStatus: ShippingStatus) {
+  // Single source of truth for what the customer is told on a delivery-
+  // stage change — updateShippingStatus and handleCourierWebhook both call
+  // this instead of each maintaining their own copy of the DELIVERED
+  // wording (they used to; a wording change meant remembering both places).
+  private buildShippingStatusMessage(shippingStatus: ShippingStatus): string {
+    if (shippingStatus === ShippingStatus.DELIVERED) {
+      return `Your order was delivered. Please confirm you received it — it will be automatically confirmed in ${DELIVERY_AUTO_CONFIRM_GRACE_DAYS} days if we don't hear from you.`;
+    }
+    if (shippingStatus === ShippingStatus.FAILED) {
+      return "We weren't able to deliver your order. Our team will follow up on next steps.";
+    }
+    return `Your delivery status changed to ${shippingStatus}.`;
+  }
+
+  // A failed delivery is exactly the kind of thing only the customer used
+  // to find out about — the seller (who needs to decide whether to
+  // re-dispatch) and admins (who may need to intervene) had no visibility
+  // into it at all until they happened to check. Reused by both
+  // updateShippingStatus and handleCourierWebhook's FAILED branch.
+  private async notifyStaffOfDeliveryIssue(
+    order: { id: number; orderNumber: string; sellerId: number },
+    title: string,
+    message: string,
+  ) {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id: order.sellerId },
+      select: { userId: true },
+    });
+
+    if (seller) {
+      await this.notificationsService.sendNotification({
+        userId: seller.userId,
+        title,
+        message,
+        type: NotificationEvent.ORDER_STATUS_CHANGED,
+        data: { orderId: order.id, orderNumber: order.orderNumber },
+        sendEmail: false,
+      });
+    }
+
+    await this.notificationsService.broadcastNotification({
+      title,
+      message,
+      type: NotificationEvent.ORDER_STATUS_CHANGED,
+      priority: 'WARNING',
+      userFilter: { role: 'ADMIN' },
+      data: { orderId: order.id, orderNumber: order.orderNumber },
+      sendEmail: false,
+    });
+  }
+
+  // The delivery-specific field (BOOKED/IN_TRANSIT/DELIVERED/FAILED), never
+  // the financial OrderStatus lifecycle — marking "Delivered" here does not
+  // pay out COD or release seller earnings; that still requires the
+  // customer's confirmDelivery or staff's updateStatus, same as before this
+  // feature. Competence mirrors assignDriver exactly: COURIER only their
+  // own assigned order, SELLER only their own orders, ADMIN any order —
+  // "who can touch this delivery" answers the same way everywhere in this
+  // file. Every caller goes through the same SHIPPING_STATUS_TRANSITIONS
+  // check, no role bypasses it — a mistaken or out-of-order status change
+  // is rejected the same way regardless of who's asking.
+  async updateShippingStatus(
+    orderId: number,
+    shippingStatus: ShippingStatus,
+    actingUserId: number,
+    actingUserRole: string,
+  ) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    if (order.assignedDriverId !== driverUserId) {
-      throw new ForbiddenException('You are not the assigned driver for this order');
+    if (actingUserRole === 'COURIER') {
+      if (order.assignedDriverId !== actingUserId) {
+        throw new ForbiddenException('You are not the assigned driver for this order');
+      }
+    } else if (actingUserRole === 'SELLER') {
+      const seller = await this.prisma.seller.findUnique({ where: { userId: actingUserId } });
+      if (order.sellerId !== seller?.id) {
+        throw new ForbiddenException('You do not have permission to update this order');
+      }
+    }
+
+    const validNextStatuses = SHIPPING_STATUS_TRANSITIONS[order.shippingStatus] || [];
+    if (!validNextStatuses.includes(shippingStatus)) {
+      throw new BadRequestException(
+        `Cannot transition delivery status from ${order.shippingStatus} to ${shippingStatus}`,
+      );
     }
 
     const isDelivered = shippingStatus === ShippingStatus.DELIVERED;
@@ -1847,13 +1945,19 @@ export class OrdersService {
     await this.notificationsService.sendNotification({
       userId: order.customerId,
       title: `Order ${order.orderNumber} delivery update`,
-      message: isDelivered
-        ? `Your order was delivered. Please confirm you received it — it will be automatically confirmed in ${DELIVERY_AUTO_CONFIRM_GRACE_DAYS} days if we don't hear from you.`
-        : `Your delivery status changed to ${shippingStatus}.`,
+      message: this.buildShippingStatusMessage(shippingStatus),
       type: NotificationEvent.ORDER_STATUS_CHANGED,
       data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus },
       sendEmail: false,
     });
+
+    if (shippingStatus === ShippingStatus.FAILED) {
+      await this.notifyStaffOfDeliveryIssue(
+        order,
+        `Delivery failed: ${order.orderNumber}`,
+        `The delivery for order ${order.orderNumber} was marked as failed and needs follow-up — reassign a driver or contact the customer.`,
+      );
+    }
 
     this.notificationsGateway.emitOrderUpdated(orderId, {
       orderId,
@@ -1885,6 +1989,15 @@ export class OrdersService {
       throw new BadRequestException('Provide at least a status or a latitude/longitude pair');
     }
 
+    if (dto.status) {
+      const validNextStatuses = SHIPPING_STATUS_TRANSITIONS[order.shippingStatus] || [];
+      if (!validNextStatuses.includes(dto.status)) {
+        throw new BadRequestException(
+          `Cannot transition delivery status from ${order.shippingStatus} to ${dto.status}`,
+        );
+      }
+    }
+
     const now = new Date();
     const isDelivered = dto.status === ShippingStatus.DELIVERED;
     const updateData: any = {};
@@ -1907,15 +2020,19 @@ export class OrdersService {
       await this.notificationsService.sendNotification({
         userId: order.customerId,
         title: `Order ${order.orderNumber} delivery update`,
-        message:
-          dto.description ||
-          (isDelivered
-            ? `Your order was delivered. Please confirm you received it — it will be automatically confirmed in ${DELIVERY_AUTO_CONFIRM_GRACE_DAYS} days if we don't hear from you.`
-            : `Your delivery status changed to ${dto.status}.`),
+        message: dto.description || this.buildShippingStatusMessage(dto.status),
         type: NotificationEvent.ORDER_STATUS_CHANGED,
         data: { orderId: order.id, orderNumber: order.orderNumber, shippingStatus: dto.status },
         sendEmail: false,
       });
+
+      if (dto.status === ShippingStatus.FAILED) {
+        await this.notifyStaffOfDeliveryIssue(
+          order,
+          `Delivery failed: ${order.orderNumber}`,
+          `The courier reported a failed delivery for order ${order.orderNumber} and it needs follow-up.`,
+        );
+      }
     }
 
     this.notificationsGateway.emitOrderUpdated(order.id, {

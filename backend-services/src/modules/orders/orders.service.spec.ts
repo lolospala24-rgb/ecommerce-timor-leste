@@ -112,8 +112,40 @@ describe('OrdersService — courier & delivery confirmation', () => {
       expect(notificationsService.sendNotification).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 2 }),
       );
+      // The customer gets the same courtesy every other delivery-stage
+      // change already gives them — "who's bringing my order".
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 5 }),
+      );
       expect(notificationsGateway.emitOrderUpdated).toHaveBeenCalled();
       expect(result.assignedDriverId).toBe(2);
+    });
+
+    it('resets a previously FAILED delivery back to BOOKED when reassigned to a new driver', async () => {
+      prisma.order.findUnique.mockResolvedValue({ ...baseOrder, shippingStatus: ShippingStatus.FAILED });
+      const driver = { id: 3, name: 'Driver Jane', phone: '+670999', role: Role.COURIER, isActive: true };
+      prisma.user.findUnique.mockResolvedValue(driver);
+      prisma.order.update.mockResolvedValue({});
+
+      await service.assignDriver(1, { driverId: 3 }, 1, 'ADMIN');
+
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ assignedDriverId: 3, shippingStatus: ShippingStatus.BOOKED }),
+        }),
+      );
+    });
+
+    it('does not touch shippingStatus when assigning a driver to a fresh (non-FAILED) order', async () => {
+      prisma.order.findUnique.mockResolvedValue({ ...baseOrder, shippingStatus: ShippingStatus.PENDING });
+      const driver = { id: 4, name: 'Driver Bob', phone: '+670888', role: Role.COURIER, isActive: true };
+      prisma.user.findUnique.mockResolvedValue(driver);
+      prisma.order.update.mockResolvedValue({});
+
+      await service.assignDriver(1, { driverId: 4 }, 1, 'ADMIN');
+
+      const updateCall = prisma.order.update.mock.calls[0][0];
+      expect(updateCall.data.shippingStatus).toBeUndefined();
     });
   });
 
@@ -145,24 +177,44 @@ describe('OrdersService — courier & delivery confirmation', () => {
 
   describe('updateShippingStatus', () => {
     it('rejects a driver who is not assigned to the order', async () => {
-      prisma.order.findUnique.mockResolvedValue({ id: 1, assignedDriverId: 99, customerId: 5 });
+      prisma.order.findUnique.mockResolvedValue({ id: 1, assignedDriverId: 99, customerId: 5, shippingStatus: ShippingStatus.BOOKED });
 
       await expect(
-        service.updateShippingStatus(1, 42, ShippingStatus.IN_TRANSIT),
+        service.updateShippingStatus(1, ShippingStatus.IN_TRANSIT, 42, 'COURIER'),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('stamps driverDeliveredAt exactly once when transitioning to DELIVERED, without touching the financial status', async () => {
+    it('rejects a SELLER updating an order that is not theirs', async () => {
+      prisma.order.findUnique.mockResolvedValue({ id: 1, sellerId: 9, customerId: 5, shippingStatus: ShippingStatus.BOOKED });
+      prisma.seller.findUnique.mockResolvedValue({ id: 999 }); // not sellerId 9
+
+      await expect(
+        service.updateShippingStatus(1, ShippingStatus.IN_TRANSIT, 1, 'SELLER'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lets ADMIN update any order regardless of who it belongs to', async () => {
+      prisma.order.findUnique.mockResolvedValue({ id: 1, sellerId: 9, customerId: 5, shippingStatus: ShippingStatus.BOOKED, orderNumber: 'ORD-1' });
+      prisma.order.update.mockResolvedValue({ id: 1, shippingStatus: ShippingStatus.IN_TRANSIT });
+
+      await expect(
+        service.updateShippingStatus(1, ShippingStatus.IN_TRANSIT, 1, 'ADMIN'),
+      ).resolves.toBeDefined();
+      expect(prisma.seller.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('stamps driverDeliveredAt on a valid transition to DELIVERED, without touching the financial status', async () => {
       prisma.order.findUnique.mockResolvedValue({
         id: 1,
         orderNumber: 'ORD-1',
         customerId: 5,
         assignedDriverId: 42,
+        shippingStatus: ShippingStatus.IN_TRANSIT,
         driverDeliveredAt: null,
       });
       prisma.order.update.mockResolvedValue({ id: 1, shippingStatus: ShippingStatus.DELIVERED });
 
-      await service.updateShippingStatus(1, 42, ShippingStatus.DELIVERED);
+      await service.updateShippingStatus(1, ShippingStatus.DELIVERED, 42, 'COURIER');
 
       const updateCall = prisma.order.update.mock.calls[0][0];
       expect(updateCall.data.shippingStatus).toBe(ShippingStatus.DELIVERED);
@@ -172,21 +224,31 @@ describe('OrdersService — courier & delivery confirmation', () => {
       expect(updateCall.data.status).toBeUndefined();
     });
 
-    it('does not re-stamp driverDeliveredAt if it is already set', async () => {
-      const existingTimestamp = new Date('2026-01-01T00:00:00Z');
+    it('rejects skipping a step (e.g. PENDING straight to DELIVERED)', async () => {
       prisma.order.findUnique.mockResolvedValue({
         id: 1,
-        orderNumber: 'ORD-1',
         customerId: 5,
         assignedDriverId: 42,
-        driverDeliveredAt: existingTimestamp,
+        shippingStatus: ShippingStatus.PENDING,
       });
-      prisma.order.update.mockResolvedValue({});
 
-      await service.updateShippingStatus(1, 42, ShippingStatus.DELIVERED);
+      await expect(
+        service.updateShippingStatus(1, ShippingStatus.DELIVERED, 42, 'COURIER'),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.update).not.toHaveBeenCalled();
+    });
 
-      const updateCall = prisma.order.update.mock.calls[0][0];
-      expect(updateCall.data.driverDeliveredAt).toBeUndefined();
+    it('rejects any further transition once DELIVERED is terminal — no role bypasses this', async () => {
+      prisma.order.findUnique.mockResolvedValue({
+        id: 1,
+        customerId: 5,
+        assignedDriverId: 42,
+        shippingStatus: ShippingStatus.DELIVERED,
+      });
+
+      await expect(
+        service.updateShippingStatus(1, ShippingStatus.IN_TRANSIT, 1, 'ADMIN'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -215,8 +277,38 @@ describe('OrdersService — courier & delivery confirmation', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('rejects a status transition that skips steps, same as the authenticated path', async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: 1, customerId: 5, shippingStatus: ShippingStatus.PENDING, driverDeliveredAt: null });
+
+      await expect(
+        service.handleCourierWebhook({ trackingNumber: 'ET-1', status: ShippingStatus.DELIVERED } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.order.update).not.toHaveBeenCalled();
+    });
+
+    it('notifies the seller and admins (not just the customer) when a webhook reports a failed delivery', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 1, orderNumber: 'ORD-1', customerId: 5, sellerId: 9,
+        shippingStatus: ShippingStatus.IN_TRANSIT, driverDeliveredAt: null,
+      });
+      prisma.seller.findUnique.mockResolvedValue({ userId: 77 });
+      prisma.order.update.mockResolvedValue({});
+
+      await service.handleCourierWebhook({ trackingNumber: 'ET-1', status: ShippingStatus.FAILED } as any);
+
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 77 }),
+      );
+      expect(notificationsService.broadcastNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ userFilter: { role: 'ADMIN' } }),
+      );
+    });
+
     it('accepts a status-only update and stamps driverDeliveredAt on DELIVERED', async () => {
-      prisma.order.findFirst.mockResolvedValue({ id: 1, orderNumber: 'ORD-1', customerId: 5, driverDeliveredAt: null });
+      prisma.order.findFirst.mockResolvedValue({
+        id: 1, orderNumber: 'ORD-1', customerId: 5,
+        shippingStatus: ShippingStatus.IN_TRANSIT, driverDeliveredAt: null,
+      });
       prisma.order.update.mockResolvedValue({});
 
       await service.handleCourierWebhook({ trackingNumber: 'ET-1', status: ShippingStatus.DELIVERED } as any);

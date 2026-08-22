@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UpdateOrderStatus } from '../components/UpdateOrderStatus';
 import { AssignDriver } from '../components/AssignDriver';
+import { UpdateShippingStatus } from '../components/UpdateShippingStatus';
 import {
   ArrowLeft,
   Package,
@@ -307,6 +308,16 @@ export default function OrderDetailPage() {
                 />
               </div>
             </div>
+
+            {order.shippingStatus && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Delivery Status</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-sm">{order.shippingStatus.replace('_', ' ')}</p>
+                  <UpdateShippingStatus orderId={order.id} currentShippingStatus={order.shippingStatus} />
+                </div>
+              </div>
+            )}
 
             {order.courierLatitude != null && order.courierLongitude != null && (
               <div>

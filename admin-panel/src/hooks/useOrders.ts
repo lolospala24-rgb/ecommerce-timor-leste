@@ -297,6 +297,25 @@ export const useAssignDriver = () => {
   });
 };
 
+export const useUpdateShippingStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, shippingStatus }: { id: number; shippingStatus: string }) => {
+      const response = await api.patch(`/orders/${id}/shipping-status`, { shippingStatus });
+      return response.data?.data || response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['orders', variables.id] });
+      toast.success('Delivery status updated');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update delivery status');
+    },
+  });
+};
+
 export const useCancelOrder = () => {
   const queryClient = useQueryClient();
   

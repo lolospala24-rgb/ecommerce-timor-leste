@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrder } from '@/hooks/useOrders';
 import { UpdateOrderStatus } from './UpdateOrderStatus';
 import { AssignDriver } from './AssignDriver';
+import { UpdateShippingStatus } from './UpdateShippingStatus';
 import {
   Package,
   Truck,
@@ -283,6 +284,16 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                         />
                       </div>
                     </div>
+
+                    {order.shippingStatus && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Delivery Status</p>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <p className="text-sm">{order.shippingStatus.replace('_', ' ')}</p>
+                          <UpdateShippingStatus orderId={order.id} currentShippingStatus={order.shippingStatus} />
+                        </div>
+                      </div>
+                    )}
 
                     {order.courierLatitude != null && order.courierLongitude != null && (
                       <div>

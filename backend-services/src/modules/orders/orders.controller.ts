@@ -194,17 +194,23 @@ export class OrdersController {
     return this.ordersService.updateCourierLocation(id, driverUserId, updateCourierLocationDto);
   }
 
+  // COURIER: only their own assigned deliveries (enforced in the service).
+  // SELLER: only their own orders — same ownership rule as assign-driver.
+  // ADMIN: any order — the one competence a driver never has is touching
+  // someone else's delivery or the financial OrderStatus at all.
   @Patch(':id/shipping-status')
-  @Roles(Role.COURIER)
+  @Roles(Role.COURIER, Role.SELLER, Role.ADMIN)
   async updateShippingStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateShippingStatusDto: UpdateShippingStatusDto,
-    @CurrentUser('id') driverUserId: number,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('role') userRole: string,
   ) {
     const order = await this.ordersService.updateShippingStatus(
       id,
-      driverUserId,
       updateShippingStatusDto.shippingStatus,
+      userId,
+      userRole,
     );
     return { message: 'Shipping status updated', data: order };
   }
