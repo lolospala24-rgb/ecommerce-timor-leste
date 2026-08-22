@@ -20,6 +20,7 @@ import {
   User,
   Store,
   FileText,
+  Navigation,
 } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
@@ -239,12 +240,34 @@ export default function OrderDetailPage() {
               <p className="text-sm font-medium text-muted-foreground">Phone</p>
               <p>{address.phone || 'N/A'}</p>
             </div>
-            {deliveryLatitude != null && deliveryLongitude != null && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Exact Pin (for courier)</p>
-                <p className="font-mono text-sm">{deliveryLatitude.toFixed(5)}, {deliveryLongitude.toFixed(5)}</p>
-              </div>
-            )}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Exact Delivery Location</p>
+              {deliveryLatitude != null && deliveryLongitude != null ? (
+                <>
+                  <p className="font-mono text-sm">{deliveryLatitude.toFixed(5)}, {deliveryLongitude.toFixed(5)}</p>
+                  <div className="mt-1 flex gap-3">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${deliveryLatitude},${deliveryLongitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    >
+                      <MapPin className="h-3.5 w-3.5" /> View on Map
+                    </a>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${deliveryLatitude},${deliveryLongitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    >
+                      <Navigation className="h-3.5 w-3.5" /> Open Navigation
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Exact delivery location was not provided.</p>
+              )}
+            </div>
             {order.trackingNumber && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Tracking Number</p>

@@ -22,6 +22,7 @@ import {
   Store,
   Calendar,
   DollarSign,
+  Navigation,
 } from 'lucide-react';
 import { RemoteImage } from '@/components/shared/RemoteImage';
 import Image from 'next/image';
@@ -233,12 +234,34 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                       <p className="text-sm font-medium text-muted-foreground">Phone</p>
                       <p>{order.deliveryPhone ?? order.address?.phone ?? 'N/A'}</p>
                     </div>
-                    {order.deliveryLatitude != null && order.deliveryLongitude != null && (
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Exact Pin (for courier)</p>
-                        <p className="font-mono text-sm">{order.deliveryLatitude.toFixed(5)}, {order.deliveryLongitude.toFixed(5)}</p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Exact Delivery Location</p>
+                      {order.deliveryLatitude != null && order.deliveryLongitude != null ? (
+                        <>
+                          <p className="font-mono text-sm">{order.deliveryLatitude.toFixed(5)}, {order.deliveryLongitude.toFixed(5)}</p>
+                          <div className="mt-1 flex gap-3">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${order.deliveryLatitude},${order.deliveryLongitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                            >
+                              <MapPin className="h-3.5 w-3.5" /> View on Map
+                            </a>
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLatitude},${order.deliveryLongitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                            >
+                              <Navigation className="h-3.5 w-3.5" /> Open Navigation
+                            </a>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Exact delivery location was not provided.</p>
+                      )}
+                    </div>
                     {order.trackingNumber && (
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Tracking Number</p>
