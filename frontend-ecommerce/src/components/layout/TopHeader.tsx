@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { useTheme } from 'next-themes';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ import {
 export function TopHeader() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const { locale, setLocale, t, languages } = useTranslation();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -39,38 +41,62 @@ export function TopHeader() {
   // Menu items for top bar
   const topMenuItems = [
     {
-      label: 'Pusat Bantuan',
+      label: t('topbar.helpCenter'),
       href: '/help',
       icon: HelpCircle,
     },
     {
-      label: 'Opsaun Avansadu',
+      label: t('topbar.advancedOptions'),
       href: '/account/settings',
       icon: Settings,
     },
     {
-      label: 'Dapat Aplikasi',
+      label: t('topbar.getApp'),
       href: '/download-app',
       icon: Smartphone,
     },
     {
-      label: 'Jadi Penjual',
+      label: t('topbar.becomeSeller'),
       href: '/seller/register',
       icon: Store,
     },
   ];
 
+  const currentLanguage = languages.find((l) => l.code === locale) ?? languages[0];
+
   return (
     <div className="border-b bg-muted/30">
       <div className="container-custom">
         <div className="flex h-8 items-center justify-between text-xs">
-          {/* Left side - Language & Currency (fixed for now: the storefront
-              content and pricing aren't actually localized/converted yet,
-              so this is an honest static indicator rather than a switcher
-              that looks interactive but does nothing) */}
+          {/* Left side - Language & Currency. Currency stays a static USD
+              indicator — prices aren't actually converted to other
+              currencies. Language is real: it switches the site's global
+              chrome (this bar, the header, the footer) and persists to
+              localStorage — see LanguageContext. */}
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Globe className="h-3.5 w-3.5" />
-            <span>English</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={t('lang.switchLabel')}
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  <span>{currentLanguage.nativeLabel}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                {languages.map((lang) => (
+                  <DropdownMenuItem
+                    key={lang.code}
+                    onClick={() => setLocale(lang.code)}
+                    className={lang.code === locale ? 'font-medium text-primary' : ''}
+                  >
+                    {lang.nativeLabel}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="text-muted-foreground/30">|</span>
             <span>USD</span>
           </div>
@@ -136,31 +162,31 @@ export function TopHeader() {
                   <DropdownMenuItem asChild>
                     <Link href="/account/profile">
                       <User className="mr-2 h-4 w-4" />
-                      Profile
+                      {t('nav.profile')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/account/orders">
                       <ShoppingBag className="mr-2 h-4 w-4" />
-                      My Orders
+                      {t('nav.myOrders')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/account/wishlist">
                       <Heart className="mr-2 h-4 w-4" />
-                      Wishlist
+                      {t('nav.wishlist')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/account/settings">
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                      {t('nav.settings')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    {t('nav.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -169,7 +195,7 @@ export function TopHeader() {
                 href="/login"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                <span>Login</span>
+                <span>{t('topbar.login')}</span>
               </Link>
             )}
           </div>

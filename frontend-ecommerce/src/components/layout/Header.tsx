@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import api from '@/lib/api';
 import { getInitials } from '@/lib/formatters';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { TopHeader } from './TopHeader';
 import { CartDrawer } from './CartDrawer';
 import { MobileNav } from './MobileNav';
@@ -46,6 +47,7 @@ import { Play } from 'lucide-react';
 
 export function Header() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
   const { totalItems, subtotal: cartSubtotal } = useCart();
@@ -141,7 +143,7 @@ export function Header() {
             
               <Link href="/videos" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
                 <Play className="h-4 w-4" />
-                <span>Video Shop</span>
+                <span>{t('nav.videoShop')}</span>
               </Link>
              
             </nav>
@@ -189,20 +191,20 @@ export function Header() {
                   <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] p-0">
                     <div className="flex items-center justify-between border-b px-4 py-3">
                       <div>
-                        <p className="text-sm font-semibold">Notifications</p>
+                        <p className="text-sm font-semibold">{t('notif.title')}</p>
                         <p className="text-xs text-muted-foreground">
-                          {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                          {unreadCount > 0 ? `${unreadCount} ${t('notif.unread')}` : t('notif.allCaughtUp')}
                         </p>
                       </div>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={markAllAsRead}>
                             <CheckCheck className="mr-1 h-3.5 w-3.5" />
-                            Mark all read
+                            {t('notif.markAllRead')}
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive hover:text-destructive" onClick={clearNotifications}>
                             <Trash2 className="mr-1 h-3.5 w-3.5" />
-                            Clear
+                            {t('notif.clear')}
                           </Button>
                         </div>
                       )}
@@ -211,39 +213,39 @@ export function Header() {
                       <div className="border-b bg-blue-50/70 px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Cart estimate</p>
-                            <p className="text-xs text-blue-600/80">Based on your current cart</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{t('notif.cartEstimate')}</p>
+                            <p className="text-xs text-blue-600/80">{t('notif.basedOnCart')}</p>
                           </div>
                         </div>
                         <div className="mt-2 space-y-1 text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Subtotal</span>
+                            <span className="text-slate-600">{t('notif.subtotal')}</span>
                             <span className="font-semibold text-slate-900">${cartSubtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Shipping (from)</span>
+                            <span className="text-slate-600">{t('notif.shippingFrom')}</span>
                             <span className="font-semibold text-slate-900">${checkoutPreview.shippingCost.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Tax</span>
+                            <span className="text-slate-600">{t('notif.tax')}</span>
                             <span className="font-semibold text-slate-900">${previewTax.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">Service fee</span>
+                            <span className="text-slate-600">{t('notif.serviceFee')}</span>
                             <span className="font-semibold text-slate-900">${checkoutPreview.serviceFee.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between border-t border-blue-100 pt-1 text-sm font-semibold text-primary">
-                            <span>Estimated total</span>
+                            <span>{t('notif.estimatedTotal')}</span>
                             <span>${previewGrandTotal.toFixed(2)}</span>
                           </div>
-                          <p className="pt-0.5 text-[11px] text-blue-600/70">Final total is calculated at checkout.</p>
+                          <p className="pt-0.5 text-[11px] text-blue-600/70">{t('notif.finalTotalNote')}</p>
                         </div>
                       </div>
                     )}
                     <div className="max-h-80 overflow-y-auto">
                       {notifications.length === 0 ? (
                         <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                          No notifications yet.
+                          {t('notif.empty')}
                         </div>
                       ) : (
                         notifications.map((notification) => (
@@ -324,31 +326,31 @@ export function Header() {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => router.push('/account/profile')}>
                       <User className="mr-2 h-4 w-4" />
-                      Profile
+                      {t('nav.profile')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push('/account/orders')}>
                       <ShoppingCart className="mr-2 h-4 w-4" />
-                      My Orders
+                      {t('nav.myOrders')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push('/account/wishlist')}>
                       <Heart className="mr-2 h-4 w-4" />
-                      Wishlist
+                      {t('nav.wishlist')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push('/account/settings')}>
                       <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                      {t('nav.settings')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => logout()} className="text-red-600">
                       <LogOut className="mr-2 h-4 w-4" />
-                      Logout
+                      {t('nav.logout')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <Link href="/login">
                   <Button variant="default" size="sm" className="h-9">
-                    Sign In
+                    {t('nav.signIn')}
                   </Button>
                 </Link>
               )}

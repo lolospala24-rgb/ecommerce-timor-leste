@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,7 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
+          <LanguageProvider>{children}</LanguageProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
@@ -43,8 +44,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
+        <LanguageProvider>
+          {children}
+          <ReactQueryDevtools initialIsOpen={false} />
+        </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

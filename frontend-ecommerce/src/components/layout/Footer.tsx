@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { MessageCircle, Send, Camera, PlayCircle, Mail, Phone, MapPin, Heart } from 'lucide-react';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const { t } = useTranslation();
   const { data: settings } = usePublicSettings();
   const siteName = settings?.siteName || 'E-commerce Timor-Leste';
   const address = settings?.address || 'Dili, Timor-Leste';
@@ -27,7 +29,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground">
-              Timor-Leste's leading online marketplace. Shop with confidence from trusted sellers across the nation.
+              {t('footer.tagline')}
             </p>
             <div className="flex gap-3">
               <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
@@ -47,26 +49,26 @@ export function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold mb-4">Quick Links</h3>
+            <h3 className="font-semibold mb-4">{t('footer.quickLinks')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/products" className="text-muted-foreground hover:text-primary transition-colors">
-                  Products
+                  {t('footer.products')}
                 </Link>
               </li>
               <li>
                 <Link href="/categories" className="text-muted-foreground hover:text-primary transition-colors">
-                  Categories
+                  {t('footer.categories')}
                 </Link>
               </li>
               <li>
                 <Link href="/sellers" className="text-muted-foreground hover:text-primary transition-colors">
-                  Sellers
+                  {t('footer.sellers')}
                 </Link>
               </li>
               <li>
                 <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
-                  About Us
+                  {t('footer.aboutUs')}
                 </Link>
               </li>
             </ul>
@@ -74,26 +76,26 @@ export function Footer() {
 
           {/* Customer Service */}
           <div>
-            <h3 className="font-semibold mb-4">Customer Service</h3>
+            <h3 className="font-semibold mb-4">{t('footer.customerService')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/help" className="text-muted-foreground hover:text-primary transition-colors">
-                  Help Center
+                  {t('footer.helpCenter')}
                 </Link>
               </li>
               <li>
                 <Link href="/faq" className="text-muted-foreground hover:text-primary transition-colors">
-                  FAQ
+                  {t('footer.faq')}
                 </Link>
               </li>
               <li>
                 <Link href="/returns" className="text-muted-foreground hover:text-primary transition-colors">
-                  Returns Policy
+                  {t('footer.returnsPolicy')}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
-                  Contact Us
+                  {t('footer.contactUs')}
                 </Link>
               </li>
             </ul>
@@ -101,7 +103,7 @@ export function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="font-semibold mb-4">Contact</h3>
+            <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-3 text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -121,10 +123,10 @@ export function Footer() {
 
         <div className="border-t mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
           <p>
-            &copy; {currentYear} {siteName}. All rights reserved.
+            &copy; {currentYear} {siteName}. {t('footer.rightsReserved')}
           </p>
           <p className="flex items-center gap-1">
-            Made with <Heart className="h-3 w-3 text-red-600" /> for Timor-Leste
+            {t('footer.madeWithLoveFor')} <Heart className="h-3 w-3 text-red-600" />
           </p>
         </div>
       </div>
