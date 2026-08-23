@@ -167,11 +167,17 @@ export function DeliveryTrackingMap({
               mapContainerStyle={mapContainerStyle}
               center={center}
               zoom={destination && courier ? 12 : 15}
-              mapTypeId="hybrid"
               onLoad={(map) => {
                 mapRef.current = map;
               }}
               options={{
+                // @react-google-maps/api's top-level `mapTypeId` prop is
+                // dead code in this version (never read past destructuring)
+                // — it has to go through `options` (-> map.setOptions) to
+                // actually take effect. Hybrid = satellite imagery + road
+                // labels, which is what "satellite view" means in Google
+                // Maps' own consumer UI (plain `satellite` has no labels).
+                mapTypeId: 'hybrid',
                 streetViewControl: false,
                 fullscreenControl: false,
                 mapTypeControl: true,
