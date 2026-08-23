@@ -25,6 +25,27 @@ export const useOrderRealtime = (orderId?: number) => {
     }
 
     const onOrderUpdated = (payload: any) => {
+      // A courier's location ping reuses this same event (see
+      // OrdersService.updateCourierLocation) and can arrive every ~8s while
+      // a delivery is in progress — it carries no `status`/`orderNumber`.
+      // Treat it as a lightweight position patch: update the cached order
+      // directly (so an open DeliveryTrackingMap moves live) without the
+      // notification sound, toast, or list-wide invalidation a real status
+      // change gets below.
+      if (payload?.courierLatitude != null && payload?.status === undefined) {
+        queryClient.setQueryData(['orders', payload.orderId], (old: any) =>
+          old
+            ? {
+                ...old,
+                courierLatitude: payload.courierLatitude,
+                courierLongitude: payload.courierLongitude,
+                courierLocationUpdatedAt: payload.courierLocationUpdatedAt,
+              }
+            : old,
+        );
+        return;
+      }
+
       const statusLabel = payload?.status ? payload.status.replace(/_/g, ' ') : 'updated';
       void playRealtimeNotificationSound();
 

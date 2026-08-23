@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UpdateOrderStatus } from '../components/UpdateOrderStatus';
 import { AssignDriver } from '../components/AssignDriver';
 import { UpdateShippingStatus } from '../components/UpdateShippingStatus';
+import { DeliveryTrackingMap } from '../components/DeliveryTrackingMap';
 import {
   ArrowLeft,
   Package,
@@ -341,6 +342,19 @@ export default function OrderDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {(deliveryLatitude != null && deliveryLongitude != null) || (order.courierLatitude != null && order.courierLongitude != null) ? (
+        <DeliveryTrackingMap
+          destination={deliveryLatitude != null && deliveryLongitude != null ? { lat: deliveryLatitude, lng: deliveryLongitude } : null}
+          courier={
+            order.courierLatitude != null && order.courierLongitude != null
+              ? { lat: order.courierLatitude, lng: order.courierLongitude, updatedAt: order.courierLocationUpdatedAt ?? null }
+              : null
+          }
+          shippingStatus={order.shippingStatus ?? null}
+          driverDeliveredAt={order.driverDeliveredAt ?? null}
+        />
+      ) : null}
 
       {/* Order Items */}
       <Card>
