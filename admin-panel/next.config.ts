@@ -10,17 +10,21 @@ const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
 // Google Maps JS API (used by SalesMap on the dashboard and
 // DeliveryTrackingMap on order detail) needs its own narrow allowances on
 // top of the defaults below: the loader script itself, hybrid/satellite
-// tile + icon images, and the XHR calls it makes internally.
+// tile + icon images, the XHR calls it makes internally, and — once a map
+// type control or DirectionsRenderer is on screen — the Google Sans/Roboto/
+// Material Symbols stylesheet + font files it injects for its own UI chrome.
 const googleMapsScriptSrc = 'https://maps.googleapis.com';
 const googleMapsImgSrc = 'https://maps.gstatic.com https://maps.googleapis.com https://khms0.googleapis.com https://khms1.googleapis.com';
 const googleMapsConnectSrc = 'https://maps.googleapis.com';
+const googleFontsStyleSrc = 'https://fonts.googleapis.com';
+const googleFontsFontSrc = 'https://fonts.gstatic.com';
 
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsScriptSrc}`,
-  "style-src 'self' 'unsafe-inline'",
+  `style-src 'self' 'unsafe-inline' ${googleFontsStyleSrc}`,
   `img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com ${googleMapsImgSrc}`,
-  "font-src 'self' data:",
+  `font-src 'self' data: ${googleFontsFontSrc}`,
   `connect-src 'self' ${apiUrl} ${apiWsUrl} ${googleMapsConnectSrc}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
