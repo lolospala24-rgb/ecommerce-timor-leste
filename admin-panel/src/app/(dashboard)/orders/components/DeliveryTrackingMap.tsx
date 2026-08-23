@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from '@react-google-maps/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Navigation, Truck } from 'lucide-react';
@@ -46,6 +46,8 @@ export function DeliveryTrackingMap({
     googleMapsApiKey: apiKey,
   });
   const mapRef = useRef<google.maps.Map | null>(null);
+  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [directionsError, setDirectionsError] = useState(false);
 
   const distance = useMemo(() => {
     if (!destination || !courier) return null;
@@ -75,6 +77,36 @@ export function DeliveryTrackingMap({
       mapRef.current.panTo(courier);
     }
   }, [destination?.lat, destination?.lng, courier?.lat, courier?.lng]);
+
+  // Driving route from the courier's last position to the destination —
+  // re-requested whenever either point moves, so it stays a real route
+  // rather than a stale one drawn against where the courier used to be.
+  useEffect(() => {
+    if (!isLoaded || !destination || !courier) {
+      setDirections(null);
+      return;
+    }
+    setDirectionsError(false);
+    const service = new google.maps.DirectionsService();
+    service.route(
+      {
+        origin: courier,
+        destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          setDirections(result);
+        } else {
+          // No road route (e.g. a GPS ping that landed off-network, or the
+          // Directions API isn't enabled for this key) — the two markers
+          // and straight-line distance badge above still tell the story.
+          setDirections(null);
+          setDirectionsError(true);
+        }
+      },
+    );
+  }, [isLoaded, destination?.lat, destination?.lng, courier?.lat, courier?.lng]);
 
   const center = destination || courier || { lat: -8.5569, lng: 125.5603 };
 
@@ -135,15 +167,32 @@ export function DeliveryTrackingMap({
               mapContainerStyle={mapContainerStyle}
               center={center}
               zoom={destination && courier ? 12 : 15}
+              mapTypeId="hybrid"
               onLoad={(map) => {
                 mapRef.current = map;
               }}
               options={{
                 streetViewControl: false,
                 fullscreenControl: false,
-                mapTypeControl: false,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                  position: google.maps.ControlPosition.TOP_RIGHT,
+                },
               }}
             >
+              {directions && (
+                <DirectionsRenderer
+                  directions={directions}
+                  options={{
+                    suppressMarkers: true,
+                    polylineOptions: {
+                      strokeColor: '#0f766e',
+                      strokeWeight: 4,
+                      strokeOpacity: 0.85,
+                    },
+                  }}
+                />
+              )}
               {destination && (
                 <Marker
                   position={destination}
@@ -183,6 +232,14 @@ export function DeliveryTrackingMap({
             <Truck className="h-3.5 w-3.5 text-teal-700" /> Courier last seen
             {courier?.updatedAt && ` · ${relativeTime(courier.updatedAt)}`}
           </span>
+          {directions && (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-4 rounded-full bg-teal-700" /> Driving route
+            </span>
+          )}
+          {directionsError && destination && courier && (
+            <span>Couldn&apos;t compute a driving route between these points.</span>
+          )}
         </div>
       </CardContent>
     </Card>
