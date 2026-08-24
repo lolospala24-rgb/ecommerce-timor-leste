@@ -24,6 +24,7 @@ import {
   Package,
   MapPin,
   Route,
+  Navigation,
   Gauge,
   FileBarChart,
   Bell,
@@ -131,6 +132,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/shipping', label: 'Shipping', icon: Truck },
       { href: '/couriers', label: 'Couriers', icon: Package },
+      { href: '/live-tracking', label: 'Live Tracking', icon: Navigation },
       { href: '/municipalities', label: 'Municipalities', icon: MapPin },
       { href: '/shipping-rates', label: 'Shipping Rates', icon: Route },
       { href: '/shipping-dashboard', label: 'Shipping Dashboard', icon: Gauge },

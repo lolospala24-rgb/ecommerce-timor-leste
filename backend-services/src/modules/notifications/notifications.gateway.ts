@@ -5,7 +5,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -43,8 +42,6 @@ const allowedOrigins = [
   },
 })
 export class NotificationsGateway {
-  private readonly logger = new Logger(NotificationsGateway.name);
-
   @WebSocketServer()
   server: Server;
 

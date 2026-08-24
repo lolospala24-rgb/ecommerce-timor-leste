@@ -116,6 +116,8 @@ interface OrderFilters {
   startDate?: string;
   endDate?: string;
   sellerId?: number;
+  shippingStatus?: string[];
+  hasDriver?: boolean;
 }
 
 export const useOrders = (filters?: OrderFilters) => {
@@ -130,7 +132,9 @@ export const useOrders = (filters?: OrderFilters) => {
       if (filters?.startDate) params.append('startDate', filters.startDate);
       if (filters?.endDate) params.append('endDate', filters.endDate);
       if (filters?.sellerId) params.append('sellerId', filters.sellerId.toString());
-      
+      if (filters?.shippingStatus?.length) params.append('shippingStatus', filters.shippingStatus.join(','));
+      if (filters?.hasDriver) params.append('hasDriver', 'true');
+
       const response = await api.get(`/orders?${params.toString()}`);
       // Extract data from response properly
       return response.data || response;

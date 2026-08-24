@@ -528,6 +528,8 @@ export class OrdersService {
       status,
       startDate,
       endDate,
+      shippingStatus,
+      hasDriver,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = filterDto;
@@ -561,6 +563,18 @@ export class OrdersService {
       where.createdAt = { ...where.createdAt, lte: new Date(endDate) };
     }
 
+    if (shippingStatus?.length) {
+      where.shippingStatus = { in: shippingStatus };
+    }
+
+    if (hasDriver) {
+      where.assignedDriverId = { not: null };
+    }
+
+    // The live-tracking map wants every active delivery on one map, not a
+    // paginated slice of them — a plain high `limit` still applies below,
+    // but skipping the select/orderBy machinery for this path would just
+    // duplicate it, so it reuses the same query.
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
