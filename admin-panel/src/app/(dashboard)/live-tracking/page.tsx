@@ -9,8 +9,8 @@ import { getSocket } from '@/lib/socket';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Navigation, Truck, ExternalLink } from 'lucide-react';
-import { distanceMeters, formatDistance } from '@/lib/geo';
+import { Navigation, Truck, ExternalLink, AlertTriangle } from 'lucide-react';
+import { distanceMeters, distanceToPolylineMeters, formatDistance } from '@/lib/geo';
 
 // Stable reference across renders — this page's query never changes its
 // own filters, so this can live outside the component instead of being
@@ -23,12 +23,21 @@ const ACTIVE_TRACKING_FILTERS = {
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const STALE_MINUTES = 10;
+// Same threshold and reasoning as the per-order DeliveryTrackingMap: a
+// single Directions-API suggestion isn't necessarily the only sane road,
+// so this stays generous to avoid crying wolf over legitimate alternate
+// routes.
+const OFF_ROUTE_THRESHOLD_METERS = 350;
 
 interface DriverGroup {
   driverId: number;
   name: string;
   phone: string | null;
   position: { lat: number; lng: number };
+  // The destination belonging to whichever order is currently supplying
+  // `position` (the freshest one) — what the per-driver planned route is
+  // computed against.
+  primaryDestination: { lat: number; lng: number } | null;
   updatedAt: string | null;
   orders: Array<{
     id: number;
@@ -110,12 +119,18 @@ export default function LiveTrackingPage() {
         deliveryMunicipality: o.deliveryMunicipality,
       };
 
+      const thisDestination =
+        o.deliveryLatitude != null && o.deliveryLongitude != null
+          ? { lat: o.deliveryLatitude, lng: o.deliveryLongitude }
+          : null;
+
       if (!existing) {
         byDriver.set(o.assignedDriverId, {
           driverId: o.assignedDriverId,
           name: o.assignedDriver.name,
           phone: o.assignedDriver.phone,
           position: { lat: o.courierLatitude, lng: o.courierLongitude },
+          primaryDestination: thisDestination,
           updatedAt: thisUpdatedAt,
           orders: [orderEntry],
         });
@@ -125,6 +140,7 @@ export default function LiveTrackingPage() {
         // whichever position is freshest as the marker's location.
         if (thisUpdatedAt && (!existing.updatedAt || thisUpdatedAt > existing.updatedAt)) {
           existing.position = { lat: o.courierLatitude, lng: o.courierLongitude };
+          existing.primaryDestination = thisDestination;
           existing.updatedAt = thisUpdatedAt;
         }
       }
@@ -140,6 +156,54 @@ export default function LiveTrackingPage() {
     driverGroups.forEach((d) => bounds.extend(d.position));
     mapRef.current.fitBounds(bounds, 48);
   }, [driverGroups]);
+
+  // Per-driver planned route, frozen the first time it's computed for a
+  // given destination — same reasoning as DeliveryTrackingMap: this map
+  // draws no route lines (too cluttered with many couriers at once), it
+  // only needs the path geometry to answer "is this driver still near their
+  // route" for the off-route badge below. `routeVersion` exists purely to
+  // force a re-render once an async DirectionsService call lands, since
+  // writing into the ref map alone wouldn't trigger one.
+  const plannedPaths = useRef(new Map<number, { lat: number; lng: number }[]>());
+  const plannedForDest = useRef(new Map<number, string>());
+  const [routeVersion, setRouteVersion] = useState(0);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const service = new google.maps.DirectionsService();
+    for (const d of driverGroups) {
+      if (!d.primaryDestination) continue;
+      const destKey = `${d.primaryDestination.lat},${d.primaryDestination.lng}`;
+      if (plannedForDest.current.get(d.driverId) === destKey) continue;
+
+      service.route(
+        { origin: d.position, destination: d.primaryDestination, travelMode: google.maps.TravelMode.DRIVING },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK && result) {
+            plannedPaths.current.set(
+              d.driverId,
+              result.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() })),
+            );
+            plannedForDest.current.set(d.driverId, destKey);
+            setRouteVersion((v) => v + 1);
+          }
+          // On failure, destKey is deliberately not recorded as done — the
+          // next position update (or the next render's driverGroups pass)
+          // gets a fresh attempt instead of giving up on this driver.
+        },
+      );
+    }
+  }, [isLoaded, driverGroups]);
+
+  const offRouteByDriver = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const d of driverGroups) {
+      const path = plannedPaths.current.get(d.driverId);
+      if (path) map.set(d.driverId, distanceToPolylineMeters(d.position, path));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverGroups, routeVersion]);
 
   const noLocationCount = orders.filter(
     (o: any) => o.courierLatitude == null || o.courierLongitude == null,
@@ -192,22 +256,27 @@ export default function LiveTrackingPage() {
                     mapTypeControlOptions: { position: google.maps.ControlPosition.TOP_RIGHT },
                   }}
                 >
-                  {driverGroups.map((d) => (
-                    <Marker
-                      key={d.driverId}
-                      position={d.position}
-                      title={d.name}
-                      onClick={() => setSelectedDriverId(d.driverId)}
-                      icon={{
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: d.driverId === selectedDriverId ? '#e11d48' : '#0f766e',
-                        fillOpacity: 0.95,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2,
-                        scale: 10,
-                      }}
-                    />
-                  ))}
+                  {driverGroups.map((d) => {
+                    const offRouteMeters = offRouteByDriver.get(d.driverId);
+                    const isOffRoute = offRouteMeters != null && offRouteMeters > OFF_ROUTE_THRESHOLD_METERS;
+                    return (
+                      <Marker
+                        key={d.driverId}
+                        position={d.position}
+                        title={isOffRoute ? `${d.name} — off the planned route` : d.name}
+                        onClick={() => setSelectedDriverId(d.driverId)}
+                        icon={{
+                          path: google.maps.SymbolPath.CIRCLE,
+                          fillColor:
+                            d.driverId === selectedDriverId ? '#e11d48' : isOffRoute ? '#d97706' : '#0f766e',
+                          fillOpacity: 0.95,
+                          strokeColor: '#ffffff',
+                          strokeWeight: 2,
+                          scale: 10,
+                        }}
+                      />
+                    );
+                  })}
                 </GoogleMap>
               )}
             </div>
@@ -233,6 +302,8 @@ export default function LiveTrackingPage() {
                 const isStale = d.updatedAt
                   ? (Date.now() - new Date(d.updatedAt).getTime()) / 60000 > STALE_MINUTES
                   : false;
+                const offRouteMeters = offRouteByDriver.get(d.driverId);
+                const isOffRoute = offRouteMeters != null && offRouteMeters > OFF_ROUTE_THRESHOLD_METERS;
                 return (
                   <button
                     key={d.driverId}
@@ -247,7 +318,14 @@ export default function LiveTrackingPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold text-sm">{d.name}</p>
-                      {isStale && <Badge variant="destructive">Stale</Badge>}
+                      <div className="flex gap-1.5">
+                        {isOffRoute && (
+                          <Badge variant="destructive" className="gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Off route
+                          </Badge>
+                        )}
+                        {isStale && <Badge variant="destructive">Stale</Badge>}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {d.orders.length} active {d.orders.length === 1 ? 'delivery' : 'deliveries'}
@@ -267,7 +345,16 @@ export default function LiveTrackingPage() {
             <CardTitle>{selectedDriver.name}</CardTitle>
             <CardDescription>{selectedDriver.phone || 'No phone on file'}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {(() => {
+              const offRouteMeters = offRouteByDriver.get(selectedDriver.driverId);
+              if (offRouteMeters == null || offRouteMeters <= OFF_ROUTE_THRESHOLD_METERS) return null;
+              return (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" /> {formatDistance(offRouteMeters)} off the planned route
+                </Badge>
+              );
+            })()}
             <div className="space-y-2">
               {selectedDriver.orders.map((o) => {
                 const dist =

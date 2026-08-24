@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, Marker, DirectionsRenderer, useJsApiLoader } from '@react-google-maps/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Navigation, Truck } from 'lucide-react';
-import { distanceMeters, formatDistance } from '@/lib/geo';
+import { MapPin, Navigation, Truck, AlertTriangle } from 'lucide-react';
+import { distanceMeters, distanceToPolylineMeters, formatDistance } from '@/lib/geo';
 
 interface DeliveryTrackingMapProps {
   destination: { lat: number; lng: number } | null;
@@ -23,6 +23,12 @@ const ARRIVED_THRESHOLD_METERS = 150;
 // driver portal/app); no update in this long means they likely backgrounded
 // the tab or lost signal, not that they're standing still.
 const STALE_MINUTES = 10;
+// Beyond this, "different equally-valid street" stops being a plausible
+// explanation and it's worth a dispatcher's attention. Generous on purpose
+// — GPS drift plus this being a single Directions-API suggestion (not
+// necessarily the only sane route) both push toward false positives at a
+// tighter number.
+const OFF_ROUTE_THRESHOLD_METERS = 350;
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -48,6 +54,16 @@ export function DeliveryTrackingMap({
   const mapRef = useRef<google.maps.Map | null>(null);
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [directionsError, setDirectionsError] = useState(false);
+  // The *planned* path, frozen the first time a route is computed for this
+  // destination — deliberately never overwritten by a later reroute, or
+  // "off route" would be meaningless (a fresh route from wherever the
+  // courier currently is is *always* on-route by construction). This is an
+  // honest approximation of "the route from dispatch," not the true thing:
+  // it locks onto whichever position this map component happens to first
+  // observe, which may already be partway into the trip if a dispatcher
+  // opens the page after the courier has been moving a while.
+  const plannedPathRef = useRef<{ lat: number; lng: number }[] | null>(null);
+  const plannedForDestRef = useRef<string | null>(null);
 
   const distance = useMemo(() => {
     if (!destination || !courier) return null;
@@ -78,35 +94,45 @@ export function DeliveryTrackingMap({
     }
   }, [destination?.lat, destination?.lng, courier?.lat, courier?.lng]);
 
-  // Driving route from the courier's last position to the destination —
-  // re-requested whenever either point moves, so it stays a real route
-  // rather than a stale one drawn against where the courier used to be.
+  // Computed exactly once per destination — from wherever the courier is
+  // when this first runs — and then left alone. Recomputing on every
+  // position ping (the previous behavior) always draws a route *from where
+  // they currently are*, which by construction can never show as
+  // off-route; freezing it is what makes "did they leave the planned road"
+  // a meaningful question instead of a tautology.
   useEffect(() => {
-    if (!isLoaded || !destination || !courier) {
-      setDirections(null);
-      return;
-    }
+    if (!isLoaded || !destination || !courier) return;
+    const destKey = `${destination.lat},${destination.lng}`;
+    if (plannedForDestRef.current === destKey) return;
+
     setDirectionsError(false);
     const service = new google.maps.DirectionsService();
     service.route(
-      {
-        origin: courier,
-        destination,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
+      { origin: courier, destination, travelMode: google.maps.TravelMode.DRIVING },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
           setDirections(result);
+          plannedPathRef.current = result.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+          plannedForDestRef.current = destKey;
         } else {
           // No road route (e.g. a GPS ping that landed off-network, or the
           // Directions API isn't enabled for this key) — the two markers
           // and straight-line distance badge above still tell the story.
+          // Deliberately not marking destKey as "done" here — if the very
+          // first ping was an outlier, the next one gets a real attempt.
           setDirections(null);
           setDirectionsError(true);
         }
       },
     );
   }, [isLoaded, destination?.lat, destination?.lng, courier?.lat, courier?.lng]);
+
+  const offRouteMeters = useMemo(() => {
+    if (!courier || !plannedPathRef.current) return null;
+    return distanceToPolylineMeters(courier, plannedPathRef.current);
+  }, [courier, directions]);
+
+  const isOffRoute = offRouteMeters != null && offRouteMeters > OFF_ROUTE_THRESHOLD_METERS;
 
   const center = destination || courier || { lat: -8.5569, lng: 125.5603 };
 
@@ -137,6 +163,12 @@ export function DeliveryTrackingMap({
 
           {isStale && isActivelyTracking && (
             <Badge variant="destructive">No location update in {relativeTime(courier!.updatedAt!)}</Badge>
+          )}
+
+          {isOffRoute && isActivelyTracking && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" /> {formatDistance(offRouteMeters!)} off the planned route
+            </Badge>
           )}
 
           {shippingStatus === 'DELIVERED' && driverDeliveredAt && (
@@ -192,7 +224,7 @@ export function DeliveryTrackingMap({
                   options={{
                     suppressMarkers: true,
                     polylineOptions: {
-                      strokeColor: '#0f766e',
+                      strokeColor: isOffRoute ? '#d97706' : '#0f766e',
                       strokeWeight: 4,
                       strokeOpacity: 0.85,
                     },
@@ -215,10 +247,10 @@ export function DeliveryTrackingMap({
               {courier && (
                 <Marker
                   position={courier}
-                  title="Courier — last known position"
+                  title={isOffRoute ? 'Courier — off the planned route' : 'Courier — last known position'}
                   icon={{
                     path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: '#0f766e',
+                    fillColor: isOffRoute ? '#d97706' : '#0f766e',
                     fillOpacity: 0.95,
                     strokeColor: '#ffffff',
                     strokeWeight: 2,
@@ -240,7 +272,8 @@ export function DeliveryTrackingMap({
           </span>
           {directions && (
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-0.5 w-4 rounded-full bg-teal-700" /> Driving route
+              <span className={`inline-block h-0.5 w-4 rounded-full ${isOffRoute ? 'bg-amber-600' : 'bg-teal-700'}`} />
+              Planned route
             </span>
           )}
           {directionsError && destination && courier && (
