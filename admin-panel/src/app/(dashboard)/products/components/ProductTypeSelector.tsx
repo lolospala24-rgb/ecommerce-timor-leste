@@ -49,8 +49,10 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDescription, setNewTypeDescription] = useState('');
   const [newTypeFields, setNewTypeFields] = useState<string[]>(['']);
+  const [newTypeSpecFields, setNewTypeSpecFields] = useState<string[]>(['']);
   const [isCreating, setIsCreating] = useState(false);
   const [editFieldNames, setEditFieldNames] = useState<string[]>([]);
+  const [editSpecFieldNames, setEditSpecFieldNames] = useState<string[]>([]);
   const [isSavingFields, setIsSavingFields] = useState(false);
 
   useEffect(() => {
@@ -71,7 +73,13 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
     } else {
       setEditFieldNames(['']);
     }
-  }, [selectedType?.id, selectedType?.fields]);
+    if (selectedType?.specFields) {
+      const names = fieldsToNameList(selectedType.specFields);
+      setEditSpecFieldNames(names.length > 0 ? names : ['']);
+    } else {
+      setEditSpecFieldNames(['']);
+    }
+  }, [selectedType?.id, selectedType?.fields, selectedType?.specFields]);
 
   const handleCreateType = async () => {
     if (!newTypeName.trim()) {
@@ -85,6 +93,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
         name: newTypeName.trim(),
         description: newTypeDescription.trim() || undefined,
         fields: buildFieldsPayload(newTypeFields),
+        specFields: buildFieldsPayload(newTypeSpecFields),
       });
 
       const createdType = (response as any)?.data ?? response;
@@ -92,6 +101,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
       setNewTypeName('');
       setNewTypeDescription('');
       setNewTypeFields(['']);
+      setNewTypeSpecFields(['']);
       setIsCreateDialogOpen(false);
       await refetch();
       if (createdType?.id) {
@@ -144,6 +154,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
     try {
       await api.patch(`/products/types/${selectedType.id}`, {
         fields: buildFieldsPayload(editFieldNames),
+        specFields: buildFieldsPayload(editSpecFieldNames),
       });
       toast.success('Product type fields updated');
       await refetch();
@@ -158,16 +169,15 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
   const renderFieldInputs = (
     fieldNames: string[],
     onChange: (names: string[]) => void,
+    options: { label: string; description: string; placeholder: string },
   ) => (
     <div className="space-y-2">
-      <Label>Variant Fields</Label>
-      <p className="text-xs text-muted-foreground">
-        Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.
-      </p>
+      <Label>{options.label}</Label>
+      <p className="text-xs text-muted-foreground">{options.description}</p>
       {fieldNames.map((field, index) => (
         <div key={index} className="flex gap-2">
           <Input
-            placeholder="Field name (e.g., Color)"
+            placeholder={options.placeholder}
             value={field}
             onChange={(e) => {
               const next = [...fieldNames];
@@ -283,7 +293,17 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
                 </div>
               )}
 
-              {renderFieldInputs(editFieldNames, setEditFieldNames)}
+              {renderFieldInputs(editFieldNames, setEditFieldNames, {
+                label: 'Variant Fields',
+                description: 'Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.',
+                placeholder: 'Field name (e.g., Color)',
+              })}
+
+              {renderFieldInputs(editSpecFieldNames, setEditSpecFieldNames, {
+                label: 'Suggested Specification Fields',
+                description: 'Field names admins will see as quick-add suggestions when filling in specifications for this type (e.g. Material, Warranty).',
+                placeholder: 'Field name (e.g., Warranty)',
+              })}
 
               <Button onClick={handleSaveTypeFields} disabled={isSavingFields}>
                 {isSavingFields ? 'Saving...' : 'Save Type Fields'}
@@ -328,7 +348,16 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
                     rows={3}
                   />
                 </div>
-                {renderFieldInputs(newTypeFields, setNewTypeFields)}
+                {renderFieldInputs(newTypeFields, setNewTypeFields, {
+                  label: 'Variant Fields',
+                  description: 'Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.',
+                  placeholder: 'Field name (e.g., Color)',
+                })}
+                {renderFieldInputs(newTypeSpecFields, setNewTypeSpecFields, {
+                  label: 'Suggested Specification Fields',
+                  description: 'Shown as quick-add suggestions when filling in specifications for products of this type.',
+                  placeholder: 'Field name (e.g., Warranty)',
+                })}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>

@@ -315,6 +315,12 @@ model ProductType {
   description String?
   slug        String   @unique
   fields      Json     @default("{}")
+  // Suggested general specification fields for this type (e.g. Electronics
+  // -> Voltage/Warranty, Fashion -> Material/Care Instructions) — distinct
+  // from `fields`, which drives variant option pickers (Color/Size) on the
+  // storefront, not the specification list. Same {name: "select"} shape as
+  // `fields` for consistency; purely advisory, never enforced server-side.
+  specFields  Json     @default("{}")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -331,6 +331,7 @@ export default function ProductDetailPage() {
             productId={productId}
             specifications={product.specifications}
             brand={product.brand}
+            suggestedFields={product.type?.specFields}
             onUpdate={refetch}
           />
         </TabsContent>

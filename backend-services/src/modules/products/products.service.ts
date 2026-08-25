@@ -1985,6 +1985,7 @@ export class ProductsService {
         description: createProductTypeDto.description,
         slug,
         fields: createProductTypeDto.fields ?? {},
+        specFields: createProductTypeDto.specFields ?? {},
         isActive: createProductTypeDto.isActive ?? true,
       },
     });
@@ -2035,6 +2036,7 @@ export class ProductsService {
         description: updateProductTypeDto.description,
         slug: updateProductTypeDto.slug,
         fields: updateProductTypeDto.fields,
+        specFields: updateProductTypeDto.specFields,
         isActive: updateProductTypeDto.isActive,
       },
     });

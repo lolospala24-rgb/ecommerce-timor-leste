@@ -34,9 +34,13 @@ export function parseProductTypeFields(value: unknown): ProductTypeFieldDefiniti
   }
 
   if (typeof parsed === 'object' && parsed !== null) {
-    return Object.entries(parsed as Record<string, unknown>).map(([key, value]) => ({
+    // The object shape is `{ fieldName: fieldType }` (see
+    // buildFieldsPayload — the value is always a type marker like
+    // "select", never a human label), so the key is what both the badge
+    // key and its display label should be.
+    return Object.keys(parsed as Record<string, unknown>).map((key) => ({
       key,
-      label: String(value ?? key),
+      label: key,
     }));
   }
 

@@ -33,6 +33,10 @@ export class UpdateProductTypeDto {
   @IsOptional()
   fields?: Record<string, any>;
 
+  @IsObject()
+  @IsOptional()
+  specFields?: Record<string, any>;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

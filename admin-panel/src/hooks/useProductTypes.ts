@@ -8,6 +8,7 @@ export interface ProductType {
   name: string;
   description: string | null;
   fields?: Record<string, unknown>;
+  specFields?: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

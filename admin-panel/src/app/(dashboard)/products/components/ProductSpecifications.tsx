@@ -11,14 +11,21 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { ListChecks, Plus, X } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { parseProductTypeFields } from '@/lib/productType';
 
 interface ProductSpecificationsProps {
   productId: number;
   specifications?: Record<string, unknown> | null;
   brand?: string | null;
+  // The assigned product type's suggested spec fields (see ProductType
+  // .specFields) — advisory quick-add chips, never forced into the rows
+  // below on their own so an admin's own custom fields are never silently
+  // overwritten by switching type.
+  suggestedFields?: unknown;
   onUpdate: () => void;
 }
 
@@ -32,7 +39,7 @@ const toRows = (specifications?: Record<string, unknown> | null): SpecRow[] => {
   return entries.length > 0 ? entries : [{ key: '', value: '' }];
 };
 
-export function ProductSpecifications({ productId, specifications, brand, onUpdate }: ProductSpecificationsProps) {
+export function ProductSpecifications({ productId, specifications, brand, suggestedFields, onUpdate }: ProductSpecificationsProps) {
   const [brandValue, setBrandValue] = useState(brand || '');
   const [rows, setRows] = useState<SpecRow[]>(() => toRows(specifications));
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +58,21 @@ export function ProductSpecifications({ productId, specifications, brand, onUpda
   };
 
   const handleAddRow = () => setRows((prev) => [...prev, { key: '', value: '' }]);
+
+  const suggestedList = parseProductTypeFields(suggestedFields);
+  const existingKeys = new Set(rows.map((r) => r.key.trim().toLowerCase()).filter(Boolean));
+  const availableSuggestions = suggestedList.filter((f) => !existingKeys.has(f.key.toLowerCase()));
+
+  const handleAddSuggested = (key: string) => {
+    setRows((prev) => {
+      // A single still-empty row is just the editor's starting placeholder
+      // — fill it in instead of leaving a blank row dangling above it.
+      if (prev.length === 1 && !prev[0].key.trim() && !prev[0].value.trim()) {
+        return [{ key, value: '' }];
+      }
+      return [...prev, { key, value: '' }];
+    });
+  };
 
   const handleRemoveRow = (index: number) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
@@ -98,6 +120,25 @@ export function ProductSpecifications({ productId, specifications, brand, onUpda
             onChange={(e) => setBrandValue(e.target.value)}
           />
         </div>
+
+        {availableSuggestions.length > 0 && (
+          <div className="space-y-2">
+            <Label>Suggested for this product type</Label>
+            <div className="flex flex-wrap gap-2">
+              {availableSuggestions.map((field) => (
+                <Badge
+                  key={field.key}
+                  variant="secondary"
+                  className="cursor-pointer hover:bg-secondary/70"
+                  onClick={() => handleAddSuggested(field.key)}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  {field.label}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Specification fields</Label>

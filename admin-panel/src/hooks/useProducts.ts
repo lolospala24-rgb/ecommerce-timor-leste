@@ -37,6 +37,7 @@ interface Product {
     description?: string | null;
     slug?: string;
     fields?: Record<string, any>;
+    specFields?: Record<string, any>;
     isActive?: boolean;
     createdAt?: string;
     updatedAt?: string;
