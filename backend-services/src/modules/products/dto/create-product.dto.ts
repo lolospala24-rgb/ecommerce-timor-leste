@@ -12,8 +12,10 @@ import {
   IsPositive,
   IsUrl,
   IsArray,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreateVariantDto } from './create-variant.dto';
 
 export class CreateProductDto {
   @IsString()
@@ -118,4 +120,88 @@ export class CreateProductDto {
   @IsArray()
   @IsOptional()
   images?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  length?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  width?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  height?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  shippingClass?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  lowStockThreshold?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  metaDescription?: string;
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  metaKeywords?: string[];
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVariantDto)
+  variants?: CreateVariantDto[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  wholesalePrice?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Type(() => Number)
+  wholesaleMinQty?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  packagingName?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Type(() => Number)
+  packagingUnitCount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  packagingPrice?: number;
 }

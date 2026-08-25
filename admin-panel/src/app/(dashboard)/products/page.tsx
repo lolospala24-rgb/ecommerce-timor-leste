@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useProducts } from '@/hooks/useProducts';
 import { ProductsTable } from './components/ProductsTable';
 import ProductFilters from './components/ProductFilters';
@@ -22,10 +23,10 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ProductForm } from './components/ProductForm';
 import { Plus, Download, RefreshCw, Package } from 'lucide-react';
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -36,7 +37,6 @@ export default function ProductsPage() {
     stockStatus: 'all' as 'all' | 'inStock' | 'outOfStock' | 'lowStock',
   });
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
 
   const { data, isLoading, refetch } = useProducts({
@@ -87,7 +87,7 @@ export default function ProductsPage() {
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <Button onClick={() => router.push('/products/new')}>
             <Plus className="mr-2 h-4 w-4" />
             Add Product
           </Button>
@@ -298,25 +298,6 @@ export default function ProductsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Create Product Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Create a new product. Fill in all the required information.
-            </DialogDescription>
-          </DialogHeader>
-          <ProductForm
-            onSuccess={() => {
-              setShowCreateDialog(false);
-              refetch();
-            }}
-            onCancel={() => setShowCreateDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Bulk Actions Dialog */}
       <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>

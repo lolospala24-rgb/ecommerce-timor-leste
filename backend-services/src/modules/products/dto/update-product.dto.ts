@@ -123,4 +123,82 @@ export class UpdateProductDto {
   @IsArray()
   @IsOptional()
   images?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  length?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  width?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  height?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  shippingClass?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  lowStockThreshold?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  metaTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  metaDescription?: string;
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  metaKeywords?: string[];
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  wholesalePrice?: number | null;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Type(() => Number)
+  wholesaleMinQty?: number | null;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  packagingName?: string | null;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  @Type(() => Number)
+  packagingUnitCount?: number | null;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  packagingPrice?: number | null;
 }

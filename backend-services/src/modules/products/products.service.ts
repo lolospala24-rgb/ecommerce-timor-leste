@@ -6,6 +6,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
@@ -99,50 +100,93 @@ export class ProductsService {
       throw new BadRequestException(`A product can have at most ${maxProductImages} images`);
     }
 
-    // Create product
-    const product = await this.prisma.product.create({
-      data: {
-        name: createProductDto.name,
-        nameTetum: createProductDto.nameTetum,
-        description: createProductDto.description,
-        descriptionTetum: createProductDto.descriptionTetum,
-        price: createProductDto.price,
-        comparePrice: createProductDto.comparePrice,
-        cost: createProductDto.cost,
-        stock: createProductDto.stock,
-        sku: createProductDto.sku,
-        barcode: createProductDto.barcode,
-        videoUrl: createProductDto.videoUrl ?? null,
-        images: uploadedImages,
-        thumbnail: uploadedImages[0] || null,
-        weight: createProductDto.weight,
-        brand: createProductDto.brand,
-        specifications: (createProductDto.specifications ?? {}) as any,
-        sellerId: seller.id,
-        categoryId: createProductDto.categoryId,
-        typeId: createProductDto.typeId ?? null,
-        isActive: createProductDto.isActive ?? true,
-        isFeatured: createProductDto.isFeatured ?? false,
-        slug,
-      },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            storeName: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    });
+    // Validate the incoming variants array in-memory before opening a
+    // transaction — this is a brand-new product with zero existing variants,
+    // so duplicate-SKU/duplicate-combination checks only need to compare
+    // entries against each other, not against the database.
+    const variantDtos = createProductDto.variants ?? [];
+    const explicitSkus = variantDtos
+      .map((v) => v.sku?.trim())
+      .filter((sku): sku is string => !!sku);
+    if (new Set(explicitSkus.map((s) => s.toLowerCase())).size !== explicitSkus.length) {
+      throw new ConflictException('Duplicate SKU across variants in this request');
+    }
+    const seenCombos = new Set<string>();
+    for (const variantDto of variantDtos) {
+      const canonical = this.canonicalizeVariantAttributes(variantDto.attributes);
+      if (canonical) {
+        if (seenCombos.has(canonical)) {
+          throw new ConflictException(
+            'Duplicate attribute combination across variants in this request',
+          );
+        }
+        seenCombos.add(canonical);
+      }
+      await this.assertVariantImageLimit(variantDto.images);
+    }
 
-    await this.syncProductAttributes(product.id, product.specifications);
+    // Create product, sync its specifications into the ProductAttribute EAV
+    // table, and create any staged variants — all in one transaction, so a
+    // failure partway through (e.g. a variant SKU colliding with another
+    // product's variant) never leaves a half-saved product behind.
+    const product = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          name: createProductDto.name,
+          nameTetum: createProductDto.nameTetum,
+          description: createProductDto.description,
+          descriptionTetum: createProductDto.descriptionTetum,
+          price: createProductDto.price,
+          comparePrice: createProductDto.comparePrice,
+          cost: createProductDto.cost,
+          stock: createProductDto.stock,
+          sku: createProductDto.sku,
+          barcode: createProductDto.barcode,
+          videoUrl: createProductDto.videoUrl ?? null,
+          images: uploadedImages,
+          thumbnail: uploadedImages[0] || null,
+          weight: createProductDto.weight,
+          brand: createProductDto.brand,
+          specifications: (createProductDto.specifications ?? {}) as any,
+          sellerId: seller.id,
+          categoryId: createProductDto.categoryId,
+          typeId: createProductDto.typeId ?? null,
+          isActive: createProductDto.isActive ?? true,
+          isFeatured: createProductDto.isFeatured ?? false,
+          slug,
+          length: createProductDto.length,
+          width: createProductDto.width,
+          height: createProductDto.height,
+          shippingClass: createProductDto.shippingClass,
+          lowStockThreshold: createProductDto.lowStockThreshold,
+          metaTitle: createProductDto.metaTitle,
+          metaDescription: createProductDto.metaDescription,
+          metaKeywords: (createProductDto.metaKeywords ?? []) as any,
+          tags: (createProductDto.tags ?? []) as any,
+          wholesalePrice: createProductDto.wholesalePrice,
+          wholesaleMinQty: createProductDto.wholesaleMinQty,
+          packagingName: createProductDto.packagingName,
+          packagingUnitCount: createProductDto.packagingUnitCount,
+          packagingPrice: createProductDto.packagingPrice,
+          hasVariants: variantDtos.length > 0,
+        },
+      });
+
+      await this.syncProductAttributes(tx, created.id, created.specifications);
+
+      for (const variantDto of variantDtos) {
+        await this.createVariantRecord(tx, created.id, variantDto);
+      }
+
+      return tx.product.findUnique({
+        where: { id: created.id },
+        include: {
+          seller: { select: { id: true, storeName: true } },
+          category: { select: { id: true, name: true, slug: true } },
+          variants: true,
+        },
+      });
+    });
 
     // Clear cache
     await this.clearProductCache();
@@ -694,6 +738,20 @@ export class ProductsService {
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
         slug: nextSlug,
+        length: updateProductDto.length,
+        width: updateProductDto.width,
+        height: updateProductDto.height,
+        shippingClass: updateProductDto.shippingClass,
+        lowStockThreshold: updateProductDto.lowStockThreshold,
+        metaTitle: updateProductDto.metaTitle,
+        metaDescription: updateProductDto.metaDescription,
+        ...(Array.isArray(updateProductDto.metaKeywords) && { metaKeywords: updateProductDto.metaKeywords as any }),
+        ...(Array.isArray(updateProductDto.tags) && { tags: updateProductDto.tags as any }),
+        wholesalePrice: updateProductDto.wholesalePrice,
+        wholesaleMinQty: updateProductDto.wholesaleMinQty,
+        packagingName: updateProductDto.packagingName,
+        packagingUnitCount: updateProductDto.packagingUnitCount,
+        packagingPrice: updateProductDto.packagingPrice,
         ...(Array.isArray(updateProductDto.images) && {
           images: updateProductDto.images,
           thumbnail: updateProductDto.images[0] || null,
@@ -715,7 +773,7 @@ export class ProductsService {
       },
     });
 
-    await this.syncProductAttributes(id, updatedProduct.specifications);
+    await this.syncProductAttributes(this.prisma, id, updatedProduct.specifications);
 
     // Clear cache
     await this.clearProductCache(id);
@@ -743,6 +801,7 @@ export class ProductsService {
    * the data exists.
    */
   private async syncProductAttributes(
+    tx: Prisma.TransactionClient | PrismaService,
     productId: number,
     specifications: unknown,
   ) {
@@ -755,16 +814,12 @@ export class ProductsService {
       }))
       .filter((entry) => entry.key && entry.value);
 
-    await this.prisma.$transaction([
-      this.prisma.productAttribute.deleteMany({ where: { productId } }),
-      ...(entries.length > 0
-        ? [
-            this.prisma.productAttribute.createMany({
-              data: entries.map((entry) => ({ productId, ...entry })),
-            }),
-          ]
-        : []),
-    ]);
+    await tx.productAttribute.deleteMany({ where: { productId } });
+    if (entries.length > 0) {
+      await tx.productAttribute.createMany({
+        data: entries.map((entry) => ({ productId, ...entry })),
+      });
+    }
   }
 
   async remove(id: number, userId: number) {
@@ -1761,26 +1816,11 @@ export class ProductsService {
 
     await this.assertCanManageProduct(product, userId, 'You do not have permission to add variants to this product');
 
-    await this.assertNoDuplicateVariantAttributes(productId, createVariantDto.attributes);
     await this.assertVariantImageLimit(createVariantDto.images);
 
-    // ProductVariant.sku is a required, unique column, but the DTO allows
-    // omitting it (matching Product.sku, which is optional) — generate one
-    // rather than let Prisma reject the insert with a raw constraint error.
-    const sku = createVariantDto.sku?.trim() || `VAR-${productId}-${Date.now().toString(36).toUpperCase()}`;
-
-    const variant = await this.prisma.productVariant.create({
-      data: {
-        productId,
-        sku,
-        price: createVariantDto.price,
-        comparePrice: createVariantDto.comparePrice,
-        cost: createVariantDto.cost,
-        stock: createVariantDto.stock,
-        images: createVariantDto.images ?? [],
-        attributes: createVariantDto.attributes ?? {},
-        isActive: createVariantDto.isActive ?? true,
-      },
+    const variant = await this.prisma.$transaction(async (tx) => {
+      await this.assertNoDuplicateVariantAttributes(tx, productId, createVariantDto.attributes);
+      return this.createVariantRecord(tx, productId, createVariantDto);
     });
 
     if (!product.hasVariants) {
@@ -1792,6 +1832,40 @@ export class ProductsService {
 
     await this.clearProductCache(productId);
     return variant;
+  }
+
+  // ProductVariant.sku is a required, unique column, but CreateVariantDto
+  // allows omitting it (matching Product.sku, which is optional) — generate
+  // one rather than let Prisma reject the insert with a raw constraint
+  // error. The random suffix (on top of the millisecond timestamp) avoids
+  // collisions when several variants are generated in the same tick, as
+  // happens when Product.create()'s variants loop runs synchronously.
+  private generateVariantSku(productId: number): string {
+    return `VAR-${productId}-${Date.now().toString(36).toUpperCase()}-${Math.random()
+      .toString(36)
+      .slice(2, 6)
+      .toUpperCase()}`;
+  }
+
+  private async createVariantRecord(
+    tx: Prisma.TransactionClient,
+    productId: number,
+    dto: CreateVariantDto,
+  ) {
+    const sku = dto.sku?.trim() || this.generateVariantSku(productId);
+    return tx.productVariant.create({
+      data: {
+        productId,
+        sku,
+        price: dto.price,
+        comparePrice: dto.comparePrice,
+        cost: dto.cost,
+        stock: dto.stock,
+        images: dto.images ?? [],
+        attributes: dto.attributes ?? {},
+        isActive: dto.isActive ?? true,
+      },
+    });
   }
 
   async getVariants(productId: number, userId?: number) {
@@ -1867,7 +1941,7 @@ export class ProductsService {
     await this.assertCanManageProduct(product, userId, 'You do not have permission to update this variant');
 
     if (updateVariantDto.attributes !== undefined) {
-      await this.assertNoDuplicateVariantAttributes(productId, updateVariantDto.attributes, variantId);
+      await this.assertNoDuplicateVariantAttributes(this.prisma, productId, updateVariantDto.attributes, variantId);
     }
     if (updateVariantDto.images !== undefined) {
       await this.assertVariantImageLimit(updateVariantDto.images);
@@ -2164,6 +2238,7 @@ export class ProductsService {
   }
 
   private async assertNoDuplicateVariantAttributes(
+    tx: Prisma.TransactionClient | PrismaService,
     productId: number,
     attributes: Record<string, string> | undefined,
     excludeVariantId?: number,
@@ -2174,7 +2249,7 @@ export class ProductsService {
     // dedupe against — nothing to compare.
     if (!canonical) return;
 
-    const existingVariants = await this.prisma.productVariant.findMany({
+    const existingVariants = await tx.productVariant.findMany({
       where: {
         productId,
         ...(excludeVariantId ? { id: { not: excludeVariantId } } : {}),

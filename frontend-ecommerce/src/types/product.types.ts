@@ -34,6 +34,14 @@ export interface Product {
   brand?: string | null;
   specifications?: Record<string, unknown> | null;
   hasVariants?: boolean;
+  // Wholesale/packaging — informational reference pricing only, not
+  // purchasable through cart/checkout at these rates. See backend
+  // schema.prisma's Product model comment for the full rationale.
+  wholesalePrice?: number | null;
+  wholesaleMinQty?: number | null;
+  packagingName?: string | null;
+  packagingUnitCount?: number | null;
+  packagingPrice?: number | null;
   variants?: ProductVariant[];
   createdAt: string;
   updatedAt: string;

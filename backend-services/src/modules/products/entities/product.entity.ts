@@ -26,6 +26,20 @@ export class ProductEntity implements Product {
   isActive: boolean;
   isFeatured: boolean;
   hasVariants: boolean;
+  length: number | null;
+  width: number | null;
+  height: number | null;
+  shippingClass: string | null;
+  lowStockThreshold: number | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaKeywords: Prisma.JsonValue;
+  tags: Prisma.JsonValue;
+  wholesalePrice: number | null;
+  wholesaleMinQty: number | null;
+  packagingName: string | null;
+  packagingUnitCount: number | null;
+  packagingPrice: number | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -113,17 +127,19 @@ export class ProductEntity implements Product {
 
   // Get stock status text
   getStockStatus(): string {
+    const lowStockThreshold = this.lowStockThreshold ?? 5;
     if (!this.isActive) return 'Inactive';
     if (this.stock <= 0) return 'Out of Stock';
-    if (this.stock <= 5) return 'Low Stock';
+    if (this.stock <= lowStockThreshold) return 'Low Stock';
     return 'In Stock';
   }
 
   // Get stock status color
   getStockStatusColor(): string {
+    const lowStockThreshold = this.lowStockThreshold ?? 5;
     if (!this.isActive) return 'gray';
     if (this.stock <= 0) return 'red';
-    if (this.stock <= 5) return 'orange';
+    if (this.stock <= lowStockThreshold) return 'orange';
     return 'green';
   }
 

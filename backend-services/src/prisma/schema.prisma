@@ -230,6 +230,24 @@ model Product {
   typeId           Int?
   isActive         Boolean  @default(true)
   isFeatured       Boolean  @default(false)
+  length           Float?
+  width            Float?
+  height           Float?
+  shippingClass    String?
+  lowStockThreshold Int?
+  metaTitle        String?  @db.VarChar(200)
+  metaDescription  String?  @db.Text
+  metaKeywords     Json     @default("[]")
+  tags             Json     @default("[]")
+  // Wholesale/packaging — purely informational (displayed to shoppers as
+  // reference pricing) and product-level only, since a single packaging
+  // config can't unambiguously apply across differently-priced variants.
+  // Not read anywhere in the cart/checkout/stock-deduction path.
+  wholesalePrice     Float?
+  wholesaleMinQty    Int?
+  packagingName      String?
+  packagingUnitCount Int?
+  packagingPrice     Float?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

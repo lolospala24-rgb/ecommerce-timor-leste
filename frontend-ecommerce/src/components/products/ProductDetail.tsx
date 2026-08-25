@@ -44,6 +44,7 @@ import {
   MapPin,
   Bell,
   BellRing,
+  Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -147,6 +148,16 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     displayComparePrice && displayComparePrice > displayPrice
       ? displayComparePrice - displayPrice
       : 0;
+
+  // Wholesale/packaging pricing is reference information entered by the
+  // seller — it is not purchasable through Add to Cart/Buy Now at these
+  // rates (those always charge displayPrice), so it's only shown for
+  // simple products, where "the product's price" is unambiguous. For a
+  // variant product, which variant's packaging would this even describe?
+  const hasWholesaleInfo = !hasVariants && !!product.wholesalePrice && !!product.wholesaleMinQty;
+  const hasPackagingInfo =
+    !hasVariants && !!product.packagingName && !!product.packagingUnitCount && !!product.packagingPrice;
+  const packagingPerUnit = hasPackagingInfo ? product.packagingPrice! / product.packagingUnitCount! : 0;
 
   // Before any option is picked, show the real min–max span across variants
   // (e.g. "$12.00 - $18.00") instead of a single starting price that
@@ -485,6 +496,37 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </div>
             )}
           </div>
+
+          {/* Wholesale / packaging — informational reference pricing only;
+              Add to Cart / Buy Now always charge displayPrice regardless of
+              what's shown here. The seller's contact button further down
+              the page is the correct next step for a bulk order. */}
+          {(hasWholesaleInfo || hasPackagingInfo) && (
+            <div className="space-y-2 rounded-lg border border-dashed p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Package className="h-4 w-4 text-primary" />
+                Bulk &amp; packaging options
+              </div>
+              {hasWholesaleInfo && (
+                <p className="text-sm text-muted-foreground">
+                  Buy <span className="font-semibold text-foreground">{product.wholesaleMinQty}+ units</span> for{' '}
+                  <span className="font-semibold text-foreground">${product.wholesalePrice!.toFixed(2)} each</span>
+                </p>
+              )}
+              {hasPackagingInfo && (
+                <p className="text-sm text-muted-foreground">
+                  Also sold as{' '}
+                  <span className="font-semibold text-foreground">
+                    {product.packagingName} ({product.packagingUnitCount} units) — ${product.packagingPrice!.toFixed(2)}
+                  </span>{' '}
+                  (${packagingPerUnit.toFixed(2)}/unit)
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                These are reference prices — contact the seller below to place a bulk or package order.
+              </p>
+            </div>
+          )}
 
           {/* Shipping — lets the buyer check real cost/ETA for their own
               municipality before adding to cart, using the same public

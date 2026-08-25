@@ -1,0 +1,10 @@
+ALTER TABLE `products`
+  ADD COLUMN `length` DOUBLE NULL,
+  ADD COLUMN `width` DOUBLE NULL,
+  ADD COLUMN `height` DOUBLE NULL,
+  ADD COLUMN `shippingClass` VARCHAR(191) NULL,
+  ADD COLUMN `lowStockThreshold` INTEGER NULL,
+  ADD COLUMN `metaTitle` VARCHAR(200) NULL,
+  ADD COLUMN `metaDescription` TEXT NULL,
+  ADD COLUMN `metaKeywords` JSON NOT NULL DEFAULT ('[]'),
+  ADD COLUMN `tags` JSON NOT NULL DEFAULT ('[]');
