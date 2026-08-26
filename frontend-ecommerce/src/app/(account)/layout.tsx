@@ -33,15 +33,20 @@ export default function AccountLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const { user, isAuthenticated, isLoading, hasHydrated, logout } = useAuthStore();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login?redirect=/account/profile');
+    // Wait for the persisted session to load before judging auth state —
+    // otherwise every account page bounces an already-logged-in user out to
+    // /login for a single frame, and since the redirect target here was
+    // hardcoded, they'd land back on /account/profile no matter which
+    // account page they actually asked for.
+    if (hasHydrated && !isLoading && !isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent(pathname || '/account/profile')}`);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [hasHydrated, isAuthenticated, isLoading, pathname, router]);
 
-  if (isLoading) {
+  if (!hasHydrated || isLoading) {
     return (
       <div className="container-custom py-8">
         <div className="grid gap-8 md:grid-cols-4">

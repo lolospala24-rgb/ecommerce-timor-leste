@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LogOut, Truck } from 'lucide-react';
@@ -13,20 +13,25 @@ import { LogOut, Truck } from 'lucide-react';
 // gate protects the staff side.
 export default function DriverLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, hasHydrated, logout } = useAuthStore();
 
   useEffect(() => {
-    if (isLoading) return;
+    // Same hydration wait as (account)/layout.tsx — without it, a logged-in
+    // courier reloading a deep link like /driver/123 gets bounced through
+    // /login and loses the deep link since the redirect target is only
+    // known once we stop hardcoding it to /driver.
+    if (!hasHydrated || isLoading) return;
     if (!isAuthenticated) {
-      router.push('/login?redirect=/driver');
+      router.push(`/login?redirect=${encodeURIComponent(pathname || '/driver')}`);
       return;
     }
     if (user?.role !== 'COURIER') {
       router.push('/');
     }
-  }, [isAuthenticated, isLoading, user, router]);
+  }, [hasHydrated, isAuthenticated, isLoading, pathname, user, router]);
 
-  if (isLoading || !isAuthenticated || user?.role !== 'COURIER') {
+  if (!hasHydrated || isLoading || !isAuthenticated || user?.role !== 'COURIER') {
     return (
       <div className="mx-auto max-w-2xl p-4">
         <Skeleton className="h-16 w-full" />

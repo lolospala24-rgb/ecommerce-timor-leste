@@ -7,6 +7,11 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  // False until zustand has finished reading the persisted session out of
+  // localStorage. Route guards must wait for this — otherwise they see the
+  // pre-hydration default (isAuthenticated: false) and bounce an already
+  // logged-in user out to /login for a single frame.
+  hasHydrated: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<void>;
@@ -15,6 +20,7 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
   clearError: () => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -23,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      hasHydrated: false,
       error: null,
 
       login: async (email: string, password: string) => {
@@ -87,10 +94,14 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user: User) => set({ user }),
       clearError: () => set({ error: null }),
+      setHasHydrated: (value: boolean) => set({ hasHydrated: value }),
     }),
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
