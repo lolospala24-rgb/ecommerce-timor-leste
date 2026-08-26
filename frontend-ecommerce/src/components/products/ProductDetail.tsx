@@ -579,7 +579,10 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </div>
             )}
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            {/* Hidden below lg: — the mobile sticky bar near the bottom of
+                this component covers the same two actions there, in the
+                thumb zone, instead of duplicating them mid-page. */}
+            <div className="hidden gap-3 lg:flex">
               <Button
                 size="lg"
                 variant="outline"
@@ -888,6 +891,56 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       <RelatedProducts currentProductId={product.id} />
 
       <RecentlyViewedSection excludeId={product.id} />
+
+      {/* Mobile sticky buy bar — on a long product page, the inline Add to
+          Cart/Buy Now buttons (still shown as-is on lg: and up) end up
+          mid-scroll once a shopper reaches the description or reviews.
+          Pinning the same two actions to the bottom of the viewport keeps
+          them in the thumb zone the whole time, matching how Shopee/
+          Tokopedia and most mobile storefronts handle this. Spacer below
+          reserves the matching height so this bar never covers page
+          content (particularly the reviews/related-products sections). */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-sm lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-bold text-primary">${displayPrice.toFixed(2)}</p>
+            {selectionHint ? (
+              <p className="truncate text-xs text-amber-700">{selectionHint}</p>
+            ) : (
+              <p className="truncate text-xs text-muted-foreground">
+                {displayStock > 0 ? `${displayStock} available` : 'Out of stock'}
+              </p>
+            )}
+          </div>
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-11 w-11 shrink-0 border-primary text-primary hover:bg-primary/5"
+            disabled={buyDisabled || isAddingToCart}
+            onClick={handleAddToCart}
+            aria-label="Add to cart"
+          >
+            {isAddingToCart ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ShoppingCart className="h-5 w-5" />
+            )}
+          </Button>
+          <Button
+            size="lg"
+            className="h-11 shrink-0 bg-primary px-6 font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-blue-800"
+            disabled={buyDisabled || isBuyingNow}
+            onClick={handleBuyNow}
+          >
+            {isBuyingNow ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+            Buy Now
+          </Button>
+        </div>
+      </div>
+      <div className="h-[76px] lg:hidden" aria-hidden="true" />
     </div>
   );
 }
