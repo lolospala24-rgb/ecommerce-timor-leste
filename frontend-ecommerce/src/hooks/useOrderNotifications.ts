@@ -271,8 +271,15 @@ export const useOrderNotifications = () => {
     [notifications],
   );
 
+  // Sort a copy — notifications is React state; sorting in place would
+  // mutate it outside setState and re-sort on every render.
+  const sortedNotifications = useMemo(
+    () => [...notifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [notifications],
+  );
+
   return {
-    notifications: notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    notifications: sortedNotifications,
     unreadCount,
     markAsRead,
     markAllAsRead,

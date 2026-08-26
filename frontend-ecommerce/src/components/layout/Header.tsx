@@ -160,6 +160,7 @@ export function Header() {
                 size="icon"
                 className="md:hidden h-9 w-9"
                 onClick={() => setSearchOpen(true)}
+                aria-label="Search"
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -170,7 +171,7 @@ export function Header() {
                   hamburger menu (MobileNav); keeping it here too just
                   crowded the narrow action row alongside search/cart/user. */}
               <Link href="/account/wishlist" className="hidden md:block">
-                <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Wishlist">
                   <Heart className="h-4 w-4" />
                 </Button>
               </Link>
@@ -179,7 +180,7 @@ export function Header() {
               {isAuthenticated && (
                 <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                    <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
                       <Bell className="h-4 w-4" />
                       {unreadCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
@@ -292,6 +293,7 @@ export function Header() {
                 size="icon"
                 className="h-9 w-9 relative"
                 onClick={() => setCartOpen(true)}
+                aria-label="Cart"
               >
                 <ShoppingCart className="h-4 w-4" />
                 {totalItems > 0 && (
@@ -361,6 +363,7 @@ export function Header() {
                 size="icon"
                 className="md:hidden h-9 w-9"
                 onClick={() => setMobileNavOpen(true)}
+                aria-label="Open menu"
               >
                 <Menu className="h-4 w-4" />
               </Button>
@@ -378,7 +381,7 @@ export function Header() {
               autoFocus
               onNavigate={() => setSearchOpen(false)}
             />
-            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(false)}>
+            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(false)} aria-label="Close search">
               <X className="h-5 w-5" />
             </Button>
           </div>

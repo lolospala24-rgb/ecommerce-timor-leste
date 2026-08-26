@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2 } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { getCartItemKey } from '@/lib/cart';
@@ -22,7 +23,7 @@ import { useValidateCoupon, useAvailableCoupons, type AvailableCoupon } from '@/
 export default function CartPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
-  const { items, isLoading, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
+  const { items, isLoading, error, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
   const { data: shippingSettings } = useShippingSettings();
   const { appliedCoupon, setAppliedCoupon, clearCoupon } = useCouponStore();
   const validateCoupon = useValidateCoupon();
@@ -145,6 +146,17 @@ export default function CartPage() {
           <Skeleton className="h-64" />
         </div>
       </div>
+    );
+  }
+
+  if (safeItems.length === 0 && error) {
+    return (
+      <EmptyState
+        title="Couldn't load your cart"
+        description={error}
+        icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
+        action={{ label: 'Try again', onClick: () => fetchCart() }}
+      />
     );
   }
 
@@ -484,6 +496,7 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
             className="h-8 w-8"
             onClick={() => onQuantityChange(productId, quantity - 1, variantId)}
             disabled={quantity <= 1 || isUpdating}
+            aria-label="Decrease quantity"
           >
             <Minus className="h-3 w-3" />
           </Button>
@@ -494,6 +507,7 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
             className="h-8 w-8"
             onClick={() => onQuantityChange(productId, quantity + 1, variantId)}
             disabled={quantity >= stock || isUpdating}
+            aria-label="Increase quantity"
           >
             <Plus className="h-3 w-3" />
           </Button>
@@ -508,6 +522,7 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
             onClick={() => onRemove(productId, variantId)}
             disabled={isUpdating}
+            aria-label="Remove item"
           >
             <X className="h-4 w-4" />
           </Button>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { ProductSort } from '@/components/products/ProductSort';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, AlertCircle } from 'lucide-react';
 
 export default function ProductsPage() {
   return (
@@ -60,7 +61,7 @@ function ProductsPageContent() {
   });
   
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const { data, isLoading, refetch } = useProducts(filters);
+  const { data, isLoading, isError, refetch } = useProducts(filters);
   const { data: categories } = useCategories({ limit: 100 });
 
   // Update filters when URL params change
@@ -224,6 +225,13 @@ function ProductsPageContent() {
               </div>
             ))}
           </div>
+        ) : isError ? (
+          <EmptyState
+            title="Couldn't load products"
+            description="Something went wrong while fetching products. Please try again."
+            icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
+            action={{ label: 'Try again', onClick: () => refetch() }}
+          />
         ) : (
           <ProductGrid
             products={data?.data || []}

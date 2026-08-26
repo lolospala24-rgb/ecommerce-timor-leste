@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination } from '@/components/shared/Pagination';
-import { Package, Truck, CheckCircle, Clock, XCircle, Eye } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { Package, Truck, CheckCircle, Clock, XCircle, Eye, AlertCircle } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PENDING: { label: 'Pending', color: 'bg-amber-500', icon: Clock },
@@ -36,7 +37,7 @@ export default function AccountOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(1);
   
-  const { data, isLoading } = useUserOrders({
+  const { data, isLoading, isError, refetch } = useUserOrders({
     page,
     limit: 10,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -55,6 +56,17 @@ export default function AccountOrdersPage() {
           <Skeleton key={i} className="h-32 w-full" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        title="Couldn't load your orders"
+        description="Something went wrong while fetching your orders. Please try again."
+        icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
+        action={{ label: 'Try again', onClick: () => refetch() }}
+      />
     );
   }
 

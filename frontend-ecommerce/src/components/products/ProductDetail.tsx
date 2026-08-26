@@ -70,7 +70,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const { addItem } = useCartStore();
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
@@ -174,11 +173,11 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       : null;
   const showPriceRange = !!variantPriceRange && variantPriceRange.min !== variantPriceRange.max;
 
-  useEffect(() => {
-    if (product?.id) {
-      setIsWishlisted(isInWishlist(product.id));
-    }
-  }, [product, isInWishlist]);
+  // Read straight from the store instead of mirroring it into local state —
+  // the mirror could desync from the real value (e.g. toggled elsewhere on
+  // the same page) and, on a failed toggle, was flipping to look "wishlisted"
+  // even though the store's own catch already reported the failure.
+  const isWishlisted = isInWishlist(product.id);
 
   const validateSelection = () => {
     if (!isAuthenticated) {
@@ -242,13 +241,10 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       toast.error('Please login to add to wishlist');
       return;
     }
-    try {
-      await toggleItem(product);
-      setIsWishlisted(!isWishlisted);
-      toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
-    } catch {
-      toast.error('Failed to update wishlist');
-    }
+    // toggleItem (via the wishlist store's addItem/removeItem) already
+    // shows its own success/failure toast and updates store state —
+    // nothing else to do here.
+    await toggleItem(product);
   };
 
   const handleCopyLink = () => {

@@ -121,6 +121,7 @@ export default function WishlistPage() {
                 size="icon"
                 className="absolute top-2 right-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                 onClick={() => handleRemove(product.id)}
+                aria-label="Remove from wishlist"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
