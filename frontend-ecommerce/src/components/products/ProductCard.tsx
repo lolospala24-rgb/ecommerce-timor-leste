@@ -13,6 +13,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { RatingStars } from '@/components/shared/RatingStars';
 import { ShoppingCart, Heart, Eye, Loader2, Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import toast from 'react-hot-toast';
 import {
   useNotifyMeStatus,
@@ -57,6 +58,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, isLocal = false }: ProductCardProps) {
+  const { t } = useTranslation();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -103,10 +105,16 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
   }, [product.createdAt]);
 
   const stockStatus = product.stock === 0
-    ? { label: 'Out of Stock', className: 'text-destructive' }
+    ? { label: t('product.outOfStock'), className: 'text-destructive' }
     : product.stock <= LOW_STOCK_THRESHOLD
-      ? { label: `Only ${product.stock} left`, className: 'text-amber-600' }
-      : { label: 'In Stock', className: 'text-green-600' };
+      ? { label: t('product.onlyLeft', { count: product.stock }), className: 'text-amber-600' }
+      : { label: t('product.inStock'), className: 'text-green-600' };
+
+  const statusBadges = [
+    isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-blue-600 text-white hover:bg-blue-600' },
+    product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-white hover:bg-amber-500' },
+    isLocal && { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground hover:bg-secondary' },
+  ].filter((b): b is { key: string; label: string; className: string } => !!b);
 
   const imageSrc = imageError || !product.thumbnail ? PLACEHOLDER_IMAGE : product.thumbnail;
 
@@ -174,20 +182,14 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
             {discount > 0 && (
               <Badge className="bg-red-600 text-white hover:bg-red-600">-{discount}%</Badge>
             )}
-            {isNew && (
-              <Badge className="bg-blue-600 text-white hover:bg-blue-600">New</Badge>
-            )}
-            {product.isFeatured && (
-              <Badge className="bg-amber-500 text-white hover:bg-amber-500">Featured</Badge>
-            )}
-            {isLocal && (
-              <Badge className="bg-secondary text-secondary-foreground hover:bg-secondary">Local</Badge>
-            )}
+            {statusBadges.map((badge) => (
+              <Badge key={badge.key} className={badge.className}>{badge.label}</Badge>
+            ))}
           </div>
 
           {product.stock === 0 && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
-              <Badge className="bg-red-600 px-4 py-2 text-sm text-white">Out of Stock</Badge>
+              <Badge className="bg-red-600 px-4 py-2 text-sm text-white">{t('product.outOfStock')}</Badge>
             </div>
           )}
 
@@ -241,6 +243,11 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
                 </span>
               )}
             </div>
+            {discount > 0 && product.comparePrice && (
+              <p className="text-xs font-semibold text-red-600">
+                {t('product.save', { amount: (product.comparePrice - product.price).toFixed(2) })}
+              </p>
+            )}
             <p className={cn('text-xs font-medium', stockStatus.className)}>
               {stockStatus.label}
             </p>
@@ -263,7 +270,7 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
               ) : (
                 <Bell className="mr-2 h-4 w-4" />
               )}
-              {isSubscribed ? "We'll notify you" : 'Notify Me'}
+              {isSubscribed ? t('product.notifySubscribed') : t('product.notifyMe')}
             </Button>
           ) : (
             <Button
@@ -275,12 +282,12 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
               {isAddingToCart ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
+                  {t('product.adding')}
                 </>
               ) : (
                 <>
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  Add to Cart
+                  {t('product.addToCart')}
                 </>
               )}
             </Button>

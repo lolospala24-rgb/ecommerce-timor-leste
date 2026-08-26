@@ -70,6 +70,55 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': "Halo ho domin ba Timor-Leste",
 
     'lang.switchLabel': 'Lian',
+
+    // Hero
+    'hero.shopNow': 'Sosa Agora',
+
+    // Quick menu (homepage)
+    'home.quickMenu.title': 'Menu Rápidu',
+    'home.quickMenu.allProducts': 'Produtu Hotu',
+    'home.quickMenu.categories': 'Kategoria',
+    'home.quickMenu.localProducts': 'Produtu Local',
+    'home.quickMenu.newArrivals': 'Foun Mai',
+    'home.quickMenu.popular': 'Populár',
+    'home.quickMenu.wishlist': 'Lista Deseju',
+    'home.quickMenu.cart': 'Karinhu',
+    'home.quickMenu.myOrders': 'Hau nia Order',
+
+    // Categories showcase
+    'home.categories.title': 'Explora Kategoria',
+    'home.categories.subtitle': 'Deskobre produtu husi kategoria',
+    'home.categories.viewAll': 'Haree Hotu',
+    'home.categories.empty.title': 'Seidauk iha kategoria',
+    'home.categories.empty.description': 'Kategoria sira sei mosu iha ne\'e wainhira tama ona iha katálogu.',
+    'home.categories.featured': 'Destaka',
+    'home.categories.product': 'Produtu',
+    'home.categories.products': 'Produtu',
+
+    // Product section (Featured/New/Popular/Local...)
+    'home.section.viewAll': 'Haree Hotu',
+
+    // Top sellers
+    'home.topSellers.badge': 'Vendedór Konfiável',
+    'home.topSellers.title': 'Vendedór Sira Di\'ak Liu',
+    'home.topSellers.subtitle': 'Vendedór konfiável ho produtu di\'ak liu',
+    'home.topSellers.viewAll': 'Haree Vendedór Hotu',
+    'home.topSellers.visitStore': 'Vizita Loja',
+    'home.topSellers.productsCount': '{count} produtu',
+    'home.topSellers.sales': '${amount} vendas',
+
+    // Product card
+    'product.badge.new': 'Foun',
+    'product.badge.popular': 'Populár',
+    'product.badge.local': 'Local',
+    'product.outOfStock': 'Kapas la iha',
+    'product.onlyLeft': 'Restu {count} deit',
+    'product.inStock': 'Iha Estoke',
+    'product.notifyMe': 'Avisa Ha\'u',
+    'product.notifySubscribed': 'Sei avisa ita',
+    'product.addToCart': 'Tau iha Karinhu',
+    'product.adding': 'Hela tau...',
+    'product.save': 'Poupa ${amount}',
   },
 
   en: {
@@ -118,6 +167,49 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Made with love for Timor-Leste',
 
     'lang.switchLabel': 'Language',
+
+    'hero.shopNow': 'Shop Now',
+
+    'home.quickMenu.title': 'Quick Menu',
+    'home.quickMenu.allProducts': 'All Products',
+    'home.quickMenu.categories': 'Categories',
+    'home.quickMenu.localProducts': 'Local Products',
+    'home.quickMenu.newArrivals': 'New Arrivals',
+    'home.quickMenu.popular': 'Popular',
+    'home.quickMenu.wishlist': 'Wishlist',
+    'home.quickMenu.cart': 'Cart',
+    'home.quickMenu.myOrders': 'My Orders',
+
+    'home.categories.title': 'Browse Categories',
+    'home.categories.subtitle': 'Discover products by category',
+    'home.categories.viewAll': 'View All',
+    'home.categories.empty.title': 'No categories yet',
+    'home.categories.empty.description': "Categories will appear here once they're added to the catalog.",
+    'home.categories.featured': 'Featured',
+    'home.categories.product': 'Product',
+    'home.categories.products': 'Products',
+
+    'home.section.viewAll': 'View All',
+
+    'home.topSellers.badge': 'Trusted Sellers',
+    'home.topSellers.title': 'Top Sellers',
+    'home.topSellers.subtitle': 'Trusted sellers with the best products',
+    'home.topSellers.viewAll': 'View All Sellers',
+    'home.topSellers.visitStore': 'Visit Store',
+    'home.topSellers.productsCount': '{count} products',
+    'home.topSellers.sales': '${amount} in sales',
+
+    'product.badge.new': 'New',
+    'product.badge.popular': 'Popular',
+    'product.badge.local': 'Local',
+    'product.outOfStock': 'Out of Stock',
+    'product.onlyLeft': 'Only {count} left',
+    'product.inStock': 'In Stock',
+    'product.notifyMe': 'Notify Me',
+    'product.notifySubscribed': "We'll notify you",
+    'product.addToCart': 'Add to Cart',
+    'product.adding': 'Adding...',
+    'product.save': 'Save ${amount}',
   },
 
   id: {
@@ -166,6 +258,49 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Dibuat dengan cinta untuk Timor-Leste',
 
     'lang.switchLabel': 'Bahasa',
+
+    'hero.shopNow': 'Belanja Sekarang',
+
+    'home.quickMenu.title': 'Menu Cepat',
+    'home.quickMenu.allProducts': 'Semua Produk',
+    'home.quickMenu.categories': 'Kategori',
+    'home.quickMenu.localProducts': 'Produk Lokal',
+    'home.quickMenu.newArrivals': 'Produk Baru',
+    'home.quickMenu.popular': 'Populer',
+    'home.quickMenu.wishlist': 'Daftar Keinginan',
+    'home.quickMenu.cart': 'Keranjang',
+    'home.quickMenu.myOrders': 'Pesanan Saya',
+
+    'home.categories.title': 'Jelajahi Kategori',
+    'home.categories.subtitle': 'Temukan produk berdasarkan kategori',
+    'home.categories.viewAll': 'Lihat Semua',
+    'home.categories.empty.title': 'Belum ada kategori',
+    'home.categories.empty.description': 'Kategori akan muncul di sini setelah ditambahkan ke katalog.',
+    'home.categories.featured': 'Unggulan',
+    'home.categories.product': 'Produk',
+    'home.categories.products': 'Produk',
+
+    'home.section.viewAll': 'Lihat Semua',
+
+    'home.topSellers.badge': 'Penjual Terpercaya',
+    'home.topSellers.title': 'Penjual Terbaik',
+    'home.topSellers.subtitle': 'Penjual terpercaya dengan produk terbaik',
+    'home.topSellers.viewAll': 'Lihat Semua Penjual',
+    'home.topSellers.visitStore': 'Kunjungi Toko',
+    'home.topSellers.productsCount': '{count} produk',
+    'home.topSellers.sales': '${amount} penjualan',
+
+    'product.badge.new': 'Baru',
+    'product.badge.popular': 'Populer',
+    'product.badge.local': 'Lokal',
+    'product.outOfStock': 'Stok Habis',
+    'product.onlyLeft': 'Tersisa {count}',
+    'product.inStock': 'Tersedia',
+    'product.notifyMe': 'Beri Tahu Saya',
+    'product.notifySubscribed': 'Akan diberi tahu',
+    'product.addToCart': 'Tambah ke Keranjang',
+    'product.adding': 'Menambahkan...',
+    'product.save': 'Hemat ${amount}',
   },
 
   pt: {
@@ -214,5 +349,48 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Feito com amor para Timor-Leste',
 
     'lang.switchLabel': 'Idioma',
+
+    'hero.shopNow': 'Comprar Agora',
+
+    'home.quickMenu.title': 'Menu Rápido',
+    'home.quickMenu.allProducts': 'Todos os Produtos',
+    'home.quickMenu.categories': 'Categorias',
+    'home.quickMenu.localProducts': 'Produtos Locais',
+    'home.quickMenu.newArrivals': 'Novidades',
+    'home.quickMenu.popular': 'Popular',
+    'home.quickMenu.wishlist': 'Lista de Desejos',
+    'home.quickMenu.cart': 'Carrinho',
+    'home.quickMenu.myOrders': 'Meus Pedidos',
+
+    'home.categories.title': 'Explorar Categorias',
+    'home.categories.subtitle': 'Descubra produtos por categoria',
+    'home.categories.viewAll': 'Ver Tudo',
+    'home.categories.empty.title': 'Ainda sem categorias',
+    'home.categories.empty.description': 'As categorias aparecerão aqui assim que forem adicionadas ao catálogo.',
+    'home.categories.featured': 'Destaque',
+    'home.categories.product': 'Produto',
+    'home.categories.products': 'Produtos',
+
+    'home.section.viewAll': 'Ver Tudo',
+
+    'home.topSellers.badge': 'Vendedores Confiáveis',
+    'home.topSellers.title': 'Melhores Vendedores',
+    'home.topSellers.subtitle': 'Vendedores confiáveis com os melhores produtos',
+    'home.topSellers.viewAll': 'Ver Todos os Vendedores',
+    'home.topSellers.visitStore': 'Visitar Loja',
+    'home.topSellers.productsCount': '{count} produtos',
+    'home.topSellers.sales': '${amount} em vendas',
+
+    'product.badge.new': 'Novo',
+    'product.badge.popular': 'Popular',
+    'product.badge.local': 'Local',
+    'product.outOfStock': 'Sem Estoque',
+    'product.onlyLeft': 'Restam {count}',
+    'product.inStock': 'Em Estoque',
+    'product.notifyMe': 'Avise-me',
+    'product.notifySubscribed': 'Você será avisado',
+    'product.addToCart': 'Adicionar ao Carrinho',
+    'product.adding': 'Adicionando...',
+    'product.save': 'Poupe ${amount}',
   },
 };

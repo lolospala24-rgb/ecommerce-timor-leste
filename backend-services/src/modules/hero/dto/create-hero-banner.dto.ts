@@ -9,11 +9,28 @@ import {
 import { Type } from 'class-transformer';
 
 export class CreateHeroBannerDto {
-  // Admin-only label for identifying banners in the list — never rendered
-  // on the storefront (the image itself is the full designed graphic).
+  // Small pill label shown above the headline (e.g. "WELCOME TO LOLOSPALA").
+  @IsString()
+  @IsOptional()
+  @MaxLength(60)
+  badge?: string;
+
+  // Rendered as the hero's headline on the storefront.
   @IsString()
   @MaxLength(150)
   title: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  subtitle?: string;
+
+  // Call-to-action label (e.g. "Shop Now"); the frontend falls back to a
+  // translated default when this is left blank.
+  @IsString()
+  @IsOptional()
+  @MaxLength(40)
+  buttonText?: string;
 
   // Internal path (e.g. "/products/some-slug") or a full URL — both valid,
   // so this isn't restricted to @IsUrl().

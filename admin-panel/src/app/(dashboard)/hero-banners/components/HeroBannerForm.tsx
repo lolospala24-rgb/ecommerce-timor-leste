@@ -114,7 +114,10 @@ interface HeroBannerFormProps {
 }
 
 const EMPTY_FORM = {
+  badge: '',
   title: '',
+  subtitle: '',
+  buttonText: '',
   buttonUrl: '',
   desktopImage: '',
   mobileImage: '',
@@ -136,7 +139,10 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
     if (!open) return;
     if (banner) {
       setForm({
+        badge: banner.badge || '',
         title: banner.title,
+        subtitle: banner.subtitle || '',
+        buttonText: banner.buttonText || '',
         buttonUrl: banner.buttonUrl || '',
         desktopImage: banner.desktopImage,
         mobileImage: banner.mobileImage || '',
@@ -175,7 +181,10 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
     }
 
     const payload: HeroBannerPayload = {
+      badge: form.badge.trim() || undefined,
       title: form.title.trim(),
+      subtitle: form.subtitle.trim() || undefined,
+      buttonText: form.buttonText.trim() || undefined,
       buttonUrl: form.buttonUrl.trim() || undefined,
       desktopImage: form.desktopImage,
       mobileImage: form.mobileImage || undefined,
@@ -205,7 +214,7 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
           <div className="grid gap-4 sm:grid-cols-2">
             <BannerImageField
               label="Desktop Image (required)"
-              hint="Recommended 800×600. The first 3 active banners (by position) form the desktop hero: 1 large + 2 stacked."
+              hint="Recommended 800×600. Shown beside the headline on the storefront hero."
               imageUrl={form.desktopImage}
               isUploading={uploadingField === 'desktop'}
               onUpload={(file) => handleUpload('desktop', file)}
@@ -220,15 +229,33 @@ export function HeroBannerForm({ open, onOpenChange, banner }: HeroBannerFormPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hero-title">Label (admin only, not shown on the storefront)</Label>
-            <Input id="hero-title" value={form.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="e.g. Smartphone Promo" required />
+            <Label htmlFor="hero-badge">Badge (optional)</Label>
+            <Input id="hero-badge" value={form.badge} onChange={(e) => handleChange('badge', e.target.value)} placeholder="e.g. WELCOME TO LOLOSPALA" />
+            <p className="text-xs text-muted-foreground">Small pill shown above the headline on the storefront.</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hero-button-url">Link URL (optional)</Label>
-            <Input id="hero-button-url" value={form.buttonUrl} onChange={(e) => handleChange('buttonUrl', e.target.value)} placeholder="/categories/electronics" />
-            <p className="text-xs text-muted-foreground">Where customers land when they click this banner.</p>
+            <Label htmlFor="hero-title">Headline</Label>
+            <Input id="hero-title" value={form.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="e.g. Shop the best products in Timor-Leste" required />
+            <p className="text-xs text-muted-foreground">Main heading shown on the storefront hero.</p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="hero-subtitle">Subtitle (optional)</Label>
+            <Input id="hero-subtitle" value={form.subtitle} onChange={(e) => handleChange('subtitle', e.target.value)} placeholder="e.g. Local products, trusted sellers, fast delivery to your door." />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="hero-button-text">Button Text (optional)</Label>
+              <Input id="hero-button-text" value={form.buttonText} onChange={(e) => handleChange('buttonText', e.target.value)} placeholder="Shop Now" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hero-button-url">Link URL (optional)</Label>
+              <Input id="hero-button-url" value={form.buttonUrl} onChange={(e) => handleChange('buttonUrl', e.target.value)} placeholder="/categories/electronics" />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-3">Where customers land when they click the button or banner.</p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

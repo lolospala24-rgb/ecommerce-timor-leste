@@ -105,8 +105,11 @@ export function TopHeader() {
           <div className="flex items-center gap-3 sm:gap-4">
             {/* These four links are also in the mobile hamburger menu
                 (MobileNav) — showing them here too just crowded this thin
-                bar on narrow phones, so they're desktop-only here. */}
-            <div className="hidden md:flex items-center gap-4">
+                bar on narrow phones, so they're desktop-only here. Held off
+                until lg: (1024px): at exactly md: (768px, e.g. iPad
+                portrait) the four labels + separator + theme toggle + user
+                menu don't fit and overflow the viewport horizontally. */}
+            <div className="hidden lg:flex items-center gap-4">
               {topMenuItems.map((item) => {
                 const Icon = item.icon;
                 return (

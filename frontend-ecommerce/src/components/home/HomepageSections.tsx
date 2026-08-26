@@ -5,6 +5,7 @@ import { useHomepageSections, type HomepageSection } from '@/hooks/useHomepageSe
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import {
   ArrowRight,
   Sparkles,
@@ -44,8 +45,8 @@ function SectionSkeleton() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+          {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-96 rounded-xl" />
           ))}
         </div>
@@ -59,6 +60,7 @@ function SectionSkeleton() {
 // idea how NEWEST vs POPULAR vs a brand-new future rule picked its
 // products; it just renders whatever the backend already resolved.
 function ProductSection({ section }: { section: HomepageSection }) {
+  const { t } = useTranslation();
   const Icon = RULE_ICONS[section.rule] ?? Layers;
 
   return (
@@ -76,13 +78,13 @@ function ProductSection({ section }: { section: HomepageSection }) {
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>
             <Link href="/products">
-              View All
+              {t('home.section.viewAll')}
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
           {section.products.map((product) => (
             <ProductCard key={product.id} product={product} isLocal={section.rule === 'LOCAL'} />
           ))}

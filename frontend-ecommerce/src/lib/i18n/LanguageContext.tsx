@@ -8,7 +8,7 @@ const STORAGE_KEY = 'app_locale';
 interface LanguageContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   languages: typeof LOCALES;
 }
 
@@ -37,8 +37,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string) => {
-      return translations[locale]?.[key] ?? translations[DEFAULT_LOCALE]?.[key] ?? key;
+    (key: string, params?: Record<string, string | number>) => {
+      const raw = translations[locale]?.[key] ?? translations[DEFAULT_LOCALE]?.[key] ?? key;
+      if (!params) return raw;
+      return Object.entries(params).reduce(
+        (str, [name, value]) => str.replaceAll(`{${name}}`, String(value)),
+        raw,
+      );
     },
     [locale],
   );

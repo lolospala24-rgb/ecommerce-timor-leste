@@ -510,6 +510,7 @@ export class SearchService {
           nameTetum: true,
           thumbnail: true,
           price: true,
+          slug: true,
         },
       }),
       this.prisma.category.findMany({
@@ -525,6 +526,7 @@ export class SearchService {
           id: true,
           name: true,
           nameTetum: true,
+          slug: true,
         },
       }),
       this.prisma.seller.findMany({
@@ -549,12 +551,14 @@ export class SearchService {
         nameTetum: p.nameTetum,
         image: p.thumbnail,
         price: p.price,
+        slug: p.slug,
       })),
       categories: categories.map(c => ({
         type: 'category',
         id: c.id,
         name: c.name,
         nameTetum: c.nameTetum,
+        slug: c.slug,
       })),
       sellers: sellers.map(s => ({
         type: 'seller',

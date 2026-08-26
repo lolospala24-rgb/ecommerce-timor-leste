@@ -11,8 +11,23 @@ import { Type } from 'class-transformer';
 export class UpdateHeroBannerDto {
   @IsString()
   @IsOptional()
+  @MaxLength(60)
+  badge?: string;
+
+  @IsString()
+  @IsOptional()
   @MaxLength(150)
   title?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  subtitle?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(40)
+  buttonText?: string;
 
   @IsString()
   @IsOptional()

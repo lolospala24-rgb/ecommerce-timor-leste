@@ -15,9 +15,11 @@ import {
 import { useCategories } from '@/hooks/useCategories';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import type { Category } from '@/types/category.types';
 
 export function CategoriesShowcase() {
+  const { t } = useTranslation();
   const { data: categories, isLoading } = useCategories({
     limit: 100,
     includeProducts: true,
@@ -79,10 +81,10 @@ export function CategoriesShowcase() {
     return (
       <section className="py-10 bg-background">
         <div className="container-custom">
-          <h2 className="mb-6 text-2xl font-bold">Browse Categories</h2>
+          <h2 className="mb-6 text-2xl font-bold">{t('home.categories.title')}</h2>
           <EmptyState
-            title="No categories yet"
-            description="Categories will appear here once they're added to the catalog."
+            title={t('home.categories.empty.title')}
+            description={t('home.categories.empty.description')}
           />
         </div>
       </section>
@@ -111,11 +113,11 @@ export function CategoriesShowcase() {
         <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-xl sm:text-2xl font-bold">
-              Browse Categories
+              {t('home.categories.title')}
             </h2>
 
             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-              Discover products by category
+              {t('home.categories.subtitle')}
             </p>
           </div>
 
@@ -123,7 +125,7 @@ export function CategoriesShowcase() {
             href="/categories"
             className="shrink-0 inline-flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base text-primary font-medium hover:underline"
           >
-            View All
+            {t('home.categories.viewAll')}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -256,7 +258,7 @@ export function CategoriesShowcase() {
                               text-primary
                             "
                           >
-                            Featured
+                            {t('home.categories.featured')}
                           </span>
                         )}
 
@@ -301,7 +303,7 @@ export function CategoriesShowcase() {
 
                         {!!category.productCount && category.productCount > 0 && (
                           <span className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-muted-foreground">
-                            {category.productCount} {category.productCount === 1 ? 'Product' : 'Products'}
+                            {category.productCount} {category.productCount === 1 ? t('home.categories.product') : t('home.categories.products')}
                           </span>
                         )}
                       </Link>

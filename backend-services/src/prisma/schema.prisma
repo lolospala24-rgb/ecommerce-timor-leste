@@ -1438,7 +1438,10 @@ model HomepageSectionProduct {
 // rendered on the storefront.
 model HeroBanner {
   id           Int       @id @default(autoincrement())
+  badge        String?
   title        String
+  subtitle     String?
+  buttonText   String?
   buttonUrl    String?
   desktopImage String
   mobileImage  String?

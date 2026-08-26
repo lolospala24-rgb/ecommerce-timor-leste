@@ -56,7 +56,10 @@ export class HeroService {
   async create(dto: CreateHeroBannerDto) {
     const banner = await this.prisma.heroBanner.create({
       data: {
+        badge: dto.badge,
         title: dto.title,
+        subtitle: dto.subtitle,
+        buttonText: dto.buttonText,
         buttonUrl: dto.buttonUrl,
         desktopImage: dto.desktopImage,
         mobileImage: dto.mobileImage,
@@ -78,7 +81,10 @@ export class HeroService {
     const banner = await this.prisma.heroBanner.update({
       where: { id },
       data: {
+        badge: dto.badge,
         title: dto.title,
+        subtitle: dto.subtitle,
+        buttonText: dto.buttonText,
         buttonUrl: dto.buttonUrl,
         desktopImage: dto.desktopImage,
         mobileImage: dto.mobileImage,

@@ -8,8 +8,10 @@ import { normalizeImageUrl } from '@/lib/images';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Store, Star, ChevronRight, Award } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 export function TopSellers() {
+  const { t } = useTranslation();
   const { data: sellers, isLoading } = useTopSellers(6);
 
   if (isLoading) {
@@ -17,7 +19,7 @@ export function TopSellers() {
       <section className="py-12 md:py-16 bg-muted/10">
         <div className="container-custom">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold sm:text-3xl">Top Sellers</h2>
+            <h2 className="text-2xl font-bold sm:text-3xl">{t('home.topSellers.title')}</h2>
             <p className="text-muted-foreground mt-1">Loading top sellers...</p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -49,11 +51,11 @@ export function TopSellers() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 text-primary">
             <Award className="h-5 w-5" />
-            <span className="text-sm font-medium">Trusted Sellers</span>
+            <span className="text-sm font-medium">{t('home.topSellers.badge')}</span>
           </div>
-          <h2 className="text-2xl font-bold sm:text-3xl">Top Sellers</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">{t('home.topSellers.title')}</h2>
           <p className="text-muted-foreground mt-1">
-            Trusted sellers with the best products
+            {t('home.topSellers.subtitle')}
           </p>
         </div>
 
@@ -68,7 +70,7 @@ export function TopSellers() {
             href="/sellers"
             className="text-primary hover:underline font-medium inline-flex items-center gap-1 group"
           >
-            View All Sellers
+            {t('home.topSellers.viewAll')}
             <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
@@ -78,6 +80,7 @@ export function TopSellers() {
 }
 
 function SellerCard({ seller }: { seller: any }) {
+  const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const logoSrc = normalizeImageUrl(seller.storeLogo);
 
@@ -123,17 +126,17 @@ function SellerCard({ seller }: { seller: any }) {
             </div>
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground text-xs">
-              {seller.totalProducts} products
+              {t('home.topSellers.productsCount', { count: seller.totalProducts })}
             </span>
           </div>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between border-t pt-4">
         <span className="text-sm font-medium text-primary">
-          ${seller.totalRevenue?.toLocaleString() || '0'} in sales
+          {t('home.topSellers.sales', { amount: seller.totalRevenue?.toLocaleString() || '0' })}
         </span>
         <span className="text-sm text-primary font-medium flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-          Visit Store
+          {t('home.topSellers.visitStore')}
           <ChevronRight className="h-4 w-4" />
         </span>
       </div>

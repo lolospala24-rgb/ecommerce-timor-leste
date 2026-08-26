@@ -17,9 +17,15 @@ export function Footer() {
   return (
     <footer className="border-t bg-muted/30">
       <div className="container-custom py-12">
+        {/* min-w-0 on every column: a CSS Grid track's default minimum
+            width is the min-content size of its item, which ignores any
+            shrink/wrap hints set deeper inside (e.g. a long email address) —
+            only overriding it here, on the direct grid child, lets that
+            content actually wrap instead of forcing the grid wider than
+            the viewport. */}
         <div className="grid gap-8 md:grid-cols-4">
           {/* Brand */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
             <Link href="/" className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-white font-bold text-sm">E</span>
@@ -48,7 +54,7 @@ export function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="min-w-0">
             <h3 className="font-semibold mb-4">{t('footer.quickLinks')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -75,7 +81,7 @@ export function Footer() {
           </div>
 
           {/* Customer Service */}
-          <div>
+          <div className="min-w-0">
             <h3 className="font-semibold mb-4">{t('footer.customerService')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -105,17 +111,21 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
             <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-3 text-muted-foreground">
+              {/* min-w-0 lets a flex item shrink below its content's natural
+                  width; break-words then wraps that content (a long email
+                  or address) inside the column instead of forcing the
+                  whole 4-column grid wider than the viewport. */}
+              <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>{address}</span>
+                <span className="break-words">{address}</span>
               </li>
-              <li className="flex items-start gap-3 text-muted-foreground">
+              <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>{contactPhone}</span>
+                <span className="break-words">{contactPhone}</span>
               </li>
-              <li className="flex items-start gap-3 text-muted-foreground">
+              <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>{contactEmail}</span>
+                <span className="break-words">{contactEmail}</span>
               </li>
             </ul>
           </div>
