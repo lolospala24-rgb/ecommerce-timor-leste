@@ -50,14 +50,21 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: settings?.faviconUrl || '/favicon.ico',
     },
+    // Renders <meta name="google-site-verification" content="..."> only
+    // once the env var is set — no broken empty tag ships before then. Set
+    // this after adding the site as a Search Console property (HTML tag
+    // verification method) and redeploy; no other code change needed.
+    verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+      : undefined,
     openGraph: {
       title: siteName,
       description,
-      url: 'https://ecommercetimor.com',
+      url: 'https://lolospala.com',
       siteName,
       images: [
         {
-          url: 'https://ecommercetimor.com/og-image.jpg',
+          url: 'https://lolospala.com/og-image.jpg',
           width: 1200,
           height: 630,
         },
