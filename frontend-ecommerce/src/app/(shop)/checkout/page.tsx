@@ -15,6 +15,7 @@ import {
   Plus,
   Lock,
   ChevronRight,
+  ChevronDown,
   Loader2,
   LucideIcon,
   TicketPercent,
@@ -98,6 +99,8 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [isProductsRowExpanded, setIsProductsRowExpanded] = useState(false);
+  const [isAddressListOpen, setIsAddressListOpen] = useState(false);
   const [checkoutSettings, setCheckoutSettings] = useState<{
     taxRate?: number;
     serviceFee?: number;
@@ -533,22 +536,61 @@ export default function CheckoutPage() {
               <div className="rounded-xl border border-border bg-muted/40 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-primary" />
+                    <div className="flex items-center gap-2.5">
+                      <StepNumber n={1} />
                       <h2 className="text-lg font-semibold">Delivery Address</h2>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">Your order will be delivered to the address you select below.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRefreshAddresses}
-                    className="text-sm font-medium text-primary transition hover:text-primary/80"
-                  >
-                    Refresh
-                  </button>
+                  {selectedAddress && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressListOpen((prev) => !prev)}
+                      className="shrink-0 text-sm font-medium text-primary transition hover:text-primary/80"
+                    >
+                      {isAddressListOpen ? 'Cancel' : 'Change'}
+                    </button>
+                  )}
                 </div>
 
-                {addresses && addresses.length > 0 ? (
+                {/* Once an address is selected, show just that one address —
+                    clean and unambiguous — instead of the full pickable list
+                    with every other saved address competing for attention.
+                    "Change" reveals the list again to pick a different one. */}
+                {selectedAddress && !isAddressListOpen ? (
+                  <div className="mt-5 rounded-xl border border-border bg-card p-4">
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-semibold text-foreground">{selectedAddress.label || 'Address'}</p>
+                      {selectedAddress.isPrimary && (
+                        <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">Default</span>
+                      )}
+                    </div>
+                    {selectedAddress.recipientName && (
+                      <p className="mt-2 text-sm font-medium text-foreground">Recipient: {selectedAddress.recipientName}</p>
+                    )}
+                    <p className="mt-1 text-sm text-muted-foreground">{selectedAddress.phone}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      {selectedAddress.street ? `${selectedAddress.street}, ` : ''}
+                      {selectedAddress.village ? `${selectedAddress.village}, ` : ''}
+                      {selectedAddress.suco ? `${selectedAddress.suco}, ` : ''}
+                      {selectedAddress.postoAdmin ? `${selectedAddress.postoAdmin}, ` : ''}
+                      {selectedAddress.municipality}
+                    </p>
+                    {selectedAddress.reference && <p className="mt-1 text-sm text-muted-foreground">Reference: {selectedAddress.reference}</p>}
+
+                    {/* Kept visible even when the rest of the address actions
+                        are tucked behind "Change" — pinning the exact spot
+                        is a per-order refinement shoppers reach for often,
+                        not address management. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(true)}
+                      className="mt-4 flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
+                    >
+                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
+                    </button>
+                  </div>
+                ) : addresses && addresses.length > 0 ? (
                   <div className="mt-5 grid gap-3">
                     {addresses.map((address: any) => {
                       const selected = selectedAddressId === address.id;
@@ -556,7 +598,10 @@ export default function CheckoutPage() {
                         <button
                           key={address.id}
                           type="button"
-                          onClick={() => setSelectedAddressId(address.id)}
+                          onClick={() => {
+                            setSelectedAddressId(address.id);
+                            setIsAddressListOpen(false);
+                          }}
                           className={cn(
                             'rounded-xl border p-4 text-left transition',
                             selected
@@ -599,27 +644,39 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Link
-                    href="/account/addresses/new?redirect=/checkout"
-                    className="flex items-center gap-2 rounded-full border border-dashed border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary"
-                  >
-                    <Plus className="h-4 w-4" /> Add new address
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setShowMap(true)}
-                    className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
-                  >
-                    <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
-                  </button>
-                  <Link
-                    href="/account/addresses"
-                    className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
-                  >
-                    Manage addresses
-                  </Link>
-                </div>
+                {/* Hidden once an address is selected and the list is
+                    collapsed — these are address-management actions, not
+                    something needed every time this section is glanced at. */}
+                {(!selectedAddress || isAddressListOpen) && (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link
+                      href="/account/addresses/new?redirect=/checkout"
+                      className="flex items-center gap-2 rounded-full border border-dashed border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary"
+                    >
+                      <Plus className="h-4 w-4" /> Add new address
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(true)}
+                      className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+                    >
+                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
+                    </button>
+                    <Link
+                      href="/account/addresses"
+                      className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+                    >
+                      Manage addresses
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleRefreshAddresses}
+                      className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Exact Delivery Location — deliberately a separate card from
@@ -678,7 +735,10 @@ export default function CheckoutPage() {
 
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold">Your products</h2>
+                  <div className="flex items-center gap-2.5">
+                    <StepNumber n={2} />
+                    <h2 className="text-lg font-semibold">Your products</h2>
+                  </div>
                   <span className="text-sm text-muted-foreground">{safeItems.length} items</span>
                 </div>
                 {sellerCount > 1 && (
@@ -725,7 +785,10 @@ export default function CheckoutPage() {
 
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold">Shipping method</h2>
+                  <div className="flex items-center gap-2.5">
+                    <StepNumber n={3} />
+                    <h2 className="text-lg font-semibold">Shipping method</h2>
+                  </div>
                   <span className="text-sm text-muted-foreground">Live from admin settings</span>
                 </div>
 
@@ -795,7 +858,10 @@ export default function CheckoutPage() {
               </Card>
 
               <Card className="p-5">
-                <h2 className="text-lg font-semibold">Payment method</h2>
+                <div className="flex items-center gap-2.5">
+                  <StepNumber n={4} />
+                  <h2 className="text-lg font-semibold">Payment method</h2>
+                </div>
                 {availablePaymentMethods.length > 0 ? (
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     {availablePaymentMethods.map((method) => {
@@ -852,7 +918,11 @@ export default function CheckoutPage() {
               </Card>
 
               <Card className="p-5">
-                <h2 className="text-lg font-semibold">Order notes</h2>
+                <div className="flex items-center gap-2.5">
+                  <StepNumber n={5} />
+                  <h2 className="text-lg font-semibold">Order notes</h2>
+                  <span className="text-sm font-normal text-muted-foreground">(optional)</span>
+                </div>
                 <Textarea
                   rows={4}
                   value={notes}
@@ -867,29 +937,42 @@ export default function CheckoutPage() {
 
         <aside className="w-full xl:w-[30%]">
           <Card className="sticky top-6 p-6">
+            {/* Product photos are already shown in full in the "Your
+                products" card in the main column above — repeating them
+                here just made the same items appear on screen twice. This
+                row instead doubles as the subtotal line and an optional,
+                text-only expand for a quick double-check without scrolling
+                back up or seeing every photo again. */}
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Order summary</h2>
               <Badge variant="outline" className="border-info/20 bg-info/10 text-info">Live</Badge>
             </div>
 
-            <div className="mt-5 space-y-3">
-              {safeItems.slice(0, 3).map((item) => (
-                <div
-                  key={`${item.productId}-${item.variantId ?? 'default'}-summary`}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3"
-                >
-                  <CheckoutThumb src={item.thumbnail} alt={item.name} className="h-14 w-14" sizes="56px" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">Qty {item.quantity}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
+            <div className="mt-5 space-y-3 border-t border-border pt-5 text-sm text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setIsProductsRowExpanded((prev) => !prev)}
+                className="flex w-full items-center justify-between text-left"
+                aria-expanded={isProductsRowExpanded}
+              >
+                <span className="flex items-center gap-1.5">
+                  Products ({safeItems.length})
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isProductsRowExpanded && 'rotate-180')} />
+                </span>
+                <span>${subtotal.toFixed(2)}</span>
+              </button>
 
-            <div className="mt-6 space-y-3 border-t border-border pt-5 text-sm text-muted-foreground">
-              <div className="flex items-center justify-between"><span>Product subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+              {isProductsRowExpanded && (
+                <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+                  {safeItems.map((item) => (
+                    <div key={`${item.productId}-${item.variantId ?? 'default'}-summary`} className="flex items-center justify-between gap-3">
+                      <span className="truncate text-foreground">{item.name} × {item.quantity}</span>
+                      <span className="shrink-0">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {appliedCoupon && (
                 <div className="flex items-center justify-between text-success">
                   <span className="flex items-center gap-1.5">
@@ -984,6 +1067,18 @@ export default function CheckoutPage() {
       </div>
       <div className="h-[68px] xl:hidden" aria-hidden="true" />
     </>
+  );
+}
+
+// Numbered badge marking each section as a step in the checkout sequence
+// (Delivery Address, Your products, Shipping, Payment, Order notes) — gives
+// the shopper a clear sense of order and progress through the page instead
+// of five same-weight cards with no visual relationship to each other.
+function StepNumber({ n }: { n: number }) {
+  return (
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+      {n}
+    </span>
   );
 }
 
