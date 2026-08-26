@@ -108,24 +108,28 @@ export function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="min-w-0">
             <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
             <ul className="space-y-3 text-sm">
               {/* min-w-0 lets a flex item shrink below its content's natural
-                  width; break-words then wraps that content (a long email
-                  or address) inside the column instead of forcing the
-                  whole 4-column grid wider than the viewport. */}
+                  width. break-words (overflow-wrap: break-word) alone does
+                  NOT reduce a flex item's automatic minimum size per spec —
+                  only break-all (word-break: break-all) or
+                  overflow-wrap: anywhere actually does, which is why a long
+                  unbroken string like an email address was still forcing
+                  the whole 4-column grid wider than the viewport even with
+                  min-w-0 everywhere in the chain. */}
               <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span className="break-words">{address}</span>
+                <span className="break-all">{address}</span>
               </li>
               <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <Phone className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span className="break-words">{contactPhone}</span>
+                <span className="break-all">{contactPhone}</span>
               </li>
               <li className="flex items-start gap-3 text-muted-foreground min-w-0">
                 <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span className="break-words">{contactEmail}</span>
+                <span className="break-all">{contactEmail}</span>
               </li>
             </ul>
           </div>

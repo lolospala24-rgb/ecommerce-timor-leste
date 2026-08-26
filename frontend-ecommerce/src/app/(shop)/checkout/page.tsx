@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -26,6 +27,13 @@ import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useCouponStore } from '@/stores/couponStore';
 import dynamic from 'next/dynamic';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const PLACEHOLDER_IMAGE = '/images/placeholder.png';
 
@@ -454,85 +462,82 @@ export default function CheckoutPage() {
 
   if (cartLoading || (addressesLoading && !addresses)) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-7xl items-center justify-center rounded-2xl border border-slate-200 bg-white p-10 shadow-sm">
-          <div className="flex items-center gap-3 text-slate-600">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            Preparing your checkout...
-          </div>
+      <Card className="flex items-center justify-center p-10">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Preparing your checkout...
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-semibold">Sign in to continue</h1>
-          <p className="mt-3 text-sm text-slate-600">Your cart and saved addresses are loaded from the backend once you sign in.</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/login?redirect=/checkout" className="rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
-              Sign in
-            </Link>
-            <Link href="/cart" className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-              Back to cart
-            </Link>
-          </div>
+      <Card className="mx-auto max-w-3xl p-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Sign in to continue</h1>
+        <p className="mt-3 text-sm text-muted-foreground">Your cart and saved addresses are loaded from the backend once you sign in.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button size="lg" asChild>
+            <Link href="/login?redirect=/checkout">Sign in</Link>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <Link href="/cart">Back to cart</Link>
+          </Button>
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (safeItems.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-semibold">Your cart is empty</h1>
-          <p className="mt-3 text-sm text-slate-600">Choose a product first so the checkout can use your real cart items from the backend.</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/" className="rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
-              Continue shopping
-            </Link>
-            <Link href="/cart" className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-              Open cart
-            </Link>
-          </div>
+      <Card className="mx-auto max-w-3xl p-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
+        <p className="mt-3 text-sm text-muted-foreground">Choose a product first so the checkout can use your real cart items from the backend.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button size="lg" asChild>
+            <Link href="/">Continue shopping</Link>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <Link href="/cart">Open cart</Link>
+          </Button>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 xl:flex-row xl:items-start">
+    <>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <section className="w-full xl:w-[70%]">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
+          <Card className="p-6 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
               <div className="flex items-center gap-3">
-                <Link href="/cart" className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:-translate-y-0.5 hover:shadow-md">
+                <Link
+                  href="/cart"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                   <ArrowLeft className="h-5 w-5" />
                 </Link>
                 <div>
-                  <p className="text-sm font-medium text-slate-500">Premium Checkout</p>
+                  <p className="text-sm font-medium text-muted-foreground">Premium Checkout</p>
                   <h1 className="text-2xl font-semibold tracking-tight">Complete your order</h1>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+              <div className="flex items-center gap-2 rounded-full border border-success/20 bg-success/10 px-3 py-2 text-sm font-medium text-success">
                 <ShieldCheck className="h-4 w-4" />
                 Secure Checkout
               </div>
             </div>
 
             <div className="mt-6 space-y-5">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+              <div className="rounded-xl border border-border bg-muted/40 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-5 w-5 text-primary" />
                       <h2 className="text-lg font-semibold">Delivery Address</h2>
                     </div>
-                    <p className="mt-2 text-sm text-slate-500">Your order will be delivered to the address you select below.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Your order will be delivered to the address you select below.</p>
                   </div>
                   <button
                     type="button"
@@ -552,30 +557,35 @@ export default function CheckoutPage() {
                           key={address.id}
                           type="button"
                           onClick={() => setSelectedAddressId(address.id)}
-                          className={`rounded-xl border p-4 text-left transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                          className={cn(
+                            'rounded-xl border p-4 text-left transition',
+                            selected
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
+                          )}
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-base font-semibold text-slate-900">{address.label || 'Address'}</p>
+                                <p className="text-base font-semibold text-foreground">{address.label || 'Address'}</p>
                                 {address.isPrimary && (
                                   <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">Default</span>
                                 )}
                               </div>
                               {address.recipientName && (
-                                <p className="mt-2 text-sm font-medium text-slate-700">Recipient: {address.recipientName}</p>
+                                <p className="mt-2 text-sm font-medium text-foreground">Recipient: {address.recipientName}</p>
                               )}
-                              <p className="mt-1 text-sm text-slate-600">{address.phone}</p>
-                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                              <p className="mt-1 text-sm text-muted-foreground">{address.phone}</p>
+                              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                                 {address.street ? `${address.street}, ` : ''}
                                 {address.village ? `${address.village}, ` : ''}
                                 {address.suco ? `${address.suco}, ` : ''}
                                 {address.postoAdmin ? `${address.postoAdmin}, ` : ''}
                                 {address.municipality}
                               </p>
-                              {address.reference && <p className="mt-1 text-sm text-slate-500">Reference: {address.reference}</p>}
+                              {address.reference && <p className="mt-1 text-sm text-muted-foreground">Reference: {address.reference}</p>}
                             </div>
-                            <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700">
+                            <div className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground">
                               {selected ? 'Selected' : 'Select'}
                             </div>
                           </div>
@@ -584,23 +594,29 @@ export default function CheckoutPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+                  <div className="mt-5 rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
                     No saved addresses were found. Add one in your account before placing the order.
                   </div>
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/account/addresses/new?redirect=/checkout" className="flex items-center gap-2 rounded-full border border-dashed border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:border-primary hover:text-primary">
+                  <Link
+                    href="/account/addresses/new?redirect=/checkout"
+                    className="flex items-center gap-2 rounded-full border border-dashed border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary"
+                  >
                     <Plus className="h-4 w-4" /> Add new address
                   </Link>
                   <button
                     type="button"
                     onClick={() => setShowMap(true)}
-                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
                   >
                     <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
                   </button>
-                  <Link href="/account/addresses" className="rounded-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                  <Link
+                    href="/account/addresses"
+                    className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+                  >
                     Manage addresses
                   </Link>
                 </div>
@@ -612,31 +628,31 @@ export default function CheckoutPage() {
                   confusion this feature used to cause when the map redirected
                   into "Add new address" instead. */}
               {pinLocation && (
-                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
                         <h2 className="text-base font-semibold">Exact Delivery Location</h2>
                       </div>
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {pinLocation.placeName || `${pinLocation.lat.toFixed(5)}, ${pinLocation.lng.toFixed(5)}`}
                       </p>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         This helps the courier find you for this order — it doesn't change your saved address or shipping fee.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={handleRemovePin}
-                      className="shrink-0 text-sm font-medium text-slate-500 transition hover:text-destructive"
+                      className="shrink-0 text-sm font-medium text-muted-foreground transition hover:text-destructive"
                     >
                       Remove
                     </button>
                   </div>
 
                   {pinMunicipalityMismatch && (
-                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    <div className="mt-3 rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-foreground">
                       This pin looks like it&apos;s in a different area ({pinLocation.municipality}) than your
                       selected delivery address ({selectedAddress?.municipality}). Shipping is still calculated for{' '}
                       {selectedAddress?.municipality} — please double-check the pin is correct.
@@ -644,85 +660,86 @@ export default function CheckoutPage() {
                   )}
 
                   <div className="mt-3 space-y-1.5">
-                    <label htmlFor="pin-reference" className="text-xs font-medium text-slate-600">
+                    <Label htmlFor="pin-reference" className="text-xs font-medium text-muted-foreground">
                       Note for the courier (optional)
-                    </label>
-                    <input
+                    </Label>
+                    <Input
                       id="pin-reference"
                       type="text"
                       value={pinReference}
                       onChange={(e) => setPinReference(e.target.value)}
                       placeholder="e.g. blue gate, 2nd floor"
                       maxLength={500}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+                      className="h-9"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold">Your products</h2>
-                  <span className="text-sm text-slate-500">{safeItems.length} items</span>
+                  <span className="text-sm text-muted-foreground">{safeItems.length} items</span>
                 </div>
                 {sellerCount > 1 && (
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Items from {sellerCount} different sellers will be shipped as {sellerCount} separate orders.
                   </p>
                 )}
 
                 <div className="mt-4 space-y-4">
                   {safeItems.map((item) => (
-                    <div key={`${item.productId}-${item.variantId ?? 'default'}`} className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center">
-                      <img
-                        src={item.thumbnail || PLACEHOLDER_IMAGE}
+                    <div
+                      key={`${item.productId}-${item.variantId ?? 'default'}`}
+                      className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center"
+                    >
+                      <CheckoutThumb
+                        src={item.thumbnail}
                         alt={item.name}
-                        className="h-28 w-full rounded-lg object-cover sm:h-24 sm:w-24"
-                        onError={(event) => {
-                          event.currentTarget.src = PLACEHOLDER_IMAGE;
-                        }}
+                        className="h-28 w-full sm:h-24 sm:w-24"
+                        sizes="(max-width: 640px) 100vw, 96px"
                       />
                       <div className="flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-base font-semibold text-slate-900">{item.name}</p>
-                            <p className="mt-1 text-sm text-slate-500">{item.slug}</p>
+                            <p className="text-base font-semibold text-foreground">{item.name}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{item.slug}</p>
                           </div>
-                          <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">Qty {item.quantity}</div>
+                          <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-foreground">Qty {item.quantity}</div>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                           <div>
-                            <p className="font-medium text-slate-900">Unit price</p>
+                            <p className="font-medium text-foreground">Unit price</p>
                             <p>${(item.price || 0).toFixed(2)}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium text-slate-900">Product total</p>
-                            <p className="font-semibold text-slate-900">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
+                            <p className="font-medium text-foreground">Product total</p>
+                            <p className="font-semibold text-foreground">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold">Shipping method</h2>
-                  <span className="text-sm text-slate-500">Live from admin settings</span>
+                  <span className="text-sm text-muted-foreground">Live from admin settings</span>
                 </div>
 
                 {!selectedAddress ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     Select a delivery address above to see shipping options for your area.
                   </div>
                 ) : isShippingOptionsLoading ? (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading live shipping options...
                   </div>
                 ) : shippingOptionsError ? (
-                  <div className="mt-4 rounded-xl border border-dashed border-red-300 bg-red-50 p-4 text-sm text-red-600">
+                  <div className="mt-4 rounded-xl border border-dashed border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                     {shippingOptionsError}
                   </div>
                 ) : shippingOptions.length > 0 ? (
@@ -743,36 +760,41 @@ export default function CheckoutPage() {
                               shippingZoneId: option.shippingZoneId,
                             });
                           }}
-                          className={`rounded-xl border p-4 text-left transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                          className={cn(
+                            'rounded-xl border p-4 text-left transition',
+                            selected
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
+                          )}
                         >
                           <div className="flex items-center gap-2">
-                            <div className={`rounded-full p-2 ${selected ? 'bg-primary text-primary-foreground' : 'bg-slate-100 text-slate-700'}`}>
+                            <div className={cn('rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
                               <Icon className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="font-semibold text-slate-900">{option.name}</p>
-                              <p className="text-sm text-slate-500">{option.subtitle}</p>
+                              <p className="font-semibold text-foreground">{option.name}</p>
+                              <p className="text-sm text-muted-foreground">{option.subtitle}</p>
                               {option.courierLabel && (
                                 <p className="mt-1 text-xs font-medium text-primary">{option.courierLabel}</p>
                               )}
                             </div>
                           </div>
                           <div className="mt-4 flex items-center justify-between text-sm">
-                            <span className="font-semibold text-slate-900">${Number(option.cost ?? 0).toFixed(2)}</span>
-                            <span className="text-slate-500">{option.eta}</span>
+                            <span className="font-semibold text-foreground">${Number(option.cost ?? 0).toFixed(2)}</span>
+                            <span className="text-muted-foreground">{option.eta}</span>
                           </div>
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     No courier currently delivers to {selectedAddress.municipality || 'this municipality'}. Please choose a different address or contact support.
                   </div>
                 )}
-              </div>
+              </Card>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <Card className="p-5">
                 <h2 className="text-lg font-semibold">Payment method</h2>
                 {availablePaymentMethods.length > 0 ? (
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -784,27 +806,32 @@ export default function CheckoutPage() {
                           key={method.id}
                           type="button"
                           onClick={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
-                          className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${selected ? 'border-primary bg-primary/5 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                          className={cn(
+                            'flex items-center justify-between rounded-xl border p-4 text-left transition',
+                            selected
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
+                          )}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`rounded-full p-2 ${selected ? 'bg-primary text-primary-foreground' : 'bg-slate-100 text-slate-700'}`}>
+                            <div className={cn('rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
                               <Icon className="h-4 w-4" />
                             </div>
-                            <span className="font-medium text-slate-900">{method.name}</span>
+                            <span className="font-medium text-foreground">{method.name}</span>
                           </div>
-                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                     No payment methods are currently available. Please contact support.
                   </div>
                 )}
 
                 {selectedPayment === 'COD' && (Boolean(checkoutSettings.minCODOrderAmount) || Boolean(checkoutSettings.maxCODOrderAmount)) && (
-                  <p className="mt-3 text-xs text-slate-500">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Cash on Delivery is available for orders
                     {checkoutSettings.minCODOrderAmount ? ` from $${checkoutSettings.minCODOrderAmount.toFixed(2)}` : ''}
                     {checkoutSettings.maxCODOrderAmount ? ` up to $${checkoutSettings.maxCODOrderAmount.toFixed(2)}` : ''}.
@@ -812,63 +839,59 @@ export default function CheckoutPage() {
                 )}
 
                 {selectedPayment === 'BANK_TRANSFER' && checkoutSettings.bankName && (
-                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p className="font-semibold">Transfer to:</p>
+                  <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-4 text-sm text-foreground">
+                    <p className="font-semibold text-warning">Transfer to:</p>
                     <p className="mt-1">{checkoutSettings.bankName} — {checkoutSettings.bankAccountName}</p>
                     {checkoutSettings.bankAccountNumber && <p>Account No: {checkoutSettings.bankAccountNumber}</p>}
                     {checkoutSettings.bankSWIFT && <p>SWIFT: {checkoutSettings.bankSWIFT}</p>}
-                    <p className="mt-2 text-amber-800">
+                    <p className="mt-2 text-muted-foreground">
                       You&apos;ll confirm your transfer and upload a receipt after placing the order.
                     </p>
                   </div>
                 )}
-              </div>
+              </Card>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <Card className="p-5">
                 <h2 className="text-lg font-semibold">Order notes</h2>
-                <textarea
+                <Textarea
                   rows={4}
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   placeholder="Add delivery instructions..."
-                  className="mt-3 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:bg-white"
+                  className="mt-3"
                 />
-              </div>
+              </Card>
             </div>
-          </div>
+          </Card>
         </section>
 
         <aside className="w-full xl:w-[30%]">
-          <div className="sticky top-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <Card className="sticky top-6 p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Order summary</h2>
-              <div className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">Live</div>
+              <Badge variant="outline" className="border-info/20 bg-info/10 text-info">Live</Badge>
             </div>
 
             <div className="mt-5 space-y-3">
               {safeItems.slice(0, 3).map((item) => (
-                <div key={`${item.productId}-${item.variantId ?? 'default'}-summary`} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <img
-                    src={item.thumbnail || PLACEHOLDER_IMAGE}
-                    alt={item.name}
-                    className="h-14 w-14 rounded-lg object-cover"
-                    onError={(event) => {
-                      event.currentTarget.src = PLACEHOLDER_IMAGE;
-                    }}
-                  />
+                <div
+                  key={`${item.productId}-${item.variantId ?? 'default'}-summary`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3"
+                >
+                  <CheckoutThumb src={item.thumbnail} alt={item.name} className="h-14 w-14" sizes="56px" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{item.name}</p>
-                    <p className="text-xs text-slate-500">Qty {item.quantity}</p>
+                    <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">Qty {item.quantity}</p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
+                  <p className="text-sm font-semibold text-foreground">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 space-y-3 border-t border-slate-200 pt-5 text-sm text-slate-600">
+            <div className="mt-6 space-y-3 border-t border-border pt-5 text-sm text-muted-foreground">
               <div className="flex items-center justify-between"><span>Product subtotal</span><span>${subtotal.toFixed(2)}</span></div>
               {appliedCoupon && (
-                <div className="flex items-center justify-between text-green-600">
+                <div className="flex items-center justify-between text-success">
                   <span className="flex items-center gap-1.5">
                     <TicketPercent className="h-3.5 w-3.5" />
                     Coupon ({appliedCoupon.code})
@@ -884,40 +907,113 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-xl bg-slate-50 p-4">
+            <div className="mt-5 rounded-xl bg-muted/40 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-500">Grand total</span>
+                <span className="text-sm font-medium text-muted-foreground">Grand total</span>
                 <span className="text-3xl font-semibold text-primary">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="mt-5 grid gap-2">
               {trustBadges.map((badge) => (
-                <div key={badge} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                  <BadgeCheck className="h-4 w-4 text-green-600" />
+                <div key={badge} className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+                  <BadgeCheck className="h-4 w-4 text-success" />
                   {badge}
                 </div>
               ))}
             </div>
 
-            <button
+            {/* Hidden below xl: — the mobile sticky bar further down covers
+                the same action there, in the thumb zone, instead of
+                leaving it at the bottom of a long stacked page. */}
+            <Button
               type="button"
+              size="lg"
               disabled={!selectedAddressId || !selectedShipping || isSubmittingOrder || isPlacingOrder}
               onClick={handlePlaceOrder}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-900 px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-6 hidden w-full xl:flex"
             >
-              {isSubmittingOrder || isPlacingOrder ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Place Order
-            </button>
+              {isSubmittingOrder || isPlacingOrder ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Lock className="mr-2 h-4 w-4" />
+              )}
+              Place Order
+            </Button>
 
-            <p className="mt-4 text-center text-sm text-slate-500">
-              I agree to the <span className="font-medium text-slate-700">Terms & Conditions</span> and <span className="font-medium text-slate-700">Privacy Policy</span>.
+            <p className="mt-4 hidden text-center text-sm text-muted-foreground xl:block">
+              I agree to the <span className="font-medium text-foreground">Terms & Conditions</span> and <span className="font-medium text-foreground">Privacy Policy</span>.
             </p>
-          </div>
+          </Card>
         </aside>
       </div>
       {showMap && (
         <GoogleMapPicker onSelect={handlePinExactLocation} onClose={() => setShowMap(false)} />
       )}
+
+      {/* Mobile sticky Place Order bar — on a long checkout page (address,
+          products, shipping, payment, notes, order summary), the buy
+          button otherwise sits at the very bottom, so a shopper filling
+          in the form has no visible way to submit without scrolling all
+          the way down first. Pinned to the bottom of the viewport instead,
+          matching the same pattern used on the product detail page. */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-sm xl:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">Grand total</p>
+            <p className="truncate text-lg font-bold text-primary">${grandTotal.toFixed(2)}</p>
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            disabled={!selectedAddressId || !selectedShipping || isSubmittingOrder || isPlacingOrder}
+            onClick={handlePlaceOrder}
+            className="h-11 shrink-0 px-6 font-semibold"
+          >
+            {isSubmittingOrder || isPlacingOrder ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Lock className="mr-2 h-4 w-4" />
+            )}
+            Place Order
+          </Button>
+        </div>
+      </div>
+      <div className="h-[68px] xl:hidden" aria-hidden="true" />
+    </>
+  );
+}
+
+// Thumbnail for checkout line items — mirrors the same error-fallback
+// pattern ProductCard/CartItem use (swap to the placeholder on load error)
+// but via next/image instead of a raw <img>, so these get the same
+// automatic resizing/lazy-loading the rest of the shop already relies on.
+function CheckoutThumb({
+  src,
+  alt,
+  className,
+  sizes,
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  sizes: string;
+}) {
+  const [errored, setErrored] = useState(false);
+
+  return (
+    <div className={cn('relative shrink-0 overflow-hidden rounded-lg bg-muted', className)}>
+      <Image
+        src={errored || !src ? PLACEHOLDER_IMAGE : src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        className="object-cover"
+        onError={() => setErrored(true)}
+      />
     </div>
   );
 }
