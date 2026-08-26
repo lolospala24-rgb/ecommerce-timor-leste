@@ -166,7 +166,12 @@ function ProductsPageContent() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-full max-w-sm">
+              {/* A bottom sheet (not a side drawer) is the mobile-native
+                  pattern here — it opens into the thumb zone instead of
+                  requiring a reach to the screen edge, and its own actions
+                  end up naturally close to the hand too. Capped height +
+                  internal scroll since the filter list itself is long. */}
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
                 <SheetHeader>
                   <SheetTitle>Filters</SheetTitle>
                 </SheetHeader>
@@ -175,24 +180,27 @@ function ProductsPageContent() {
                     filters={filters}
                     onFilterChange={(newFilters) => {
                       handleFilterChange(newFilters);
-                      setMobileFiltersOpen(false);
                     }}
                     categories={categories?.data || []}
                   />
+                </div>
+                <div className="sticky bottom-0 -mx-6 mt-4 flex gap-3 border-t bg-background p-4">
                   {hasActiveFilters && (
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-4"
+                      variant="outline"
+                      className="flex-1"
                       onClick={() => {
                         clearFilters();
                         setMobileFiltersOpen(false);
                       }}
                     >
                       <X className="mr-2 h-4 w-4" />
-                      Clear All Filters
+                      Clear All
                     </Button>
                   )}
+                  <Button className="flex-1" onClick={() => setMobileFiltersOpen(false)}>
+                    Show {data?.pagination?.total ?? ''} Results
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>

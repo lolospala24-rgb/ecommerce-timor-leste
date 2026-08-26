@@ -110,11 +110,17 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
       ? { label: t('product.onlyLeft', { count: product.stock }), className: 'text-amber-600' }
       : { label: t('product.inStock'), className: 'text-green-600' };
 
+  // Capped to the single most relevant status badge (plus the discount
+  // badge below, so 2 max) — stacking new+popular+local at once crowded
+  // the image corner on narrow mobile cards and, realistically, buyers
+  // only register the first one or two badges anyway.
   const statusBadges = [
     isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-blue-600 text-white hover:bg-blue-600' },
     product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-white hover:bg-amber-500' },
     isLocal && { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground hover:bg-secondary' },
-  ].filter((b): b is { key: string; label: string; className: string } => !!b);
+  ]
+    .filter((b): b is { key: string; label: string; className: string } => !!b)
+    .slice(0, 1);
 
   const imageSrc = imageError || !product.thumbnail ? PLACEHOLDER_IMAGE : product.thumbnail;
 
