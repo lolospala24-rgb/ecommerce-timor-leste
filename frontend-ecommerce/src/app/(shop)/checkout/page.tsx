@@ -1029,7 +1029,15 @@ export default function CheckoutPage() {
             </Button>
 
             <p className="mt-4 hidden text-center text-sm text-muted-foreground xl:block">
-              I agree to the <span className="font-medium text-foreground">Terms & Conditions</span> and <span className="font-medium text-foreground">Privacy Policy</span>.
+              I agree to the{' '}
+              <Link href="/terms" className="font-medium text-foreground underline hover:text-primary">
+                Terms & Conditions
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="font-medium text-foreground underline hover:text-primary">
+                Privacy Policy
+              </Link>
+              .
             </p>
           </Card>
         </aside>
