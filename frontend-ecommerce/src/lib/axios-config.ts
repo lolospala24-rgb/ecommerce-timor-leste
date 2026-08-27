@@ -28,10 +28,20 @@ const defaultConfig: AxiosConfig = {
   withCredentials: true,
 };
 
+// Only safe to blindly retry requests that don't have side effects — retrying
+// a POST/PATCH/DELETE that actually succeeded server-side but lost its
+// response (timeout, dropped connection) would replay whatever mutation it
+// performed (e.g. placing an order, applying a coupon).
+const isRetrySafeMethod = (method?: string): boolean =>
+  ['get', 'head', 'options'].includes((method || 'get').toLowerCase());
+
 const defaultRetryConfig: RetryConfig = {
   maxRetries: 3,
   retryDelay: 1000,
   retryCondition: (error: AxiosError) => {
+    if (!isRetrySafeMethod(error.config?.method)) {
+      return false;
+    }
     return (
       !error.response ||
       error.response.status === 408 ||

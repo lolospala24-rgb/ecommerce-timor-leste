@@ -38,6 +38,12 @@ import { cn } from '@/lib/utils';
 
 const PLACEHOLDER_IMAGE = '/images/placeholder.png';
 
+// Hoisted to module scope: calling dynamic() inside the component body would
+// create a brand-new lazy component reference on every render, forcing React
+// to unmount+remount the map (and its in-progress pin selection) any time an
+// unrelated piece of checkout state changes.
+const GoogleMapPicker = dynamic(() => import('@/components/maps/GoogleMapPicker'), { ssr: false });
+
 type ShippingOption = {
   id: string;
   name: string;
@@ -429,8 +435,6 @@ export default function CheckoutPage() {
       // Ignore refresh errors.
     }
   };
-
-  const GoogleMapPicker = dynamic(() => import('@/components/maps/GoogleMapPicker'), { ssr: false });
 
   const [showMap, setShowMap] = useState(false);
 

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { useCart } from '@/hooks/useCart';
+import { useCartStore } from '@/stores/cartStore';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,16 @@ export function Header() {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
-  const { totalItems, subtotal: cartSubtotal } = useCart();
+  // Narrow selectors instead of the shared useCart() hook: Header only ever
+  // displays these two derived numbers, so subscribing to the full cart
+  // hook (items/isLoading/error/actions) would re-render it on every
+  // isLoading flip during an add/remove — work it never uses.
+  const totalItems = useCartStore((state) =>
+    state.items.reduce((sum, item) => sum + item.quantity, 0),
+  );
+  const cartSubtotal = useCartStore((state) =>
+    state.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+  );
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useOrderNotifications();
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
