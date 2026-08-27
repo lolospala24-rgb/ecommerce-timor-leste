@@ -111,9 +111,11 @@ export default function AddressesPage() {
                         Reference: {address.reference}
                       </p>
                     )}
-                    <p className="text-sm text-muted-foreground">
-                      Phone: {address.phone}
-                    </p>
+                    {address.phone && (
+                      <p className="text-sm text-muted-foreground">
+                        Phone: {address.phone}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {!address.isPrimary && (
