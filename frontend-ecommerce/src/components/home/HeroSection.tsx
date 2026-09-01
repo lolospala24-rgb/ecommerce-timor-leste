@@ -166,9 +166,9 @@ export function HeroSection() {
   }
 
   // No configured/active banners (or the request failed) — the rest of the
-  // homepage (QuickMenu, CategoriesShowcase, HomepageSections) still renders
-  // fine without a hero, so this section simply omits itself rather than
-  // showing broken/fake placeholder content.
+  // homepage (QuickMenu, HomepageSections) still renders fine without a
+  // hero, so this section simply omits itself rather than showing
+  // broken/fake placeholder content.
   if (isError || !banners || banners.length === 0) {
     return null;
   }
