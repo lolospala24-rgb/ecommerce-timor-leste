@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
 import { useHomepageSections, type HomepageSection } from '@/hooks/useHomepageSections';
 import { ProductCard } from '@/components/products/ProductCard';
 import { Button } from '@/components/ui/button';
@@ -9,8 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import {
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   Clock,
   TrendingUp,
@@ -66,37 +63,6 @@ function ProductSection({ section }: { section: HomepageSection }) {
   const { t } = useTranslation();
   const Icon = RULE_ICONS[section.rule] ?? Layers;
 
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-
-  const updateScrollState = () => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    setCanScrollPrev(el.scrollLeft > 4);
-    setCanScrollNext(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  };
-
-  useEffect(() => {
-    updateScrollState();
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.addEventListener('scroll', updateScrollState, { passive: true });
-    window.addEventListener('resize', updateScrollState);
-    return () => {
-      el.removeEventListener('scroll', updateScrollState);
-      window.removeEventListener('resize', updateScrollState);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section.products.length]);
-
-  const scrollByPage = (direction: 'prev' | 'next') => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    const amount = el.clientWidth * 0.9 * (direction === 'prev' ? -1 : 1);
-    el.scrollBy({ left: amount, behavior: 'smooth' });
-  };
-
   return (
     <section className="py-12 md:py-16">
       <div className="container-custom">
@@ -110,51 +76,17 @@ function ProductSection({ section }: { section: HomepageSection }) {
               <p className="text-muted-foreground mt-1">{section.subtitle}</p>
             )}
           </div>
-
-          {/* View-all link + prev/next scroll controls, grouped as one
-              compact unit — the buttons scroll the row below rather than
-              being decorative, and disable themselves at each end. */}
-          <div className="flex items-center gap-3 self-end sm:self-auto">
-            <Button variant="ghost" className="h-auto gap-1 p-0 group hover:bg-transparent" asChild>
-              <Link href="/products">
-                {t('home.section.viewAll')}
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => scrollByPage('prev')}
-                disabled={!canScrollPrev}
-                aria-label="Previous"
-                className="flex h-9 w-9 items-center justify-center rounded-full border text-foreground/70 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-30"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollByPage('next')}
-                disabled={!canScrollNext}
-                aria-label="Next"
-                className="flex h-9 w-9 items-center justify-center rounded-full border text-foreground/70 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-30"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+          <Button variant="ghost" className="gap-1 group" asChild>
+            <Link href="/products">
+              {t('home.section.viewAll')}
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </Button>
         </div>
 
-        <div
-          ref={scrollerRef}
-          className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-1 sm:gap-5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
           {section.products.map((product) => (
-            <div
-              key={product.id}
-              className="w-[calc(50%-0.5rem)] shrink-0 snap-start sm:w-[calc(50%-0.625rem)] lg:w-[calc(25%-0.9375rem)] xl:w-[calc(20%-1rem)]"
-            >
-              <ProductCard product={product} isLocal={section.rule === 'LOCAL'} />
-            </div>
+            <ProductCard key={product.id} product={product} isLocal={section.rule === 'LOCAL'} />
           ))}
         </div>
       </div>
