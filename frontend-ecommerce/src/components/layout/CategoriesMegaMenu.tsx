@@ -21,6 +21,11 @@ interface CategoriesMegaMenuProps {
   onNavigate?: () => void;
 }
 
+// Same keyword rule categoryIcons.ts uses for its "local" icon match — reused
+// here rather than adding a second source of truth for what counts as the
+// local-products category.
+const isLocalCategory = (name: string) => /local/i.test(name);
+
 // Full mega-menu panel for the header's "All Categories" trigger. Hover a
 // category on the left and the center column updates to that category's
 // subcategories — the center never opens a second floating panel, it just
@@ -62,6 +67,7 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
             {categories.map((category) => {
               const Icon = getCategoryIcon(category.name);
               const isActive = category.id === activeCategory.id;
+              const isLocal = isLocalCategory(category.name);
               return (
                 <li key={category.id}>
                   <Link
@@ -69,14 +75,31 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
                     onClick={onNavigate}
                     onMouseEnter={() => setActiveId(category.id)}
                     onFocus={() => setActiveId(category.id)}
-                    className={`flex items-center gap-2.5 px-4 py-2 text-sm transition-colors ${
+                    className={`flex items-center gap-2.5 border-l-2 px-4 py-2 text-sm transition-colors ${
                       isActive
-                        ? 'bg-primary/10 font-medium text-primary'
-                        : 'text-foreground/85 hover:bg-primary/5 hover:text-primary'
+                        ? 'border-primary bg-primary/10 font-medium text-primary'
+                        : isLocal
+                          ? 'border-secondary/50 text-foreground/85 hover:bg-secondary/5 hover:text-secondary'
+                          : 'border-transparent text-foreground/85 hover:bg-primary/5 hover:text-primary'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                    {category.image ? (
+                      <span className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
+                        <Image src={category.image} alt="" fill sizes="20px" className="object-cover" />
+                      </span>
+                    ) : (
+                      <Icon
+                        className={`h-4 w-4 shrink-0 ${
+                          isActive ? 'text-primary' : isLocal ? 'text-secondary' : 'text-muted-foreground'
+                        }`}
+                      />
+                    )}
                     <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                    {isLocal && !isActive && (
+                      <span className="shrink-0 rounded-full bg-secondary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                        TL
+                      </span>
+                    )}
                     <ChevronRight
                       className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground/50'}`}
                     />

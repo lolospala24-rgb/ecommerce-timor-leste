@@ -19,9 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { CategoryFilterFacet, CategoryListingFilters } from '@/types/category.types';
-import { countActiveCategoryFilters } from '@/lib/categoryListing';
 import { cn } from '@/lib/utils';
 
 interface DynamicCategoryFiltersProps {
@@ -31,6 +30,9 @@ interface DynamicCategoryFiltersProps {
   onFilterChange: (patch: Partial<CategoryListingFilters>) => void;
   onToggleAttribute: (key: string, value: string) => void;
   onToggleBrand: (brand: string) => void;
+  // Clearing is triggered by the heading that wraps this component (desktop
+  // sidebar / mobile sheet), not from inside it — kept in the props
+  // contract so callers don't need two different APIs for the same action.
   onClear: () => void;
   className?: string;
 }
@@ -42,7 +44,6 @@ export function DynamicCategoryFilters({
   onFilterChange,
   onToggleAttribute,
   onToggleBrand,
-  onClear,
   className,
 }: DynamicCategoryFiltersProps) {
   const priceFacet = facets.find((f) => f.type === 'range' && f.key === 'price');
@@ -57,8 +58,6 @@ export function DynamicCategoryFilters({
       filters.maxPrice ?? priceFacet?.max ?? 1000,
     ]);
   }, [filters.minPrice, filters.maxPrice, priceFacet?.min, priceFacet?.max]);
-
-  const activeCount = countActiveCategoryFilters(filters);
 
   if (isLoading) {
     return (
@@ -293,16 +292,9 @@ export function DynamicCategoryFilters({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Filters</h3>
-        {activeCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
-            <X className="h-3 w-3 mr-1" />
-            Clear ({activeCount})
-          </Button>
-        )}
-      </div>
-
+      {/* No heading here — both call sites (desktop sidebar, mobile sheet)
+          already render their own "Filters" heading + clear action around
+          this component; a second one here was a plain duplicate. */}
       {visibleFacets.length === 0 ? (
         <p className="text-sm text-muted-foreground">No filters available for this category.</p>
       ) : (
