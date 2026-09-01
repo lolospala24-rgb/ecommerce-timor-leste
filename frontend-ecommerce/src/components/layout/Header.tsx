@@ -9,6 +9,7 @@ import { useCartStore } from '@/stores/cartStore';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { CategoriesMegaMenu } from './CategoriesMegaMenu';
+import { CategoryDrawer } from './CategoryDrawer';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/uiStore';
 import { SearchAiBar } from '@/components/shared/SearchAiBar';
@@ -54,6 +55,11 @@ export function Header() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
   const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
+  // Deliberately its own state — never shares open/close with mobileNavOpen
+  // (the hamburger menu). Conflating them was the bug: tapping "All
+  // Categories" on mobile opened the Administrator/Quick Links menu instead
+  // of a categories-only view.
+  const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
   // Narrow selectors instead of the shared useCart() hook: Header only ever
   // displays these two derived numbers, so subscribing to the full cart
   // hook (items/isLoading/error/actions) would re-render it on every
@@ -401,8 +407,38 @@ export function Header() {
               </Button>
             </div>
           </div>
+
+          {/* Mobile-only second row: All Categories + Video Shop. Opening
+              the desktop mega menu's 880px panel on a phone screen isn't an
+              option, and cramming a categories button into the row above
+              overflowed the viewport, so this is its own row — matches the
+              app-like two-row header pattern most mobile marketplace apps
+              use, and gives All Categories its own dedicated, separate
+              trigger from the hamburger (⌘) menu (see CategoryDrawer). */}
+          <div className="flex items-center gap-3 border-t py-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setCategoryDrawerOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={categoryDrawerOpen}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors active:bg-primary/10"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              {t('nav.allCategories')}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+            <Link
+              href="/videos"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Play className="h-4 w-4" />
+              {t('nav.videoShop')}
+            </Link>
+          </div>
         </div>
       </header>
+
+      <CategoryDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} />
 
       {/* Mobile Search Dialog */}
       {searchOpen && (
