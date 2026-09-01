@@ -225,6 +225,36 @@ export class CouponsService {
     return available;
   }
 
+  // Public (no login required) listing for the storefront's Deals page —
+  // same active/date-window filter as listAvailableForCustomer, but with no
+  // per-user usage check (there's no user yet) and no subtotal, so this
+  // shows a coupon's terms rather than a computed discount amount.
+  async listPublicActive() {
+    const now = new Date();
+    const coupons = await this.prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        AND: [
+          { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return coupons
+      .filter((coupon) => coupon.usageLimit == null || coupon.usedCount < coupon.usageLimit)
+      .map((coupon) => ({
+        code: coupon.code,
+        description: coupon.description,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minPurchaseAmount: coupon.minPurchaseAmount,
+        maxDiscountAmount: coupon.maxDiscountAmount,
+        endDate: coupon.endDate,
+      }));
+  }
+
   // Atomically records one redemption — called from inside
   // OrdersService.create's transaction, right after validateForCustomer is
   // re-run against the customer's real, final cart subtotal. The

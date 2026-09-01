@@ -6,11 +6,23 @@ import { UpdateCouponDto } from './dto/update-coupon.dto';
 import { ValidateCouponDto } from './dto/validate-coupon.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 
 @Controller('coupons')
 export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}
+
+  // For the public Deals page — a visitor doesn't need an account to see
+  // what promotions exist, only to apply one at checkout. Route order
+  // matters: this must come before ':id'-style routes so "public" isn't
+  // parsed as an id, same reason /admin and /available are declared early.
+  @Public()
+  @Get('public')
+  async listPublic() {
+    const data = await this.couponsService.listPublicActive();
+    return { data };
+  }
 
   @Roles(Role.ADMIN)
   @Get('admin')

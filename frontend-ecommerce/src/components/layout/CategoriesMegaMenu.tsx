@@ -192,7 +192,7 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
           </div>
 
           <Link
-            href="/products"
+            href="/deals"
             onClick={onNavigate}
             className="mt-3 flex items-center gap-3 rounded-xl bg-gradient-to-br from-primary to-blue-700 p-3.5 text-white transition-opacity hover:opacity-95"
           >

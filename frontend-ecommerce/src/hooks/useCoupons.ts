@@ -22,7 +22,33 @@ export interface AvailableCoupon {
   discountAmount: number;
 }
 
+export interface PublicCoupon {
+  code: string;
+  description: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  minPurchaseAmount: number | null;
+  maxDiscountAmount: number | null;
+  endDate: string | null;
+}
+
 const unwrapApiResponse = (response: any) => response?.data ?? response;
+
+// No-login-required listing for the public /deals page — a visitor doesn't
+// need an account to see what promotions exist, only to apply one at
+// checkout (that's useAvailableCoupons/useValidateCoupon below, both of
+// which need a real user for per-user usage limits).
+export const usePublicCoupons = () => {
+  return useQuery({
+    queryKey: ['coupons', 'public'],
+    queryFn: async () => {
+      const response = await api.get('/coupons/public');
+      const data = unwrapApiResponse(response);
+      return (data?.data ?? data ?? []) as PublicCoupon[];
+    },
+    staleTime: 60_000,
+  });
+};
 
 // Every coupon the customer could plausibly use — including ones they
 // haven't hit the minimum purchase for yet (meetsMinimum: false), so the

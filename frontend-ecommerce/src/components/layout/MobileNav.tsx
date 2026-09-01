@@ -259,7 +259,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                       })}
                     </div>
                     <Link
-                      href="/products"
+                      href="/deals"
                       onClick={() => onOpenChange(false)}
                       className="mx-1 mt-2 flex items-center gap-3 rounded-xl bg-gradient-to-br from-primary to-blue-700 p-3 text-white"
                     >
