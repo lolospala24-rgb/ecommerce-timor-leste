@@ -276,13 +276,30 @@ function CategoryDirectoryRow({ category, bannerClass }: { category: CategoryNod
             ))}
           </div>
         ) : (
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {category.description || 'Explore products in this category.'}
-          </p>
+          // No subcategories to list — a plain description sentence alone
+          // left this whole wide column looking empty, so the real product
+          // count (already fetched, not fabricated) fills the rest of the
+          // row as a proper visual anchor instead of blank space.
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+              {category.description || 'Explore products in this category.'}
+            </p>
+            {!!category.productCount && category.productCount > 0 && (
+              <div className="flex shrink-0 items-center gap-3 self-start rounded-xl bg-muted/40 px-5 py-3 sm:self-auto">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-2xl font-bold leading-none text-foreground">{category.productCount}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {category.productCount === 1 ? 'product available' : 'products available'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
-          {!!category.productCount && category.productCount > 0 ? (
+          {category.children.length > 0 && !!category.productCount && category.productCount > 0 ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <ShoppingBag className="h-3.5 w-3.5" />
               {category.productCount} {category.productCount === 1 ? 'product' : 'products'}

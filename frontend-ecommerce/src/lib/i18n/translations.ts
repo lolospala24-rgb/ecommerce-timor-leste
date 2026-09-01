@@ -30,6 +30,7 @@ export const translations: Record<Locale, Dictionary> = {
 
     // Main nav / header
     'nav.videoShop': 'Loja Vídeo',
+    'nav.allCategories': 'Todas Kategoria',
     'nav.signIn': 'Tama',
     'nav.profile': 'Perfil',
     'nav.myOrders': 'Hau nia Order sira',
@@ -131,6 +132,7 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.login': 'Login',
 
     'nav.videoShop': 'Video Shop',
+    'nav.allCategories': 'All Categories',
     'nav.signIn': 'Sign In',
     'nav.profile': 'Profile',
     'nav.myOrders': 'My Orders',
@@ -224,6 +226,7 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.login': 'Masuk',
 
     'nav.videoShop': 'Video Shop',
+    'nav.allCategories': 'Semua Kategori',
     'nav.signIn': 'Masuk',
     'nav.profile': 'Profil',
     'nav.myOrders': 'Pesanan Saya',
@@ -317,6 +320,7 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.login': 'Entrar',
 
     'nav.videoShop': 'Loja em Vídeo',
+    'nav.allCategories': 'Todas as Categorias',
     'nav.signIn': 'Entrar',
     'nav.profile': 'Perfil',
     'nav.myOrders': 'Meus Pedidos',

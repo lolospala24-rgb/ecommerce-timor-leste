@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { useCategories } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/uiStore';
 import { SearchAiBar } from '@/components/shared/SearchAiBar';
@@ -42,6 +43,8 @@ import {
   Bell,
   CheckCheck,
   Trash2,
+  ChevronDown,
+  LayoutGrid,
 } from 'lucide-react';
 import { Play } from 'lucide-react';
 
@@ -50,6 +53,11 @@ export function Header() {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
+  // Same query the homepage's "Explora Kategoria" showcase uses — this
+  // dropdown should always list the same top-level categories, not a
+  // separately-curated subset.
+  const { data: categoriesData } = useCategories({ limit: 100, includeProducts: true });
+  const topCategories = (categoriesData?.data ?? []).filter((c: { parentId?: number | null }) => !c.parentId);
   // Narrow selectors instead of the shared useCart() hook: Header only ever
   // displays these two derived numbers, so subscribing to the full cart
   // hook (items/isLoading/error/actions) would re-render it on every
@@ -145,6 +153,35 @@ export function Header() {
                 {publicSettings?.siteName || 'E-Commerce'}
               </span>
             </Link>
+
+            {/* All-categories dropdown — a shortcut to browse by category
+                without going through search first, sitting right beside the
+                logo the way most marketplace headers place it. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="hidden shrink-0 items-center gap-1.5 rounded-full border bg-background px-3.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted md:flex"
+                >
+                  <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                  {t('nav.allCategories')}
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuItem asChild>
+                  <Link href="/categories" className="font-medium text-primary">
+                    {t('nav.allCategories')}
+                  </Link>
+                </DropdownMenuItem>
+                {topCategories.length > 0 && <DropdownMenuSeparator />}
+                {topCategories.map((category: { id: number; slug: string; name: string }) => (
+                  <DropdownMenuItem key={category.id} asChild>
+                    <Link href={`/categories/${category.slug}`}>{category.name}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Search Bar - Desktop */}
             {/* Main Navigation - Desktop */}
