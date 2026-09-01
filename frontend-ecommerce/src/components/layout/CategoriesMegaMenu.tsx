@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCategoryTree } from '@/hooks/useCategories';
@@ -20,46 +21,65 @@ interface CategoriesMegaMenuProps {
   onNavigate?: () => void;
 }
 
-// Full mega-menu panel for the header's "All Categories" trigger: a browse
-// list, a subcategory grid for the top categories, and a featured rail —
-// all driven by the same real category tree /categories/tree already
-// returns, nothing fabricated beyond icon choice and the generic promo copy.
+// Full mega-menu panel for the header's "All Categories" trigger. Hover a
+// category on the left and the center column updates to that category's
+// subcategories — the center never opens a second floating panel, it just
+// swaps content in place, so the menu stays put while browsing. All data
+// comes from the real /categories/tree endpoint (already used by the
+// Categories directory page); nothing here is fabricated beyond icon choice
+// and the generic promo/trust copy already used elsewhere on the site.
 export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
   const { t } = useTranslation();
   const { data: tree } = useCategoryTree();
   const categories = (tree ?? []) as Category[];
 
+  const [activeId, setActiveId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (categories.length > 0 && activeId === null) {
+      setActiveId(categories[0].id);
+    }
+  }, [categories, activeId]);
+
   if (categories.length === 0) {
-    return (
-      <div className="p-6 text-sm text-muted-foreground">{t('nav.megaMenu.empty')}</div>
-    );
+    return <div className="p-6 text-sm text-muted-foreground">{t('nav.megaMenu.empty')}</div>;
   }
 
-  const shopByCategory = categories.slice(0, 8);
+  const activeCategory = categories.find((c) => c.id === activeId) ?? categories[0];
+  const activeChildren = (activeCategory.children ?? []) as CategoryChild[];
   const featured = categories.filter((c) => c.isFeatured).slice(0, 4);
   const fallbackFeatured = featured.length > 0 ? featured : categories.slice(0, 4);
 
   return (
-    <div className="flex w-[min(980px,calc(100vw-2rem))] max-h-[min(640px,calc(100vh-6rem))] flex-col overflow-hidden">
+    <div className="flex w-[min(880px,calc(100vw-2rem))] max-h-[min(640px,calc(100vh-6rem))] flex-col overflow-hidden">
       <div className="flex flex-1 overflow-y-auto">
         {/* Browse Categories */}
-        <div className="w-48 shrink-0 border-r bg-muted/20 py-3">
+        <div className="w-56 shrink-0 border-r bg-muted/20 py-3">
           <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t('nav.megaMenu.browse')}
           </p>
-          <ul>
+          <ul onMouseLeave={() => setActiveId(activeCategory.id)}>
             {categories.map((category) => {
               const Icon = getCategoryIcon(category.name);
+              const isActive = category.id === activeCategory.id;
               return (
                 <li key={category.id}>
                   <Link
                     href={`/categories/${category.slug}`}
                     onClick={onNavigate}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-foreground/85 transition-colors hover:bg-primary/5 hover:text-primary"
+                    onMouseEnter={() => setActiveId(category.id)}
+                    onFocus={() => setActiveId(category.id)}
+                    className={`flex items-center gap-2.5 px-4 py-2 text-sm transition-colors ${
+                      isActive
+                        ? 'bg-primary/10 font-medium text-primary'
+                        : 'text-foreground/85 hover:bg-primary/5 hover:text-primary'
+                    }`}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
                     <span className="min-w-0 flex-1 truncate">{category.name}</span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground/50'}`}
+                    />
                   </Link>
                 </li>
               );
@@ -77,60 +97,40 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
           </div>
         </div>
 
-        {/* Shop by Category */}
-        <div className="flex-1 px-5 py-4">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('nav.megaMenu.shopByCategory')}
+        {/* Active category's subcategories — swaps in place on hover,
+            never a second floating panel. */}
+        <div className="flex-1 px-6 py-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-primary">
+            {activeCategory.name}
           </p>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-3">
-            {shopByCategory.map((category) => {
-              const Icon = getCategoryIcon(category.name);
-              const children = (category.children ?? []) as CategoryChild[];
-              return (
-                <div key={category.id}>
-                  <Link
-                    href={`/categories/${category.slug}`}
-                    onClick={onNavigate}
-                    className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-4 w-4 text-primary" />
-                    </span>
-                    <span className="leading-tight">{category.name}</span>
-                  </Link>
-                  {children.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {children.slice(0, 5).map((child) => (
-                        <li key={child.id}>
-                          <Link
-                            href={`/categories/${child.slug}`}
-                            onClick={onNavigate}
-                            className="block truncate text-sm text-muted-foreground hover:text-primary"
-                          >
-                            {child.name}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : !!category.productCount && category.productCount > 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {category.productCount} {t('nav.megaMenu.products')}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground/70">{t('nav.megaMenu.explore')}</p>
-                  )}
-                  <Link
-                    href={`/categories/${category.slug}`}
-                    onClick={onNavigate}
-                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  >
-                    {t('nav.megaMenu.viewCategory')}
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
+          {activeChildren.length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              {activeChildren.map((child) => (
+                <Link
+                  key={child.id}
+                  href={`/categories/${child.slug}`}
+                  onClick={onNavigate}
+                  className="truncate rounded-md px-2 py-1.5 text-sm text-foreground/80 transition-colors hover:bg-primary/5 hover:text-primary"
+                >
+                  {child.name}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {!!activeCategory.productCount && activeCategory.productCount > 0
+                ? `${activeCategory.productCount} ${t('nav.megaMenu.products')}`
+                : t('nav.megaMenu.noSubcategories')}
+            </p>
+          )}
+          <Link
+            href={`/categories/${activeCategory.slug}`}
+            onClick={onNavigate}
+            className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            {t('nav.megaMenu.viewCategory')}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
         {/* Featured Categories */}

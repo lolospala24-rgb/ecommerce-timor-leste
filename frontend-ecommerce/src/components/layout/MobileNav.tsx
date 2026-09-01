@@ -3,8 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import { useCategoryTree } from '@/hooks/useCategories';
+import { getCategoryIcon } from '@/lib/categoryIcons';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   Home,
   Package,
@@ -19,7 +23,9 @@ import {
   HelpCircle,
   Smartphone,
   Play,
+  ArrowRight,
 } from 'lucide-react';
+import type { Category, CategoryChild } from '@/types/category.types';
 
 interface MobileNavProps {
   open: boolean;
@@ -30,7 +36,6 @@ const mainMenuItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/products', label: 'Products', icon: Package },
   { href: '/videos', label: 'Video Shop', icon: Play },
-  { href: '/categories', label: 'Categories', icon: FolderTree },
   { href: '/sellers', label: 'Sellers', icon: Store },
   { href: '/cart', label: 'Cart', icon: ShoppingCart },
   { href: '/account/wishlist', label: 'Wishlist', icon: Heart },
@@ -51,6 +56,12 @@ const accountItems = [
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { t } = useTranslation();
+  // Desktop gets the hover-driven mega menu (CategoriesMegaMenu); mobile has
+  // no hover, so this is a plain accordion instead — same category tree,
+  // same routes, just a drill-down interaction that works with touch.
+  const { data: categoryTree } = useCategoryTree();
+  const categories = (categoryTree ?? []) as Category[];
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -119,6 +130,74 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                     </Link>
                   );
                 })}
+              </div>
+
+              {/* Categories — accordion drill-down (mobile has no hover to
+                  drive the desktop mega menu's active-category preview). */}
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase text-muted-foreground px-3">
+                  {t('nav.megaMenu.browse')}
+                </p>
+                {categories.length > 0 ? (
+                  <Accordion type="single" collapsible className="px-1">
+                    {categories.map((category) => {
+                      const Icon = getCategoryIcon(category.name);
+                      const children = (category.children ?? []) as CategoryChild[];
+                      return (
+                        <AccordionItem key={category.id} value={String(category.id)} className="border-b-0">
+                          <AccordionTrigger className="rounded-lg px-2 py-2.5 text-sm font-medium text-foreground hover:bg-accent hover:no-underline">
+                            <span className="flex items-center gap-3">
+                              <Icon className="h-5 w-5 text-muted-foreground" />
+                              {category.name}
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-1 pl-11 pr-2">
+                            {children.length > 0 ? (
+                              <ul className="space-y-1">
+                                {children.map((child) => (
+                                  <li key={child.id}>
+                                    <Link
+                                      href={`/categories/${child.slug}`}
+                                      onClick={() => onOpenChange(false)}
+                                      className="block rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                            <Link
+                              href={`/categories/${category.slug}`}
+                              onClick={() => onOpenChange(false)}
+                              className="mt-1 flex items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium text-primary"
+                            >
+                              {t('nav.megaMenu.viewCategory')}
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                ) : (
+                  <Link
+                    href="/categories"
+                    onClick={() => onOpenChange(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <FolderTree className="h-5 w-5" />
+                    <span className="text-sm font-medium">{t('nav.allCategories')}</span>
+                  </Link>
+                )}
+                <Link
+                  href="/categories"
+                  onClick={() => onOpenChange(false)}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-primary"
+                >
+                  {t('nav.megaMenu.viewAll')}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
 
               {/* Main Menu */}
