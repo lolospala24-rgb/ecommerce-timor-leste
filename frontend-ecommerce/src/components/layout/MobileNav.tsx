@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useCategoryTree } from '@/hooks/useCategories';
@@ -24,8 +25,16 @@ import {
   Smartphone,
   Play,
   ArrowRight,
+  Truck,
+  ShieldCheck,
+  BadgeCheck,
+  Headset,
+  Gift,
+  ChevronDown,
 } from 'lucide-react';
 import type { Category, CategoryChild } from '@/types/category.types';
+
+const isLocalCategory = (name: string) => /local/i.test(name);
 
 interface MobileNavProps {
   open: boolean;
@@ -143,13 +152,20 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                     {categories.map((category) => {
                       const Icon = getCategoryIcon(category.name);
                       const children = (category.children ?? []) as CategoryChild[];
+                      const isLocal = isLocalCategory(category.name);
                       return (
                         <AccordionItem key={category.id} value={String(category.id)} className="border-b-0">
-                          <AccordionTrigger className="rounded-lg px-2 py-2.5 text-sm font-medium text-foreground hover:bg-accent hover:no-underline">
-                            <span className="flex items-center gap-3">
-                              <Icon className="h-5 w-5 text-muted-foreground" />
+                          <AccordionTrigger className="group rounded-lg px-2 py-2.5 text-sm font-medium text-foreground hover:bg-accent hover:no-underline">
+                            <span className="flex flex-1 items-center gap-3">
+                              <Icon className={`h-5 w-5 ${isLocal ? 'text-secondary' : 'text-muted-foreground'}`} />
                               {category.name}
+                              {isLocal && (
+                                <span className="rounded-full bg-secondary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                                  TL
+                                </span>
+                              )}
                             </span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
                           </AccordionTrigger>
                           <AccordionContent className="pb-1 pl-11 pr-2">
                             {children.length > 0 ? (
@@ -199,6 +215,80 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
+
+              {/* Featured categories + promo — same content as the desktop
+                  mega menu's right rail, stacked instead of a third column
+                  (390px has no room for 3 real columns of readable text). */}
+              {categories.length > 0 && (() => {
+                const featured = categories.filter((c) => c.isFeatured).slice(0, 4);
+                const fallbackFeatured = featured.length > 0 ? featured : categories.slice(0, 4);
+                return (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground px-3">
+                      {t('nav.megaMenu.featured')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 px-1">
+                      {fallbackFeatured.map((category) => {
+                        const Icon = getCategoryIcon(category.name);
+                        return (
+                          <Link
+                            key={category.id}
+                            href={`/categories/${category.slug}`}
+                            onClick={() => onOpenChange(false)}
+                            className="flex items-center gap-2 rounded-lg border p-2"
+                          >
+                            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary/10">
+                              {category.image ? (
+                                <Image src={category.image} alt="" fill sizes="36px" className="object-cover" />
+                              ) : (
+                                <Icon className="h-4 w-4 text-primary" />
+                              )}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-xs font-medium text-foreground">
+                                {category.name}
+                              </span>
+                              <span className="block truncate text-[11px] text-muted-foreground">
+                                {!!category.productCount && category.productCount > 0
+                                  ? `${category.productCount} ${t('nav.megaMenu.products')}`
+                                  : t('nav.megaMenu.explore')}
+                              </span>
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                    <Link
+                      href="/products"
+                      onClick={() => onOpenChange(false)}
+                      className="mx-1 mt-2 flex items-center gap-3 rounded-xl bg-gradient-to-br from-primary to-blue-700 p-3 text-white"
+                    >
+                      <Gift className="h-7 w-7 shrink-0 text-white/90" strokeWidth={1.5} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold leading-tight">
+                          {t('nav.megaMenu.promoTitle')}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-white/80">
+                          {t('nav.megaMenu.promoSubtitle')}
+                        </span>
+                      </span>
+                    </Link>
+                    <div className="mt-3 grid grid-cols-2 gap-2 border-t px-1 pt-3">
+                      {[
+                        { icon: Truck, label: t('nav.megaMenu.trust.delivery') },
+                        { icon: ShieldCheck, label: t('nav.megaMenu.trust.payment') },
+                        { icon: BadgeCheck, label: t('nav.megaMenu.trust.original') },
+                        { icon: Headset, label: t('nav.megaMenu.trust.support') },
+                      ].map(({ icon: Icon, label }) => (
+                        <div key={label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="truncate">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Main Menu */}
               <div className="space-y-1">
