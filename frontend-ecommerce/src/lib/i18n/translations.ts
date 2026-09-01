@@ -100,7 +100,7 @@ export const translations: Record<Locale, Dictionary> = {
     // Quick menu (homepage)
     'home.quickMenu.title': 'Menu Rápidu',
     'home.quickMenu.allProducts': 'Produtu Hotu',
-    'home.quickMenu.categories': 'Kategoria',
+    'home.quickMenu.becomeSeller': 'Sai Vendedór',
     'home.quickMenu.localProducts': 'Produtu Local',
     'home.quickMenu.newArrivals': 'Foun Mai',
     'home.quickMenu.popular': 'Populár',
@@ -218,7 +218,7 @@ export const translations: Record<Locale, Dictionary> = {
 
     'home.quickMenu.title': 'Quick Menu',
     'home.quickMenu.allProducts': 'All Products',
-    'home.quickMenu.categories': 'Categories',
+    'home.quickMenu.becomeSeller': 'Become a Seller',
     'home.quickMenu.localProducts': 'Local Products',
     'home.quickMenu.newArrivals': 'New Arrivals',
     'home.quickMenu.popular': 'Popular',
@@ -332,7 +332,7 @@ export const translations: Record<Locale, Dictionary> = {
 
     'home.quickMenu.title': 'Menu Cepat',
     'home.quickMenu.allProducts': 'Semua Produk',
-    'home.quickMenu.categories': 'Kategori',
+    'home.quickMenu.becomeSeller': 'Jadi Penjual',
     'home.quickMenu.localProducts': 'Produk Lokal',
     'home.quickMenu.newArrivals': 'Produk Baru',
     'home.quickMenu.popular': 'Populer',
@@ -446,7 +446,7 @@ export const translations: Record<Locale, Dictionary> = {
 
     'home.quickMenu.title': 'Menu Rápido',
     'home.quickMenu.allProducts': 'Todos os Produtos',
-    'home.quickMenu.categories': 'Categorias',
+    'home.quickMenu.becomeSeller': 'Tornar-se Vendedor',
     'home.quickMenu.localProducts': 'Produtos Locais',
     'home.quickMenu.newArrivals': 'Novidades',
     'home.quickMenu.popular': 'Popular',

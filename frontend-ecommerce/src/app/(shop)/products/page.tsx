@@ -44,10 +44,28 @@ function ProductsPageSkeleton() {
   );
 }
 
+// Mirrors ProductSort's own option list — validated against this so an
+// arbitrary/unexpected ?sortBy= value in a shared link can't silently pass
+// through as-is; anything unrecognized just falls back to "newest".
+const VALID_SORT_VALUES = new Set([
+  'relevance',
+  'featured',
+  'newest',
+  'best_selling',
+  'rating',
+  'price_asc',
+  'price_desc',
+  'name_asc',
+  'name_desc',
+]);
+
 function ProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
+  const sortFromUrl = searchParams.get('sortBy');
+  const initialSortBy = sortFromUrl && VALID_SORT_VALUES.has(sortFromUrl) ? sortFromUrl : 'newest';
+
   const [filters, setFilters] = useState({
     page: 1,
     limit: 12,
@@ -55,11 +73,11 @@ function ProductsPageContent() {
     categoryId: searchParams.get('category') ? parseInt(searchParams.get('category')!) : undefined,
     minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined,
     maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined,
-    sortBy: 'newest' as string,
+    sortBy: initialSortBy,
     inStock: undefined as boolean | undefined,
     minRating: undefined as number | undefined,
   });
-  
+
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useProducts(filters);
   const { data: categories } = useCategories({ limit: 100 });
@@ -70,6 +88,7 @@ function ProductsPageContent() {
     const q = searchParams.get('q');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
+    const sortBy = searchParams.get('sortBy');
 
     setFilters(prev => ({
       ...prev,
@@ -77,6 +96,7 @@ function ProductsPageContent() {
       categoryId: category ? parseInt(category) : undefined,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      sortBy: sortBy && VALID_SORT_VALUES.has(sortBy) ? sortBy : prev.sortBy,
       page: 1,
     }));
   }, [searchParams]);

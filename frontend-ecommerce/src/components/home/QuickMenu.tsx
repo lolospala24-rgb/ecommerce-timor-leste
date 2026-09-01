@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import {
-  LayoutGrid,
   Sparkles,
   TrendingUp,
   Store,
@@ -11,6 +10,7 @@ import {
   ShoppingCart,
   ClipboardList,
   Boxes,
+  Megaphone,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 
@@ -22,9 +22,12 @@ interface QuickMenuItem {
   iconColor: string;
 }
 
-// Every entry here points to a page or in-page section that actually
-// exists and works — no dead links. Items like "Promo"/"Voucher" were
-// removed because there's no real coupon or promotion system behind them.
+// Every entry here points to a page that actually exists and works — no
+// dead links. The three "jump to a homepage section" links this used to
+// have (#local-products, #new-arrivals, #popular-products) never matched
+// anything real: homepage sections are admin-configured and render with no
+// id at all, so those taps silently did nothing. Replaced with routes that
+// always resolve regardless of what's configured on the homepage today.
 const menus: QuickMenuItem[] = [
   {
     titleKey: 'home.quickMenu.allProducts',
@@ -34,29 +37,29 @@ const menus: QuickMenuItem[] = [
     iconColor: 'text-blue-700',
   },
   {
-    titleKey: 'home.quickMenu.categories',
-    href: '/categories',
-    icon: LayoutGrid,
+    titleKey: 'home.quickMenu.becomeSeller',
+    href: '/seller/register',
+    icon: Megaphone,
     bgColor: 'bg-teal-100',
     iconColor: 'text-teal-700',
   },
   {
     titleKey: 'home.quickMenu.localProducts',
-    href: '#local-products',
+    href: '/categories/local-products',
     icon: Store,
     bgColor: 'bg-green-100',
     iconColor: 'text-green-600',
   },
   {
     titleKey: 'home.quickMenu.newArrivals',
-    href: '#new-arrivals',
+    href: '/products?sortBy=newest',
     icon: Sparkles,
     bgColor: 'bg-amber-100',
     iconColor: 'text-amber-600',
   },
   {
     titleKey: 'home.quickMenu.popular',
-    href: '#popular-products',
+    href: '/products?sortBy=best_selling',
     icon: TrendingUp,
     bgColor: 'bg-blue-100',
     iconColor: 'text-blue-700',
