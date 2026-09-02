@@ -277,6 +277,12 @@ model Cart {
   expiresAt DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Set by AbandonedCartJob after it emails a reminder. Compared against
+  // the cart's actual last-activity (max CartItem.updatedAt, not this row's
+  // own updatedAt — item mutations never touch the parent Cart row) so a
+  // customer who returns and changes their cart becomes eligible for one
+  // more reminder after another period of inactivity.
+  reminderSentAt DateTime?
 
   // Relations
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)

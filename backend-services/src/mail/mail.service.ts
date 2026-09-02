@@ -10,6 +10,7 @@ import {
   notificationEmailTemplate,
   testEmailTemplate,
   welcomeEmailTemplate,
+  abandonedCartTemplate,
 } from './mail-templates';
 
 interface ResolvedMailConfig {
@@ -175,6 +176,23 @@ export class MailService {
     if (!(await this.isEnabled('sendWelcomeEmail'))) return;
     const html = welcomeEmailTemplate({ customerName: name });
     await this.send(email, 'Welcome to E-commerce Timor-Leste', html);
+  }
+
+  // Not gated by an admin Settings toggle — same as PaymentExpiryJob/
+  // DeliveryAutoConfirmJob, this is a system job with no existing on/off
+  // switch in SystemSettings, not a per-order transactional notification.
+  async sendAbandonedCartEmail(
+    email: string,
+    name: string,
+    items: { name: string; quantity: number; price: number }[],
+  ) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const html = abandonedCartTemplate({
+      customerName: name,
+      items,
+      cartUrl: frontendUrl ? `${frontendUrl}/cart` : '/cart',
+    });
+    return this.send(email, 'You left something in your cart', html);
   }
 
   // The remaining notification types below aren't exposed as an admin

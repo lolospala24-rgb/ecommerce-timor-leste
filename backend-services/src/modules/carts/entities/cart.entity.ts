@@ -7,6 +7,7 @@ export class CartEntity implements Cart {
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  reminderSentAt: Date | null;
 
   // Additional fields
   items?: (CartItem & { product: Product })[];

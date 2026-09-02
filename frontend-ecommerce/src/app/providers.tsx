@@ -3,10 +3,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { SmoothScroll } from '@/components/smooth-scroll/SmoothScroll';
+import { GoogleAnalytics } from '@/components/shared/GoogleAnalytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <LanguageProvider>
+          <Suspense fallback={null}>
+            <GoogleAnalytics />
+          </Suspense>
           <SmoothScroll>{children}</SmoothScroll>
           <ReactQueryDevtools initialIsOpen={false} />
         </LanguageProvider>

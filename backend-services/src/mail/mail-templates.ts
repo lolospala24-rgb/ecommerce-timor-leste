@@ -197,6 +197,36 @@ export function notificationEmailTemplate(params: {
   return layout(params.title, body);
 }
 
+export function abandonedCartTemplate(params: {
+  customerName: string;
+  items: { name: string; quantity: number; price: number }[];
+  cartUrl: string;
+}) {
+  const rows = params.items
+    .map(
+      (item) => `
+        <tr>
+          <td style="padding:6px 0;border-bottom:1px solid #e5e7eb;">${item.name} × ${item.quantity}</td>
+          <td style="padding:6px 0;border-bottom:1px solid #e5e7eb;text-align:right;">${money(item.price * item.quantity)}</td>
+        </tr>`,
+    )
+    .join('');
+
+  const body = `
+    <p>Hi ${params.customerName},</p>
+    <p>You left some items in your cart — they're still saved and waiting for you.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;font-size:14px;">
+      ${rows}
+    </table>
+    <p style="margin-top:20px;">
+      <a href="${params.cartUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:bold;">
+        Complete Your Order &rarr;
+      </a>
+    </p>`;
+
+  return layout('Still thinking it over?', body);
+}
+
 export function testEmailTemplate() {
   const body = `<p>This is a test email confirming your SMTP settings are configured correctly.</p>`;
   return layout('Test Email', body);

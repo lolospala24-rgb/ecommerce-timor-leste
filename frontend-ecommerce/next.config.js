@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
 const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
@@ -21,7 +23,7 @@ const contentSecurityPolicy = [
   // Next.js dev-mode Fast Refresh/HMR (react-refresh-utils runtime) uses
   // eval() internally, so 'unsafe-eval' is needed in dev only; production
   // builds don't use eval-based HMR, so it stays out of the prod CSP.
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://maps.googleapis.com`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://maps.googleapis.com${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.googletagmanager.com' : ''}`,
   // No nonce equivalent exists for inline style *attributes* (only <style>
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
@@ -32,7 +34,10 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://maps.gstatic.com https://maps.googleapis.com https://*.googleusercontent.com",
   "media-src 'self' blob: https://res.cloudinary.com http://res.cloudinary.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com`,
+  // Sentry ingest is only reachable (and only added to the policy) once
+  // NEXT_PUBLIC_SENTRY_DSN is actually set at build time — no DSN means no
+  // outbound Sentry traffic at all, so there's nothing to allow.
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
   "worker-src 'self' blob:",
   `frame-src 'self'${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
@@ -112,4 +117,12 @@ const nextConfig = {
   output: 'standalone',
 };
 
-module.exports = nextConfig;
+// withSentryConfig's webpack plugin bundles the Sentry client SDK into
+// every page's shared chunk unconditionally — the sentry.client.config.ts
+// dsn-guard only skips the runtime .init() call, not the ~75KB of SDK code
+// itself. Only applying the wrapper when a DSN is actually set keeps every
+// page's bundle size exactly as it was before this integration until
+// Sentry is really turned on.
+module.exports = process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, { silent: true })
+  : nextConfig;

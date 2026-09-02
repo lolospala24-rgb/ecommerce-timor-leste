@@ -1,10 +1,12 @@
-﻿import { NestFactory } from '@nestjs/core';
+﻿import './instrument';
+import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { SentryInterceptor } from './common/interceptors/sentry.interceptor';
 import helmet from 'helmet';
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
@@ -84,7 +86,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter());
   
   // Global interceptors
-  app.useGlobalInterceptors(new TransformInterceptor(), new LoggingInterceptor());
+  app.useGlobalInterceptors(new TransformInterceptor(), new LoggingInterceptor(), new SentryInterceptor());
   
   // API prefix
   app.setGlobalPrefix('api/v1');
