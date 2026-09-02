@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 import { RefundRequestPanel } from '@/components/orders/RefundRequestPanel';
+import { CancelOrderPanel } from '@/components/orders/CancelOrderPanel';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   PENDING: { label: 'Pending', color: 'bg-amber-500' },
@@ -260,6 +261,8 @@ export default function AccountOrderDetailPage() {
             paymentStatus={order.payment?.status}
             deliveredAt={order.deliveredAt}
           />
+
+          <CancelOrderPanel orderId={order.id} orderStatus={order.status} />
 
           {/* Customer Info */}
           <Card>

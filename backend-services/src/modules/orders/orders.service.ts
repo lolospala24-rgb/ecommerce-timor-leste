@@ -1038,6 +1038,27 @@ export class OrdersService {
       );
     }
 
+    // Atomic guard, same TOCTOU concern as PaymentsService.confirmPayment/
+    // rejectPayment: the status check above ran outside any lock, so two
+    // concurrent cancel calls (double-click, retried request) could both
+    // pass it before either write lands. The `status: {in: [...]}` guard in
+    // the where-clause makes the transition itself atomic — only the first
+    // caller's write actually matches a row; the loser gets count 0 and a
+    // clean error instead of racing into the stock-restore loop below and
+    // double-crediting stock.
+    const guardResult = await this.prisma.order.updateMany({
+      where: { id, status: { in: [OrderStatus.PENDING, OrderStatus.PAID] } },
+      data: {
+        status: OrderStatus.CANCELLED,
+        cancelledAt: new Date(),
+        notes: reason ? `Cancelled: ${reason}` : order.notes,
+      },
+    });
+
+    if (guardResult.count === 0) {
+      throw new BadRequestException('This order has already been cancelled or its status has changed');
+    }
+
     // Restore stock — variant and base-product stock are separate pools,
     // see orders.service.ts create().
     for (const item of order.items) {
@@ -1056,14 +1077,7 @@ export class OrdersService {
       }
     }
 
-    const cancelledOrder = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.CANCELLED,
-        cancelledAt: new Date(),
-        notes: reason ? `Cancelled: ${reason}` : order.notes,
-      },
-    });
+    const cancelledOrder = await this.prisma.order.findUniqueOrThrow({ where: { id } });
 
     // If it was already paid, this isn't just a status flip anymore — it
     // goes through RefundsService so the seller's earnings ledger is
@@ -1122,6 +1136,18 @@ export class OrdersService {
     if (order.status !== OrderStatus.PENDING) return;
     if (order.payment.status !== PaymentStatus.PENDING) return;
 
+    // Atomic guard — same TOCTOU concern as cancelOrder(): if an overlapping
+    // sweep (or a future manual "expire now" trigger) ever calls this for
+    // the same order twice concurrently, only one caller's updateMany
+    // actually matches a still-PENDING payment; the other gets count 0 and
+    // returns before touching stock.
+    const guardResult = await this.prisma.payment.updateMany({
+      where: { id: order.payment.id, status: PaymentStatus.PENDING },
+      data: { status: PaymentStatus.FAILED, notes: 'Expired — no receipt uploaded within the payment window' },
+    });
+
+    if (guardResult.count === 0) return;
+
     for (const item of order.items) {
       if (item.variantId) {
         await this.prisma.productVariant.updateMany({
@@ -1132,11 +1158,6 @@ export class OrdersService {
         await this.productsService.updateStock(item.productId, item.quantity, 'add', order.seller.userId);
       }
     }
-
-    await this.prisma.payment.update({
-      where: { id: order.payment.id },
-      data: { status: PaymentStatus.FAILED, notes: 'Expired — no receipt uploaded within the payment window' },
-    });
 
     const cancelledOrder = await this.prisma.order.update({
       where: { id },
