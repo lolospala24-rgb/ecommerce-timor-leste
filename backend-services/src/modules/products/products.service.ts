@@ -21,6 +21,7 @@ import { UpdateProductTypeDto } from './dto/update-product-type.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
 import { StockNotificationsService } from '../stock-notifications/stock-notifications.service';
+import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 
 @Injectable()
 export class ProductsService {
@@ -192,6 +193,47 @@ export class ProductsService {
     await this.clearProductCache();
 
     return product;
+  }
+
+  private static readonly EXPORT_COLUMNS: ExportColumn[] = [
+    { key: 'name', header: 'Product Name' },
+    { key: 'slug', header: 'Slug' },
+    { key: 'sellerName', header: 'Seller' },
+    { key: 'categoryName', header: 'Category' },
+    { key: 'price', header: 'Price' },
+    { key: 'stock', header: 'Stock' },
+    { key: 'isActive', header: 'Active' },
+    { key: 'createdAt', header: 'Created At' },
+  ];
+
+  // Admin-only bulk dump, capped at 10,000 rows for the same reason as
+  // OrdersService.exportOrders — a bounded file, not an unbounded query.
+  async exportProducts() {
+    const products = await this.prisma.product.findMany({
+      take: 10000,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        seller: { select: { storeName: true } },
+        category: { select: { name: true } },
+      },
+    });
+
+    const rows = products.map((p) => ({
+      name: p.name,
+      slug: p.slug,
+      sellerName: p.seller?.storeName ?? '',
+      categoryName: p.category?.name ?? '',
+      price: p.price,
+      stock: p.stock,
+      isActive: p.isActive,
+      createdAt: p.createdAt.toISOString(),
+    }));
+
+    const csv = rowsToCsv(rows, ProductsService.EXPORT_COLUMNS);
+    return {
+      buffer: Buffer.from(csv, 'utf-8'),
+      filename: `products_export_${new Date().toISOString().split('T')[0]}.csv`,
+    };
   }
 
   async findAll(filterDto: FilterProductDto) {

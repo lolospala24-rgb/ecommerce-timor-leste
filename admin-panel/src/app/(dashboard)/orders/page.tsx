@@ -18,6 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Download, RefreshCw, ShoppingCart } from 'lucide-react';
 import { OrderDetailModal } from './components/OrderDetailModal';
 import { ErrorState } from '@/components/shared/ErrorState';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export default function OrdersPage() {
   const [filters, setFilters] = useState({
@@ -41,11 +43,27 @@ export default function OrdersPage() {
   };
 
   const handleExport = async () => {
-    window.location.href = `/api/orders/export?${new URLSearchParams({
-      status: filters.status,
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-    })}`;
+    try {
+      const params = new URLSearchParams({
+        status: filters.status,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      });
+      // api's response interceptor already unwraps to response.data, so
+      // this resolves directly to the Blob — not { data: Blob }.
+      const blob = await api.get<Blob>(`/orders/export?${params}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(blob as unknown as Blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `orders_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Orders exported successfully');
+    } catch {
+      toast.error('Failed to export orders');
+    }
   };
 
   const getStatusCounts = () => {

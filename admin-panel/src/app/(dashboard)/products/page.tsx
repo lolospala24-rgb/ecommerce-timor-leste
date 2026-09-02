@@ -25,6 +25,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Download, RefreshCw, Package } from 'lucide-react';
 import { ErrorState } from '@/components/shared/ErrorState';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -61,7 +63,22 @@ export default function ProductsPage() {
   });
 
   const handleExport = async () => {
-    window.location.href = '/api/products/export';
+    try {
+      // api's response interceptor already unwraps to response.data, so
+      // this resolves directly to the Blob — not { data: Blob }.
+      const blob = await api.get<Blob>('/products/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(blob as unknown as Blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `products_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Products exported successfully');
+    } catch {
+      toast.error('Failed to export products');
+    }
   };
 
   const handleBulkAction = () => {

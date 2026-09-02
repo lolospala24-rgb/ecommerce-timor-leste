@@ -12,7 +12,9 @@ import {
   HttpCode,
   UseGuards,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -98,6 +100,22 @@ export class OrdersController {
   async getOrderStats(@CurrentUser('id') userId: number) {
     const stats = await this.ordersService.getOrderStats(userId);
     return { data: stats };
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  async exportOrders(
+    @Res() res: Response,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const { buffer, filename } = await this.ordersService.exportOrders({ status, startDate, endDate });
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
   }
 
   @Get('shipping')

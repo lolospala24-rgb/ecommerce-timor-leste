@@ -234,9 +234,26 @@ export function CategoriesTree({ categories, onEdit, onRefresh }: CategoriesTree
 
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
+    if (result.destination.index === result.source.index) return;
 
-    // TODO: Implement reorder API call
-    toast.success('Drag and drop reordering coming soon');
+    // Only top-level categories are draggable here (children render as
+    // plain CategoryNode, not wrapped in Draggable) — so this only ever
+    // needs to recompute order among treeData's siblings, not the whole tree.
+    const reordered = Array.from(treeData);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+    const orders = reordered.map((category, index) => ({ id: category.id, order: index }));
+
+    try {
+      // :id in the path is unused by the backend (the whole `orders` array
+      // in the body is what actually gets applied) — any real category id
+      // satisfies the route.
+      await api.post(`/categories/${orders[0].id}/reorder`, { orders });
+      toast.success('Categories reordered');
+      onRefresh();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reorder categories');
+    }
   };
 
   if (treeData.length === 0) {

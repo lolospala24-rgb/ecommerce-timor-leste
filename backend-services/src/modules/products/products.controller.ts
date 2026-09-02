@@ -15,7 +15,9 @@
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -72,6 +74,17 @@ export class ProductsController {
   async findAll(@Query() filterDto: FilterProductDto) {
     const result = await this.productsService.findAll(filterDto);
     return result;
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  async exportProducts(@Res() res: Response) {
+    const { buffer, filename } = await this.productsService.exportProducts();
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
   }
 
   @Public()

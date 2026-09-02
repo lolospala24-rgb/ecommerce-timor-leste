@@ -1,12 +1,23 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Loader2 } from 'lucide-react';
+
+// SELLER accounts are let into this same admin shell for exactly one
+// reason: My Store (logo/banner/store info) is real, fully built, and has
+// nowhere else to live — there's no seller dashboard on the customer-facing
+// frontend, only /seller/register. Every other page here (Products, Orders,
+// Finance, Users, ...) is an admin-wide view with no seller-scoping logic
+// behind it at all, so a seller must never be allowed to actually land on
+// them — hence the redirect below, on top of Sidebar hiding those links
+// for a SELLER in the first place (defense in depth: don't rely on the nav
+// alone to keep a seller off a typed-in URL).
+const SELLER_ALLOWED_PATHS = ['/my-store', '/profile'];
 
 export default function DashboardLayout({
   children,
@@ -14,7 +25,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, requireAdmin } = useAuth();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -23,19 +35,22 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isLoading && isClient) {
-      // Check if user is authenticated
       if (!isAuthenticated) {
         router.push('/login');
         return;
       }
 
-      // Check if user has admin role
-      if (user?.role !== 'ADMIN') {
+      if (user?.role !== 'ADMIN' && user?.role !== 'SELLER') {
         router.push('/unauthorized');
         return;
       }
+
+      if (user?.role === 'SELLER' && !SELLER_ALLOWED_PATHS.some((p) => pathname?.startsWith(p))) {
+        router.push('/my-store');
+        return;
+      }
     }
-  }, [isAuthenticated, isLoading, router, user, isClient]);
+  }, [isAuthenticated, isLoading, router, user, isClient, pathname]);
 
   // Show loading state
   if (!isClient || isLoading) {
@@ -46,8 +61,14 @@ export default function DashboardLayout({
     );
   }
 
-  // If not authenticated or not admin, don't render
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  const isAllowedRole = user?.role === 'ADMIN' || user?.role === 'SELLER';
+  const isSellerOnAllowedPath =
+    user?.role !== 'SELLER' || SELLER_ALLOWED_PATHS.some((p) => pathname?.startsWith(p));
+
+  // If not authenticated, not an allowed role, or a seller mid-redirect off
+  // a page they shouldn't see, don't render — avoids a one-frame flash of
+  // admin-only content before the effect above redirects.
+  if (!isAuthenticated || !isAllowedRole || !isSellerOnAllowedPath) {
     return null;
   }
 

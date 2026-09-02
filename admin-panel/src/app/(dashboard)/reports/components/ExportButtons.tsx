@@ -30,11 +30,15 @@ export function ExportButtons({ reportType, dateRange, onExport }: ExportButtons
         format,
       });
 
-      const response = await api.get(`/reports/${reportType}/export?${params}`, {
+      // api's response interceptor already unwraps to response.data, so
+      // this resolves directly to the Blob — not { data: Blob }. (Was
+      // previously new Blob([response.data]), which downloaded a file
+      // containing the literal text "undefined" instead of real content.)
+      const blob = await api.get<Blob>(`/reports/${reportType}/export?${params}`, {
         responseType: 'blob',
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(blob as unknown as Blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`);

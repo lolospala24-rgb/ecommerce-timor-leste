@@ -12,6 +12,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
 import { CategoryProductsQueryDto } from './dto/category-products-query.dto';
+import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { Prisma } from '@prisma/client';
 import {
   CategoryFilterDefinition,
@@ -94,6 +95,42 @@ export class CategoriesService {
     await this.clearCategoryCache();
 
     return category;
+  }
+
+  private static readonly EXPORT_COLUMNS: ExportColumn[] = [
+    { key: 'name', header: 'Name' },
+    { key: 'nameTetum', header: 'Name (Tetum)' },
+    { key: 'slug', header: 'Slug' },
+    { key: 'parentName', header: 'Parent Category' },
+    { key: 'productCount', header: 'Products' },
+    { key: 'isActive', header: 'Active' },
+    { key: 'isFeatured', header: 'Featured' },
+  ];
+
+  async exportCategories() {
+    const categories = await this.prisma.category.findMany({
+      orderBy: [{ parentId: 'asc' }, { order: 'asc' }],
+      include: {
+        parent: { select: { name: true } },
+        _count: { select: { products: true } },
+      },
+    });
+
+    const rows = categories.map((c) => ({
+      name: c.name,
+      nameTetum: c.nameTetum ?? '',
+      slug: c.slug,
+      parentName: c.parent?.name ?? '',
+      productCount: c._count.products,
+      isActive: c.isActive,
+      isFeatured: c.isFeatured,
+    }));
+
+    const csv = rowsToCsv(rows, CategoriesService.EXPORT_COLUMNS);
+    return {
+      buffer: Buffer.from(csv, 'utf-8'),
+      filename: `categories_export_${new Date().toISOString().split('T')[0]}.csv`,
+    };
   }
 
   async findAll(filters: {

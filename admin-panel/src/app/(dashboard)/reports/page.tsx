@@ -16,8 +16,15 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Download, RefreshCw, TrendingUp, DollarSign, ShoppingBag, Users } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { ExportButtons } from './components/ExportButtons';
+import { RefreshCw, TrendingUp, DollarSign, ShoppingBag, Users } from 'lucide-react';
+
+interface ReportSummary {
+  totalRevenue: number;
+  totalOrders: number;
+  activeSellers: number;
+  averageOrderValue: number;
+}
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -25,24 +32,15 @@ export default function ReportsPage() {
     to: new Date(),
   });
   const [activeTab, setActiveTab] = useState('sales');
-  const [isExporting, setIsExporting] = useState(false);
+  // Owned here (not written via document.getElementById from inside
+  // SalesReport) so the cards stay correct if this page re-renders for any
+  // other reason, and so switching away from the Sales tab doesn't leave
+  // them silently frozen on stale DOM text with no connection to real state.
+  const [summary, setSummary] = useState<ReportSummary | null>(null);
 
-  const handleExport = async (format: 'csv' | 'excel') => {
-    setIsExporting(true);
-    try {
-      const params = new URLSearchParams({
-        startDate: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : '',
-        endDate: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : '',
-        format,
-      });
-      
-      window.location.href = `/api/reports/${activeTab}/export?${params}`;
-      toast.success(`Export started for ${activeTab} report`);
-    } catch (error) {
-      toast.error('Failed to export report');
-    } finally {
-      setIsExporting(false);
-    }
+  const exportDateRange = {
+    startDate: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
+    endDate: dateRange?.to ? dateRange.to.toISOString().split('T')[0] : undefined,
   };
 
   const quickDateRanges = [
@@ -85,22 +83,10 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handleExport('csv')}
-            disabled={isExporting}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleExport('excel')}
-            disabled={isExporting}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export Excel
-          </Button>
+          <ExportButtons
+            reportType={activeTab as 'sales' | 'sellers' | 'products'}
+            dateRange={exportDateRange}
+          />
         </div>
       </div>
 
@@ -149,10 +135,10 @@ export default function ReportsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" id="totalRevenue">$0</div>
+            <div className="text-2xl font-bold">${(summary?.totalRevenue ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
-              Loading...
+              Gross revenue
             </p>
           </CardContent>
         </Card>
@@ -162,7 +148,7 @@ export default function ReportsPage() {
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" id="totalOrders">0</div>
+            <div className="text-2xl font-bold">{(summary?.totalOrders ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Completed orders
             </p>
@@ -174,7 +160,7 @@ export default function ReportsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" id="activeSellers">0</div>
+            <div className="text-2xl font-bold">{(summary?.activeSellers ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Verified sellers
             </p>
@@ -186,7 +172,7 @@ export default function ReportsPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" id="avgOrderValue">$0</div>
+            <div className="text-2xl font-bold">${(summary?.averageOrderValue ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Per transaction
             </p>
@@ -203,7 +189,7 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="sales" className="space-y-4">
-          <SalesReport dateRange={dateRange} />
+          <SalesReport dateRange={dateRange} onSummaryChange={setSummary} />
         </TabsContent>
 
         <TabsContent value="sellers" className="space-y-4">

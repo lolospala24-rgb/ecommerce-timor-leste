@@ -2,23 +2,37 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Protected routes that require authentication
+// Protected routes that require authentication — kept in sync with every
+// real page under (dashboard), mirroring Sidebar.tsx's menuSections/
+// bottomMenuItems (previously these two lists had already drifted apart:
+// /finance, /payouts, and /refunds were treated as admin-only below without
+// ever being protected here in the first place, so an unauthenticated
+// visitor hitting them got no edge-level login redirect at all).
 const protectedRoutes = [
   '/dashboard',
+  '/notifications',
+  '/my-store',
+  '/products',
+  '/categories',
+  '/video-shop',
+  '/homepage',
+  '/hero-banners',
+  '/orders',
+  '/coupons',
+  '/reviews',
+  '/finance',
+  '/payments',
+  '/payouts',
+  '/refunds',
   '/users',
   '/sellers',
-  '/products',
-  '/video-shop',
-  '/categories',
-  '/orders',
-  '/payments',
-  '/reports',
-  '/reviews',
   '/shipping',
   '/couriers',
+  '/live-tracking',
   '/municipalities',
   '/shipping-rates',
   '/shipping-dashboard',
+  '/reports',
   '/profile',
   '/settings',
 ];
@@ -26,18 +40,13 @@ const protectedRoutes = [
 // Auth routes (redirect to dashboard if already logged in)
 const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
 
-// Admin only routes
-const adminRoutes = [
-  '/users',
-  '/sellers',
-  '/categories',
-  '/payments',
-  '/refunds',
-  '/payouts',
-  '/finance',
-  '/reports',
-  '/settings',
-];
+// Reachable by a SELLER account in addition to ADMIN — mirrors
+// SELLER_ALLOWED_PATHS in (dashboard)/layout.tsx exactly (My Store is the
+// only real seller-facing page in this app; Profile is generic to any
+// logged-in user). Admin-only routes are derived below as everything else
+// in protectedRoutes, so the two lists can't drift apart again.
+const sellerAllowedRoutes = ['/my-store', '/profile'];
+const adminRoutes = protectedRoutes.filter((route) => !sellerAllowedRoutes.includes(route));
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -77,9 +86,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect non-admins away from admin-only routes
+  // Redirect non-admins away from admin-only routes. A SELLER goes to
+  // My Store (their actual landing page — see SELLER_ALLOWED_PATHS in
+  // (dashboard)/layout.tsx) rather than the generic /unauthorized, which is
+  // reserved for roles with no legitimate reason to be in this app at all.
   if (isAdminOnlyRoute && isLoggedIn && sessionRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/unauthorized', request.url));
+    const destination = sessionRole === 'SELLER' ? '/my-store' : '/unauthorized';
+    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   // Redirect to dashboard if accessing auth route with an active session

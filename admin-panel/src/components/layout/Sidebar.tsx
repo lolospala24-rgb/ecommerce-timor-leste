@@ -317,7 +317,16 @@ export function Sidebar() {
       {/* ===== NAVIGATION ===== */}
       <ScrollArea className="flex-1">
         <nav className="px-3 py-4 space-y-4">
-          {menuSections.map((section) => (
+          {menuSections.map((section) => {
+            const visibleItems = section.items.filter((item) =>
+              user?.role === 'SELLER' ? item.sellerOnly : !item.sellerOnly,
+            );
+            // A SELLER only ever matches My Store (in Overview) — every
+            // other section would otherwise render an empty header with
+            // nothing underneath it.
+            if (visibleItems.length === 0) return null;
+
+            return (
             <div key={section.label}>
               {!collapsed && (
                 <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -325,9 +334,7 @@ export function Sidebar() {
                 </p>
               )}
               <div className="space-y-0.5">
-                {section.items
-                  .filter((item) => !item.sellerOnly || user?.role === 'SELLER')
-                  .map((item) => (
+                {visibleItems.map((item) => (
                   <div key={item.href}>
                     {renderMenuItem(item)}
                     {item.href === '/video-shop' && !collapsed && pathname.startsWith('/video-shop') && (
@@ -360,14 +367,19 @@ export function Sidebar() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </nav>
       </ScrollArea>
 
       {/* ===== BOTTOM ===== */}
       <div className="border-t px-3 py-3">
         <div className="space-y-0.5">
-          {bottomMenuItems.map((item) => {
+          {/* Settings is admin-wide system configuration — Profile (own
+              password/details) is the only bottom item a SELLER should see. */}
+          {bottomMenuItems
+            .filter((item) => user?.role !== 'SELLER' || item.href === '/profile')
+            .map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             return (

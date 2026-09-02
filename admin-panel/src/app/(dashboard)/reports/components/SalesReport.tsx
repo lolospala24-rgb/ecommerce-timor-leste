@@ -30,11 +30,19 @@ import { DateRange } from 'react-day-picker';
 import api from '@/lib/api';
 import { format } from 'date-fns';
 
-interface SalesReportProps {
-  dateRange: DateRange | undefined;
+interface SalesSummary {
+  totalRevenue: number;
+  totalOrders: number;
+  activeSellers: number;
+  averageOrderValue: number;
 }
 
-export function SalesReport({ dateRange }: SalesReportProps) {
+interface SalesReportProps {
+  dateRange: DateRange | undefined;
+  onSummaryChange?: (summary: SalesSummary) => void;
+}
+
+export function SalesReport({ dateRange, onSummaryChange }: SalesReportProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [dailySales, setDailySales] = useState([]);
   const [weeklySales, setWeeklySales] = useState([]);
@@ -65,17 +73,12 @@ export function SalesReport({ dateRange }: SalesReportProps) {
       setPaymentMethodDistribution(data.paymentMethodDistribution || []);
       setStatusDistribution(data.statusDistribution || []);
 
-      // Update summary cards
-      const summaryCards = document.getElementById('totalRevenue');
-      const totalOrders = document.getElementById('totalOrders');
-      const avgOrderValue = document.getElementById('avgOrderValue');
-      
-      if (summaryCards) summaryCards.innerText = `$${data.totalRevenue?.toLocaleString() || '0'}`;
-      if (totalOrders) totalOrders.innerText = data.totalOrders?.toLocaleString() || '0';
-      if (avgOrderValue) avgOrderValue.innerText = `$${data.averageOrderValue?.toLocaleString() || '0'}`;
-      
-      const activeSellers = document.getElementById('activeSellers');
-      if (activeSellers) activeSellers.innerText = data.activeSellers?.toLocaleString() || '0';
+      onSummaryChange?.({
+        totalRevenue: data.totalRevenue || 0,
+        totalOrders: data.totalOrders || 0,
+        activeSellers: data.activeSellers || 0,
+        averageOrderValue: data.averageOrderValue || 0,
+      });
     } catch (error) {
       console.error('Failed to fetch sales data:', error);
     } finally {

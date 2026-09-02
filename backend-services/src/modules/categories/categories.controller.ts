@@ -11,7 +11,9 @@ import {
   HttpStatus,
   HttpCode,
   ParseIntPipe,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -48,6 +50,17 @@ export class CategoriesController {
       includeProducts: includeProducts === 'true',
     });
     return result;
+  }
+
+  @Get('export')
+  @Roles(Role.ADMIN)
+  async exportCategories(@Res() res: Response) {
+    const { buffer, filename } = await this.categoriesService.exportCategories();
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(buffer);
   }
 
   @Public()

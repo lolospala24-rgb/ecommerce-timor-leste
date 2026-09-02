@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderStatus } from '@prisma/client';
+import { rowsToCsv, rowsToExcelBuffer, ExportColumn } from '../../common/utils/export.util';
+import { Buffer } from 'buffer';
 
 @Injectable()
 export class ReportsService {
@@ -184,6 +186,66 @@ export class ReportsService {
         thumbnail: null,
       })),
       bottomProducts: [],
+    };
+  }
+
+  private static readonly EXPORT_COLUMNS: Record<'sales' | 'sellers' | 'products', ExportColumn[]> = {
+    sales: [
+      { key: 'date', header: 'Date' },
+      { key: 'revenue', header: 'Revenue' },
+      { key: 'orders', header: 'Orders' },
+    ],
+    sellers: [
+      { key: 'storeName', header: 'Store Name' },
+      { key: 'orders', header: 'Orders' },
+      { key: 'revenue', header: 'Revenue' },
+      { key: 'isVerified', header: 'Verified' },
+    ],
+    products: [
+      { key: 'name', header: 'Product Name' },
+      { key: 'price', header: 'Price' },
+      { key: 'unitsSold', header: 'Units Sold' },
+      { key: 'revenue', header: 'Revenue' },
+    ],
+  };
+
+  // Reuses the same query methods behind the JSON report endpoints — the
+  // export is always exactly what the on-screen report shows, never a
+  // second, independently-computed dataset that could drift from it.
+  async exportReport(
+    type: 'sales' | 'sellers' | 'products',
+    dateRange: { startDate?: Date; endDate?: Date },
+    format: 'csv' | 'excel',
+  ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    let rows: Record<string, unknown>[];
+
+    if (type === 'sales') {
+      const report = await this.getSalesReport(dateRange);
+      rows = report.dailySales;
+    } else if (type === 'sellers') {
+      rows = await this.getSellersReport({ ...dateRange, limit: 1000 });
+    } else {
+      const report = await this.getProductsReport({ ...dateRange, limit: 1000 });
+      rows = report.topProducts;
+    }
+
+    const columns = ReportsService.EXPORT_COLUMNS[type];
+    const dateStamp = new Date().toISOString().split('T')[0];
+
+    if (format === 'excel') {
+      const buffer = await rowsToExcelBuffer(rows, columns, `${type} report`);
+      return {
+        buffer,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename: `${type}_report_${dateStamp}.xlsx`,
+      };
+    }
+
+    const csv = rowsToCsv(rows, columns);
+    return {
+      buffer: Buffer.from(csv, 'utf-8'),
+      contentType: 'text/csv; charset=utf-8',
+      filename: `${type}_report_${dateStamp}.csv`,
     };
   }
 }

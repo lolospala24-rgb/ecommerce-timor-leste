@@ -25,6 +25,7 @@ import { AssignDriverDto } from './dto/assign-driver.dto';
 import { UpdateCourierLocationDto } from './dto/update-courier-location.dto';
 import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { DELIVERY_AUTO_CONFIRM_GRACE_DAYS, SHIPPING_STATUS_TRANSITIONS } from './orders.constants';
+import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { OrderStatus, PaymentMethod, PaymentStatus, Role, ShippingStatus } from '@prisma/client';
 
@@ -619,6 +620,60 @@ export class OrdersService {
     ]);
 
     return ResponseUtil.paginate(orders, total, page, limit);
+  }
+
+  private static readonly EXPORT_COLUMNS: ExportColumn[] = [
+    { key: 'orderNumber', header: 'Order Number' },
+    { key: 'status', header: 'Status' },
+    { key: 'customerName', header: 'Customer' },
+    { key: 'customerEmail', header: 'Customer Email' },
+    { key: 'sellerName', header: 'Seller' },
+    { key: 'subtotal', header: 'Subtotal' },
+    { key: 'shippingCost', header: 'Shipping' },
+    { key: 'total', header: 'Total' },
+    { key: 'paymentMethod', header: 'Payment Method' },
+    { key: 'trackingNumber', header: 'Tracking Number' },
+    { key: 'createdAt', header: 'Created At' },
+  ];
+
+  // Admin-only bulk dump, capped rather than paginated — 10,000 rows is far
+  // more than a spreadsheet review workflow needs in one file, and keeps
+  // this from ever trying to hold an unbounded result set in memory.
+  async exportOrders(filters: { status?: string; startDate?: string; endDate?: string }) {
+    const where: any = {};
+    if (filters.status) where.status = filters.status;
+    if (filters.startDate) where.createdAt = { gte: new Date(filters.startDate) };
+    if (filters.endDate) where.createdAt = { ...where.createdAt, lte: new Date(filters.endDate) };
+
+    const orders = await this.prisma.order.findMany({
+      where,
+      take: 10000,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: { select: { name: true, email: true } },
+        seller: { select: { storeName: true } },
+      },
+    });
+
+    const rows = orders.map((o) => ({
+      orderNumber: o.orderNumber,
+      status: o.status,
+      customerName: o.customer?.name ?? '',
+      customerEmail: o.customer?.email ?? '',
+      sellerName: o.seller?.storeName ?? '',
+      subtotal: o.subtotal,
+      shippingCost: o.shippingCost,
+      total: o.total,
+      paymentMethod: o.paymentMethod,
+      trackingNumber: o.trackingNumber ?? '',
+      createdAt: o.createdAt.toISOString(),
+    }));
+
+    const csv = rowsToCsv(rows, OrdersService.EXPORT_COLUMNS);
+    return {
+      buffer: Buffer.from(csv, 'utf-8'),
+      filename: `orders_export_${new Date().toISOString().split('T')[0]}.csv`,
+    };
   }
 
   async getUserOrders(

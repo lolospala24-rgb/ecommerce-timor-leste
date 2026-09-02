@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, RefreshCw, Download, FolderTree, List } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function CategoriesPage() {
   const [viewMode, setViewMode] = useState<'tree' | 'table'>('tree');
@@ -33,9 +34,12 @@ export default function CategoriesPage() {
 
   const handleExport = async () => {
     try {
-      const response = await fetch('/api/categories/export');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // api's response interceptor already unwraps to response.data, so
+      // this resolves directly to the Blob — not { data: Blob }. (Was
+      // previously a plain `fetch()` too, which also never sent the
+      // httpOnly auth cookie without an explicit credentials: 'include'.)
+      const blob = await api.get<Blob>('/categories/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(blob as unknown as Blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `categories_export_${new Date().toISOString().split('T')[0]}.csv`;
