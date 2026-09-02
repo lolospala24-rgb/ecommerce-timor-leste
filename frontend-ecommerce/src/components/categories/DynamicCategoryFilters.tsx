@@ -181,7 +181,7 @@ export function DynamicCategoryFilters({
         <AccordionItem key={facet.key} value={facet.key}>
           <AccordionTrigger className="text-sm font-medium">{facet.label}</AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1" data-lenis-prevent>
               {options.map((option) => {
                 const id = parseInt(option.value, 10);
                 const checked = filters.subcategoryId === id;
@@ -219,7 +219,7 @@ export function DynamicCategoryFilters({
         <AccordionItem key={facet.key} value={facet.key}>
           <AccordionTrigger className="text-sm font-medium">{facet.label}</AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1" data-lenis-prevent>
               {options.map((option) => {
                 const checked = filters.brand?.includes(option.value) || false;
                 return (
@@ -253,7 +253,7 @@ export function DynamicCategoryFilters({
         <AccordionItem key={facet.key} value={facet.key}>
           <AccordionTrigger className="text-sm font-medium">{facet.label}</AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1" data-lenis-prevent>
               {facet.options.map((option) => {
                 const selected = filters.attributes[facet.key] || [];
                 const checked = selected.includes(option.value);

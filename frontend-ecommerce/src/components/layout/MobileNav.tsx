@@ -113,7 +113,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
+          <nav className="flex-1 overflow-y-auto p-4" data-lenis-prevent>
             <div className="space-y-6">
               {/* Top Menu - Quick Links */}
               <div className="space-y-1">

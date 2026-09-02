@@ -771,7 +771,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               <div>
                 <h3 className="mb-5 text-lg font-semibold">All variants</h3>
                 <div className="overflow-hidden rounded-xl border">
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto" data-lenis-prevent>
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b bg-muted/40 text-left">

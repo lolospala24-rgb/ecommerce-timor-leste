@@ -57,7 +57,7 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
 
   return (
     <div className="flex w-[min(880px,calc(100vw-2rem))] max-h-[min(640px,calc(100vh-6rem))] flex-col overflow-hidden">
-      <div className="flex flex-1 overflow-y-auto">
+      <div className="flex flex-1 overflow-y-auto" data-lenis-prevent>
         {/* Browse Categories */}
         <div className="w-56 shrink-0 border-r bg-muted/20 py-3">
           <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

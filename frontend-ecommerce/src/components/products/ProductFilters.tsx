@@ -919,7 +919,7 @@ export function ProductFilters({
                     <div className={cn(
                       'space-y-1 max-h-48 overflow-y-auto pr-2',
                       styles.scrollbar
-                    )}>
+                    )} data-lenis-prevent>
                       {brands.map((brand) => (
                         <label
                           key={brand.id}

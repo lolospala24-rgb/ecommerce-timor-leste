@@ -50,7 +50,7 @@ function CategoryPageSkeleton() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted/50 via-muted/30 to-muted/10">
         <Skeleton className="h-[280px] w-full" />
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-3 overflow-x-auto pb-2" data-lenis-prevent>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-28 rounded-full shrink-0" />
         ))}
@@ -178,7 +178,7 @@ function SortControls({
         Urutkan
       </span>
 
-      <div className="flex items-center bg-muted/20 rounded-full p-0.5 md:p-1 border border-border/40 shadow-sm overflow-x-auto">
+      <div className="flex items-center bg-muted/20 rounded-full p-0.5 md:p-1 border border-border/40 shadow-sm overflow-x-auto" data-lenis-prevent>
         <div className="flex items-center gap-0.5 md:gap-1">
           {sortOptions.map((option) => {
             const isActive = activeSort === option.value;
@@ -236,7 +236,7 @@ function MobileFilterSheet({
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-full max-w-sm overflow-y-auto">
+      <SheetContent side="left" className="w-full max-w-sm overflow-y-auto" data-lenis-prevent>
         <SheetHeader className="border-b pb-4 mb-4">
           <SheetTitle className="text-lg font-semibold flex items-center gap-2">
             <SlidersHorizontal className="h-5 w-5" />
@@ -403,7 +403,7 @@ function CategoryPageInner({ slug }: CategoryPageContentProps) {
 
       {/* Subcategories */}
       {category.children && category.children.length > 0 && (
-        <section aria-label="Subcategories" className="overflow-x-auto pb-2">
+        <section aria-label="Subcategories" className="overflow-x-auto pb-2" data-lenis-prevent>
           <CategorySubcategories
             children={category.children}
             activeSubcategoryId={filters.subcategoryId}

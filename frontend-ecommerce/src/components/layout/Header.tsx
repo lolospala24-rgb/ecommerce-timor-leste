@@ -281,7 +281,7 @@ export function Header() {
                         </div>
                       </div>
                     )}
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto" data-lenis-prevent>
                       {notifications.length === 0 ? (
                         <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                           {t('notif.empty')}

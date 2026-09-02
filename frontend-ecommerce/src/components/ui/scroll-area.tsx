@@ -6,7 +6,7 @@ interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function ScrollArea({ className = '', children, ...props }: ScrollAreaProps) {
   return (
-    <div className={`overflow-auto ${className}`} {...props}>
+    <div className={`overflow-auto ${className}`} data-lenis-prevent {...props}>
       {children}
     </div>
   )

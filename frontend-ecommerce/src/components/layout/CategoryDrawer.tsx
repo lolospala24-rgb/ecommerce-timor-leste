@@ -162,7 +162,7 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" data-lenis-prevent>
           {!activeCategory ? (
             <>
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

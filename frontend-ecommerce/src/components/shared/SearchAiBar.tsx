@@ -259,7 +259,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
       </form>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border bg-popover p-2 text-popover-foreground shadow-lg">
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border bg-popover p-2 text-popover-foreground shadow-lg" data-lenis-prevent>
           {!showAutocomplete ? (
             hasEmptyStateContent ? (
               <div className="space-y-3 p-1">

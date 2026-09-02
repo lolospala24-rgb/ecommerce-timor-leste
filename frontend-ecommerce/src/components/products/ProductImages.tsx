@@ -186,6 +186,7 @@ export function ProductImages({
               'order-2 flex-row overflow-x-auto pb-1 lg:order-1',
               'lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:max-h-[520px] lg:pb-0',
             )}
+            data-lenis-prevent
           >
             {thumbItems.map((item) => (
               <ThumbnailButton key={item.id} item={item} />

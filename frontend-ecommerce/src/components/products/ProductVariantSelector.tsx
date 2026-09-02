@@ -217,7 +217,7 @@ export function ProductVariantSelector({
                 </Badge>
               </div>
               {selectedVariant.images && selectedVariant.images.length > 1 && (
-                <div className="flex gap-1.5 overflow-x-auto pt-1">
+                <div className="flex gap-1.5 overflow-x-auto pt-1" data-lenis-prevent>
                   {selectedVariant.images.map((img, idx) => (
                     <div
                       key={idx}

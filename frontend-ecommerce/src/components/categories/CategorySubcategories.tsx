@@ -26,7 +26,7 @@ export function CategorySubcategories({
         Subcategories
       </h2>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" data-lenis-prevent>
         <button
           type="button"
           onClick={() => onSelect?.(undefined)}

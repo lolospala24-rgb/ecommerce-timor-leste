@@ -6,6 +6,7 @@ import { ThemeProvider } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { SmoothScroll } from '@/components/smooth-scroll/SmoothScroll';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,7 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <LanguageProvider>
-          {children}
+          <SmoothScroll>{children}</SmoothScroll>
           <ReactQueryDevtools initialIsOpen={false} />
         </LanguageProvider>
       </ThemeProvider>
