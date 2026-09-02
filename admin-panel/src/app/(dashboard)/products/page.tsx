@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Download, RefreshCw, Package } from 'lucide-react';
+import { ErrorState } from '@/components/shared/ErrorState';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
 
-  const { data, isLoading, refetch } = useProducts({
+  const { data, isLoading, isError, refetch } = useProducts({
     page: filters.page,
     limit: filters.limit,
     search: filters.search,
@@ -94,6 +95,13 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {isError ? (
+        <Card>
+          <CardContent>
+            <ErrorState description="Couldn't load products. Check your connection and try again." onRetry={() => refetch()} />
+          </CardContent>
+        </Card>
+      ) : (
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Products</TabsTrigger>
@@ -298,6 +306,7 @@ export default function ProductsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Bulk Actions Dialog */}
       <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { ErrorState } from '@/components/shared/ErrorState';
 
 // Recharts and Google Maps pull in sizeable JS bundles that are only needed
 // once the user views these tabs — code-split them out of the initial
@@ -35,7 +36,7 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
   const [mounted, setMounted] = useState(false);
   
-  const { data, isLoading, refetch } = useDashboard(period);
+  const { data, isLoading, isError, refetch } = useDashboard(period);
   const { data: revenueData, isLoading: revenueLoading } = useRevenueChart(period);
   const { data: topProducts } = useTopProducts(5, period === 'day' ? undefined : period);
   const { data: salesByRegion, isLoading: salesByRegionLoading } = useSalesByRegion(period);
@@ -89,6 +90,27 @@ export default function DashboardPage() {
           <Skeleton className="h-96" />
         </div>
         <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  // A failed fetch and mounted+!isLoading look identical from here on, so
+  // without this check the safeData fallback below quietly renders a
+  // fully-populated-looking dashboard with every stat at zero —
+  // indistinguishable from an actually slow day with zero real orders.
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+        <ErrorState description="Couldn't load dashboard data. Check your connection and try again." onRetry={() => refetch()} />
       </div>
     );
   }

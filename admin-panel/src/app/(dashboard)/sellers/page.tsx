@@ -18,6 +18,7 @@ import { CreateSellerForm } from './components/CreateSellerForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download, RefreshCw, Store, Plus } from 'lucide-react';
 import { SellerDetailModal } from './components/SellerDetailModal';
+import { ErrorState } from '@/components/shared/ErrorState';
 import Link from 'next/link';
 
 export default function SellersPage() {
@@ -31,7 +32,7 @@ export default function SellersPage() {
     isVerified: undefined as boolean | undefined,
   });
 
-  const { data, isLoading, refetch } = useSellers(filters);
+  const { data, isLoading, isError, refetch } = useSellers(filters);
 
   const handleViewSeller = (sellerId: number) => {
     setSelectedSellerId(sellerId);
@@ -73,6 +74,13 @@ export default function SellersPage() {
         </div>
       </div>
 
+      {isError ? (
+        <Card>
+          <CardContent>
+            <ErrorState description="Couldn't load sellers. Check your connection and try again." onRetry={() => refetch()} />
+          </CardContent>
+        </Card>
+      ) : (
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Sellers</TabsTrigger>
@@ -136,6 +144,7 @@ export default function SellersPage() {
           <PendingVerification onRefresh={refetch} />
         </TabsContent>
       </Tabs>
+      )}
 
       <SellerDetailModal
         sellerId={selectedSellerId}

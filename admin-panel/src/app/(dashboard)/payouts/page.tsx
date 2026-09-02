@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Wallet, CheckCircle, XCircle, Loader2, Landmark, BadgeCheck } from 'lucide-react';
 import { MaskedAccountNumber } from '@/components/shared/MaskedAccountNumber';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   useAdminPayouts,
   useApprovePayout,
@@ -57,6 +58,8 @@ export default function PayoutsPage() {
 
   const [rejectTarget, setRejectTarget] = useState<Payout | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approveTarget, setApproveTarget] = useState<Payout | null>(null);
+  const [markPaidTarget, setMarkPaidTarget] = useState<Payout | null>(null);
 
   const payouts = data?.data || [];
 
@@ -70,6 +73,18 @@ export default function PayoutsPage() {
     await rejectPayout.mutateAsync({ id: rejectTarget.id, reason: rejectReason.trim() });
     setRejectTarget(null);
     setRejectReason('');
+  };
+
+  const handleApprove = async () => {
+    if (!approveTarget) return;
+    await approvePayout.mutateAsync({ id: approveTarget.id });
+    setApproveTarget(null);
+  };
+
+  const handleMarkPaid = async () => {
+    if (!markPaidTarget) return;
+    await markPaid.mutateAsync(markPaidTarget.id);
+    setMarkPaidTarget(null);
   };
 
   return (
@@ -145,7 +160,7 @@ export default function PayoutsPage() {
                               variant="default"
                               className="bg-green-600 hover:bg-green-700"
                               disabled={approvePayout.isPending}
-                              onClick={() => approvePayout.mutate({ id: payout.id })}
+                              onClick={() => setApproveTarget(payout)}
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Approve
@@ -166,7 +181,7 @@ export default function PayoutsPage() {
                               variant="default"
                               className="bg-primary"
                               disabled={markPaid.isPending}
-                              onClick={() => markPaid.mutate(payout.id)}
+                              onClick={() => setMarkPaidTarget(payout)}
                             >
                               <BadgeCheck className="mr-2 h-4 w-4" />
                               Mark as Paid
@@ -254,6 +269,36 @@ export default function PayoutsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!approveTarget}
+        onOpenChange={(open) => !open && setApproveTarget(null)}
+        title="Approve Payout"
+        description={
+          approveTarget
+            ? `Approve the $${approveTarget.amount.toFixed(2)} payout for ${approveTarget.seller?.storeName || `Seller #${approveTarget.sellerId}`}? You'll still need to send the actual bank transfer and mark it as paid afterward.`
+            : ''
+        }
+        confirmText="Approve"
+        variant="default"
+        isLoading={approvePayout.isPending}
+        onConfirm={handleApprove}
+      />
+
+      <ConfirmDialog
+        open={!!markPaidTarget}
+        onOpenChange={(open) => !open && setMarkPaidTarget(null)}
+        title="Mark Payout as Paid"
+        description={
+          markPaidTarget
+            ? `Confirm you've sent the $${markPaidTarget.amount.toFixed(2)} bank transfer to ${markPaidTarget.seller?.storeName || `Seller #${markPaidTarget.sellerId}`}. This cannot be undone.`
+            : ''
+        }
+        confirmText="Mark as Paid"
+        variant="default"
+        isLoading={markPaid.isPending}
+        onConfirm={handleMarkPaid}
+      />
     </div>
   );
 }

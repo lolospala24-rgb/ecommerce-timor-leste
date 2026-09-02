@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Download, RefreshCw, ShoppingCart } from 'lucide-react';
 import { OrderDetailModal } from './components/OrderDetailModal';
+import { ErrorState } from '@/components/shared/ErrorState';
 
 export default function OrdersPage() {
   const [filters, setFilters] = useState({
@@ -31,7 +32,7 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  const { data, isLoading, refetch } = useOrders(filters);
+  const { data, isLoading, isError, refetch } = useOrders(filters);
   useOrderRealtime();
 
   const handleViewOrder = (orderId: number) => {
@@ -141,6 +142,8 @@ export default function OrdersPage() {
                     <Skeleton key={i} className="h-16 w-full" />
                   ))}
                 </div>
+              ) : isError ? (
+                <ErrorState description="Couldn't load orders. Check your connection and try again." onRetry={() => refetch()} />
               ) : (
                 <OrdersTable
                   orders={data?.data || []}

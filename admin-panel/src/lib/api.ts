@@ -125,9 +125,24 @@ api.interceptors.response.use(
 
     // Don't show toast for 401 as we handle it above
     if (error.response?.status !== 401) {
-      // Only show toast for client errors, not for validation errors (let component handle)
       if (error.response?.status && error.response.status >= 500) {
-        toast.error('Server error. Please try again later.');
+        // Only show toast for client errors, not for validation errors (let component handle)
+        // Fixed toast id: React Query retries a failed GET up to 3x by
+        // default, and each retry re-triggers this interceptor — without
+        // an id, a single failed page load could stack 3 identical toasts.
+        toast.error('Server error. Please try again later.', { id: 'api-server-error' });
+      } else if (!error.response && !isAuthProbe) {
+        // No response at all — the backend is unreachable (down, network
+        // drop, CORS misconfig). Previously silent: a 4xx from a live
+        // backend at least got a component-level message, but this case
+        // got nothing anywhere, so a fully offline backend just looked
+        // like "everything is empty" across every page. /auth/me is
+        // excluded — checkAuth calls it on every page including while
+        // genuinely offline, and it already fails silently into a
+        // logged-out state without needing its own toast.
+        toast.error('Could not reach the server. Check your connection and try again.', {
+          id: 'api-network-error',
+        });
       }
     }
 

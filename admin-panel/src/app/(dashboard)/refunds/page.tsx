@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { RotateCcw, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAdminRefunds, useApproveRefund, useRejectRefund, type Refund } from '@/hooks/useFinance';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
@@ -47,6 +48,7 @@ export default function RefundsPage() {
 
   const [rejectTarget, setRejectTarget] = useState<Refund | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approveTarget, setApproveTarget] = useState<Refund | null>(null);
 
   const refunds = data?.data || [];
 
@@ -60,6 +62,12 @@ export default function RefundsPage() {
     await rejectRefund.mutateAsync({ id: rejectTarget.id, reason: rejectReason.trim() });
     setRejectTarget(null);
     setRejectReason('');
+  };
+
+  const handleApprove = async () => {
+    if (!approveTarget) return;
+    await approveRefund.mutateAsync({ id: approveTarget.id });
+    setApproveTarget(null);
   };
 
   return (
@@ -140,7 +148,7 @@ export default function RefundsPage() {
                             variant="default"
                             className="bg-green-600 hover:bg-green-700"
                             disabled={approveRefund.isPending}
-                            onClick={() => approveRefund.mutate({ id: refund.id })}
+                            onClick={() => setApproveTarget(refund)}
                           >
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Approve
@@ -227,6 +235,21 @@ export default function RefundsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!approveTarget}
+        onOpenChange={(open) => !open && setApproveTarget(null)}
+        title="Approve Refund"
+        description={
+          approveTarget
+            ? `Approve a $${approveTarget.amount.toFixed(2)} refund for order ${approveTarget.order?.orderNumber || approveTarget.orderId}? This immediately reverses the seller's earnings and cannot be undone.`
+            : ''
+        }
+        confirmText="Approve Refund"
+        variant="default"
+        isLoading={approveRefund.isPending}
+        onConfirm={handleApprove}
+      />
     </div>
   );
 }
