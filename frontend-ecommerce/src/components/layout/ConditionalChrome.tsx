@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { SupportChatWidget } from '@/components/shared/SupportChatWidget';
 
 // The video-shopping feed (/videos) keeps the real site header — logo,
 // search, cart, notifications, profile — so it still reads as part of the
@@ -44,6 +45,7 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <SupportChatWidget />
     </div>
   );
 }

@@ -42,7 +42,14 @@ export class OrdersController {
     return { message: 'Order created successfully', data: order };
   }
 
+  // CUSTOMER/SELLER get scoped to their own orders inside the service;
+  // ADMIN intentionally gets everything. COURIER has no scoping branch
+  // there at all — without this guard, a courier account falls through to
+  // the same unrestricted `where: {}` query as ADMIN and can pull every
+  // customer's name/phone/delivery address platform-wide. Couriers have
+  // their own purpose-built GET /orders/driver/my-deliveries instead.
   @Get()
+  @Roles(Role.CUSTOMER, Role.SELLER, Role.ADMIN)
   async findAll(
     @CurrentUser('id') userId: number,
     @CurrentUser('role') userRole: string,

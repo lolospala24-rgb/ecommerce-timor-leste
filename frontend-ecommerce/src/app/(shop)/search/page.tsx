@@ -24,6 +24,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 export default function SearchPage() {
   return (
@@ -54,6 +55,7 @@ function SearchPageSkeleton() {
 function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
   const query = searchParams.get('q') || '';
   const category = searchParams.get('category') || '';
   const seller = searchParams.get('seller') || '';
@@ -174,13 +176,12 @@ function SearchPageContent() {
           <div className="rounded-full bg-muted p-6 mb-4">
             <Search className="h-12 w-12 text-muted-foreground" />
           </div>
-          <h3 className="text-xl font-semibold">No products found</h3>
+          <h3 className="text-xl font-semibold">{t('search.noProducts.title')}</h3>
           <p className="text-muted-foreground mt-2 max-w-md">
-            We couldn't find any products matching your search criteria.
-            Try adjusting your filters or search terms.
+            {t('search.noProducts.description')}
           </p>
           <Button variant="outline" className="mt-4" onClick={clearFilters}>
-            Clear filters
+            {t('search.clearFilters')}
           </Button>
         </div>
       );
@@ -208,7 +209,7 @@ function SearchPageContent() {
       return (
         <div className="text-center py-12">
           <FolderTree className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No categories found matching your search</p>
+          <p className="text-muted-foreground">{t('search.noCategories')}</p>
         </div>
       );
     }
@@ -244,7 +245,7 @@ function SearchPageContent() {
                   <p className="text-sm text-muted-foreground">{category.nameTetum}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {category.productCount || 0} products
+                  {category.productCount || 0} {t('search.productsCount')}
                 </p>
               </div>
             </div>
@@ -266,7 +267,7 @@ function SearchPageContent() {
       return (
         <div className="text-center py-12">
           <Store className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No sellers found matching your search</p>
+          <p className="text-muted-foreground">{t('search.noSellers')}</p>
         </div>
       );
     }
@@ -300,11 +301,11 @@ function SearchPageContent() {
                 </h4>
                 {seller.isVerified && (
                   <Badge variant="default" className="text-xs bg-green-600">
-                    Verified
+                    {t('search.verified')}
                   </Badge>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {seller._count?.products || 0} products
+                  {seller._count?.products || 0} {t('search.productsCount')}
                 </p>
               </div>
             </div>
@@ -318,14 +319,14 @@ function SearchPageContent() {
     <div className="space-y-6">
       {/* Search Header */}
       <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-bold">Search Results</h1>
+        <h1 className="text-3xl font-bold">{t('search.title')}</h1>
         <div className="flex gap-4">
           <div className="flex-1">
             <SearchInput
               value={searchQuery}
               onChange={setSearchQuery}
               onSearch={handleSearch}
-              placeholder="Search for products, categories, sellers..."
+              placeholder={t('search.placeholder')}
               autoFocus
             />
           </div>
@@ -333,7 +334,7 @@ function SearchPageContent() {
             <SheetTrigger asChild>
               <Button variant="outline" className="lg:hidden">
                 <Filter className="mr-2 h-4 w-4" />
-                Filters
+                {t('search.filters')}
                 {hasActiveFilters && (
                   <span className="ml-2 h-5 w-5 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center">
                     !
@@ -341,9 +342,9 @@ function SearchPageContent() {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-full max-w-sm">
+            <SheetContent side="left" className="w-full max-w-sm overflow-y-auto" data-lenis-prevent>
               <SheetHeader>
-                <SheetTitle>Filters</SheetTitle>
+                <SheetTitle>{t('search.filters')}</SheetTitle>
               </SheetHeader>
               <div className="mt-4">
                 <ProductFilters
@@ -365,7 +366,7 @@ function SearchPageContent() {
                     }}
                   >
                     <X className="mr-2 h-4 w-4" />
-                    Clear All Filters
+                    {t('search.clearAllFilters')}
                   </Button>
                 )}
               </div>
@@ -374,10 +375,10 @@ function SearchPageContent() {
         </div>
         {query && (
           <p className="text-sm text-muted-foreground">
-            Showing results for: <span className="font-medium">"{query}"</span>
+            {t('search.showingResultsFor')} <span className="font-medium">"{query}"</span>
             {productsData?.pagination && (
               <span className="ml-2">
-                ({productsData.pagination.total} results)
+                ({productsData.pagination.total} {t('search.resultsCount')})
               </span>
             )}
           </p>
@@ -385,18 +386,18 @@ function SearchPageContent() {
         {aiQuery && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span>AI understood "{aiQuery}" as:</span>
-            <Badge variant="secondary" className="font-normal">{query || 'any product'}</Badge>
+            <span>{t('search.aiUnderstoodAs')} "{aiQuery}" {t('search.aiUnderstoodSuffix')}</span>
+            <Badge variant="secondary" className="font-normal">{query || t('search.anyProduct')}</Badge>
             {filters.categoryId && (
               <Badge variant="secondary" className="font-normal">
-                {categoriesData?.data?.find((c: any) => c.id === filters.categoryId)?.name || 'category'}
+                {categoriesData?.data?.find((c: any) => c.id === filters.categoryId)?.name || t('search.category')}
               </Badge>
             )}
             {(filters.minPrice !== undefined || filters.maxPrice !== undefined) && (
               <Badge variant="secondary" className="font-normal">
                 {filters.minPrice !== undefined ? `$${filters.minPrice}` : '$0'}
                 {' - '}
-                {filters.maxPrice !== undefined ? `$${filters.maxPrice}` : 'any'}
+                {filters.maxPrice !== undefined ? `$${filters.maxPrice}` : t('search.any')}
               </Badge>
             )}
           </div>
@@ -408,7 +409,7 @@ function SearchPageContent() {
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="products" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
-            Products
+            {t('search.tabs.products')}
             {productsData?.pagination && (
               <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
                 {productsData.pagination.total}
@@ -417,11 +418,11 @@ function SearchPageContent() {
           </TabsTrigger>
           <TabsTrigger value="categories" className="flex items-center gap-2">
             <FolderTree className="h-4 w-4" />
-            Categories
+            {t('search.tabs.categories')}
           </TabsTrigger>
           <TabsTrigger value="sellers" className="flex items-center gap-2">
             <Store className="h-4 w-4" />
-            Sellers
+            {t('search.tabs.sellers')}
           </TabsTrigger>
         </TabsList>
 
@@ -438,7 +439,7 @@ function SearchPageContent() {
                   className="text-muted-foreground"
                 >
                   <X className="mr-1 h-3 w-3" />
-                  Clear filters
+                  {t('search.clearFilters')}
                 </Button>
               )}
             </div>

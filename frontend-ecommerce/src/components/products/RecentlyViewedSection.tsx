@@ -11,9 +11,18 @@ interface RecentlyViewedSectionProps {
   /** Hide this product from its own detail page's "recently viewed" list. */
   excludeId?: number;
   limit?: number;
+  /**
+   * Own a full-width `<section>` + `.container-custom` wrapper (matching
+   * TopSellers/HomepageSections) for standalone placement, e.g. on the
+   * homepage. Off by default so the existing ProductDetail.tsx usage (which
+   * places this bare inside its own layout) is unaffected. Whether wrapped
+   * or not, this still renders nothing at all — never an empty padded
+   * section — when there's nothing to show.
+   */
+  wrapInSection?: boolean;
 }
 
-export function RecentlyViewedSection({ excludeId, limit = 10 }: RecentlyViewedSectionProps) {
+export function RecentlyViewedSection({ excludeId, limit = 10, wrapInSection = false }: RecentlyViewedSectionProps) {
   const { ids } = useRecentlyViewed();
   const displayIds = ids.filter((id) => id !== excludeId).slice(0, limit);
 
@@ -36,23 +45,18 @@ export function RecentlyViewedSection({ excludeId, limit = 10 }: RecentlyViewedS
     .filter((p): p is NonNullable<typeof p> => !!p && (p as any).id);
 
   if (displayIds.length === 0) return null;
+  if (!isLoading && products.length === 0) return null;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Recently Viewed</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
-          {[...Array(Math.min(displayIds.length, 5))].map((_, i) => (
-            <Skeleton key={i} className="h-80 rounded-lg" />
-          ))}
-        </div>
+  const content = isLoading ? (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Recently Viewed</h2>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
+        {[...Array(Math.min(displayIds.length, 5))].map((_, i) => (
+          <Skeleton key={i} className="h-80 rounded-lg" />
+        ))}
       </div>
-    );
-  }
-
-  if (products.length === 0) return null;
-
-  return (
+    </div>
+  ) : (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Recently Viewed</h2>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
@@ -61,5 +65,13 @@ export function RecentlyViewedSection({ excludeId, limit = 10 }: RecentlyViewedS
         ))}
       </div>
     </div>
+  );
+
+  if (!wrapInSection) return content;
+
+  return (
+    <section className="py-12 md:py-16">
+      <div className="container-custom">{content}</div>
+    </section>
   );
 }
