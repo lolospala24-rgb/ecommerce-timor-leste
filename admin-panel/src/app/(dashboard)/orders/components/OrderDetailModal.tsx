@@ -66,6 +66,15 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
     return labels[status] || status;
   };
 
+  const shortDeliveryAddress = order
+    ? [
+        order.deliveryStreet ?? (order.address as any)?.street ?? order.deliveryVillage ?? (order.address as any)?.village,
+        order.deliveryMunicipality ?? order.address?.municipality,
+      ]
+        .filter(Boolean)
+        .join(', ') || null
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -279,6 +288,8 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                         </p>
                         <AssignDriver
                           orderId={order.id}
+                          orderNumber={order.orderNumber}
+                          deliveryAddress={shortDeliveryAddress}
                           currentDriverId={order.assignedDriverId}
                           currentDriverName={order.assignedDriver?.name}
                         />

@@ -111,6 +111,10 @@ export default function OrderDetailPage() {
   };
   const deliveryLatitude = order.deliveryLatitude ?? null;
   const deliveryLongitude = order.deliveryLongitude ?? null;
+  const shortDeliveryAddress =
+    [address.street ?? address.village, address.municipality !== 'N/A' ? address.municipality : null]
+      .filter(Boolean)
+      .join(', ') || null;
   const payment = order.payment || { 
     method: 'N/A', 
     status: 'N/A', 
@@ -304,6 +308,8 @@ export default function OrderDetailPage() {
                 </p>
                 <AssignDriver
                   orderId={order.id}
+                  orderNumber={order.orderNumber}
+                  deliveryAddress={shortDeliveryAddress}
                   currentDriverId={order.assignedDriverId}
                   currentDriverName={order.assignedDriver?.name}
                 />

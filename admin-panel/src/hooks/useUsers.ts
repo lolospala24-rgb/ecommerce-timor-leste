@@ -76,7 +76,7 @@ interface UserFilters {
   isActive?: boolean;
 }
 
-export const useUsers = (filters?: UserFilters) => {
+export const useUsers = (filters?: UserFilters, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['users', filters],
     queryFn: async () => {
@@ -86,10 +86,11 @@ export const useUsers = (filters?: UserFilters) => {
       if (filters?.search) params.append('search', filters.search);
       if (filters?.role) params.append('role', filters.role);
       if (filters?.isActive !== undefined) params.append('isActive', filters.isActive.toString());
-      
+
       const response = await api.get<UsersResponse>(`/users?${params.toString()}`);
       return response.data;
     },
+    enabled: options?.enabled,
   });
 };
 

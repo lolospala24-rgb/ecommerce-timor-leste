@@ -290,10 +290,11 @@ export const useAssignDriver = () => {
       const response = await api.patch(`/orders/${id}/assign-driver`, { driverId });
       return response.data?.data || response.data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['orders', variables.id] });
-      toast.success('Driver assigned successfully');
+      const driverName = data?.assignedDriver?.name;
+      toast.success(driverName ? `${driverName} has been assigned to this delivery.` : 'Driver assigned successfully');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to assign driver');
