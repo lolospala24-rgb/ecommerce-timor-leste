@@ -151,7 +151,19 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    return ResponseUtil.paginate(users, total, page, limit);
+    // Real-time presence — see NotificationsGateway.handleConnection/
+    // handleDisconnect, which are the only source of truth for this.
+    const usersWithPresence =
+      role === Role.COURIER
+        ? await Promise.all(
+            users.map(async (u) => ({
+              ...u,
+              isOnline: Boolean(await this.redisService.get(`driver:online:${u.id}`)),
+            })),
+          )
+        : users;
+
+    return ResponseUtil.paginate(usersWithPresence, total, page, limit);
   }
 
   async findOne(id: number) {

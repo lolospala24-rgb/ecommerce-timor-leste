@@ -12,6 +12,9 @@ interface User {
   phone: string | null;
   role: string;
   isActive: boolean;
+  // Only populated when querying role=COURIER — see UsersService.findAll.
+  // Realtime socket presence, not a persisted account field.
+  isOnline?: boolean;
   emailVerified: boolean;
   lastLoginAt: string | null;
   createdAt: string;

@@ -106,6 +106,16 @@ export class NotificationsGateway {
       if (user.role === 'ADMIN') {
         client.join('admins');
       }
+      if (user.role === 'COURIER') {
+        // "Online" = the driver app's socket is connected — this is the one
+        // realtime, authenticated signal the backend actually has about a
+        // courier (no separate presence/heartbeat system exists). The TTL
+        // is a safety net for a hard-killed app that never fires
+        // handleDisconnect; a clean disconnect clears it immediately below.
+        // A driver signed in on two devices at once is the one known edge
+        // case this simplifies away — acceptable at this fleet's size.
+        await this.redisService.set(`driver:online:${user.id}`, '1', 300);
+      }
     } catch (error) {
       // Expired/invalid/tampered token — reject rather than connect
       // unauthenticated.
@@ -113,8 +123,12 @@ export class NotificationsGateway {
     }
   }
 
-  handleDisconnect(client: Socket) {
-    // no-op
+  async handleDisconnect(client: Socket) {
+    const userId = client.data?.userId as number | undefined;
+    const role = client.data?.role as string | undefined;
+    if (role === 'COURIER' && userId) {
+      await this.redisService.del(`driver:online:${userId}`);
+    }
   }
 
   // Joining a specific order's room grants live status updates for that

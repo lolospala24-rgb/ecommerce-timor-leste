@@ -43,6 +43,7 @@ interface Driver {
   id: number;
   name: string;
   phone: string | null;
+  isOnline?: boolean;
   _count?: { assignedDeliveries?: number };
 }
 
@@ -106,9 +107,15 @@ function DriverCard({
       <span className="min-w-0 flex-1 space-y-0.5">
         <span className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-medium">{driver.name}</span>
-          <Badge variant="success" className="shrink-0 text-[10px] font-medium">
-            Active
-          </Badge>
+          {driver.isOnline ? (
+            <Badge variant="success" className="shrink-0 gap-1 text-[10px] font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Online
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="shrink-0 gap-1 text-[10px] font-medium text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" /> Offline
+            </Badge>
+          )}
         </span>
         {driver.phone && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -127,14 +134,14 @@ function DriverCard({
 // independent of the OrderStatus lifecycle).
 //
 // Scope note: the design this was built against also called for driver
-// rating, vehicle/plate info, live online/busy/offline presence, and
-// distance-to-delivery. None of that exists in the backend today (no
-// courier rating source, no vehicle profile fields, no presence/heartbeat
-// system, and courier lat/lng is only ever recorded for an order a driver
+// rating, vehicle/plate info, and distance-to-delivery. None of that exists
+// in the backend today (no courier rating source, no vehicle profile
+// fields, and courier lat/lng is only ever recorded for an order a driver
 // is *already* assigned to — see Order.courierLatitude). Rather than fake
-// that data in the UI, this only surfaces what's real: active/inactive
-// account status and each driver's current active-delivery workload,
-// which also drives the "Recommended" pick (least-loaded eligible driver).
+// that data in the UI, this only surfaces what's real: online presence
+// (driver app's socket connection — see NotificationsGateway), account
+// status, and each driver's current active-delivery workload. Both feed
+// the "Recommended" pick: online drivers first, least-loaded among those.
 export function AssignDriver({
   orderId,
   orderNumber,
@@ -157,9 +164,10 @@ export function AssignDriver({
 
   const recommended = useMemo(() => {
     if (drivers.length === 0) return null;
-    return [...drivers].sort(
-      (a, b) => (a._count?.assignedDeliveries ?? 0) - (b._count?.assignedDeliveries ?? 0),
-    )[0];
+    return [...drivers].sort((a, b) => {
+      if (Boolean(a.isOnline) !== Boolean(b.isOnline)) return a.isOnline ? -1 : 1;
+      return (a._count?.assignedDeliveries ?? 0) - (b._count?.assignedDeliveries ?? 0);
+    })[0];
   }, [drivers]);
 
   const query = search.trim().toLowerCase();
