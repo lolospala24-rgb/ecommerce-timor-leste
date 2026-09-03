@@ -30,6 +30,7 @@ interface User {
   _count?: {
     orders: number;
     reviews: number;
+    assignedDeliveries?: number;
   };
   orders?: Array<{
     id: number;

@@ -12,7 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashPassword } from '../../common/utils/bcrypt.util';
-import { Role, OrderStatus } from '@prisma/client';
+import { Role, OrderStatus, ShippingStatus } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 
 @Injectable()
@@ -131,6 +131,19 @@ export class UsersService {
             select: {
               orders: true,
               reviews: true,
+              // Only meaningful for couriers — an "active delivery" is one
+              // assigned to this driver that hasn't reached a terminal
+              // shippingStatus yet. Scoped to role===COURIER queries so
+              // regular admin/customer listings don't pay for the join.
+              ...(role === Role.COURIER
+                ? {
+                    assignedDeliveries: {
+                      where: {
+                        shippingStatus: { notIn: [ShippingStatus.DELIVERED, ShippingStatus.FAILED] },
+                      },
+                    },
+                  }
+                : {}),
             },
           },
         },

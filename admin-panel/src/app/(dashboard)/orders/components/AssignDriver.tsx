@@ -37,7 +37,7 @@ export function AssignDriver({ orderId, currentDriverId, currentDriverName }: As
   const [open, setOpen] = useState(false);
   const [driverId, setDriverId] = useState<string>(currentDriverId ? String(currentDriverId) : '');
 
-  const { data: driversResponse, isLoading: isLoadingDrivers } = useUsers({ role: 'COURIER', limit: 100 });
+  const { data: driversResponse, isLoading: isLoadingDrivers } = useUsers({ role: 'COURIER', isActive: true, limit: 100 });
   const assignDriver = useAssignDriver();
 
   const drivers = driversResponse?.data || [];
@@ -82,6 +82,9 @@ export function AssignDriver({ orderId, currentDriverId, currentDriverName }: As
                 {drivers.map((driver: any) => (
                   <SelectItem key={driver.id} value={String(driver.id)}>
                     {driver.name} {driver.phone ? `· ${driver.phone}` : ''}
+                    {typeof driver._count?.assignedDeliveries === 'number'
+                      ? ` · ${driver._count.assignedDeliveries} active ${driver._count.assignedDeliveries === 1 ? 'delivery' : 'deliveries'}`
+                      : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
