@@ -1,10 +1,18 @@
 'use client';
 
 import { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AddressForm } from '@/components/checkout/AddressForm';
+
+// AddressForm pulls in @react-google-maps/api (~130KB) for its address
+// search box — code-split so that weight isn't part of this route's
+// initial JS. Same pattern as GoogleMapPicker in the checkout flow.
+const AddressForm = dynamic(
+  () => import('@/components/checkout/AddressForm').then((mod) => mod.AddressForm),
+  { ssr: false, loading: () => <Skeleton className="h-96 w-full" /> },
+);
 
 function NewAddressContent() {
   const router = useRouter();

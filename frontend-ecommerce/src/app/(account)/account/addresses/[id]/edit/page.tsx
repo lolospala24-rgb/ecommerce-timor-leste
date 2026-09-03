@@ -1,13 +1,21 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import { useAddresses } from '@/hooks/useAddresses';
-import { AddressForm } from '@/components/checkout/AddressForm';
+
+// AddressForm pulls in @react-google-maps/api (~130KB) for its address
+// search box — code-split so that weight isn't part of this route's
+// initial JS. Same pattern as GoogleMapPicker in the checkout flow.
+const AddressForm = dynamic(
+  () => import('@/components/checkout/AddressForm').then((mod) => mod.AddressForm),
+  { ssr: false, loading: () => <Skeleton className="h-96 w-full" /> },
+);
 
 export default function EditAddressPage() {
   const params = useParams();
