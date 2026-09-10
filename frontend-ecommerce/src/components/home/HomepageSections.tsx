@@ -45,8 +45,8 @@ function SectionSkeleton() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
+          {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-96 rounded-xl" />
           ))}
         </div>
@@ -78,13 +78,13 @@ function ProductSection({ section }: { section: HomepageSection }) {
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>
             <Link href="/products">
-              {t('home.section.viewAll')}
+              {t('home.section.viewAll', { title: section.title })}
               <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
           {section.products.map((product) => (
             <ProductCard key={product.id} product={product} isLocal={section.rule === 'LOCAL'} />
           ))}

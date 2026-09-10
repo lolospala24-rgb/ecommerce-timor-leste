@@ -163,7 +163,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.products': 'Produtu',
 
     // Product section (Featured/New/Popular/Local...)
-    'home.section.viewAll': 'Haree Hotu',
+    'home.section.viewAll': 'Haree {title} Hotu',
 
     // Top sellers
     'home.topSellers.badge': 'Vendedór Konfiável',
@@ -323,7 +323,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Product',
     'home.categories.products': 'Products',
 
-    'home.section.viewAll': 'View All',
+    'home.section.viewAll': 'View All {title}',
 
     'home.topSellers.badge': 'Trusted Sellers',
     'home.topSellers.title': 'Top Sellers',
@@ -481,7 +481,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Produk',
     'home.categories.products': 'Produk',
 
-    'home.section.viewAll': 'Lihat Semua',
+    'home.section.viewAll': 'Lihat Semua {title}',
 
     'home.topSellers.badge': 'Penjual Terpercaya',
     'home.topSellers.title': 'Penjual Terbaik',
@@ -639,7 +639,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Produto',
     'home.categories.products': 'Produtos',
 
-    'home.section.viewAll': 'Ver Tudo',
+    'home.section.viewAll': 'Ver Tudo: {title}',
 
     'home.topSellers.badge': 'Vendedores Confiáveis',
     'home.topSellers.title': 'Melhores Vendedores',
