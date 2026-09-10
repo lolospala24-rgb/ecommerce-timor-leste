@@ -23,6 +23,7 @@ import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.ut
 import { StockNotificationsService } from '../stock-notifications/stock-notifications.service';
 import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { resolveProductOrigin } from '../../common/utils/product-origin.util';
+import { HOMEPAGE_CACHE_KEY } from '../homepage/homepage.service';
 
 @Injectable()
 export class ProductsService {
@@ -2316,11 +2317,20 @@ export class ProductsService {
     if (productId) {
       await this.redisService.del(`product:${productId}`);
     }
-    
+
     // Clear paginated lists
     const keys = await this.redisService.keys('products:*');
     for (const key of keys) {
       await this.redisService.del(key);
     }
+
+    // The homepage caches its resolved sections separately (see
+    // HOMEPAGE_CACHE_TTL) — any change to isActive/isLocallyMade/
+    // isFeatured/stock/price/categoryId can change which section(s) a
+    // product belongs to. Without this, a product just switched off Local
+    // (or off Active, out of stock, etc.) could keep showing in a stale
+    // homepage section for up to that TTL, even though every other
+    // product list already reflects the change immediately.
+    await this.redisService.del(HOMEPAGE_CACHE_KEY);
   }
 }

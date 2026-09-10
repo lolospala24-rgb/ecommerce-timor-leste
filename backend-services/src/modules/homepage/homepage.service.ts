@@ -7,7 +7,13 @@ import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto';
 
-const HOMEPAGE_CACHE_KEY = 'homepage:sections:resolved';
+// Exported so ProductsService can invalidate it directly on any product
+// mutation that could change section membership (isActive, isLocallyMade,
+// isFeatured, stock, price, categoryId, ...) — without that, an edit here
+// could keep showing stale results (e.g. a product removed from
+// isLocallyMade still appearing under the homepage's Local section) for up
+// to HOMEPAGE_CACHE_TTL seconds.
+export const HOMEPAGE_CACHE_KEY = 'homepage:sections:resolved';
 const HOMEPAGE_CACHE_TTL = 300;
 const DEFAULT_LIMITED_STOCK_THRESHOLD = 5;
 
