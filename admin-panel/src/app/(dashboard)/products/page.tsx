@@ -126,6 +126,7 @@ export default function ProductsPage() {
           <TabsTrigger value="inactive">Inactive</TabsTrigger>
           <TabsTrigger value="outOfStock">Out of Stock</TabsTrigger>
           <TabsTrigger value="lowStock">Low Stock</TabsTrigger>
+          <TabsTrigger value="local">🇹🇱 Local</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -305,6 +306,42 @@ export default function ProductsPage() {
               ) : (
                 <ProductsTable
                   products={(data?.data || []).filter(p => p.stock > 0 && p.stock < 10)}
+                  selectedProducts={selectedProducts}
+                  onSelectProduct={(id) => {
+                    setSelectedProducts(prev =>
+                      prev.includes(id)
+                        ? prev.filter(p => p !== id)
+                        : [...prev, id]
+                    );
+                  }}
+                  onSelectAll={(ids) => {
+                    setSelectedProducts(ids);
+                  }}
+                  onRefresh={refetch}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="local">
+          <Card>
+            <CardHeader>
+              <CardTitle>Local Products</CardTitle>
+              <CardDescription>
+                Products marked &ldquo;Locally made in Timor-Leste&rdquo; — matches Product.isLocallyMade,
+                the same flag the storefront&apos;s /local-products page and homepage section use
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <ProductsTable
+                  products={(data?.data || []).filter(p => p.isLocallyMade)}
                   selectedProducts={selectedProducts}
                   onSelectProduct={(id) => {
                     setSelectedProducts(prev =>

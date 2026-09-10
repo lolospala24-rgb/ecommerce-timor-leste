@@ -1,5 +1,5 @@
 ﻿// placeholder for src/modules/products/entities/product.entity.ts
-import { Product, Prisma } from '@prisma/client';
+import { Product, Prisma, ProductOriginMode } from '@prisma/client';
 
 export class ProductEntity implements Product {
   id: number;
@@ -26,6 +26,14 @@ export class ProductEntity implements Product {
   isActive: boolean;
   isFeatured: boolean;
   isLocallyMade: boolean;
+  originMode: ProductOriginMode;
+  originMunicipality: string | null;
+  originPostoAdmin: string | null;
+  originSuco: string | null;
+  originAldeia: string | null;
+  producerName: string | null;
+  producerOrganization: string | null;
+  producerPhone: string | null;
   hasVariants: boolean;
   length: number | null;
   width: number | null;
@@ -47,6 +55,10 @@ export class ProductEntity implements Product {
   // Additional fields
   rating?: number;
   totalReviews?: number;
+  // Server-resolved — see ProductsService.resolveOrigin's doc-comment.
+  // null whenever isLocallyMade is false or no origin data is available;
+  // never fabricated.
+  resolvedOrigin?: { municipality: string; postoAdmin: string | null; suco: string | null; aldeia: string | null } | null;
 
   constructor(partial: Partial<ProductEntity>) {
     Object.assign(this, partial);

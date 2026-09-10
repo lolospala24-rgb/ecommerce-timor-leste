@@ -19,6 +19,9 @@ interface ProductFilters {
   isActive?: boolean;
   minRating?: number;
   isLocallyMade?: boolean;
+  /** Matches the product's server-resolved origin (SELLER_ORIGIN or
+   *  CUSTOM_ORIGIN alike) — see resolveProductOrigin on the backend. */
+  originMunicipality?: string;
 }
 
 // The backend (`ProductsService.mapProductSort`) already understands these
@@ -59,6 +62,7 @@ export const useProducts = (filters?: ProductFilters) => {
       if (filters?.isActive !== undefined) params.append('isActive', filters.isActive.toString());
       if (filters?.minRating) params.append('minRating', filters.minRating.toString());
       if (filters?.isLocallyMade !== undefined) params.append('isLocallyMade', filters.isLocallyMade.toString());
+      if (filters?.originMunicipality) params.append('originMunicipality', filters.originMunicipality);
 
       const response = await api.get(`/products?${params.toString()}`);
       return response.data;

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { RatingStars } from '@/components/shared/RatingStars';
-import { ShoppingCart, Heart, Eye, Loader2, Bell, BellRing } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Loader2, Bell, BellRing, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import toast from 'react-hot-toast';
@@ -50,10 +50,18 @@ interface ProductCardProps {
     createdAt?: string;
     rating?: number;
     totalReviews?: number;
+    /** Server-resolved — never re-derive origin client-side from seller/product fields directly. */
+    resolvedOrigin?: {
+      municipality: string;
+      postoAdmin: string | null;
+      suco: string | null;
+      aldeia: string | null;
+    } | null;
+    seller?: { storeName?: string } | null;
   };
-  /** Set by sections that already know every product they render is local
-   *  (e.g. the Local Products section) — there's no generic per-product
-   *  "is local" flag from the API, so this is opt-in rather than guessed. */
+  /** Whether this product is locally made in Timor-Leste. Callers pass
+   *  product.isLocallyMade explicitly (no default guess here) so a card
+   *  never mislabels a product just because it forgot to wire the flag. */
   isLocal?: boolean;
 }
 
@@ -110,17 +118,20 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
       ? { label: t('product.onlyLeft', { count: product.stock }), className: 'text-amber-600' }
       : { label: t('product.inStock'), className: 'text-green-600' };
 
-  // Capped to the single most relevant status badge (plus the discount
-  // badge below, so 2 max) — stacking new+popular+local at once crowded
-  // the image corner on narrow mobile cards and, realistically, buyers
-  // only register the first one or two badges anyway.
-  const statusBadges = [
+  // Local always shows when applicable — it's a distinct marketplace feature,
+  // not just another status flag, so it must never be silently bumped out by
+  // New/Popular. Capped at one additional badge on top of it (plus the
+  // discount badge below) to keep the image corner from crowding on mobile.
+  const localBadge = isLocal
+    ? { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground hover:bg-secondary' }
+    : null;
+  const otherBadges = [
     isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-blue-600 text-white hover:bg-blue-600' },
     product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-white hover:bg-amber-500' },
-    isLocal && { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground hover:bg-secondary' },
   ]
     .filter((b): b is { key: string; label: string; className: string } => !!b)
     .slice(0, 1);
+  const statusBadges = localBadge ? [localBadge, ...otherBadges] : otherBadges;
 
   const imageSrc = imageError || !product.thumbnail ? PLACEHOLDER_IMAGE : product.thumbnail;
 
@@ -236,6 +247,18 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
                 size="sm"
               />
             </div>
+
+            {isLocal && product.resolvedOrigin && (
+              <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="line-clamp-1">
+                  {[product.resolvedOrigin.suco, product.resolvedOrigin.municipality]
+                    .filter(Boolean)
+                    .join(', ')}
+                  {product.seller?.storeName ? ` · ${product.seller.storeName}` : ''}
+                </span>
+              </p>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col items-start gap-1 p-4 pt-0">

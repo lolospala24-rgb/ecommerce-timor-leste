@@ -7,9 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
 import { useRegisterSeller } from '@/hooks/useSellers';
+import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { Loader2 } from 'lucide-react';
 
 // Backend (RegisterSellerDto) requires digits-only, no spaces/dashes:
@@ -34,6 +42,7 @@ const sellerSchema = z.object({
     .refine((v) => PHONE_PATTERN.test(normalizePhone(v)), 'Enter a valid phone number (8-15 digits)'),
   storeEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   storeAddress: z.string().min(5, 'Store address is required'),
+  originMunicipality: z.string().optional().or(z.literal('')),
   storeLogo: z.string().optional().or(z.literal('')),
   storeBanner: z.string().optional().or(z.literal('')),
   description: z.string().optional().or(z.literal('')),
@@ -66,6 +75,7 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
       storePhone: '',
       storeEmail: '',
       storeAddress: '',
+      originMunicipality: '',
       storeLogo: '',
       storeBanner: '',
       description: '',
@@ -76,6 +86,8 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
   const [storeBanner, setStoreBanner] = useState<string>('');
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const storeAddress = watch('storeAddress');
+  const originMunicipality = watch('originMunicipality');
+  const { data: municipalities } = usePublicMunicipalities();
 
   const onSubmit = async (values: CreateSellerFormValues) => {
     try {
@@ -90,6 +102,7 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
         storeAddress: values.storeAddress,
         storeLatitude: storeCoords?.lat,
         storeLongitude: storeCoords?.lng,
+        originMunicipality: values.originMunicipality || undefined,
         storeLogo: storeLogo || undefined,
         storeBanner: storeBanner || undefined,
         description: values.description || undefined,
@@ -172,6 +185,29 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
               placeholder="Search or enter store address..."
             />
             {errors.storeAddress && <p className="mt-1 text-sm text-red-500">{errors.storeAddress.message}</p>}
+          </div>
+          <div>
+            <Label htmlFor="originMunicipality">Seller Origin</Label>
+            <Select
+              value={originMunicipality || ''}
+              onValueChange={(value) => setValue('originMunicipality', value)}
+            >
+              <SelectTrigger id="originMunicipality">
+                <SelectValue placeholder="Where this seller's local products come from" />
+              </SelectTrigger>
+              <SelectContent>
+                {municipalities?.map((m) => (
+                  <SelectItem key={m.id} value={m.name}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Different from Store Address — this is where the seller's local products originate
+              from (e.g. &ldquo;Ermera&rdquo; for coffee), used as the default origin for their
+              locally-made products.
+            </p>
           </div>
         </div>
       </div>

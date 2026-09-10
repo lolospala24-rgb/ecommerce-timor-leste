@@ -144,6 +144,14 @@ model Seller {
   storeLogo       String?
   storeBanner     String?
   description     String?
+  // Seller's declared local origin (e.g. "this store's coffee comes from
+  // Ermera") — distinct from storeAddress, which is just where the store
+  // itself operates from. Plain text, never a Municipality FK: it must
+  // stay independent of the Shipping Municipality system (see
+  // storeLatitude's doc-comment above for the same reasoning). Used only
+  // as the default a Product falls back to when its own originMode is
+  // SELLER_ORIGIN — see Product.originMode.
+  originMunicipality String?
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
   verifiedBy      Int?
@@ -213,6 +221,12 @@ model Category {
   @@map("categories")
 }
 
+// See Product.originMode's doc-comment.
+enum ProductOriginMode {
+  SELLER_ORIGIN
+  CUSTOM_ORIGIN
+}
+
 model Product {
   id               Int      @id @default(autoincrement())
   name             String
@@ -243,6 +257,29 @@ model Product {
   // so a local product isn't invisible to "Local Products" merchandising
   // just because it happens to live in a non-"Local" category.
   isLocallyMade    Boolean  @default(false)
+  // Only meaningful when isLocallyMade=true. SELLER_ORIGIN (default) means
+  // "resolve from Seller.originMunicipality" — no municipality/posto/suco/
+  // aldeia stored here, so a seller without a declared origin correctly
+  // resolves to no origin rather than a fabricated one (see
+  // ProductsService's resolveOrigin doc-comment). CUSTOM_ORIGIN means this
+  // specific product's origin differs from the seller's (e.g. a reseller
+  // in Dili carrying coffee actually grown in Bobonaro) and the
+  // origin*/producer* fields below are the ones actually used.
+  originMode        ProductOriginMode @default(SELLER_ORIGIN)
+  // Only populated (and only read) when originMode=CUSTOM_ORIGIN. Plain
+  // text — same reasoning as Seller.originMunicipality: never a
+  // Municipality FK, never coupled to Shipping.
+  originMunicipality String?
+  originPostoAdmin   String?
+  originSuco         String?
+  originAldeia       String?
+  // Optional, only shown in the UI when isLocallyMade=true. Deliberately
+  // plain fields rather than a separate Producer model — no evidence yet
+  // that a producer is ever shared across multiple products/sellers in a
+  // way that would justify the extra normalization.
+  producerName         String?
+  producerOrganization String?
+  producerPhone        String?
   length           Float?
   width            Float?
   height           Float?

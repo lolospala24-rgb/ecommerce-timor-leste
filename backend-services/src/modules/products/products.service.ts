@@ -22,6 +22,7 @@ import { ResponseUtil } from '../../common/utils/response.util';
 import { generateSlugBase, generateUniqueSlug } from '../../common/utils/slug.util';
 import { StockNotificationsService } from '../stock-notifications/stock-notifications.service';
 import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
+import { resolveProductOrigin } from '../../common/utils/product-origin.util';
 
 @Injectable()
 export class ProductsService {
@@ -155,6 +156,14 @@ export class ProductsService {
           isActive: createProductDto.isActive ?? true,
           isFeatured: createProductDto.isFeatured ?? false,
           isLocallyMade: createProductDto.isLocallyMade ?? false,
+          originMode: createProductDto.originMode,
+          originMunicipality: createProductDto.originMunicipality,
+          originPostoAdmin: createProductDto.originPostoAdmin,
+          originSuco: createProductDto.originSuco,
+          originAldeia: createProductDto.originAldeia,
+          producerName: createProductDto.producerName,
+          producerOrganization: createProductDto.producerOrganization,
+          producerPhone: createProductDto.producerPhone,
           slug,
           length: createProductDto.length,
           width: createProductDto.width,
@@ -252,6 +261,7 @@ export class ProductsService {
       isActive = true,
       minRating,
       isLocallyMade,
+      originMunicipality,
     } = filterDto;
 
     const skip = (page - 1) * limit;
@@ -320,12 +330,32 @@ export class ProductsService {
       where.isLocallyMade = isLocallyMade;
     }
 
+    // A resolved-origin match, not a Product.originMunicipality-only match
+    // — a product using SELLER_ORIGIN has no value in that column at all,
+    // so filtering against it directly would silently drop every
+    // seller-origin product from the result (see resolveOrigin). Kept as
+    // its own `AND` entry (rather than reusing `where.OR`) so it composes
+    // correctly alongside the `search` OR-group above instead of
+    // overwriting it.
+    if (originMunicipality) {
+      where.AND = [
+        ...(where.AND ?? []),
+        {
+          OR: [
+            { originMode: 'CUSTOM_ORIGIN', originMunicipality },
+            { originMode: 'SELLER_ORIGIN', seller: { originMunicipality } },
+          ],
+        },
+      ];
+    }
+
     const includeBase: any = {
       seller: {
         select: {
           id: true,
           storeName: true,
           storeLogo: true,
+          originMunicipality: true,
         },
       },
       category: {
@@ -368,6 +398,7 @@ export class ProductsService {
           totalReviews: product.reviews.length,
           salesCount,
           popularityScore,
+          resolvedOrigin: resolveProductOrigin(product, product.seller),
         };
       }) as any[];
 
@@ -534,6 +565,7 @@ export class ProductsService {
             storeAddress: true,
             storeLogo: true,
             isVerified: true,
+            originMunicipality: true,
           },
         },
         category: {
@@ -613,6 +645,7 @@ export class ProductsService {
         rating: r.rating,
         count: r._count,
       })),
+      resolvedOrigin: resolveProductOrigin(product, product.seller),
     };
 
     // Cache for 5 minutes
@@ -641,6 +674,7 @@ export class ProductsService {
             storeAddress: true,
             storeLogo: true,
             isVerified: true,
+            originMunicipality: true,
           },
         },
         category: {
@@ -710,6 +744,7 @@ export class ProductsService {
         count: r._count,
       })),
       salesCount: salesAgg._sum.quantity || 0,
+      resolvedOrigin: resolveProductOrigin(product, product.seller),
     };
 
     await this.redisService.set(cacheKey, JSON.stringify(productWithStats), 300);
@@ -786,6 +821,14 @@ export class ProductsService {
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
         isLocallyMade: updateProductDto.isLocallyMade,
+        originMode: updateProductDto.originMode,
+        originMunicipality: updateProductDto.originMunicipality,
+        originPostoAdmin: updateProductDto.originPostoAdmin,
+        originSuco: updateProductDto.originSuco,
+        originAldeia: updateProductDto.originAldeia,
+        producerName: updateProductDto.producerName,
+        producerOrganization: updateProductDto.producerOrganization,
+        producerPhone: updateProductDto.producerPhone,
         slug: nextSlug,
         length: updateProductDto.length,
         width: updateProductDto.width,

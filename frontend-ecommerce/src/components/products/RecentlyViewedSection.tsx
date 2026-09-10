@@ -50,8 +50,8 @@ export function RecentlyViewedSection({ excludeId, limit = 10, wrapInSection = f
   const content = isLoading ? (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Recently Viewed</h2>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
-        {[...Array(Math.min(displayIds.length, 5))].map((_, i) => (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-4 xl:grid-cols-6">
+        {[...Array(Math.min(displayIds.length, 6))].map((_, i) => (
           <Skeleton key={i} className="h-80 rounded-lg" />
         ))}
       </div>
@@ -59,7 +59,7 @@ export function RecentlyViewedSection({ excludeId, limit = 10, wrapInSection = f
   ) : (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Recently Viewed</h2>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:gap-6 lg:grid-cols-4 xl:grid-cols-6">
         {products.map((product: any) => (
           <ProductCard key={product.id} product={product} />
         ))}

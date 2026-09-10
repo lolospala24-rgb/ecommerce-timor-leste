@@ -184,7 +184,10 @@ export function ProductsTable({
                       />
                     </div>
                     <div>
-                      <p className="font-medium line-clamp-1">{product.name}</p>
+                      <p className="font-medium line-clamp-1">
+                        {product.isLocallyMade && <span title="Locally made in Timor-Leste">🇹🇱 </span>}
+                        {product.name}
+                      </p>
                       <p className="text-xs text-muted-foreground">SKU: {product.sku || '-'}</p>
                     </div>
                   </div>

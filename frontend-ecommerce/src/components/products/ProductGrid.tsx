@@ -14,7 +14,7 @@ interface ProductGridProps {
     totalPages: number;
   };
   onPageChange?: (page: number) => void;
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 6;
 }
 
 export function ProductGrid({
@@ -43,6 +43,7 @@ export function ProductGrid({
     2: 'w-[calc(50%-0.5rem)] md:w-[calc(50%-0.75rem)]',
     3: 'w-[calc(50%-0.5rem)] sm:w-[calc(33.333%-0.667rem)] md:w-[calc(33.333%-1rem)]',
     4: 'w-[calc(50%-0.5rem)] sm:w-[calc(33.333%-0.667rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)]',
+    6: 'w-[calc(50%-0.5rem)] sm:w-[calc(33.333%-0.667rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)] xl:w-[calc(16.6667%-1.25rem)]',
   };
 
   return (
@@ -50,7 +51,7 @@ export function ProductGrid({
       <div className="flex flex-wrap justify-center gap-4 md:gap-6">
         {products.map((product) => (
           <div key={product.id} className={cardWidthClass[columns]}>
-            <ProductCard product={product} />
+            <ProductCard product={product} isLocal={product.isLocallyMade} />
           </div>
         ))}
       </div>

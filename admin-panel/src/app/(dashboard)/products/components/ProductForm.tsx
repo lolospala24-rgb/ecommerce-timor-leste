@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ import { ImageUpload } from '@/components/shared/ImageUpload';
 import { VideoUpload } from '@/components/shared/VideoUpload';
 import { useCategories } from '@/hooks/useCategories';
 import { useSellers } from '@/hooks/useSellers';
+import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { useProductTypes } from '@/hooks/useProductTypes';
 import { useAuthStore } from '@/stores/authStore';
 import { fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
@@ -95,7 +97,26 @@ const productSchema = z.object({
   isActive: z.boolean(),
   isFeatured: z.boolean(),
   isLocallyMade: z.boolean(),
+  originMode: z.enum(['SELLER_ORIGIN', 'CUSTOM_ORIGIN']).optional(),
+  originMunicipality: z.string().optional(),
+  originPostoAdmin: z.string().optional(),
+  originSuco: z.string().optional(),
+  originAldeia: z.string().optional(),
+  producerName: z.string().optional(),
+  producerOrganization: z.string().optional(),
+  producerPhone: z.string().optional(),
   slug: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // Mirrors the backend's UpdateProductDto/CreateProductDto ValidateIf —
+  // a "Different Origin" without at least a municipality isn't a
+  // meaningful override, so catch it client-side before the round trip.
+  if (data.isLocallyMade && data.originMode === 'CUSTOM_ORIGIN' && !data.originMunicipality?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['originMunicipality'],
+      message: 'Municipality is required for a custom origin',
+    });
+  }
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -223,6 +244,14 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       isActive: initialData?.isActive ?? true,
       isFeatured: initialData?.isFeatured ?? false,
       isLocallyMade: initialData?.isLocallyMade ?? false,
+      originMode: initialData?.originMode ?? 'SELLER_ORIGIN',
+      originMunicipality: initialData?.originMunicipality || '',
+      originPostoAdmin: initialData?.originPostoAdmin || '',
+      originSuco: initialData?.originSuco || '',
+      originAldeia: initialData?.originAldeia || '',
+      producerName: initialData?.producerName || '',
+      producerOrganization: initialData?.producerOrganization || '',
+      producerPhone: initialData?.producerPhone || '',
       slug: initialData?.slug || '',
     },
   });
@@ -361,7 +390,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
     return { label: 'In Stock', color: 'text-green-600' };
   }, [stockValue, lowStockThresholdValue]);
 
-  const basicTabHasError = !!(errors.name || errors.description || errors.categoryId || errors.sellerId);
+  const basicTabHasError = !!(errors.name || errors.description || errors.categoryId || errors.sellerId || errors.originMunicipality);
   const pricingTabHasError = !!(errors.price || errors.stock);
 
   const buildPayload = (data: ProductFormData) => {
@@ -408,6 +437,26 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       isActive: Boolean(data.isActive),
       isFeatured: Boolean(data.isFeatured),
       isLocallyMade: Boolean(data.isLocallyMade),
+      // Origin/producer fields are only editable in the UI while
+      // isLocallyMade is on — but per data-integrity rules, toggling it
+      // off must NOT destroy previously-entered origin/producer data
+      // (a seller flipping it off and back on shouldn't lose what they
+      // typed). So: while isLocallyMade is on, save whatever's in the
+      // form; while off, simply don't send these keys at all — omitted
+      // keys leave the existing DB values untouched (see
+      // UpdateProductDto — every one of these fields is optional).
+      ...(data.isLocallyMade
+        ? {
+            originMode: data.originMode || 'SELLER_ORIGIN',
+            originMunicipality: data.originMunicipality || null,
+            originPostoAdmin: data.originPostoAdmin || null,
+            originSuco: data.originSuco || null,
+            originAldeia: data.originAldeia || null,
+            producerName: data.producerName || null,
+            producerOrganization: data.producerOrganization || null,
+            producerPhone: data.producerPhone || null,
+          }
+        : {}),
       slug: data.slug || null,
       images,
     };
@@ -482,7 +531,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
     // Jump the admin to whichever tab holds the first validation error,
     // since fields on inactive tabs are unmounted and their errors would
     // otherwise be invisible.
-    if (errors.name || errors.description || errors.categoryId || errors.sellerId) {
+    if (errors.name || errors.description || errors.categoryId || errors.sellerId || errors.originMunicipality) {
       setActiveTab('basic');
     } else if (errors.price || errors.stock) {
       setActiveTab('pricing');
@@ -492,6 +541,13 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
   const isActive = watch('isActive');
   const isFeatured = watch('isFeatured');
   const isLocallyMade = watch('isLocallyMade');
+  const originMode = watch('originMode');
+  const watchedSellerId = watch('sellerId');
+  const { data: originMunicipalities } = usePublicMunicipalities();
+  const selectedSellerOrigin = useMemo(
+    () => sellers?.data?.find((s: any) => s.id === watchedSellerId)?.originMunicipality || null,
+    [sellers, watchedSellerId],
+  );
 
   const submitWithStatus = (active: boolean) => {
     setValue('isActive', active, { shouldValidate: false });
@@ -697,6 +753,82 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
                       onCheckedChange={(checked) => setValue('isLocallyMade', checked)}
                     />
                   </div>
+
+                  {isLocallyMade && (
+                    <div className="space-y-4 rounded-lg border p-3">
+                      <div>
+                        <Label>Product Origin</Label>
+                        <RadioGroup
+                          value={originMode || 'SELLER_ORIGIN'}
+                          onValueChange={(value) => setValue('originMode', value as 'SELLER_ORIGIN' | 'CUSTOM_ORIGIN')}
+                          className="mt-2 space-y-2"
+                        >
+                          <div className="flex items-start gap-2">
+                            <RadioGroupItem value="SELLER_ORIGIN" id="origin-seller" className="mt-0.5" />
+                            <Label htmlFor="origin-seller" className="cursor-pointer font-normal">
+                              Same as Seller Origin
+                              <p className="text-xs text-muted-foreground">
+                                Seller Origin: {selectedSellerOrigin || 'not set — pick a seller, or ask them to set it in My Store'}
+                              </p>
+                            </Label>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <RadioGroupItem value="CUSTOM_ORIGIN" id="origin-custom" className="mt-0.5" />
+                            <Label htmlFor="origin-custom" className="cursor-pointer font-normal">
+                              Different Origin
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      {originMode === 'CUSTOM_ORIGIN' && (
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <Label htmlFor="originMunicipality" className="text-xs">Municipality *</Label>
+                            <Select
+                              value={watch('originMunicipality') || ''}
+                              onValueChange={(value) => setValue('originMunicipality', value)}
+                            >
+                              <SelectTrigger id="originMunicipality">
+                                <SelectValue placeholder="Select municipality" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {originMunicipalities?.map((m) => (
+                                  <SelectItem key={m.id} value={m.name}>
+                                    {m.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {errors.originMunicipality && (
+                              <p className="text-xs text-red-500">{errors.originMunicipality.message}</p>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor="originPostoAdmin" className="text-xs">Postu Administrativo</Label>
+                            <Input id="originPostoAdmin" {...register('originPostoAdmin')} />
+                          </div>
+                          <div>
+                            <Label htmlFor="originSuco" className="text-xs">Suco</Label>
+                            <Input id="originSuco" {...register('originSuco')} />
+                          </div>
+                          <div>
+                            <Label htmlFor="originAldeia" className="text-xs">Aldeia</Label>
+                            <Input id="originAldeia" {...register('originAldeia')} />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-2 border-t pt-3">
+                        <Label className="text-xs text-muted-foreground">Producer Information (Optional)</Label>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <Input placeholder="Producer name" {...register('producerName')} />
+                          <Input placeholder="Organization" {...register('producerOrganization')} />
+                          <Input placeholder="Phone" {...register('producerPhone')} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>

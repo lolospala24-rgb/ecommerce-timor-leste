@@ -62,6 +62,12 @@ export class UpdateSellerDto {
   @IsOptional()
   storeBanner?: string;
 
+  // See RegisterSellerDto's doc-comment.
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originMunicipality?: string;
+
   @IsString()
   @IsOptional()
   @MaxLength(100)

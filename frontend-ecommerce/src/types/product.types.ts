@@ -45,6 +45,19 @@ export interface Product {
   variants?: ProductVariant[];
   createdAt: string;
   updatedAt: string;
+  isLocallyMade?: boolean;
+  producerName?: string | null;
+  producerOrganization?: string | null;
+  producerPhone?: string | null;
+  // Server-resolved by resolveProductOrigin (SELLER_ORIGIN falls back to the
+  // seller's declared origin; CUSTOM_ORIGIN uses the product's own origin*
+  // fields) — never re-derive this client-side from raw origin* fields.
+  resolvedOrigin?: {
+    municipality: string;
+    postoAdmin: string | null;
+    suco: string | null;
+    aldeia: string | null;
+  } | null;
   seller?: {
     id: number;
     storeName: string;

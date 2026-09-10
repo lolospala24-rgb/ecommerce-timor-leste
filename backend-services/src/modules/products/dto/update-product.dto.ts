@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsInt,
   IsBoolean,
+  IsEnum,
   Min,
   Max,
   MinLength,
@@ -15,6 +16,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ProductOriginMode } from '@prisma/client';
 
 export class UpdateProductDto {
   @IsString()
@@ -114,6 +116,46 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   isLocallyMade?: boolean;
+
+  // See CreateProductDto's doc-comments for these — same rules apply.
+  @IsEnum(ProductOriginMode)
+  @IsOptional()
+  originMode?: ProductOriginMode;
+
+  @ValidateIf((o) => o.originMode === ProductOriginMode.CUSTOM_ORIGIN)
+  @IsString()
+  @MaxLength(100)
+  originMunicipality?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originPostoAdmin?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originSuco?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originAldeia?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  producerName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  producerOrganization?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  producerPhone?: string;
 
   @IsString()
   @IsOptional()

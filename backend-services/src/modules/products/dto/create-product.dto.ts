@@ -5,6 +5,8 @@ import {
   IsNumber,
   IsInt,
   IsBoolean,
+  IsEnum,
+  ValidateIf,
   Min,
   Max,
   MinLength,
@@ -15,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ProductOriginMode } from '@prisma/client';
 import { CreateVariantDto } from './create-variant.dto';
 
 export class CreateProductDto {
@@ -115,6 +118,51 @@ export class CreateProductDto {
   @IsBoolean()
   @IsOptional()
   isLocallyMade?: boolean;
+
+  // Only meaningful when isLocallyMade=true. Defaults to SELLER_ORIGIN at
+  // the database level if omitted — see Product.originMode's doc-comment
+  // in schema.prisma for why that default never fabricates an origin.
+  @IsEnum(ProductOriginMode)
+  @IsOptional()
+  originMode?: ProductOriginMode;
+
+  // Required only when originMode=CUSTOM_ORIGIN — a custom origin without
+  // at least a municipality isn't a meaningful override of the seller's
+  // origin.
+  @ValidateIf((o) => o.originMode === ProductOriginMode.CUSTOM_ORIGIN)
+  @IsString()
+  @MaxLength(100)
+  originMunicipality?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originPostoAdmin?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originSuco?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originAldeia?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  producerName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  producerOrganization?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  producerPhone?: string;
 
   @IsString()
   @IsOptional()

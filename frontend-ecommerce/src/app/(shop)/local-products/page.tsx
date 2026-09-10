@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useProducts, mapProductSortParams } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
+import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { AlertCircle, MapPin } from 'lucide-react';
 
@@ -32,9 +33,11 @@ export default function LocalProductsPage() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [categoryId, setCategoryId] = useState<string>('all');
+  const [municipality, setMunicipality] = useState<string>('all');
   const [sortBy, setSortBy] = useState('newest');
 
   const { data: categories } = useCategories({ limit: 100 });
+  const { data: municipalities } = usePublicMunicipalities();
   const mappedSort = mapProductSortParams(sortBy);
 
   const { data, isLoading, isError, refetch } = useProducts({
@@ -43,6 +46,7 @@ export default function LocalProductsPage() {
     isLocallyMade: true,
     isActive: true,
     categoryId: categoryId === 'all' ? undefined : parseInt(categoryId),
+    originMunicipality: municipality === 'all' ? undefined : municipality,
     sortBy: mappedSort.sortBy,
     sortOrder: mappedSort.sortOrder,
   });
@@ -78,6 +82,26 @@ export default function LocalProductsPage() {
             {categories?.data?.map((cat: any) => (
               <SelectItem key={cat.id} value={String(cat.id)}>
                 {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={municipality}
+          onValueChange={(value) => {
+            setMunicipality(value);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder={t('localProducts.filters.municipality')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('localProducts.filters.allMunicipalities')}</SelectItem>
+            {municipalities?.map((m) => (
+              <SelectItem key={m.id} value={m.name}>
+                {m.name}
               </SelectItem>
             ))}
           </SelectContent>

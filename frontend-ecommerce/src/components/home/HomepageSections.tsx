@@ -93,7 +93,7 @@ function ProductSection({ section }: { section: HomepageSection }) {
 
         <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
           {section.products.map((product) => (
-            <ProductCard key={product.id} product={product} isLocal={section.rule === 'LOCAL'} />
+            <ProductCard key={product.id} product={product} isLocal={product.isLocallyMade} />
           ))}
         </div>
       </div>

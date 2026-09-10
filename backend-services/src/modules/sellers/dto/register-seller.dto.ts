@@ -88,4 +88,13 @@ export class RegisterSellerDto {
   @IsUrl()
   @IsOptional()
   storeBanner?: string;
+
+  // Seller's declared local origin (e.g. "Ermera") — plain text, never a
+  // Municipality FK. Distinct from storeAddress/storeLatitude/
+  // storeLongitude (where the store operates from). See
+  // Seller.originMunicipality's doc-comment in schema.prisma.
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originMunicipality?: string;
 }

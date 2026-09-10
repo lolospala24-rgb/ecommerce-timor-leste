@@ -45,6 +45,9 @@ import {
   Bell,
   BellRing,
   Package,
+  Sprout,
+  User,
+  Phone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -157,6 +160,22 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const hasPackagingInfo =
     !hasVariants && !!product.packagingName && !!product.packagingUnitCount && !!product.packagingPrice;
   const packagingPerUnit = hasPackagingInfo ? product.packagingPrice! / product.packagingUnitCount! : 0;
+
+  // Server-resolved (resolveProductOrigin) — never re-derived here. Section
+  // is hidden entirely for non-local products, and doesn't render an empty
+  // shell for a local product whose seller hasn't declared an origin yet
+  // and has no producer info either.
+  const hasLocalInfo =
+    !!product.isLocallyMade &&
+    (!!product.resolvedOrigin ||
+      !!product.producerName ||
+      !!product.producerOrganization ||
+      !!product.producerPhone);
+  const localOriginParts = product.resolvedOrigin
+    ? [product.resolvedOrigin.aldeia, product.resolvedOrigin.suco, product.resolvedOrigin.postoAdmin, product.resolvedOrigin.municipality].filter(
+        (part): part is string => !!part,
+      )
+    : [];
 
   // Before any option is picked, show the real min–max span across variants
   // (e.g. "$12.00 - $18.00") instead of a single starting price that
@@ -413,13 +432,20 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               )}
             </div>
 
-            {product.type && (
+            {(product.isLocallyMade || product.type) && (
               <div className="flex flex-wrap items-center gap-2 pt-1">
+                {product.isLocallyMade && (
+                  <Badge className="gap-1.5 rounded-md border-0 bg-secondary px-2.5 py-1 font-normal text-secondary-foreground hover:bg-secondary">
+                    🇹🇱 Local Product
+                  </Badge>
+                )}
+                {product.type && (
                 <Badge variant="secondary" className="gap-1.5 rounded-md px-2.5 py-1 font-normal">
                   <Layers className="h-3.5 w-3.5" />
                   {product.type.name}
                 </Badge>
-                {parseProductTypeFields(product.type.fields).map((field) => (
+                )}
+                {parseProductTypeFields(product.type?.fields).map((field) => (
                   <Badge
                     key={field.key}
                     variant="outline"
@@ -680,6 +706,51 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Local Product Information — hidden entirely for non-local products.
+          Origin comes only from resolvedOrigin (server-resolved from either
+          the product's own custom origin or its seller's declared origin);
+          never fall back to product.seller.storeAddress here — that's where
+          the seller ships from, not where this specific product originates. */}
+      {hasLocalInfo && (
+        <div className="rounded-2xl border bg-card p-5 sm:p-6">
+          <div className="flex items-center gap-2">
+            <Sprout className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">🇹🇱 Produtu Lokál Timor-Leste</h2>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {localOriginParts.length > 0 && (
+              <div className="flex items-start gap-2.5 text-sm">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Origin</p>
+                  <p className="font-medium text-foreground">{localOriginParts.join(', ')}</p>
+                </div>
+              </div>
+            )}
+            {(product.producerName || product.producerOrganization) && (
+              <div className="flex items-start gap-2.5 text-sm">
+                <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Producer</p>
+                  <p className="font-medium text-foreground">
+                    {[product.producerName, product.producerOrganization].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+            )}
+            {product.producerPhone && (
+              <div className="flex items-start gap-2.5 text-sm">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Producer contact</p>
+                  <p className="font-medium text-foreground">{product.producerPhone}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

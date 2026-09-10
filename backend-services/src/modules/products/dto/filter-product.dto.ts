@@ -71,4 +71,12 @@ export class FilterProductDto {
   @Type(() => Boolean)
   @IsBoolean()
   isLocallyMade?: boolean;
+
+  // Matches a product's RESOLVED origin (its own custom origin, or its
+  // seller's origin when the product uses SELLER_ORIGIN) — see
+  // ProductsService.resolveOrigin. Not a Municipality FK/id — origin data
+  // is plain text, independent of the Shipping Municipality system.
+  @IsOptional()
+  @IsString()
+  originMunicipality?: string;
 }

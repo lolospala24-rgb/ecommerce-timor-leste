@@ -13,6 +13,7 @@ export class SellerEntity implements Seller {
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
+  originMunicipality: string | null;
   isVerified: boolean;
   verifiedAt: Date | null;
   verifiedBy: number | null;

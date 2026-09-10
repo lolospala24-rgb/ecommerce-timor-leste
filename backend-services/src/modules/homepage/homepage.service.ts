@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { HomepageSectionRule, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { resolveProductOrigin } from '../../common/utils/product-origin.util';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto';
@@ -17,7 +18,7 @@ const DEFAULT_LIMITED_STOCK_THRESHOLD = 5;
 // become available the moment that underlying data/engine exists, by
 // adding one more case to the switch below — not a new page or component.
 const PRODUCT_CARD_INCLUDE = {
-  seller: { select: { id: true, storeName: true } },
+  seller: { select: { id: true, storeName: true, originMunicipality: true } },
   category: { select: { id: true, name: true, slug: true } },
   reviews: { where: { isApproved: true }, select: { rating: true } },
 } satisfies Prisma.ProductInclude;
@@ -308,7 +309,15 @@ export class HomepageService {
         ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
         : 0;
     const { reviews, ...rest } = product;
-    return { ...rest, rating: avgRating, totalReviews: reviews.length };
+    return {
+      ...rest,
+      rating: avgRating,
+      totalReviews: reviews.length,
+      // Same resolution ProductsService uses for GET /products — see
+      // resolveProductOrigin's doc-comment. Harmless no-op for any
+      // non-local product (returns null immediately).
+      resolvedOrigin: resolveProductOrigin(product as any, (product as any).seller),
+    };
   }
 
   private sortToOrderBy(sort?: string | null): Prisma.ProductOrderByWithRelationInput {
