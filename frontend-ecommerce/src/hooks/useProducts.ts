@@ -19,6 +19,7 @@ interface ProductFilters {
   isActive?: boolean;
   minRating?: number;
   isLocallyMade?: boolean;
+  municipalityId?: number;
 }
 
 // The backend (`ProductsService.mapProductSort`) already understands these
@@ -59,6 +60,7 @@ export const useProducts = (filters?: ProductFilters) => {
       if (filters?.isActive !== undefined) params.append('isActive', filters.isActive.toString());
       if (filters?.minRating) params.append('minRating', filters.minRating.toString());
       if (filters?.isLocallyMade !== undefined) params.append('isLocallyMade', filters.isLocallyMade.toString());
+      if (filters?.municipalityId) params.append('municipalityId', filters.municipalityId.toString());
 
       const response = await api.get(`/products?${params.toString()}`);
       return response.data;

@@ -136,6 +136,10 @@ model Seller {
   storeLogo       String?
   storeBanner     String?
   description     String?
+  // Where the store is physically based — distinct from storeAddress (free
+  // text). Drives the Local Products municipality filter; nullable since
+  // existing sellers predate this field and must set it themselves.
+  municipalityId  Int?
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
   verifiedBy      Int?
@@ -154,6 +158,7 @@ model Seller {
   products        Product[]
   orders          Order[]
   verifiedByAdmin User?     @relation("AdminVerifiesSeller", fields: [verifiedBy], references: [id])
+  municipality    Municipality? @relation(fields: [municipalityId], references: [id])
   balance         SellerBalance?
   ledgerEntries   SellerLedgerEntry[]
   payouts         Payout[]
@@ -1035,6 +1040,7 @@ model Municipality {
   addresses     Address[]
   shippingZones ShippingZone[]
   courierRates  CourierRate[]
+  sellers       Seller[]
 
   @@unique([provinceId, name])
   @@map("municipalities")

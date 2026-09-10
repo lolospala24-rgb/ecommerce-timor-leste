@@ -45,6 +45,20 @@ export function useMunicipalities(search?: string) {
   });
 }
 
+// Public (no admin role required) — for seller-facing forms (My Store,
+// registration) where a SELLER, not just an ADMIN, needs the municipality
+// list. useMunicipalities() above hits the admin-only /admin variant.
+export function usePublicMunicipalities() {
+  return useQuery<MunicipalityData[]>({
+    queryKey: ['municipalities', 'public'],
+    queryFn: async () => {
+      const response = await api.get('/locations/municipalities');
+      return unwrapApiData<MunicipalityData[]>(response.data);
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
 export function useProvinces() {
   return useQuery<ProvinceData[]>({
     queryKey: ['provinces'],

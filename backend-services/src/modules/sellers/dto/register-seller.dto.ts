@@ -2,12 +2,14 @@
 import {
   IsEmail,
   IsString,
+  IsInt,
   MinLength,
   MaxLength,
   IsOptional,
   Matches,
   IsNotEmpty,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class RegisterSellerDto {
   // User fields
@@ -57,6 +59,11 @@ export class RegisterSellerDto {
   @IsNotEmpty({ message: 'Store address is required' })
   @MinLength(10, { message: 'Store address must be at least 10 characters long' })
   storeAddress: string;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  municipalityId?: number;
 
   @IsString()
   @IsOptional()

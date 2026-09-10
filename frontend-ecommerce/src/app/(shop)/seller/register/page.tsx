@@ -20,8 +20,16 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2, Eye, EyeOff, Store, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import api from '@/lib/api';
+import { useShippingZones } from '@/hooks/useAddresses';
 import toast from 'react-hot-toast';
 
 const phonePattern = /^[+]?[0-9]{8,15}$/;
@@ -52,6 +60,7 @@ const sellerSchema = z.object({
       message: 'Please enter a valid store email',
     }),
   storeAddress: z.string().min(10, 'Store address must be at least 10 characters'),
+  municipalityId: z.string().optional(),
   description: z.string().optional(),
 });
 
@@ -84,22 +93,30 @@ export default function SellerRegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<SellerForm>({
     resolver: zodResolver(sellerSchema),
   });
+  const { municipalities } = useShippingZones();
+  const municipalityId = watch('municipalityId');
 
   const onSubmit = async (data: SellerForm) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const payload: Record<string, unknown> = { ...data };
+      const payload: Record<string, unknown> = {
+        ...data,
+        municipalityId: data.municipalityId ? Number(data.municipalityId) : undefined,
+      };
       // class-validator's @IsOptional only skips null/undefined, not '' —
       // empty optional fields must be removed, not sent as ''.
       if (!payload.phone) delete payload.phone;
       if (!payload.storeEmail) delete payload.storeEmail;
       if (!payload.description) delete payload.description;
+      if (!payload.municipalityId) delete payload.municipalityId;
 
       await api.post('/sellers/register', payload);
       toast.success('Registration submitted! We\'ll review your store and email you once it\'s approved.');
@@ -231,6 +248,27 @@ export default function SellerRegisterPage() {
                 {errors.storeAddress && (
                   <p className="text-sm text-destructive">{errors.storeAddress.message}</p>
                 )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="municipalityId">Municipality (Optional)</Label>
+                <Select
+                  value={municipalityId || ''}
+                  onValueChange={(value) => setValue('municipalityId', value)}
+                >
+                  <SelectTrigger id="municipalityId">
+                    <SelectValue placeholder="Select your store's municipality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {municipalities.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Shown to customers browsing Local Products by municipality. You can set this later too.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">About Your Store (Optional)</Label>

@@ -2,11 +2,13 @@
 import {
   IsString,
   IsOptional,
+  IsInt,
   MaxLength,
   MinLength,
   IsEmail,
   Matches,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateSellerDto {
   @IsString()
@@ -30,6 +32,11 @@ export class UpdateSellerDto {
   @IsOptional()
   @MinLength(10, { message: 'Store address must be at least 10 characters long' })
   storeAddress?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  municipalityId?: number;
 
   @IsString()
   @IsOptional()

@@ -8,12 +8,13 @@
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
+  municipalityId: number | null;
   isVerified: boolean;
   verifiedAt: Date | null;
   rejectionReason: string | null;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // User info
   user?: {
     id: number;
@@ -21,6 +22,11 @@
     name: string;
     phone: string | null;
   };
+
+  municipality?: {
+    id: number;
+    name: string;
+  } | null;
   
   // Stats
   _count?: {

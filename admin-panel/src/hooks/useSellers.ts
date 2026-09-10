@@ -15,6 +15,8 @@ interface Seller {
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
+  municipalityId: number | null;
+  municipality?: { id: number; name: string } | null;
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedBy: number | null;
@@ -259,6 +261,7 @@ export const useUpdateMyStore = () => {
       storePhone?: string;
       storeEmail?: string;
       storeAddress?: string;
+      municipalityId?: number;
       description?: string;
     }) => {
       const response = await api.patch('/sellers/my-store', data);

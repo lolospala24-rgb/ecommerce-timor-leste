@@ -3,9 +3,17 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useSeller, useUpdateSeller } from '@/hooks/useSellers';
 import { useSellerBalanceAdmin, useSellerLedgerAdmin, useAdminCreatePayout } from '@/hooks/useFinance';
+import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { MaskedAccountNumber } from '@/components/shared/MaskedAccountNumber';
 import {
   Card,
@@ -61,6 +69,7 @@ export default function SellerDetailPage() {
   const { data: ledger } = useSellerLedgerAdmin(sellerId, 1, 8);
   const updateSeller = useUpdateSeller();
   const createPayout = useAdminCreatePayout();
+  const { data: municipalities } = usePublicMunicipalities();
 
   const [editingBank, setEditingBank] = useState(false);
   const [bankName, setBankName] = useState('');
@@ -68,12 +77,15 @@ export default function SellerDetailPage() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState('');
+  const [editingMunicipality, setEditingMunicipality] = useState(false);
+  const [municipalityId, setMunicipalityId] = useState('');
 
   useEffect(() => {
     if (seller) {
       setBankName(seller.bankName || '');
       setBankAccountName(seller.bankAccountName || '');
       setBankAccountNumber(seller.bankAccountNumber || '');
+      setMunicipalityId(seller.municipalityId ? String(seller.municipalityId) : '');
     }
   }, [seller]);
 
@@ -88,6 +100,14 @@ export default function SellerDetailPage() {
       data: { bankName: bankName.trim(), bankAccountName: bankAccountName.trim(), bankAccountNumber: bankAccountNumber.trim() } as any,
     });
     setEditingBank(false);
+  };
+
+  const handleSaveMunicipality = async () => {
+    await updateSeller.mutateAsync({
+      id: sellerId,
+      data: { municipalityId: municipalityId ? Number(municipalityId) : undefined } as any,
+    });
+    setEditingMunicipality(false);
   };
 
   const handleCreatePayout = async () => {
@@ -215,6 +235,51 @@ export default function SellerDetailPage() {
               {seller.description && (
                 <p className="mt-3 text-sm text-muted-foreground">{seller.description}</p>
               )}
+
+              {/* Municipality — distinct from the free-text storeAddress
+                  above; drives the Local Products municipality filter, so
+                  admin can set/fix it if the seller hasn't. */}
+              <div className="mt-4 border-t pt-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <MapPin className="h-4 w-4" />
+                    Municipality
+                  </div>
+                  {!editingMunicipality && (
+                    <Button size="sm" variant="ghost" onClick={() => setEditingMunicipality(true)}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
+                      {seller.municipality ? 'Edit' : 'Set'}
+                    </Button>
+                  )}
+                </div>
+                {editingMunicipality ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Select value={municipalityId} onValueChange={setMunicipalityId}>
+                      <SelectTrigger className="w-64">
+                        <SelectValue placeholder="Select municipality" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {municipalities?.map((m) => (
+                          <SelectItem key={m.id} value={String(m.id)}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" disabled={updateSeller.isPending} onClick={handleSaveMunicipality}>
+                      {updateSeller.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingMunicipality(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {seller.municipality?.name || 'Not set'}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

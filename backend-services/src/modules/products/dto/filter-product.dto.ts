@@ -71,4 +71,9 @@ export class FilterProductDto {
   @Type(() => Boolean)
   @IsBoolean()
   isLocallyMade?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  municipalityId?: number;
 }

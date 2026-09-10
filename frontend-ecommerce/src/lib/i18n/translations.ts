@@ -172,6 +172,8 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.error.title': 'La konsege karga produtu',
     'localProducts.error.description': 'Iha problema wainhira karga produtu lokál sira. Favor tenta fila fali.',
     'localProducts.error.retry': 'Tenta fila fali',
+    'localProducts.filters.allCategories': 'Kategoria Hotu',
+    'localProducts.filters.allMunicipalities': 'Munisípiu Hotu',
 
     // Top sellers
     'home.topSellers.badge': 'Vendedór Konfiável',
@@ -340,6 +342,8 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.error.title': "Couldn't load products",
     'localProducts.error.description': 'Something went wrong while loading local products. Please try again.',
     'localProducts.error.retry': 'Try again',
+    'localProducts.filters.allCategories': 'All Categories',
+    'localProducts.filters.allMunicipalities': 'All Municipalities',
 
     'home.topSellers.badge': 'Trusted Sellers',
     'home.topSellers.title': 'Top Sellers',
@@ -506,6 +510,8 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.error.title': 'Gagal memuat produk',
     'localProducts.error.description': 'Terjadi kesalahan saat memuat produk lokal. Silakan coba lagi.',
     'localProducts.error.retry': 'Coba lagi',
+    'localProducts.filters.allCategories': 'Semua Kategori',
+    'localProducts.filters.allMunicipalities': 'Semua Munisípiu',
 
     'home.topSellers.badge': 'Penjual Terpercaya',
     'home.topSellers.title': 'Penjual Terbaik',
@@ -672,6 +678,8 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.error.title': 'Não foi possível carregar os produtos',
     'localProducts.error.description': 'Ocorreu um erro ao carregar os produtos locais. Por favor, tente novamente.',
     'localProducts.error.retry': 'Tentar novamente',
+    'localProducts.filters.allCategories': 'Todas as Categorias',
+    'localProducts.filters.allMunicipalities': 'Todos os Municípios',
 
     'home.topSellers.badge': 'Vendedores Confiáveis',
     'home.topSellers.title': 'Melhores Vendedores',
