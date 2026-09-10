@@ -20,6 +20,9 @@ interface Seller {
   // Seller's declared local origin — distinct from storeAddress (where the
   // store operates). See Seller.originMunicipality's doc-comment.
   originMunicipality: string | null;
+  originPostoAdmin: string | null;
+  originSuco: string | null;
+  originAldeia: string | null;
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedBy: number | null;
@@ -147,6 +150,9 @@ export const useRegisterSeller = () => {
       storeLogo?: string;
       storeBanner?: string;
       originMunicipality?: string;
+      originPostoAdmin?: string;
+      originSuco?: string;
+      originAldeia?: string;
       description?: string;
     }) => {
       const response = await api.post('/sellers/register', data);
@@ -270,6 +276,9 @@ export const useUpdateMyStore = () => {
       storeLatitude?: number;
       storeLongitude?: number;
       originMunicipality?: string;
+      originPostoAdmin?: string;
+      originSuco?: string;
+      originAldeia?: string;
       description?: string;
     }) => {
       const response = await api.patch('/sellers/my-store', data);

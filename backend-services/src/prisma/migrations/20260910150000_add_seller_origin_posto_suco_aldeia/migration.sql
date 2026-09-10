@@ -1,0 +1,4 @@
+ALTER TABLE `sellers`
+  ADD COLUMN `originPostoAdmin` VARCHAR(191) NULL,
+  ADD COLUMN `originSuco` VARCHAR(191) NULL,
+  ADD COLUMN `originAldeia` VARCHAR(191) NULL;

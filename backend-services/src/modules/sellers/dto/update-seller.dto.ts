@@ -71,6 +71,21 @@ export class UpdateSellerDto {
   @IsString()
   @IsOptional()
   @MaxLength(100)
+  originPostoAdmin?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originSuco?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  originAldeia?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
   bankName?: string;
 
   @IsString()

@@ -25,6 +25,9 @@ export interface OriginSourceProduct {
 
 export interface OriginSourceSeller {
   originMunicipality?: string | null;
+  originPostoAdmin?: string | null;
+  originSuco?: string | null;
+  originAldeia?: string | null;
 }
 
 export function resolveProductOrigin(
@@ -45,5 +48,10 @@ export function resolveProductOrigin(
 
   // SELLER_ORIGIN
   if (!seller?.originMunicipality) return null;
-  return { municipality: seller.originMunicipality, postoAdmin: null, suco: null, aldeia: null };
+  return {
+    municipality: seller.originMunicipality,
+    postoAdmin: seller.originPostoAdmin ?? null,
+    suco: seller.originSuco ?? null,
+    aldeia: seller.originAldeia ?? null,
+  };
 }

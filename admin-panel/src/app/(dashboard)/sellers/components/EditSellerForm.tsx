@@ -7,17 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
+import { OriginLocationFields } from '@/components/shared/OriginLocationFields';
 import { useUpdateSeller } from '@/hooks/useSellers';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { Loader2 } from 'lucide-react';
 
 // Mirrors CreateSellerForm's store-profile fields, minus the owner
@@ -36,6 +29,9 @@ const editSellerSchema = z.object({
   storeEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   storeAddress: z.string().min(5, 'Store address is required'),
   originMunicipality: z.string().optional().or(z.literal('')),
+  originPostoAdmin: z.string().optional().or(z.literal('')),
+  originSuco: z.string().optional().or(z.literal('')),
+  originAldeia: z.string().optional().or(z.literal('')),
   description: z.string().optional().or(z.literal('')),
 });
 
@@ -53,6 +49,9 @@ interface EditSellerFormProps {
     storeLogo?: string | null;
     storeBanner?: string | null;
     originMunicipality?: string | null;
+    originPostoAdmin?: string | null;
+    originSuco?: string | null;
+    originAldeia?: string | null;
     description?: string | null;
   };
   onSuccess: () => void;
@@ -76,6 +75,9 @@ export function EditSellerForm({ seller, onSuccess, onCancel }: EditSellerFormPr
       storeEmail: seller.storeEmail || '',
       storeAddress: seller.storeAddress || '',
       originMunicipality: seller.originMunicipality || '',
+      originPostoAdmin: seller.originPostoAdmin || '',
+      originSuco: seller.originSuco || '',
+      originAldeia: seller.originAldeia || '',
       description: seller.description || '',
     },
   });
@@ -89,7 +91,9 @@ export function EditSellerForm({ seller, onSuccess, onCancel }: EditSellerFormPr
   );
   const storeAddress = watch('storeAddress');
   const originMunicipality = watch('originMunicipality');
-  const { data: municipalities } = usePublicMunicipalities();
+  const originPostoAdmin = watch('originPostoAdmin');
+  const originSuco = watch('originSuco');
+  const originAldeia = watch('originAldeia');
 
   const onSubmit = async (values: EditSellerFormValues) => {
     try {
@@ -103,6 +107,9 @@ export function EditSellerForm({ seller, onSuccess, onCancel }: EditSellerFormPr
           storeLatitude: storeCoords?.lat,
           storeLongitude: storeCoords?.lng,
           originMunicipality: values.originMunicipality || undefined,
+          originPostoAdmin: values.originPostoAdmin || undefined,
+          originSuco: values.originSuco || undefined,
+          originAldeia: values.originAldeia || undefined,
           storeLogo: storeLogo || undefined,
           storeBanner: storeBanner || undefined,
           description: values.description || undefined,
@@ -147,26 +154,27 @@ export function EditSellerForm({ seller, onSuccess, onCancel }: EditSellerFormPr
             {errors.storeAddress && <p className="mt-1 text-sm text-red-500">{errors.storeAddress.message}</p>}
           </div>
           <div>
-            <Label htmlFor="originMunicipality">Seller Origin</Label>
-            <Select
-              value={originMunicipality || ''}
-              onValueChange={(value) => setValue('originMunicipality', value)}
-            >
-              <SelectTrigger id="originMunicipality">
-                <SelectValue placeholder="Where this seller's local products come from" />
-              </SelectTrigger>
-              <SelectContent>
-                {municipalities?.map((m) => (
-                  <SelectItem key={m.id} value={m.name}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">
+            <Label>Seller Origin</Label>
+            <p className="text-xs text-muted-foreground mb-2">
               Different from Store Address — used as the default origin for this seller&apos;s
-              locally-made products.
+              locally-made products. Independent of Shipping&apos;s municipality list — enter it
+              directly.
             </p>
+            <OriginLocationFields
+              idPrefix="seller-origin-edit"
+              value={{
+                municipality: originMunicipality || '',
+                postoAdmin: originPostoAdmin || '',
+                suco: originSuco || '',
+                aldeia: originAldeia || '',
+              }}
+              onChange={(next) => {
+                setValue('originMunicipality', next.municipality);
+                setValue('originPostoAdmin', next.postoAdmin);
+                setValue('originSuco', next.suco);
+                setValue('originAldeia', next.aldeia);
+              }}
+            />
           </div>
         </div>
 

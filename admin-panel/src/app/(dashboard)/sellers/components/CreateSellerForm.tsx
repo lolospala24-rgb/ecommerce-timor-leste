@@ -7,17 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
+import { OriginLocationFields } from '@/components/shared/OriginLocationFields';
 import { useRegisterSeller } from '@/hooks/useSellers';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { Loader2 } from 'lucide-react';
 
 // Backend (RegisterSellerDto) requires digits-only, no spaces/dashes:
@@ -43,6 +36,9 @@ const sellerSchema = z.object({
   storeEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   storeAddress: z.string().min(5, 'Store address is required'),
   originMunicipality: z.string().optional().or(z.literal('')),
+  originPostoAdmin: z.string().optional().or(z.literal('')),
+  originSuco: z.string().optional().or(z.literal('')),
+  originAldeia: z.string().optional().or(z.literal('')),
   storeLogo: z.string().optional().or(z.literal('')),
   storeBanner: z.string().optional().or(z.literal('')),
   description: z.string().optional().or(z.literal('')),
@@ -76,6 +72,9 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
       storeEmail: '',
       storeAddress: '',
       originMunicipality: '',
+      originPostoAdmin: '',
+      originSuco: '',
+      originAldeia: '',
       storeLogo: '',
       storeBanner: '',
       description: '',
@@ -87,7 +86,9 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
   const storeAddress = watch('storeAddress');
   const originMunicipality = watch('originMunicipality');
-  const { data: municipalities } = usePublicMunicipalities();
+  const originPostoAdmin = watch('originPostoAdmin');
+  const originSuco = watch('originSuco');
+  const originAldeia = watch('originAldeia');
 
   const onSubmit = async (values: CreateSellerFormValues) => {
     try {
@@ -103,6 +104,9 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
         storeLatitude: storeCoords?.lat,
         storeLongitude: storeCoords?.lng,
         originMunicipality: values.originMunicipality || undefined,
+        originPostoAdmin: values.originPostoAdmin || undefined,
+        originSuco: values.originSuco || undefined,
+        originAldeia: values.originAldeia || undefined,
         storeLogo: storeLogo || undefined,
         storeBanner: storeBanner || undefined,
         description: values.description || undefined,
@@ -187,27 +191,28 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
             {errors.storeAddress && <p className="mt-1 text-sm text-red-500">{errors.storeAddress.message}</p>}
           </div>
           <div>
-            <Label htmlFor="originMunicipality">Seller Origin</Label>
-            <Select
-              value={originMunicipality || ''}
-              onValueChange={(value) => setValue('originMunicipality', value)}
-            >
-              <SelectTrigger id="originMunicipality">
-                <SelectValue placeholder="Where this seller's local products come from" />
-              </SelectTrigger>
-              <SelectContent>
-                {municipalities?.map((m) => (
-                  <SelectItem key={m.id} value={m.name}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Different from Store Address — this is where the seller's local products originate
-              from (e.g. &ldquo;Ermera&rdquo; for coffee), used as the default origin for their
-              locally-made products.
+            <Label>Seller Origin</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Different from Store Address — this is where the seller&apos;s local products
+              originate from (e.g. Ermera for coffee), used as the default origin for their
+              locally-made products. Independent of Shipping&apos;s municipality list — enter it
+              directly.
             </p>
+            <OriginLocationFields
+              idPrefix="seller-origin"
+              value={{
+                municipality: originMunicipality || '',
+                postoAdmin: originPostoAdmin || '',
+                suco: originSuco || '',
+                aldeia: originAldeia || '',
+              }}
+              onChange={(next) => {
+                setValue('originMunicipality', next.municipality);
+                setValue('originPostoAdmin', next.postoAdmin);
+                setValue('originSuco', next.suco);
+                setValue('originAldeia', next.aldeia);
+              }}
+            />
           </div>
         </div>
       </div>

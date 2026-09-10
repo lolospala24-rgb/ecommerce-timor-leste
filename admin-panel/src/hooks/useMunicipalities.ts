@@ -45,25 +45,6 @@ export function useMunicipalities(search?: string) {
   });
 }
 
-// Public (no admin role required) — used purely as a display/suggestion
-// source for "Seller Origin" and "Product Origin" text fields (SELLER role
-// needs this too, e.g. from My Store, which the admin-only /admin variant
-// above would 403 for). The value actually stored is the municipality's
-// plain name string, never its id — Seller.originMunicipality and
-// Product.originMunicipality are deliberately not foreign keys into this
-// table, so nothing here creates a runtime dependency on Shipping's
-// Municipality data; it only saves someone from typo'ing "Ermera".
-export function usePublicMunicipalities() {
-  return useQuery<MunicipalityData[]>({
-    queryKey: ['municipalities', 'public'],
-    queryFn: async () => {
-      const response = await api.get('/locations/municipalities');
-      return unwrapApiData<MunicipalityData[]>(response.data);
-    },
-    staleTime: 1000 * 60 * 10,
-  });
-}
-
 export function useProvinces() {
   return useQuery<ProvinceData[]>({
     queryKey: ['provinces'],

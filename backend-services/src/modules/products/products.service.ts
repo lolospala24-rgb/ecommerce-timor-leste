@@ -356,6 +356,9 @@ export class ProductsService {
           storeName: true,
           storeLogo: true,
           originMunicipality: true,
+          originPostoAdmin: true,
+          originSuco: true,
+          originAldeia: true,
         },
       },
       category: {
@@ -566,6 +569,9 @@ export class ProductsService {
             storeLogo: true,
             isVerified: true,
             originMunicipality: true,
+            originPostoAdmin: true,
+            originSuco: true,
+            originAldeia: true,
           },
         },
         category: {
@@ -675,6 +681,9 @@ export class ProductsService {
             storeLogo: true,
             isVerified: true,
             originMunicipality: true,
+            originPostoAdmin: true,
+            originSuco: true,
+            originAldeia: true,
           },
         },
         category: {

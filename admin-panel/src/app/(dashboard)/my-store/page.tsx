@@ -16,14 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
+import { OriginLocationFields } from '@/components/shared/OriginLocationFields';
 import { Store, Loader2, Upload, ImageIcon, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -32,7 +26,6 @@ import {
   useUploadStoreLogo,
   useUploadStoreBanner,
 } from '@/hooks/useSellers';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import toast from 'react-hot-toast';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -127,7 +120,6 @@ export default function MyStorePage() {
   const updateStore = useUpdateMyStore();
   const uploadLogo = useUploadStoreLogo();
   const uploadBanner = useUploadStoreBanner();
-  const { data: municipalities } = usePublicMunicipalities();
 
   const [formData, setFormData] = useState({
     storeName: '',
@@ -135,6 +127,9 @@ export default function MyStorePage() {
     storeEmail: '',
     storeAddress: '',
     originMunicipality: '',
+    originPostoAdmin: '',
+    originSuco: '',
+    originAldeia: '',
     description: '',
   });
   const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -147,6 +142,9 @@ export default function MyStorePage() {
         storeEmail: seller.storeEmail || '',
         storeAddress: seller.storeAddress || '',
         originMunicipality: seller.originMunicipality || '',
+        originPostoAdmin: seller.originPostoAdmin || '',
+        originSuco: seller.originSuco || '',
+        originAldeia: seller.originAldeia || '',
         description: seller.description || '',
       });
     }
@@ -288,25 +286,29 @@ export default function MyStorePage() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Seller Origin</Label>
-              <Select
-                value={formData.originMunicipality}
-                onValueChange={(value) => handleChange('originMunicipality', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Where your local products come from" />
-                </SelectTrigger>
-                <SelectContent>
-                  {municipalities?.map((m) => (
-                    <SelectItem key={m.id} value={m.name}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <p className="text-xs text-muted-foreground">
                 Different from Store Address — used as the default origin for your locally-made
-                products, unless you set a different origin on a specific product.
+                products, unless you set a different origin on a specific product. Independent of
+                Shipping&apos;s municipality list — enter it directly.
               </p>
+              <OriginLocationFields
+                idPrefix="my-store-origin"
+                value={{
+                  municipality: formData.originMunicipality,
+                  postoAdmin: formData.originPostoAdmin,
+                  suco: formData.originSuco,
+                  aldeia: formData.originAldeia,
+                }}
+                onChange={(next) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    originMunicipality: next.municipality,
+                    originPostoAdmin: next.postoAdmin,
+                    originSuco: next.suco,
+                    originAldeia: next.aldeia,
+                  }))
+                }
+              />
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Store Description</Label>

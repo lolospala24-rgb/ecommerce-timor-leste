@@ -18,7 +18,16 @@ const DEFAULT_LIMITED_STOCK_THRESHOLD = 5;
 // become available the moment that underlying data/engine exists, by
 // adding one more case to the switch below — not a new page or component.
 const PRODUCT_CARD_INCLUDE = {
-  seller: { select: { id: true, storeName: true, originMunicipality: true } },
+  seller: {
+    select: {
+      id: true,
+      storeName: true,
+      originMunicipality: true,
+      originPostoAdmin: true,
+      originSuco: true,
+      originAldeia: true,
+    },
+  },
   category: { select: { id: true, name: true, slug: true } },
   reviews: { where: { isApproved: true }, select: { rating: true } },
 } satisfies Prisma.ProductInclude;

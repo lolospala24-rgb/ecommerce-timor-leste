@@ -29,9 +29,9 @@ import {
 } from '@/components/ui/dialog';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { VideoUpload } from '@/components/shared/VideoUpload';
+import { OriginLocationFields } from '@/components/shared/OriginLocationFields';
 import { useCategories } from '@/hooks/useCategories';
 import { useSellers } from '@/hooks/useSellers';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import { useProductTypes } from '@/hooks/useProductTypes';
 import { useAuthStore } from '@/stores/authStore';
 import { fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
@@ -543,7 +543,6 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
   const isLocallyMade = watch('isLocallyMade');
   const originMode = watch('originMode');
   const watchedSellerId = watch('sellerId');
-  const { data: originMunicipalities } = usePublicMunicipalities();
   const selectedSellerOrigin = useMemo(
     () => sellers?.data?.find((s: any) => s.id === watchedSellerId)?.originMunicipality || null,
     [sellers, watchedSellerId],
@@ -782,41 +781,23 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
                       </div>
 
                       {originMode === 'CUSTOM_ORIGIN' && (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <Label htmlFor="originMunicipality" className="text-xs">Municipality *</Label>
-                            <Select
-                              value={watch('originMunicipality') || ''}
-                              onValueChange={(value) => setValue('originMunicipality', value)}
-                            >
-                              <SelectTrigger id="originMunicipality">
-                                <SelectValue placeholder="Select municipality" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {originMunicipalities?.map((m) => (
-                                  <SelectItem key={m.id} value={m.name}>
-                                    {m.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {errors.originMunicipality && (
-                              <p className="text-xs text-red-500">{errors.originMunicipality.message}</p>
-                            )}
-                          </div>
-                          <div>
-                            <Label htmlFor="originPostoAdmin" className="text-xs">Postu Administrativo</Label>
-                            <Input id="originPostoAdmin" {...register('originPostoAdmin')} />
-                          </div>
-                          <div>
-                            <Label htmlFor="originSuco" className="text-xs">Suco</Label>
-                            <Input id="originSuco" {...register('originSuco')} />
-                          </div>
-                          <div>
-                            <Label htmlFor="originAldeia" className="text-xs">Aldeia</Label>
-                            <Input id="originAldeia" {...register('originAldeia')} />
-                          </div>
-                        </div>
+                        <OriginLocationFields
+                          idPrefix="product-origin"
+                          municipalityRequired
+                          municipalityError={errors.originMunicipality?.message}
+                          value={{
+                            municipality: watch('originMunicipality') || '',
+                            postoAdmin: watch('originPostoAdmin') || '',
+                            suco: watch('originSuco') || '',
+                            aldeia: watch('originAldeia') || '',
+                          }}
+                          onChange={(next) => {
+                            setValue('originMunicipality', next.municipality, { shouldValidate: true });
+                            setValue('originPostoAdmin', next.postoAdmin);
+                            setValue('originSuco', next.suco);
+                            setValue('originAldeia', next.aldeia);
+                          }}
+                        />
                       )}
 
                       <div className="space-y-2 border-t pt-3">

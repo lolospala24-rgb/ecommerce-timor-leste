@@ -150,8 +150,16 @@ model Seller {
   // stay independent of the Shipping Municipality system (see
   // storeLatitude's doc-comment above for the same reasoning). Used only
   // as the default a Product falls back to when its own originMode is
-  // SELLER_ORIGIN — see Product.originMode.
+  // SELLER_ORIGIN — see Product.originMode. All four origin fields are
+  // plain free text the seller enters directly (optionally assisted by a
+  // Google Places search that best-effort fills them) — never a
+  // Municipality/Posto/Suco/Aldeia FK, and never validated against
+  // Shipping's location tables, so there is nothing to be "missing" from:
+  // typing a value and saving is how a new one gets recorded.
   originMunicipality String?
+  originPostoAdmin   String?
+  originSuco         String?
+  originAldeia       String?
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
   verifiedBy      Int?

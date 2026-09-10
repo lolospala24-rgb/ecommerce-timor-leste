@@ -14,6 +14,9 @@ export class SellerEntity implements Seller {
   storeBanner: string | null;
   description: string | null;
   originMunicipality: string | null;
+  originPostoAdmin: string | null;
+  originSuco: string | null;
+  originAldeia: string | null;
   isVerified: boolean;
   verifiedAt: Date | null;
   verifiedBy: number | null;
