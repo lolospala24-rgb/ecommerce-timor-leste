@@ -154,6 +154,7 @@ export class ProductsService {
           typeId: createProductDto.typeId ?? null,
           isActive: createProductDto.isActive ?? true,
           isFeatured: createProductDto.isFeatured ?? false,
+          isLocallyMade: createProductDto.isLocallyMade ?? false,
           slug,
           length: createProductDto.length,
           width: createProductDto.width,
@@ -779,6 +780,7 @@ export class ProductsService {
         typeId: updateProductDto.typeId,
         isActive: updateProductDto.isActive,
         isFeatured: updateProductDto.isFeatured,
+        isLocallyMade: updateProductDto.isLocallyMade,
         slug: nextSlug,
         length: updateProductDto.length,
         width: updateProductDto.width,
@@ -1716,115 +1718,6 @@ export class ProductsService {
     });
 
     return productsWithRating;
-  }
-
-  async getLocalProducts(limit: number) {
-    const cacheKey = `products:local:${limit}`;
-    const cached = await this.redisService.get(cacheKey);
-
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (
-          parsed &&
-          (parsed.category || (Array.isArray(parsed.products) && parsed.products.length > 0))
-        ) {
-          return parsed;
-        }
-      } catch {
-        // fallback to fresh DB query if cache is malformed
-      }
-    }
-
-    const categories = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        products: { some: {} },
-        OR: [
-          { slug: 'local-products' },
-          { slug: 'Produtu-Local' },
-          { name: 'Local Products' },
-          { name: 'Produtu Local' },
-          { nameTetum: 'Local Products' },
-          { nameTetum: 'Produtu Local' },
-          { slug: { contains: 'Produtu' } },
-          { slug: { contains: 'Local' } },
-          { name: { contains: 'Produtu' } },
-          { name: { contains: 'Local' } },
-          { nameTetum: { contains: 'Produtu' } },
-          { nameTetum: { contains: 'Local' } },
-        ],
-      },
-      orderBy: [
-        { isFeatured: 'desc' },
-        { order: 'asc' },
-      ],
-      take: 1,
-    });
-
-    const category = categories[0] ?? null;
-
-    if (!category) {
-      return { category: null, products: [] };
-    }
-
-    const products = await this.prisma.product.findMany({
-      where: {
-        isActive: true,
-        stock: { gt: 0 },
-        categoryId: category.id,
-      },
-      take: limit,
-      include: {
-        seller: {
-          select: {
-            id: true,
-            storeName: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            nameTetum: true,
-            description: true,
-            slug: true,
-          },
-        },
-        reviews: {
-          where: { isApproved: true },
-          select: { rating: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const productsWithRating = products.map(product => {
-      const avgRating = product.reviews.length > 0
-        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
-        : 0;
-
-      const { reviews, ...productWithoutReviews } = product;
-      return {
-        ...productWithoutReviews,
-        rating: avgRating,
-        totalReviews: product.reviews.length,
-      };
-    });
-
-    const result = {
-      category: {
-        id: category.id,
-        name: category.name,
-        nameTetum: category.nameTetum,
-        description: category.description,
-        slug: category.slug,
-      },
-      products: productsWithRating,
-    };
-
-    await this.redisService.set(cacheKey, JSON.stringify(result), 600);
-    return result;
   }
 
   async forceRemove(id: number) {

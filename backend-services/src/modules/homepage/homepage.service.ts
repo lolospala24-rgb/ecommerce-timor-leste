@@ -229,7 +229,7 @@ export class HomepageService {
   private async validateConfigForRule(rule: HomepageSectionRule, config: unknown) {
     const cfg = (config ?? {}) as Record<string, unknown>;
 
-    if (rule === HomepageSectionRule.LOCAL || rule === HomepageSectionRule.CATEGORY) {
+    if (rule === HomepageSectionRule.CATEGORY) {
       const categoryId = Number(cfg.categoryId);
       if (!categoryId || !Number.isInteger(categoryId)) {
         throw new BadRequestException(`Rule ${rule} requires config.categoryId`);
@@ -286,6 +286,7 @@ export class HomepageService {
       case HomepageSectionRule.BEST_SELLING:
         return this.resolveBestSelling(limit);
       case HomepageSectionRule.LOCAL:
+        return this.resolveLocallyMade(limit, section.sort);
       case HomepageSectionRule.CATEGORY:
         return this.resolveCategory(Number(cfg.categoryId), limit, section.sort);
       case HomepageSectionRule.ON_SALE:
@@ -372,6 +373,20 @@ export class HomepageService {
       where: { isActive: true, orderItems: { some: { order: { status: 'DELIVERED' } } } },
       take: limit,
       orderBy: { orderItems: { _count: 'desc' } },
+      include: PRODUCT_CARD_INCLUDE,
+    });
+    return products.map((p) => this.withRatings(p));
+  }
+
+  // A real product attribute (seller-set `isLocallyMade`), not a category —
+  // see Product.isLocallyMade's doc-comment. Deliberately its own resolver
+  // rather than sharing resolveCategory: LOCAL cuts across every category,
+  // CATEGORY spotlights exactly one.
+  private async resolveLocallyMade(limit: number, sort?: string | null) {
+    const products = await this.prisma.product.findMany({
+      where: { isActive: true, stock: { gt: 0 }, isLocallyMade: true },
+      take: limit,
+      orderBy: this.sortToOrderBy(sort),
       include: PRODUCT_CARD_INCLUDE,
     });
     return products.map((p) => this.withRatings(p));

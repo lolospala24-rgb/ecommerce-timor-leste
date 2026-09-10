@@ -25,6 +25,7 @@ export class ProductEntity implements Product {
   typeId: number | null;
   isActive: boolean;
   isFeatured: boolean;
+  isLocallyMade: boolean;
   hasVariants: boolean;
   length: number | null;
   width: number | null;

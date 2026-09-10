@@ -16,7 +16,6 @@ export const API_ENDPOINTS = {
     FEATURED: '/products/featured',
     NEW_ARRIVALS: '/products/new-arrivals',
     BEST_SELLERS: '/products/best-sellers',
-    LOCAL: '/products/local',
     SEARCH: '/products/search',
     RELATED: (id: number) => `/products/${id}/related`,
     SELLER: (id: number) => `/products/seller/${id}`,

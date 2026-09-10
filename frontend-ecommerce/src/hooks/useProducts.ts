@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { API_ENDPOINTS } from '@/lib/constants';
 import { normalizeProduct, unwrapApiData } from '@/lib/product';
 import toast from 'react-hot-toast';
 
@@ -145,46 +144,6 @@ export const usePopularProducts = (limit: number = 10) => {
       const response = await api.get(`/products/popular?limit=${limit}`);
       const raw = unwrapApiData<unknown[]>(response);
       return Array.isArray(raw) ? raw.map(normalizeProduct) : [];
-    },
-  });
-};
-
-export interface LocalProductsResult {
-  category: {
-    id: number;
-    name: string;
-    nameTetum?: string | null;
-    description?: string | null;
-    slug: string;
-  } | null;
-  products: ReturnType<typeof normalizeProduct>[];
-}
-
-export const useLocalProducts = (limit: number = 8) => {
-  return useQuery<LocalProductsResult>({
-    queryKey: ['products', 'local', limit],
-    queryFn: async () => {
-      const response = await api.get(`${API_ENDPOINTS.PRODUCTS.LOCAL}?limit=${limit}`);
-      const payload = unwrapApiData<unknown>(response);
-      const responseObject = typeof payload === 'object' && payload !== null ? payload as Record<string, unknown> : {};
-
-      const productsRaw = Array.isArray(payload)
-        ? payload
-        : Array.isArray(responseObject.products)
-          ? responseObject.products
-          : [];
-
-      const category = responseObject.category as LocalProductsResult['category'] || null;
-      const isLocalCategory = !!category && [category.name, category.nameTetum, category.slug]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes('local') || value!.toLowerCase().includes('produtu'));
-
-      return {
-        category: isLocalCategory ? category : null,
-        products: isLocalCategory && Array.isArray(productsRaw)
-          ? productsRaw.map(normalizeProduct)
-          : [],
-      };
     },
   });
 };

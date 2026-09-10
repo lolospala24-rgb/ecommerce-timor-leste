@@ -94,6 +94,7 @@ const productSchema = z.object({
   typeId: z.number().optional().nullable(),
   isActive: z.boolean(),
   isFeatured: z.boolean(),
+  isLocallyMade: z.boolean(),
   slug: z.string().optional(),
 });
 
@@ -221,6 +222,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       typeId: initialData?.type?.id ?? initialData?.typeId ?? null,
       isActive: initialData?.isActive ?? true,
       isFeatured: initialData?.isFeatured ?? false,
+      isLocallyMade: initialData?.isLocallyMade ?? false,
       slug: initialData?.slug || '',
     },
   });
@@ -405,6 +407,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
       typeId: data.typeId || null,
       isActive: Boolean(data.isActive),
       isFeatured: Boolean(data.isFeatured),
+      isLocallyMade: Boolean(data.isLocallyMade),
       slug: data.slug || null,
       images,
     };
@@ -488,6 +491,7 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
 
   const isActive = watch('isActive');
   const isFeatured = watch('isFeatured');
+  const isLocallyMade = watch('isLocallyMade');
 
   const submitWithStatus = (active: boolean) => {
     setValue('isActive', active, { shouldValidate: false });
@@ -678,6 +682,20 @@ export function ProductForm({ initialData, onSuccess, onCancel }: ProductFormPro
                       <p className="text-xs text-muted-foreground">Highlighted on the homepage</p>
                     </div>
                     <Switch id="isFeatured" checked={isFeatured} onCheckedChange={(checked) => setValue('isFeatured', checked)} />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label htmlFor="isLocallyMade">Locally made in Timor-Leste</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Eligible for the &ldquo;Local Products&rdquo; homepage section, regardless of category
+                      </p>
+                    </div>
+                    <Switch
+                      id="isLocallyMade"
+                      checked={isLocallyMade}
+                      onCheckedChange={(checked) => setValue('isLocallyMade', checked)}
+                    />
                   </div>
                 </div>
 

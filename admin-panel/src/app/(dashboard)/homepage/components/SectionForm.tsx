@@ -35,7 +35,7 @@ const RULE_OPTIONS: { value: HomepageSectionRule; label: string; description: st
   { value: 'NEWEST', label: 'Newest', description: 'Most recently added products' },
   { value: 'POPULAR', label: 'Popular', description: 'Ranked by wishlist adds + reviews' },
   { value: 'BEST_SELLING', label: 'Best Selling', description: 'Ranked by delivered order count' },
-  { value: 'LOCAL', label: 'Local Products', description: 'Products in a specific category' },
+  { value: 'LOCAL', label: 'Local Products', description: "Products sellers tagged as made/sourced in Timor-Leste, across every category" },
   { value: 'ON_SALE', label: 'On Sale', description: 'Products with an active discount' },
   { value: 'LIMITED_STOCK', label: 'Limited Stock', description: 'Products running low on stock' },
   { value: 'CATEGORY', label: 'Category', description: 'Products from a specific category' },
@@ -115,7 +115,7 @@ export function SectionForm({ open, onOpenChange, section }: SectionFormProps) {
     search: productSearch,
     limit: 10,
   });
-  const showCategoryField = rule === 'LOCAL' || rule === 'CATEGORY';
+  const showCategoryField = rule === 'CATEGORY';
   const showStockField = rule === 'LIMITED_STOCK';
   const showSortField = rule === 'CATEGORY' || rule === 'LOCAL' || rule === 'ON_SALE' || rule === 'LIMITED_STOCK';
   const showManualPicker = rule === 'MANUAL';
@@ -221,6 +221,12 @@ export function SectionForm({ open, onOpenChange, section }: SectionFormProps) {
           </div>
 
           {/* Dynamic config fields — only what the chosen rule actually needs */}
+          {rule === 'LOCAL' && (
+            <p className="text-sm text-muted-foreground">
+              No extra setup needed — this pulls whichever products sellers have marked
+              &ldquo;Locally made in Timor-Leste&rdquo;, regardless of category.
+            </p>
+          )}
           {showCategoryField && (
             <div className="space-y-2">
               <Label>Category</Label>

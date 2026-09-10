@@ -112,6 +112,10 @@ export class CreateProductDto {
   @IsOptional()
   isFeatured?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isLocallyMade?: boolean;
+
   @IsString()
   @IsOptional()
   @MaxLength(100)

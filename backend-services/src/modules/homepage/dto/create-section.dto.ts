@@ -42,9 +42,10 @@ export class CreateSectionDto {
   @IsEnum(HomepageSectionRule)
   rule: HomepageSectionRule;
 
-  // Shape depends on `rule` (e.g. { categoryId } for LOCAL/CATEGORY,
-  // { stockThreshold } for LIMITED_STOCK) — validated in the service against
-  // the chosen rule rather than here, since the required keys vary per rule.
+  // Shape depends on `rule` (e.g. { categoryId } for CATEGORY, { stockThreshold }
+  // for LIMITED_STOCK) — validated in the service against the chosen rule
+  // rather than here, since the required keys vary per rule. LOCAL needs no
+  // config at all — it filters on Product.isLocallyMade directly.
   @IsObject()
   @IsOptional()
   config?: Record<string, unknown>;

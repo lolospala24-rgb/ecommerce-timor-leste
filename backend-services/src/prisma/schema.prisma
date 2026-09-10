@@ -230,6 +230,11 @@ model Product {
   typeId           Int?
   isActive         Boolean  @default(true)
   isFeatured       Boolean  @default(false)
+  // Drives HomepageSectionRule.LOCAL — a real product attribute (seller-set,
+  // independent of category) rather than the old category-based mechanism,
+  // so a local product isn't invisible to "Local Products" merchandising
+  // just because it happens to live in a non-"Local" category.
+  isLocallyMade    Boolean  @default(false)
   length           Float?
   width            Float?
   height           Float?

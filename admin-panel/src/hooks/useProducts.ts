@@ -28,6 +28,7 @@ interface Product {
   specifications?: Record<string, unknown> | null;
   isActive: boolean;
   isFeatured: boolean;
+  isLocallyMade: boolean;
   hasVariants?: boolean;
   variants?: any[];
   type?: {

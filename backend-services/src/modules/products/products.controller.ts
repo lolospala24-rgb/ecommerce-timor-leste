@@ -124,15 +124,6 @@ export class ProductsController {
     return { data: products };
   }
 
-  @Public()
-  @Get('local')
-  async getLocalProducts(@Query('limit') limit?: string) {
-    const result = await this.productsService.getLocalProducts(
-      limit ? parseInt(limit) : 10,
-    );
-    return { data: result };
-  }
-
   @Get('my-products')
   @Roles(Role.SELLER)
   async getMyProducts(
