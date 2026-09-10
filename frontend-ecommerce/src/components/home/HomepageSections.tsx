@@ -77,10 +77,17 @@ function ProductSection({ section }: { section: HomepageSection }) {
             )}
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>
-            <Link href="/products">
-              {t('home.section.viewAll', { title: section.title })}
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            {section.rule === 'LOCAL' ? (
+              <Link href="/local-products">
+                {t('home.section.discoverLocal')}
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            ) : (
+              <Link href="/products">
+                {t('home.section.viewAll', { title: section.title })}
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
           </Button>
         </div>
 

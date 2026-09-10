@@ -66,4 +66,9 @@ export class FilterProductDto {
   @Min(0)
   @Max(5)
   minRating?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isLocallyMade?: boolean;
 }

@@ -164,6 +164,14 @@ export const translations: Record<Locale, Dictionary> = {
 
     // Product section (Featured/New/Popular/Local...)
     'home.section.viewAll': 'Haree {title} Hotu',
+    'home.section.discoverLocal': 'Descobre Produtu Lokál',
+
+    // Local Products page (/local-products)
+    'localProducts.title': '🇹🇱 Produtu Lokál',
+    'localProducts.subtitle': 'Produtu ne\'ebé halo ka koleta iha rai laran, husi vendedór lokál sira iha Timor-Leste.',
+    'localProducts.error.title': 'La konsege karga produtu',
+    'localProducts.error.description': 'Iha problema wainhira karga produtu lokál sira. Favor tenta fila fali.',
+    'localProducts.error.retry': 'Tenta fila fali',
 
     // Top sellers
     'home.topSellers.badge': 'Vendedór Konfiável',
@@ -324,6 +332,14 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.products': 'Products',
 
     'home.section.viewAll': 'View All {title}',
+    'home.section.discoverLocal': 'Discover Local Products',
+
+    // Local Products page (/local-products)
+    'localProducts.title': '🇹🇱 Local Products',
+    'localProducts.subtitle': 'Products made or sourced locally, from sellers based in Timor-Leste.',
+    'localProducts.error.title': "Couldn't load products",
+    'localProducts.error.description': 'Something went wrong while loading local products. Please try again.',
+    'localProducts.error.retry': 'Try again',
 
     'home.topSellers.badge': 'Trusted Sellers',
     'home.topSellers.title': 'Top Sellers',
@@ -482,6 +498,14 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.products': 'Produk',
 
     'home.section.viewAll': 'Lihat Semua {title}',
+    'home.section.discoverLocal': 'Jelajahi Produk Lokal',
+
+    // Local Products page (/local-products)
+    'localProducts.title': '🇹🇱 Produk Lokal',
+    'localProducts.subtitle': 'Produk yang dibuat atau bersumber secara lokal, dari penjual yang berbasis di Timor-Leste.',
+    'localProducts.error.title': 'Gagal memuat produk',
+    'localProducts.error.description': 'Terjadi kesalahan saat memuat produk lokal. Silakan coba lagi.',
+    'localProducts.error.retry': 'Coba lagi',
 
     'home.topSellers.badge': 'Penjual Terpercaya',
     'home.topSellers.title': 'Penjual Terbaik',
@@ -640,6 +664,14 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.products': 'Produtos',
 
     'home.section.viewAll': 'Ver Tudo: {title}',
+    'home.section.discoverLocal': 'Descobre Produtos Locais',
+
+    // Local Products page (/local-products)
+    'localProducts.title': '🇹🇱 Produtos Locais',
+    'localProducts.subtitle': 'Produtos feitos ou provenientes localmente, de vendedores baseados em Timor-Leste.',
+    'localProducts.error.title': 'Não foi possível carregar os produtos',
+    'localProducts.error.description': 'Ocorreu um erro ao carregar os produtos locais. Por favor, tente novamente.',
+    'localProducts.error.retry': 'Tentar novamente',
 
     'home.topSellers.badge': 'Vendedores Confiáveis',
     'home.topSellers.title': 'Melhores Vendedores',

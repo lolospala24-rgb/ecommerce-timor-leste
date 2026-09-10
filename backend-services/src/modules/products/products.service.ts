@@ -251,6 +251,7 @@ export class ProductsService {
       inStock,
       isActive = true,
       minRating,
+      isLocallyMade,
     } = filterDto;
 
     const skip = (page - 1) * limit;
@@ -313,6 +314,10 @@ export class ProductsService {
       } else {
         where.stock = 0;
       }
+    }
+
+    if (isLocallyMade !== undefined) {
+      where.isLocallyMade = isLocallyMade;
     }
 
     const includeBase: any = {
