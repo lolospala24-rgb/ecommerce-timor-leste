@@ -3,6 +3,7 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsUrl,
   MaxLength,
   MinLength,
   IsEmail,
@@ -49,6 +50,17 @@ export class UpdateSellerDto {
   @IsOptional()
   @MaxLength(1000)
   description?: string;
+
+  // Already-uploaded Cloudinary URLs — see RegisterSellerDto's doc-comment.
+  // Lets admin set/fix a seller's logo/banner from the seller-detail page,
+  // same as the seller's own dedicated /upload-logo /upload-banner routes.
+  @IsUrl()
+  @IsOptional()
+  storeLogo?: string;
+
+  @IsUrl()
+  @IsOptional()
+  storeBanner?: string;
 
   @IsString()
   @IsOptional()

@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsString,
   IsNumber,
+  IsUrl,
   MinLength,
   MaxLength,
   IsOptional,
@@ -76,4 +77,15 @@ export class RegisterSellerDto {
   @IsOptional()
   @MaxLength(1000)
   description?: string;
+
+  // Already-uploaded Cloudinary URLs (the client uploads the file itself
+  // via /upload/images before submitting registration) — not raw file
+  // uploads, so a plain URL string is all this DTO needs to accept.
+  @IsUrl()
+  @IsOptional()
+  storeLogo?: string;
+
+  @IsUrl()
+  @IsOptional()
+  storeBanner?: string;
 }
