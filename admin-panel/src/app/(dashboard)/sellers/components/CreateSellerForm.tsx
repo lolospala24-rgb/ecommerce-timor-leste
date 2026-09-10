@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/shared/ImageUpload';
+import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
 import { useRegisterSeller } from '@/hooks/useSellers';
 import { Loader2 } from 'lucide-react';
 
@@ -51,6 +52,8 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateSellerFormValues>({
     resolver: zodResolver(sellerSchema),
@@ -71,6 +74,8 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
 
   const [storeLogo, setStoreLogo] = useState<string>('');
   const [storeBanner, setStoreBanner] = useState<string>('');
+  const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const storeAddress = watch('storeAddress');
 
   const onSubmit = async (values: CreateSellerFormValues) => {
     try {
@@ -83,6 +88,8 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
         storePhone: normalizePhone(values.storePhone),
         storeEmail: values.storeEmail || undefined,
         storeAddress: values.storeAddress,
+        storeLatitude: storeCoords?.lat,
+        storeLongitude: storeCoords?.lng,
         storeLogo: storeLogo || undefined,
         storeBanner: storeBanner || undefined,
         description: values.description || undefined,
@@ -157,7 +164,13 @@ export function CreateSellerForm({ onSuccess, onCancel }: CreateSellerFormProps)
           </div>
           <div>
             <Label htmlFor="storeAddress">Store Address *</Label>
-            <Input id="storeAddress" placeholder="Store address" {...register('storeAddress')} />
+            <StoreAddressInput
+              id="storeAddress"
+              value={storeAddress || ''}
+              onChange={(address) => setValue('storeAddress', address, { shouldValidate: true })}
+              onCoordinates={(lat, lng) => setStoreCoords({ lat, lng })}
+              placeholder="Search or enter store address..."
+            />
             {errors.storeAddress && <p className="mt-1 text-sm text-red-500">{errors.storeAddress.message}</p>}
           </div>
         </div>

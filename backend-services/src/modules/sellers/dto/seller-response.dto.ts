@@ -5,10 +5,11 @@
   storePhone: string;
   storeEmail: string | null;
   storeAddress: string;
+  storeLatitude: number | null;
+  storeLongitude: number | null;
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
-  municipalityId: number | null;
   isVerified: boolean;
   verifiedAt: Date | null;
   rejectionReason: string | null;
@@ -23,11 +24,6 @@
     phone: string | null;
   };
 
-  municipality?: {
-    id: number;
-    name: string;
-  } | null;
-  
   // Stats
   _count?: {
     products: number;

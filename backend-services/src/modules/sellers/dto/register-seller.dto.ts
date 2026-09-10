@@ -2,7 +2,7 @@
 import {
   IsEmail,
   IsString,
-  IsInt,
+  IsNumber,
   MinLength,
   MaxLength,
   IsOptional,
@@ -60,10 +60,17 @@ export class RegisterSellerDto {
   @MinLength(10, { message: 'Store address must be at least 10 characters long' })
   storeAddress: string;
 
-  @IsInt()
+  // Captured from Google Places Autocomplete when available — independent
+  // of the Shipping Municipality system, never validated/required.
+  @IsNumber()
   @IsOptional()
   @Type(() => Number)
-  municipalityId?: number;
+  storeLatitude?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  storeLongitude?: number;
 
   @IsString()
   @IsOptional()

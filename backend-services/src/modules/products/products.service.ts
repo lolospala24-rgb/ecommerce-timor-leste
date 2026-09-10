@@ -252,7 +252,6 @@ export class ProductsService {
       isActive = true,
       minRating,
       isLocallyMade,
-      municipalityId,
     } = filterDto;
 
     const skip = (page - 1) * limit;
@@ -319,10 +318,6 @@ export class ProductsService {
 
     if (isLocallyMade !== undefined) {
       where.isLocallyMade = isLocallyMade;
-    }
-
-    if (municipalityId !== undefined) {
-      where.seller = { municipalityId };
     }
 
     const includeBase: any = {

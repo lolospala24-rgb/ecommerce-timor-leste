@@ -16,13 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { StoreAddressInput } from '@/components/shared/StoreAddressInput';
 import { Store, Loader2, Upload, ImageIcon, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -31,7 +25,6 @@ import {
   useUploadStoreLogo,
   useUploadStoreBanner,
 } from '@/hooks/useSellers';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
 import toast from 'react-hot-toast';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -126,16 +119,15 @@ export default function MyStorePage() {
   const updateStore = useUpdateMyStore();
   const uploadLogo = useUploadStoreLogo();
   const uploadBanner = useUploadStoreBanner();
-  const { data: municipalities } = usePublicMunicipalities();
 
   const [formData, setFormData] = useState({
     storeName: '',
     storePhone: '',
     storeEmail: '',
     storeAddress: '',
-    municipalityId: '',
     description: '',
   });
+  const [storeCoords, setStoreCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     if (seller) {
@@ -144,7 +136,6 @@ export default function MyStorePage() {
         storePhone: seller.storePhone || '',
         storeEmail: seller.storeEmail || '',
         storeAddress: seller.storeAddress || '',
-        municipalityId: seller.municipalityId ? String(seller.municipalityId) : '',
         description: seller.description || '',
       });
     }
@@ -168,7 +159,8 @@ export default function MyStorePage() {
   const handleSubmit = async () => {
     await updateStore.mutateAsync({
       ...formData,
-      municipalityId: formData.municipalityId ? Number(formData.municipalityId) : undefined,
+      storeLatitude: storeCoords?.lat,
+      storeLongitude: storeCoords?.lng,
     });
   };
 
@@ -276,33 +268,12 @@ export default function MyStorePage() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Store Address</Label>
-              <Textarea
+              <StoreAddressInput
                 value={formData.storeAddress}
-                onChange={(e) => handleChange('storeAddress', e.target.value)}
-                placeholder="Your store's address"
-                rows={2}
+                onChange={(address) => handleChange('storeAddress', address)}
+                onCoordinates={(lat, lng) => setStoreCoords({ lat, lng })}
+                placeholder="Search or enter store address..."
               />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Municipality</Label>
-              <Select
-                value={formData.municipalityId}
-                onValueChange={(value) => handleChange('municipalityId', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your store's municipality" />
-                </SelectTrigger>
-                <SelectContent>
-                  {municipalities?.map((m) => (
-                    <SelectItem key={m.id} value={String(m.id)}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Shown to customers browsing Local Products by municipality.
-              </p>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Store Description</Label>

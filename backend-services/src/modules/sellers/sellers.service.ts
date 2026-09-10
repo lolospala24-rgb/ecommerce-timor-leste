@@ -79,7 +79,8 @@ export class SellersService {
           storePhone: registerSellerDto.storePhone,
           storeEmail: registerSellerDto.storeEmail,
           storeAddress: registerSellerDto.storeAddress,
-          municipalityId: registerSellerDto.municipalityId,
+          storeLatitude: registerSellerDto.storeLatitude,
+          storeLongitude: registerSellerDto.storeLongitude,
           description: registerSellerDto.description,
           isVerified: !settings.sellerVerificationRequired,
           verifiedAt: settings.sellerVerificationRequired ? null : new Date(),
@@ -287,9 +288,6 @@ export class SellersService {
             createdAt: true,
           },
         },
-        municipality: {
-          select: { id: true, name: true },
-        },
         products: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -373,9 +371,6 @@ export class SellersService {
             name: true,
             phone: true,
           },
-        },
-        municipality: {
-          select: { id: true, name: true },
         },
       },
     });
@@ -496,7 +491,8 @@ export class SellersService {
         storePhone: updateSellerDto.storePhone,
         storeEmail: updateSellerDto.storeEmail,
         storeAddress: updateSellerDto.storeAddress,
-        municipalityId: updateSellerDto.municipalityId,
+        storeLatitude: updateSellerDto.storeLatitude,
+        storeLongitude: updateSellerDto.storeLongitude,
         description: updateSellerDto.description,
         bankName: updateSellerDto.bankName,
         bankAccountName: updateSellerDto.bankAccountName,
@@ -510,9 +506,6 @@ export class SellersService {
             name: true,
             phone: true,
           },
-        },
-        municipality: {
-          select: { id: true, name: true },
         },
       },
     });

@@ -12,11 +12,11 @@ interface Seller {
   storePhone: string;
   storeEmail: string | null;
   storeAddress: string;
+  storeLatitude: number | null;
+  storeLongitude: number | null;
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
-  municipalityId: number | null;
-  municipality?: { id: number; name: string } | null;
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedBy: number | null;
@@ -139,6 +139,8 @@ export const useRegisterSeller = () => {
       storePhone: string;
       storeEmail?: string;
       storeAddress: string;
+      storeLatitude?: number;
+      storeLongitude?: number;
       storeLogo?: string;
       storeBanner?: string;
       description?: string;
@@ -261,7 +263,8 @@ export const useUpdateMyStore = () => {
       storePhone?: string;
       storeEmail?: string;
       storeAddress?: string;
-      municipalityId?: number;
+      storeLatitude?: number;
+      storeLongitude?: number;
       description?: string;
     }) => {
       const response = await api.patch('/sellers/my-store', data);

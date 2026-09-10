@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/select';
 import { useProducts, mapProductSortParams } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
-import { useShippingZones } from '@/hooks/useAddresses';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { AlertCircle, MapPin } from 'lucide-react';
 
@@ -24,21 +23,18 @@ import { AlertCircle, MapPin } from 'lucide-react';
 // See HomepageSections.tsx's "Discover Local Products" link and
 // homepage.service.ts's resolveLocallyMade for the same underlying filter.
 //
-// Category and Municipality filters reuse the same option data as the main
-// /products page and seller registration respectively, rendered as plain
-// Selects rather than the full <ProductFilters> sidebar — that component
-// also brings price/rating/brand/discount facets this page deliberately
-// doesn't need (the whole point here is identity/discovery, not a general
-// catalog browse).
+// Category filter reuses the same option data as the main /products page,
+// rendered as a plain Select rather than the full <ProductFilters> sidebar
+// — that component also brings price/rating/brand/discount facets this
+// page deliberately doesn't need (the whole point here is identity/
+// discovery, not a general catalog browse).
 export default function LocalProductsPage() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [categoryId, setCategoryId] = useState<string>('all');
-  const [municipalityId, setMunicipalityId] = useState<string>('all');
   const [sortBy, setSortBy] = useState('newest');
 
   const { data: categories } = useCategories({ limit: 100 });
-  const { municipalities } = useShippingZones();
   const mappedSort = mapProductSortParams(sortBy);
 
   const { data, isLoading, isError, refetch } = useProducts({
@@ -47,7 +43,6 @@ export default function LocalProductsPage() {
     isLocallyMade: true,
     isActive: true,
     categoryId: categoryId === 'all' ? undefined : parseInt(categoryId),
-    municipalityId: municipalityId === 'all' ? undefined : parseInt(municipalityId),
     sortBy: mappedSort.sortBy,
     sortOrder: mappedSort.sortOrder,
   });
@@ -83,26 +78,6 @@ export default function LocalProductsPage() {
             {categories?.data?.map((cat: any) => (
               <SelectItem key={cat.id} value={String(cat.id)}>
                 {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={municipalityId}
-          onValueChange={(value) => {
-            setMunicipalityId(value);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Municipality" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('localProducts.filters.allMunicipalities')}</SelectItem>
-            {municipalities.map((m) => (
-              <SelectItem key={m.value} value={m.value}>
-                {m.label}
               </SelectItem>
             ))}
           </SelectContent>

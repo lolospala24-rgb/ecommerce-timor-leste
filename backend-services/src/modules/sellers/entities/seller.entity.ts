@@ -8,10 +8,11 @@ export class SellerEntity implements Seller {
   storePhone: string;
   storeEmail: string | null;
   storeAddress: string;
+  storeLatitude: number | null;
+  storeLongitude: number | null;
   storeLogo: string | null;
   storeBanner: string | null;
   description: string | null;
-  municipalityId: number | null;
   isVerified: boolean;
   verifiedAt: Date | null;
   verifiedBy: number | null;
