@@ -40,7 +40,7 @@ export default function LocalProductsPage() {
       </section>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {[...Array(12)].map((_, i) => (
             <div key={i} className="space-y-3">
               <Skeleton className="aspect-square rounded-lg" />
@@ -61,7 +61,7 @@ export default function LocalProductsPage() {
           products={data?.data || []}
           pagination={data?.pagination}
           onPageChange={handlePageChange}
-          columns={6}
+          columns={4}
         />
       )}
     </div>
