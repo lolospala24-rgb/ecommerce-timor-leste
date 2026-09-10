@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useProducts, mapProductSortParams } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
-import { usePublicMunicipalities } from '@/hooks/useMunicipalities';
+import { useLocalOriginMunicipalities } from '@/hooks/useLocalOriginMunicipalities';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { AlertCircle, MapPin } from 'lucide-react';
 
@@ -37,7 +37,7 @@ export default function LocalProductsPage() {
   const [sortBy, setSortBy] = useState('newest');
 
   const { data: categories } = useCategories({ limit: 100 });
-  const { data: municipalities } = usePublicMunicipalities();
+  const { data: municipalities } = useLocalOriginMunicipalities();
   const mappedSort = mapProductSortParams(sortBy);
 
   const { data, isLoading, isError, refetch } = useProducts({
@@ -100,8 +100,8 @@ export default function LocalProductsPage() {
           <SelectContent>
             <SelectItem value="all">{t('localProducts.filters.allMunicipalities')}</SelectItem>
             {municipalities?.map((m) => (
-              <SelectItem key={m.id} value={m.name}>
-                {m.name}
+              <SelectItem key={m} value={m}>
+                {m}
               </SelectItem>
             ))}
           </SelectContent>

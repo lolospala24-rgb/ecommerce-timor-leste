@@ -1361,6 +1361,51 @@ export class ProductsService {
     return productsWithRating;
   }
 
+  // Powers the storefront's Local Products Municipality filter. Every
+  // option here comes from an actual resolved origin of a real active
+  // local product — computed via the same resolveProductOrigin used by
+  // findAll/findOne/findBySlug, so this is never Shipping's Municipality
+  // list and never offers a value nothing will actually match.
+  async getLocalOriginMunicipalities(): Promise<string[]> {
+    const cacheKey = 'products:local-municipalities';
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: { isLocallyMade: true, isActive: true },
+      select: {
+        isLocallyMade: true,
+        originMode: true,
+        originMunicipality: true,
+        originPostoAdmin: true,
+        originSuco: true,
+        originAldeia: true,
+        seller: {
+          select: {
+            originMunicipality: true,
+            originPostoAdmin: true,
+            originSuco: true,
+            originAldeia: true,
+          },
+        },
+      },
+    });
+
+    const municipalities = new Set<string>();
+    for (const product of products) {
+      const resolved = resolveProductOrigin(product, product.seller);
+      if (resolved?.municipality) {
+        municipalities.add(resolved.municipality);
+      }
+    }
+
+    const result = Array.from(municipalities).sort((a, b) => a.localeCompare(b));
+    await this.redisService.set(cacheKey, JSON.stringify(result), 300);
+    return result;
+  }
+
   async getPopularProducts(limit: number) {
     const cacheKey = `products:popular:${limit}`;
     const cached = await this.redisService.get(cacheKey);

@@ -124,6 +124,18 @@ export class ProductsController {
     return { data: products };
   }
 
+  // Options for the storefront's Local Products Municipality filter —
+  // deliberately NOT Shipping's Municipality list (see LocationsModule).
+  // Computed from actual resolved origins of active local products, via
+  // the same resolveProductOrigin used everywhere else, so every option
+  // shown here is guaranteed to actually match something.
+  @Public()
+  @Get('local-municipalities')
+  async getLocalOriginMunicipalities() {
+    const municipalities = await this.productsService.getLocalOriginMunicipalities();
+    return { data: municipalities };
+  }
+
   @Get('my-products')
   @Roles(Role.SELLER)
   async getMyProducts(
