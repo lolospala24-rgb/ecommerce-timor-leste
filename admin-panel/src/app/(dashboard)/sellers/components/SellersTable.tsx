@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Eye, CheckCircle, XCircle, Trash2, Pencil } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -29,10 +29,11 @@ import { useRouter } from 'next/navigation';
 interface SellersTableProps {
   sellers: any[];
   onViewSeller: (sellerId: number) => void;
+  onEditSeller: (seller: any) => void;
   onRefresh: () => void;
 }
 
-export function SellersTable({ sellers, onViewSeller, onRefresh }: SellersTableProps) {
+export function SellersTable({ sellers, onViewSeller, onEditSeller, onRefresh }: SellersTableProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<any>(null);
@@ -140,6 +141,10 @@ export function SellersTable({ sellers, onViewSeller, onRefresh }: SellersTableP
                       <DropdownMenuItem onClick={() => onViewSeller(seller.id)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEditSeller(seller)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit Seller
                       </DropdownMenuItem>
                       {!seller.isVerified && (
                         <DropdownMenuItem onClick={() => handleVerify(seller.id)}>

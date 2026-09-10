@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PendingVerification } from './components/PendingVerification';
 import { CreateSellerForm } from './components/CreateSellerForm';
+import { EditSellerForm } from './components/EditSellerForm';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download, RefreshCw, Store, Plus } from 'lucide-react';
 import { SellerDetailModal } from './components/SellerDetailModal';
@@ -25,6 +26,7 @@ export default function SellersPage() {
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingSeller, setEditingSeller] = useState<any>(null);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -107,6 +109,7 @@ export default function SellersPage() {
                 <SellersTable
                   sellers={data?.data || []}
                   onViewSeller={handleViewSeller}
+                  onEditSeller={setEditingSeller}
                   onRefresh={refetch}
                 />
               )}
@@ -133,6 +136,7 @@ export default function SellersPage() {
                 <SellersTable
                   sellers={(data?.data || []).filter(s => s.isVerified)}
                   onViewSeller={handleViewSeller}
+                  onEditSeller={setEditingSeller}
                   onRefresh={refetch}
                 />
               )}
@@ -171,6 +175,27 @@ export default function SellersPage() {
             }}
             onCancel={() => setShowCreateDialog(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingSeller} onOpenChange={(open) => !open && setEditingSeller(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Seller</DialogTitle>
+            <DialogDescription>
+              Update {editingSeller?.storeName || 'this seller'}&apos;s store profile.
+            </DialogDescription>
+          </DialogHeader>
+          {editingSeller && (
+            <EditSellerForm
+              seller={editingSeller}
+              onSuccess={() => {
+                setEditingSeller(null);
+                refetch();
+              }}
+              onCancel={() => setEditingSeller(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
