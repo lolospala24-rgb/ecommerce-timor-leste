@@ -9,9 +9,8 @@ import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { RatingStars } from '@/components/shared/RatingStars';
-import { ShoppingCart, Heart, Eye, Loader2, Bell, BellRing, MapPin } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ShoppingCart, Heart, ArrowRight, Loader2, Bell, BellRing, MapPin, Star, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import toast from 'react-hot-toast';
@@ -181,7 +180,7 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
 
   return (
     <>
-      <Card className="group flex h-full flex-col overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+      <Card className="group flex h-full flex-col overflow-hidden rounded-2xl border-none shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
         <div className="relative aspect-square overflow-hidden bg-slate-100">
           <Link href={`/products/${product.slug}`} aria-label={product.name}>
             <Image
@@ -194,15 +193,24 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
             />
           </Link>
 
-          {/* Badge stack */}
-          <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
-            {discount > 0 && (
-              <Badge className="bg-red-600 text-white hover:bg-red-600">-{discount}%</Badge>
-            )}
-            {statusBadges.map((badge) => (
-              <Badge key={badge.key} className={badge.className}>{badge.label}</Badge>
-            ))}
-          </div>
+          {discount > 0 && (
+            <Badge className="absolute left-3 top-3 z-10 rounded-full border-0 bg-red-600 px-2.5 py-1 text-white shadow-sm hover:bg-red-600">
+              -{discount}%
+            </Badge>
+          )}
+
+          {statusBadges.length > 0 && (
+            <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1.5">
+              {statusBadges.map((badge) => (
+                <Badge
+                  key={badge.key}
+                  className={cn('w-fit rounded-full border-0 px-2.5 py-1 shadow-sm', badge.className)}
+                >
+                  {badge.label}
+                </Badge>
+              ))}
+            </div>
+          )}
 
           {product.stock === 0 && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
@@ -210,42 +218,33 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
             </div>
           )}
 
-          {/* Always visible on touch devices; fades in on hover for pointer devices */}
-          <div className="absolute right-2 top-2 z-20 flex flex-col gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8 rounded-full shadow-md"
-              onClick={handleWishlist}
-              aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              <Heart className={cn('h-4 w-4', isWishlisted && 'fill-red-600 text-red-600')} />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8 rounded-full shadow-md"
-              onClick={handleQuickView}
-              aria-label="Quick view"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={handleWishlist}
+            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md transition-transform hover:scale-105"
+          >
+            <Heart className={cn('h-4 w-4 text-foreground', isWishlisted && 'fill-red-600 text-red-600')} />
+          </button>
         </div>
 
         <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
-          <CardContent className="flex-1 p-4 pb-2">
-            <h3 className="line-clamp-2 min-h-[2.5rem] font-medium leading-tight group-hover:text-primary transition-colors">
+          <CardContent className="flex flex-1 flex-col p-4 pb-3">
+            <h3 className="line-clamp-2 min-h-[2.5rem] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">
               {product.name}
             </h3>
 
-            <div className="mt-2">
-              <RatingStars
-                rating={product.rating || 0}
-                totalReviews={product.totalReviews ?? 0}
-                showCount
-                size="sm"
-              />
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <span className="inline-flex items-center gap-1">
+                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                <span className="font-medium text-foreground">{(product.rating || 0).toFixed(1)}</span>
+                <span className="text-muted-foreground">({product.totalReviews ?? 0})</span>
+              </span>
+              <span className="text-border">|</span>
+              <span className={cn('inline-flex items-center gap-1 font-medium', stockStatus.className)}>
+                <Truck className="h-3.5 w-3.5" />
+                {stockStatus.label}
+              </span>
             </div>
 
             {isLocal && product.resolvedOrigin && (
@@ -259,11 +258,9 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
                 </span>
               </p>
             )}
-          </CardContent>
 
-          <CardFooter className="flex flex-col items-start gap-1 p-4 pt-0">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-lg font-bold text-primary">
+            <div className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
+              <span className="text-xl font-bold text-primary">
                 ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
               </span>
               {discount > 0 && product.comparePrice && (
@@ -272,18 +269,10 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
                 </span>
               )}
             </div>
-            {discount > 0 && product.comparePrice && (
-              <p className="text-xs font-semibold text-red-600">
-                {t('product.save', { amount: (product.comparePrice - product.price).toFixed(2) })}
-              </p>
-            )}
-            <p className={cn('text-xs font-medium', stockStatus.className)}>
-              {stockStatus.label}
-            </p>
-          </CardFooter>
+          </CardContent>
         </Link>
 
-        <div className="px-4 pb-4">
+        <div className="flex items-center gap-2 px-4 pb-4">
           {isOutOfStock ? (
             <Button
               size="sm"
@@ -302,24 +291,34 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
               {isSubscribed ? t('product.notifySubscribed') : t('product.notifyMe')}
             </Button>
           ) : (
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={handleAddToCart}
-              disabled={isAddingToCart}
-            >
-              {isAddingToCart ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('product.adding')}
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {t('product.addToCart')}
-                </>
-              )}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                className="min-w-0 flex-1 gap-1.5 border-0 bg-primary/10 px-2 text-primary shadow-none hover:bg-primary/15"
+                onClick={handleAddToCart}
+                disabled={isAddingToCart}
+              >
+                {isAddingToCart ? (
+                  <>
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                    <span className="truncate">{t('product.adding')}</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{t('product.addToCart')}</span>
+                  </>
+                )}
+              </Button>
+              <Button
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-lg"
+                onClick={handleQuickView}
+                aria-label="Quick view"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
       </Card>
