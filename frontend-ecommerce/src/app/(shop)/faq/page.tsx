@@ -95,7 +95,7 @@ const faqSections = [
 export default function FaqPage() {
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12 text-center">
+      <section className="rounded-xl bg-muted/30 p-8 md:p-12 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <HelpCircle className="h-6 w-6 text-primary" />
         </div>

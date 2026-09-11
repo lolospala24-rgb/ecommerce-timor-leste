@@ -220,7 +220,7 @@ function SearchPageContent() {
           <Link
             key={category.id}
             href={`/categories/${category.slug}`}
-            className="group block rounded-lg border p-4 transition-all hover:shadow-md hover:-translate-y-1"
+            className="group block rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
           >
             <div className="flex items-center gap-3">
               {category.image ? (
@@ -278,7 +278,7 @@ function SearchPageContent() {
           <Link
             key={seller.id}
             href={`/sellers/${seller.id}`}
-            className="group block rounded-lg border p-4 transition-all hover:shadow-md hover:-translate-y-1"
+            className="group block rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
           >
             <div className="flex items-center gap-3">
               <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-primary/10">

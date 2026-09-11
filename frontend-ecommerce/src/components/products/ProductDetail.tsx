@@ -627,7 +627,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </Button>
               <Button
                 size="lg"
-                className="h-12 flex-1 bg-primary text-base font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-blue-800"
+                className="h-12 flex-1 bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90"
                 disabled={buyDisabled || isBuyingNow}
                 onClick={handleBuyNow}
               >
@@ -640,7 +640,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </Button>
             </div>
 
-            <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 p-3">
+            <div className="flex items-start gap-2.5 rounded-lg bg-muted/40 p-3">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="text-xs leading-relaxed">
                 <p className="font-medium text-foreground">Secure checkout guaranteed</p>
@@ -656,7 +656,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           aren't in the product API response — showing them would mean
           making them up). */}
       {product.seller && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5">
           <Link href={`/sellers/${product.seller.id}`} className="group flex min-w-0 items-center gap-3">
             <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border">
               {product.seller.storeLogo ? (
@@ -722,7 +722,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           never fall back to product.seller.storeAddress here — that's where
           the seller ships from, not where this specific product originates. */}
       {hasLocalInfo && (
-        <div className="rounded-2xl border bg-card p-5 sm:p-6">
+        <div className="rounded-xl border bg-card p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <Sprout className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">🇹🇱 Produtu Lokál Timor-Leste</h2>
@@ -793,7 +793,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         </TabsContent>
 
         <TabsContent value="details">
-          <div className="rounded-2xl border bg-card p-6 space-y-8">
+          <div className="rounded-xl border bg-card p-6 space-y-8">
             <div>
               <dl className="divide-y rounded-xl border">
                 {product.category && (
@@ -952,7 +952,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       </div>
 
       {/* Reviews */}
-      <div id="reviews" className="rounded-2xl border bg-card p-6 sm:p-8">
+      <div id="reviews" className="rounded-xl border bg-card p-6 sm:p-8">
         <ProductReviews
           productId={product.id}
           rating={product.rating}
@@ -974,7 +974,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           reserves the matching height so this bar never covers page
           content (particularly the reviews/related-products sections). */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-sm lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background lg:hidden"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center gap-3 px-4 py-2.5">
@@ -1004,7 +1004,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           </Button>
           <Button
             size="lg"
-            className="h-11 shrink-0 bg-primary px-6 font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-blue-800"
+            className="h-11 shrink-0 bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"
             disabled={buyDisabled || isBuyingNow}
             onClick={handleBuyNow}
           >

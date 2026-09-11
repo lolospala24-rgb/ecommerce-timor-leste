@@ -521,12 +521,12 @@ export default function CheckoutPage() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/cart"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </Link>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Premium Checkout</p>
+                  <p className="text-sm font-medium text-muted-foreground">Checkout</p>
                   <h1 className="text-2xl font-semibold tracking-tight">Complete your order</h1>
                 </div>
               </div>
@@ -1053,7 +1053,7 @@ export default function CheckoutPage() {
           the way down first. Pinned to the bottom of the viewport instead,
           matching the same pattern used on the product detail page. */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur-sm xl:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background xl:hidden"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center gap-3 px-4 py-2.5">

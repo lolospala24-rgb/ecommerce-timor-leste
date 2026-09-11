@@ -199,7 +199,7 @@ export function ProductImages({
           <div
             ref={mainRef}
             className={cn(
-              'group relative overflow-hidden rounded-2xl border bg-gradient-to-b from-muted/40 to-muted/10 shadow-sm',
+              'group relative overflow-hidden rounded-xl border bg-muted/20',
               activeVideoUrl ? 'aspect-video cursor-default bg-black' : 'aspect-square cursor-zoom-in',
             )}
             onMouseEnter={() => setIsHovering(true)}

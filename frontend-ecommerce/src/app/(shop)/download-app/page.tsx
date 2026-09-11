@@ -8,7 +8,7 @@ import { Smartphone, Bell, Globe } from 'lucide-react';
 export default function DownloadAppPage() {
   return (
     <div className="flex flex-col items-center space-y-8 py-8 text-center">
-      <div className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-10 md:p-16 w-full">
+      <div className="rounded-xl bg-muted/30 p-10 md:p-16 w-full">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <Smartphone className="h-8 w-8 text-primary" />
         </div>

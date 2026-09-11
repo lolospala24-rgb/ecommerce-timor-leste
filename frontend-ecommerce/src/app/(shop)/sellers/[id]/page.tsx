@@ -102,8 +102,8 @@ export default function SellerDetailPage() {
         Back to Sellers
       </Button>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-        <div className="relative h-64 sm:h-72 lg:h-80 bg-slate-100">
+      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="relative h-64 sm:h-72 lg:h-80 bg-muted">
           {seller.storeBanner ? (
             <Image
               src={seller.storeBanner}
@@ -112,13 +112,13 @@ export default function SellerDetailPage() {
               className="object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/15 via-transparent to-slate-100" />
+            <div className="absolute inset-0 bg-primary/10" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 sm:left-8 sm:right-8">
-            <div className="flex flex-col gap-3 rounded-3xl bg-background/95 p-4 shadow-2xl ring-1 ring-slate-200/70 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-xl bg-background p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-3xl border-4 border-white bg-muted shadow-xl">
+                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm">
                   {seller.storeLogo ? (
                     <Image
                       src={seller.storeLogo}
@@ -216,7 +216,7 @@ export default function SellerDetailPage() {
 
       {/* Store Description */}
       {seller.description && (
-        <div className="rounded-2xl border p-4 bg-muted/30">
+        <div className="rounded-xl border p-4 bg-muted/30">
           <h2 className="font-semibold mb-2">About the Store</h2>
           <p className="text-muted-foreground whitespace-pre-wrap">{seller.description}</p>
         </div>

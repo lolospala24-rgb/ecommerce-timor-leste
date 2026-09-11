@@ -13,7 +13,7 @@ const LAST_UPDATED = '27 August 2026';
 export default function TermsPage() {
   return (
     <div className="space-y-10">
-      <section className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 text-center md:p-12">
+      <section className="rounded-xl bg-muted/30 p-8 text-center md:p-12">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <FileText className="h-6 w-6 text-primary" />
         </div>

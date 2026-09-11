@@ -48,7 +48,7 @@ export default function ContactPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12 text-center">
+      <section className="rounded-xl bg-muted/30 p-8 md:p-12 text-center">
         <h1 className="text-3xl font-bold md:text-4xl">Get in Touch</h1>
         <p className="mx-auto mt-2 max-w-xl text-muted-foreground">
           Questions, feedback, or need a hand with an order? We&apos;d love to hear from you.

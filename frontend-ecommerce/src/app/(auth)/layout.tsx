@@ -15,17 +15,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   const { data: publicSettings } = usePublicSettings();
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-primary/[0.06] via-background to-background px-4 py-12">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-32 -left-32 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
-      />
-
-      <Link href="/" className="relative z-10 mb-8 flex items-center gap-2.5">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4 py-12">
+      <Link href="/" className="mb-8 flex items-center gap-2.5">
         {publicSettings?.logoUrl ? (
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl shadow-sm">
             <Image
@@ -48,7 +39,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </span>
       </Link>
 
-      <div className="relative z-10 w-full max-w-md">{children}</div>
+      <div className="w-full max-w-md">{children}</div>
     </div>
   );
 }

@@ -12,18 +12,11 @@ import type { Category } from '@/types/category.types';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-// Purely presentational rotation — real category, real name, real
-// description; only the banner color/gradient is a stylistic choice
-// standing in for a real category photo (most categories in this catalog
-// don't have one uploaded yet).
-const BANNER_STYLES = [
-  'from-emerald-500 to-emerald-600',
-  'from-sky-500 to-blue-600',
-  'from-amber-500 to-orange-600',
-  'from-rose-500 to-pink-600',
-  'from-violet-500 to-purple-600',
-  'from-teal-500 to-cyan-600',
-];
+// Real category, real name, real description; the banner is a flat brand-
+// colored fill standing in for a real category photo (most categories in
+// this catalog don't have one uploaded yet) — one consistent color rather
+// than a different one per category.
+const BANNER_STYLE = 'bg-primary';
 
 interface CategoryNode extends Category {
   children: CategoryNode[];
@@ -94,7 +87,7 @@ export default function CategoriesPage() {
         <Skeleton className="h-12 w-full rounded-xl" />
         <div className="space-y-6">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-2xl" />
+            <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       </div>
@@ -114,7 +107,7 @@ export default function CategoriesPage() {
       </nav>
 
       {/* Header */}
-      <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+      <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -199,11 +192,11 @@ export default function CategoriesPage() {
                     </div>
 
                     <div className="flex-1 space-y-6">
-                      {letterCategories.map((category, i) => (
+                      {letterCategories.map((category) => (
                         <CategoryDirectoryRow
                           key={category.id}
                           category={category}
-                          bannerClass={BANNER_STYLES[(category.id + i) % BANNER_STYLES.length]}
+                          bannerClass={BANNER_STYLE}
                         />
                       ))}
                     </div>
@@ -215,7 +208,7 @@ export default function CategoriesPage() {
           <div className="flex justify-center pt-2">
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-muted/40"
             >
               <ShoppingBag className="h-4 w-4 text-primary" />
               Browse All Products
@@ -239,11 +232,11 @@ function CategoryDirectoryRow({ category, bannerClass }: { category: CategoryNod
   return (
     <div
       id={`cat-${category.slug}`}
-      className="scroll-mt-32 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md sm:flex"
+      className="scroll-mt-32 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md sm:flex"
     >
       <Link
         href={`/categories/${category.slug}`}
-        className={`group relative flex min-h-[160px] shrink-0 flex-col justify-end overflow-hidden bg-gradient-to-br p-5 sm:w-72 ${bannerClass}`}
+        className={`group relative flex min-h-[160px] shrink-0 flex-col justify-end overflow-hidden p-5 sm:w-72 ${bannerClass}`}
       >
         <Icon className="absolute -right-4 -top-4 h-28 w-28 text-white/15" strokeWidth={1.25} />
         {category.isFeatured && (

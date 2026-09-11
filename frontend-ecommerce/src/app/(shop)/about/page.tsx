@@ -72,15 +72,12 @@ export default function AboutPage() {
   return (
     <div className="space-y-12">
       {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12">
-        <div className="relative z-10 max-w-3xl">
-          <h1 className="text-4xl font-bold md:text-5xl lg:text-6xl">
-            Welcome to{' '}
-            <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              E-commerce Timor-Leste
-            </span>
+      <section className="rounded-xl bg-muted/30 p-8 md:p-12">
+        <div className="max-w-3xl">
+          <h1 className="text-4xl font-bold md:text-5xl">
+            Welcome to <span className="text-primary">E-commerce Timor-Leste</span>
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground md:text-xl">
+          <p className="mt-4 text-lg text-muted-foreground">
             Your trusted online marketplace connecting buyers and sellers across Timor-Leste.
             We're building a vibrant digital economy for our nation.
           </p>
@@ -93,9 +90,6 @@ export default function AboutPage() {
             </Button>
           </div>
         </div>
-        {/* Background Decoration */}
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-blue-500/5 blur-3xl" />
       </section>
 
       {/* Our Mission */}
@@ -122,7 +116,7 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
-          <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 to-blue-500/20">
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/40">
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
                 <Globe className="h-24 w-24 text-primary/40" />
@@ -140,7 +134,7 @@ export default function AboutPage() {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <Card key={index} className="text-center hover:shadow-lg transition-shadow">
+              <Card key={index} className="text-center">
                 <CardHeader>
                   <div className="flex justify-center">
                     <div className="rounded-full bg-primary/10 p-3">
@@ -182,7 +176,7 @@ export default function AboutPage() {
       </section>
 
       {/* How It Works */}
-      <section className="bg-muted/30 rounded-2xl p-8 md:p-12">
+      <section className="bg-muted/30 rounded-xl p-8 md:p-12">
         <h2 className="text-3xl font-bold text-center mb-8">How It Works</h2>
         <div className="grid gap-6 md:grid-cols-3">
           <div className="text-center">
@@ -290,23 +284,19 @@ export default function AboutPage() {
       </section>
 
       {/* Call to Action */}
-      <section className="relative overflow-hidden rounded-2xl bg-primary p-8 md:p-12 text-center text-primary-foreground">
-        <div className="relative z-10">
-          <h2 className="text-3xl font-bold">Ready to Start Shopping?</h2>
-          <p className="mt-2 text-primary-foreground/80">
-            Join thousands of satisfied customers in Timor-Leste
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <Button size="lg" variant="secondary" asChild>
-              <Link href="/products">Browse Products</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
-              <Link href="/register">Create Account</Link>
-            </Button>
-          </div>
+      <section className="rounded-xl bg-primary p-8 md:p-12 text-center text-primary-foreground">
+        <h2 className="text-3xl font-bold">Ready to Start Shopping?</h2>
+        <p className="mt-2 text-primary-foreground/80">
+          Join thousands of satisfied customers in Timor-Leste
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-4">
+          <Button size="lg" variant="secondary" asChild>
+            <Link href="/products">Browse Products</Link>
+          </Button>
+          <Button size="lg" variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" asChild>
+            <Link href="/register">Create Account</Link>
+          </Button>
         </div>
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
       </section>
     </div>
   );

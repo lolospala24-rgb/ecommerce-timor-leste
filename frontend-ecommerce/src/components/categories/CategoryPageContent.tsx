@@ -47,9 +47,7 @@ function CategoryPageSkeleton() {
           <Skeleton key={i} className="h-4 w-20" />
         ))}
       </div>
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted/50 via-muted/30 to-muted/10">
-        <Skeleton className="h-[280px] w-full" />
-      </div>
+      <Skeleton className="h-[280px] w-full rounded-xl" />
       <div className="flex gap-3 overflow-x-auto pb-2" data-lenis-prevent>
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-10 w-28 rounded-full shrink-0" />
@@ -108,8 +106,8 @@ function CategoryPageSkeleton() {
 
 function EmptyState({ onClearFilters }: { onClearFilters: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6 border-2 border-dashed rounded-2xl bg-muted/5">
-      <div className="rounded-full bg-muted/20 p-5 mb-6 ring-4 ring-muted/10">
+    <div className="flex flex-col items-center justify-center py-20 px-6 border border-dashed rounded-xl bg-muted/5">
+      <div className="rounded-full bg-muted/20 p-5 mb-6">
         <Package className="h-12 w-12 text-muted-foreground/60" />
       </div>
       <h3 className="text-xl font-semibold mb-3">No Products Found</h3>
@@ -189,12 +187,11 @@ function SortControls({
                 onClick={() => onChange(option.value)}
                 className={cn(
                   'px-4 md:px-5 py-1 md:py-1.5 text-xs md:text-sm font-medium rounded-full',
-                  'transition-all duration-200',
-                  'hover:scale-105 active:scale-95',
+                  'transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1',
                   'whitespace-nowrap',
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'
                 )}
                 aria-pressed={isActive}

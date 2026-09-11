@@ -47,7 +47,7 @@ const steps = [
 export default function ReturnsPage() {
   return (
     <div className="space-y-10">
-      <section className="rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8 md:p-12 text-center">
+      <section className="rounded-xl bg-muted/30 p-8 md:p-12 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
           <RotateCcw className="h-6 w-6 text-primary" />
         </div>
@@ -138,7 +138,7 @@ export default function ReturnsPage() {
           <Button size="lg" variant="secondary" asChild>
             <Link href="/account/orders">Go to My Orders</Link>
           </Button>
-          <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
+          <Button size="lg" variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" asChild>
             <Link href="/contact">Contact Support</Link>
           </Button>
         </div>

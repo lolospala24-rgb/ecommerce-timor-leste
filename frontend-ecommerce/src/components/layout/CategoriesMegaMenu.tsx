@@ -194,12 +194,12 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
           <Link
             href="/deals"
             onClick={onNavigate}
-            className="mt-3 flex items-center gap-3 rounded-xl bg-gradient-to-br from-primary to-blue-700 p-3.5 text-white transition-opacity hover:opacity-95"
+            className="mt-3 flex items-center gap-3 rounded-xl bg-primary p-3.5 text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Gift className="h-8 w-8 shrink-0 text-white/90" strokeWidth={1.5} />
+            <Gift className="h-8 w-8 shrink-0 text-primary-foreground/90" strokeWidth={1.5} />
             <span className="min-w-0">
               <span className="block text-sm font-semibold leading-tight">{t('nav.megaMenu.promoTitle')}</span>
-              <span className="mt-0.5 block text-xs text-white/80">{t('nav.megaMenu.promoSubtitle')}</span>
+              <span className="mt-0.5 block text-xs text-primary-foreground/80">{t('nav.megaMenu.promoSubtitle')}</span>
             </span>
           </Link>
         </div>
