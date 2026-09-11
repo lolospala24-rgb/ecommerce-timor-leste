@@ -134,7 +134,7 @@ export function Header() {
       <TopHeader />
 
       {/* Main Header */}
-      <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur-xl shadow-sm">
+      <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo — the site name/logo are admin-editable (Settings → General),
@@ -249,35 +249,35 @@ export function Header() {
                       )}
                     </div>
                     {cartSubtotal > 0 && (
-                      <div className="border-b bg-blue-50/70 px-4 py-3">
+                      <div className="border-b bg-muted/40 px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">{t('notif.cartEstimate')}</p>
-                            <p className="text-xs text-blue-600/80">{t('notif.basedOnCart')}</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground">{t('notif.cartEstimate')}</p>
+                            <p className="text-xs text-muted-foreground">{t('notif.basedOnCart')}</p>
                           </div>
                         </div>
                         <div className="mt-2 space-y-1 text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">{t('notif.subtotal')}</span>
-                            <span className="font-semibold text-slate-900">${cartSubtotal.toFixed(2)}</span>
+                            <span className="text-muted-foreground">{t('notif.subtotal')}</span>
+                            <span className="font-medium text-foreground">${cartSubtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">{t('notif.shippingFrom')}</span>
-                            <span className="font-semibold text-slate-900">${checkoutPreview.shippingCost.toFixed(2)}</span>
+                            <span className="text-muted-foreground">{t('notif.shippingFrom')}</span>
+                            <span className="font-medium text-foreground">${checkoutPreview.shippingCost.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">{t('notif.tax')}</span>
-                            <span className="font-semibold text-slate-900">${previewTax.toFixed(2)}</span>
+                            <span className="text-muted-foreground">{t('notif.tax')}</span>
+                            <span className="font-medium text-foreground">${previewTax.toFixed(2)}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-slate-600">{t('notif.serviceFee')}</span>
-                            <span className="font-semibold text-slate-900">${checkoutPreview.serviceFee.toFixed(2)}</span>
+                            <span className="text-muted-foreground">{t('notif.serviceFee')}</span>
+                            <span className="font-medium text-foreground">${checkoutPreview.serviceFee.toFixed(2)}</span>
                           </div>
-                          <div className="flex items-center justify-between border-t border-blue-100 pt-1 text-sm font-semibold text-primary">
+                          <div className="flex items-center justify-between border-t pt-1 text-sm font-semibold text-foreground">
                             <span>{t('notif.estimatedTotal')}</span>
                             <span>${previewGrandTotal.toFixed(2)}</span>
                           </div>
-                          <p className="pt-0.5 text-[11px] text-blue-600/70">{t('notif.finalTotalNote')}</p>
+                          <p className="pt-0.5 text-[11px] text-muted-foreground">{t('notif.finalTotalNote')}</p>
                         </div>
                       </div>
                     )}
@@ -290,7 +290,7 @@ export function Header() {
                         notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`cursor-pointer border-b px-4 py-3 transition hover:bg-muted/50 ${notification.isRead ? 'bg-white' : 'bg-blue-50/70'}`}
+                            className={`cursor-pointer border-b px-4 py-3 transition hover:bg-muted/50 ${notification.isRead ? 'bg-background' : 'bg-muted/40'}`}
                             onClick={() => {
                               markAsRead(notification.id);
                               setNotificationsOpen(false);

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome';
 import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
 
-const inter = Inter({ subsets: ['latin'] });
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-sans' });
 
 const DEFAULT_SITE_NAME = 'E-commerce Timor-Leste';
 const DEFAULT_DESCRIPTION = 'Platform kompras online ba Timor-Leste';
@@ -121,7 +121,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${jakarta.variable} font-sans`}>
         <Providers>
           <MaintenanceGate>
             <ConditionalChrome>{children}</ConditionalChrome>

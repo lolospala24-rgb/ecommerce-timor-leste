@@ -27,7 +27,7 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
 
   return (
     <div className="min-w-0 flex-[0_0_100%] px-1">
-      <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-emerald-50/60 shadow-sm">
+      <div className="relative overflow-hidden rounded-xl border bg-card">
         <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
           <div className="text-center md:text-left">
             {banner.badge && (
@@ -35,7 +35,7 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
                 {banner.badge}
               </span>
             )}
-            <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-3xl md:text-4xl">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
               {banner.title}
             </h1>
             {banner.subtitle && (
@@ -45,7 +45,7 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
             )}
             <Link
               href={href}
-              className="group mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-105"
+              className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               {banner.buttonText || shopNowLabel}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -149,7 +149,7 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 function HeroSkeleton() {
   return (
     <div className="container-custom py-6 sm:py-8">
-      <Skeleton className="h-[420px] w-full rounded-2xl sm:h-[320px]" />
+      <Skeleton className="h-[420px] w-full rounded-xl sm:h-[320px]" />
     </div>
   );
 }

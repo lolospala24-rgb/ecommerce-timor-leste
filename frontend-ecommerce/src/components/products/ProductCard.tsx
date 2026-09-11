@@ -128,12 +128,14 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
   // not just another status flag, so it must never be silently bumped out by
   // New/Popular. Capped at one additional badge on top of it (plus the
   // discount badge below) to keep the image corner from crowding on mobile.
+  // New/Popular deliberately share one neutral style (not their own colors)
+  // — only Local (a real differentiator) and the discount badge get color.
   const localBadge = isLocal
-    ? { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground hover:bg-secondary' }
+    ? { key: 'local', label: t('product.badge.local'), className: 'bg-secondary text-secondary-foreground' }
     : null;
   const otherBadges = [
-    isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-blue-600 text-white hover:bg-blue-600' },
-    product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-amber-950 hover:bg-amber-500' },
+    isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-foreground text-background' },
+    product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-foreground text-background' },
   ]
     .filter((b): b is { key: string; label: string; className: string } => !!b)
     .slice(0, 1);
@@ -196,14 +198,14 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
 
   return (
     <>
-      <Card className="group flex h-full flex-col overflow-hidden rounded-2xl border-none shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-        <div className="relative aspect-square overflow-hidden bg-slate-100">
+      <Card className="group flex h-full flex-col overflow-hidden rounded-xl border shadow-none transition-shadow hover:shadow-md">
+        <div className="relative aspect-square overflow-hidden bg-muted/40">
           <Link href={`/products/${product.slug}`} aria-label={product.name}>
             <Image
               src={imageSrc}
               alt={product.name}
               fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               priority={priority}
               loading={priority ? undefined : 'lazy'}
@@ -212,17 +214,17 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           </Link>
 
           {discount > 0 && (
-            <Badge className="absolute left-3 top-3 z-10 rounded-full border-0 bg-red-600 px-2.5 py-1 text-white shadow-sm hover:bg-red-600">
+            <Badge className="absolute left-2.5 top-2.5 z-10 rounded-md border-0 bg-red-600 px-2 py-1 text-white hover:bg-red-600">
               -{discount}%
             </Badge>
           )}
 
           {statusBadges.length > 0 && (
-            <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1.5">
+            <div className="absolute bottom-2.5 left-2.5 z-10 flex flex-col gap-1">
               {statusBadges.map((badge) => (
                 <Badge
                   key={badge.key}
-                  className={cn('w-fit rounded-full border-0 px-2.5 py-1 shadow-sm', badge.className)}
+                  className={cn('w-fit rounded-md border-0 px-2 py-1', badge.className)}
                 >
                   {badge.label}
                 </Badge>
@@ -231,8 +233,8 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           )}
 
           {product.stock === 0 && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
-              <Badge className="bg-red-600 px-4 py-2 text-sm text-white">{t('product.outOfStock')}</Badge>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55">
+              <Badge className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white">{t('product.outOfStock')}</Badge>
             </div>
           )}
 
@@ -240,19 +242,19 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             type="button"
             onClick={handleWishlist}
             aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md transition-transform hover:scale-105"
+            className="absolute right-2.5 top-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 transition-colors hover:bg-background"
           >
             <Heart className={cn('h-4 w-4 text-foreground', isWishlisted && 'fill-red-600 text-red-600')} />
           </button>
         </div>
 
         <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
-          <CardContent className="flex flex-1 flex-col p-4 pb-3">
-            <h3 className="line-clamp-2 min-h-[2.5rem] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">
+          <CardContent className="flex flex-1 flex-col p-3.5 pb-3">
+            <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
               {product.name}
             </h3>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
               <span className="inline-flex items-center gap-1">
                 <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                 <span className="font-medium text-foreground">{(product.rating || 0).toFixed(1)}</span>
@@ -278,11 +280,11 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             )}
 
             <div className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
-              <span className="text-xl font-bold text-primary">
+              <span className="text-lg font-bold text-primary">
                 ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
               </span>
               {discount > 0 && product.comparePrice && (
-                <span className="text-sm text-muted-foreground line-through">
+                <span className="text-xs text-muted-foreground line-through">
                   ${product.comparePrice.toFixed(2)}
                 </span>
               )}
@@ -290,12 +292,12 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           </CardContent>
         </Link>
 
-        <div className="flex items-center gap-2 px-4 pb-4">
+        <div className="flex items-center gap-2 px-3.5 pb-3.5">
           {isOutOfStock ? (
             <Button
               size="sm"
               variant={isSubscribed ? 'secondary' : 'outline'}
-              className="w-full"
+              className="w-full rounded-lg"
               onClick={handleNotifyMe}
               disabled={subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending}
             >
@@ -312,7 +314,7 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             <>
               <Button
                 size="sm"
-                className="min-w-0 flex-1 gap-1.5 border-0 bg-primary/10 px-2 text-primary shadow-none hover:bg-primary/15"
+                className="min-w-0 flex-1 gap-1.5 rounded-lg border border-primary/20 bg-primary/10 px-2 text-primary shadow-none hover:bg-primary/15"
                 onClick={handleAddToCart}
                 disabled={isAddingToCart}
               >

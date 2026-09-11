@@ -230,8 +230,8 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
   return (
     <div ref={wrapperRef} className={cn('relative', className)}>
       <form onSubmit={handleSubmit} className="relative flex items-center">
-        <div className="relative flex w-full items-center rounded-full border border-input bg-muted/50 pr-1 transition-colors focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400">
-          <Sparkles className="pointer-events-none absolute left-3.5 h-4 w-4 shrink-0 text-amber-500" />
+        <div className="relative flex w-full items-center rounded-full border border-input bg-muted/40 pr-1 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/30">
+          <Sparkles className="pointer-events-none absolute left-3.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             type="text"
             value={value}
@@ -246,7 +246,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
           <button
             type="submit"
             disabled={isSearching || !trimmedValue}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSearching ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -259,7 +259,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
       </form>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border bg-popover p-2 text-popover-foreground shadow-lg" data-lenis-prevent>
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[70vh] overflow-y-auto rounded-xl border bg-popover p-2 text-popover-foreground shadow-md" data-lenis-prevent>
           {!showAutocomplete ? (
             hasEmptyStateContent ? (
               <div className="space-y-3 p-1">
@@ -304,7 +304,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
                             onClick={() => goToSearchPage(term)}
                             className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
                           >
-                            <TrendingUp className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                            <TrendingUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                             <span className="truncate">{term}</span>
                             <span className="ml-auto text-xs text-muted-foreground">#{index + 1}</span>
                           </button>
