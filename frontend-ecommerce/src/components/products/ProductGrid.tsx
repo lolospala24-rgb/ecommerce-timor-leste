@@ -49,9 +49,9 @@ export function ProductGrid({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-center gap-4 md:gap-6">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <div key={product.id} className={cardWidthClass[columns]}>
-            <ProductCard product={product} isLocal={product.isLocallyMade} />
+            <ProductCard product={product} isLocal={product.isLocallyMade} priority={index < columns} />
           </div>
         ))}
       </div>

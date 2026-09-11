@@ -213,8 +213,8 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
             <div className="flex items-center gap-2">
               {displayStock > 0 ? (
                 <>
-                  <Check className="h-5 w-5 text-green-600" />
-                  <span className="text-green-600 font-medium">In Stock</span>
+                  <Check className="h-5 w-5 text-green-700 dark:text-green-400" />
+                  <span className="text-green-700 dark:text-green-400 font-medium">In Stock</span>
                 </>
               ) : (
                 <>

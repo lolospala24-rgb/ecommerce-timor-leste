@@ -78,11 +78,11 @@ export function TopHeader() {
               <DropdownMenuTrigger asChild>
                 <button
                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={t('lang.switchLabel')}
+                  aria-label={`${t('lang.switchLabel')}: ${currentLanguage.nativeLabel}`}
                 >
-                  <Globe className="h-3.5 w-3.5" />
+                  <Globe className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{currentLanguage.nativeLabel}</span>
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-3 w-3" aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
@@ -130,15 +130,16 @@ export function TopHeader() {
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={t('theme.toggleLabel')}
             >
               {mounted ? (
                 theme === 'dark' ? (
-                  <Sun className="h-3.5 w-3.5" />
+                  <Sun className="h-3.5 w-3.5" aria-hidden="true" />
                 ) : (
-                  <Moon className="h-3.5 w-3.5" />
+                  <Moon className="h-3.5 w-3.5" aria-hidden="true" />
                 )
               ) : (
-                <Sun className="h-3.5 w-3.5 opacity-0" />
+                <Sun className="h-3.5 w-3.5 opacity-0" aria-hidden="true" />
               )}
             </button>
 

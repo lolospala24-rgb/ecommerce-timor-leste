@@ -137,6 +137,11 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': "Halo ho domin ba Timor-Leste",
 
     'lang.switchLabel': 'Lian',
+    'theme.toggleLabel': 'Troka tema',
+    'footer.social.whatsapp': 'WhatsApp',
+    'footer.social.telegram': 'Telegram',
+    'footer.social.instagram': 'Instagram',
+    'footer.social.tiktok': 'TikTok',
 
     // Hero
     'hero.shopNow': 'Sosa Agora',
@@ -312,6 +317,11 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Made with love for Timor-Leste',
 
     'lang.switchLabel': 'Language',
+    'theme.toggleLabel': 'Toggle theme',
+    'footer.social.whatsapp': 'WhatsApp',
+    'footer.social.telegram': 'Telegram',
+    'footer.social.instagram': 'Instagram',
+    'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Shop Now',
 
@@ -481,6 +491,11 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Dibuat dengan cinta untuk Timor-Leste',
 
     'lang.switchLabel': 'Bahasa',
+    'theme.toggleLabel': 'Ganti tema',
+    'footer.social.whatsapp': 'WhatsApp',
+    'footer.social.telegram': 'Telegram',
+    'footer.social.instagram': 'Instagram',
+    'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Belanja Sekarang',
 
@@ -650,6 +665,11 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.madeWithLoveFor': 'Feito com amor para Timor-Leste',
 
     'lang.switchLabel': 'Idioma',
+    'theme.toggleLabel': 'Alternar tema',
+    'footer.social.whatsapp': 'WhatsApp',
+    'footer.social.telegram': 'Telegram',
+    'footer.social.instagram': 'Instagram',
+    'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Comprar Agora',
 

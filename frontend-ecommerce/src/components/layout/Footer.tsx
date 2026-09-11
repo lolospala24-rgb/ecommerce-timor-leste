@@ -38,17 +38,33 @@ export function Footer() {
               {t('footer.tagline')}
             </p>
             <div className="flex gap-3">
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <MessageCircle className="h-5 w-5" />
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label={t('footer.social.whatsapp')}
+              >
+                <MessageCircle className="h-5 w-5" aria-hidden="true" />
               </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Send className="h-5 w-5" />
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label={t('footer.social.telegram')}
+              >
+                <Send className="h-5 w-5" aria-hidden="true" />
               </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <Camera className="h-5 w-5" />
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label={t('footer.social.instagram')}
+              >
+                <Camera className="h-5 w-5" aria-hidden="true" />
               </Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">
-                <PlayCircle className="h-5 w-5" />
+              <Link
+                href="#"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label={t('footer.social.tiktok')}
+              >
+                <PlayCircle className="h-5 w-5" aria-hidden="true" />
               </Link>
             </div>
           </div>

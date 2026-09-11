@@ -59,7 +59,7 @@ function SectionSkeleton() {
 // added later through the admin's Rule dropdown — goes through. It has no
 // idea how NEWEST vs POPULAR vs a brand-new future rule picked its
 // products; it just renders whatever the backend already resolved.
-function ProductSection({ section }: { section: HomepageSection }) {
+function ProductSection({ section, isFirstSection = false }: { section: HomepageSection; isFirstSection?: boolean }) {
   const { t } = useTranslation();
   const Icon = RULE_ICONS[section.rule] ?? Layers;
 
@@ -92,8 +92,13 @@ function ProductSection({ section }: { section: HomepageSection }) {
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
-          {section.products.map((product) => (
-            <ProductCard key={product.id} product={product} isLocal={product.isLocallyMade} />
+          {section.products.map((product, index) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              isLocal={product.isLocallyMade}
+              priority={isFirstSection && index < 4}
+            />
           ))}
         </div>
       </div>
@@ -118,8 +123,8 @@ export function HomepageSections() {
 
   return (
     <>
-      {sections.map((section) => (
-        <ProductSection key={section.id} section={section} />
+      {sections.map((section, index) => (
+        <ProductSection key={section.id} section={section} isFirstSection={index === 0} />
       ))}
     </>
   );

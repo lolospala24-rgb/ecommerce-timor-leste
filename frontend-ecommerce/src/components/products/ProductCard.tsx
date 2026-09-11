@@ -65,9 +65,13 @@ interface ProductCardProps {
    *  product.isLocallyMade explicitly (no default guess here) so a card
    *  never mislabels a product just because it forgot to wire the flag. */
   isLocal?: boolean;
+  /** Set for the first few cards in an above-the-fold grid so the image
+   *  loads eagerly instead of lazily — one of these is typically the page's
+   *  LCP element, and lazy-loading it directly delays LCP. */
+  priority?: boolean;
 }
 
-export function ProductCard({ product, isLocal = false }: ProductCardProps) {
+export function ProductCard({ product, isLocal = false, priority = false }: ProductCardProps) {
   const { t } = useTranslation();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -117,8 +121,8 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
   const stockStatus = product.stock === 0
     ? { label: t('product.outOfStock'), className: 'text-destructive' }
     : product.stock <= LOW_STOCK_THRESHOLD
-      ? { label: t('product.onlyLeft', { count: product.stock }), className: 'text-amber-600' }
-      : { label: t('product.inStock'), className: 'text-green-600' };
+      ? { label: t('product.onlyLeft', { count: product.stock }), className: 'text-amber-700 dark:text-amber-400' }
+      : { label: t('product.inStock'), className: 'text-green-700 dark:text-green-400' };
 
   // Local always shows when applicable — it's a distinct marketplace feature,
   // not just another status flag, so it must never be silently bumped out by
@@ -129,7 +133,7 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
     : null;
   const otherBadges = [
     isNew && { key: 'new', label: t('product.badge.new'), className: 'bg-blue-600 text-white hover:bg-blue-600' },
-    product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-white hover:bg-amber-500' },
+    product.isFeatured && { key: 'popular', label: t('product.badge.popular'), className: 'bg-amber-500 text-amber-950 hover:bg-amber-500' },
   ]
     .filter((b): b is { key: string; label: string; className: string } => !!b)
     .slice(0, 1);
@@ -201,6 +205,8 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              priority={priority}
+              loading={priority ? undefined : 'lazy'}
               onError={() => setImageError(true)}
             />
           </Link>
