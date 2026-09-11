@@ -61,6 +61,15 @@ export function useProductVariantSelection(product: Product) {
     setSelectedAttributes({});
   }, [product.id]);
 
+  // Exactly one sellable variant and nothing to distinguish it by (no
+  // Color/Size/etc.) — there is no real choice for the customer to make,
+  // so forcing a click before Add to Cart works (or before price/stock
+  // reflect it) is pure friction, not a safeguard. This must stay gated on
+  // variants.length === 1 specifically — with 2+ flat variants there IS a
+  // real choice, and silently picking one would be exactly the "assume
+  // first variant" bug this hook already avoids elsewhere.
+  const isSimpleVariant = variants.length === 1 && attributeKeys.length === 0;
+
   const selectedVariant = useMemo<ProductVariant | null>(() => {
     if (!hasVariants) return null;
 
@@ -74,9 +83,13 @@ export function useProductVariantSelection(product: Product) {
       return findMatchingVariant(variants, selectedAttributes, attributeKeys);
     }
 
-    // Flat variant list with no distinguishing attributes (e.g. a single
-    // "which one" choice) — each tile click sets a complete, unambiguous
-    // choice, so matching by id is safe and can't go stale.
+    if (variants.length === 1) {
+      return variants[0];
+    }
+
+    // Flat variant list with 2+ options and no distinguishing attributes —
+    // each tile click sets a complete, unambiguous choice, so matching by
+    // id is safe and can't go stale. Never auto-picked.
     return variants.find((variant) => variant.id === selectedVariantId) ?? null;
   }, [hasVariants, variants, selectedVariantId, selectedAttributes, attributeKeys]);
 
@@ -166,8 +179,11 @@ export function useProductVariantSelection(product: Product) {
   // Gated on hasChosenVariant, matching how galleryImages already behaves —
   // a matched selectedVariant only counts as "the customer's choice" once
   // they've actually interacted with the selector. Until then, every one
-  // of these must reflect the base product, never a variant.
-  const hasActiveVariantSelection = hasChosenVariant && Boolean(selectedVariant);
+  // of these must reflect the base product, never a variant. The one
+  // exception is isSimpleVariant: with nothing to choose between, the sole
+  // variant's own price/stock/SKU are correct immediately — there's no
+  // "before the customer picked" state to protect against.
+  const hasActiveVariantSelection = (hasChosenVariant || isSimpleVariant) && Boolean(selectedVariant);
   const displayPrice = hasActiveVariantSelection ? selectedVariant!.price : product.price;
   const displayComparePrice = hasActiveVariantSelection
     ? selectedVariant!.comparePrice
@@ -176,7 +192,7 @@ export function useProductVariantSelection(product: Product) {
   const displaySku = hasActiveVariantSelection ? selectedVariant!.sku : product.sku;
 
   const galleryImages =
-    hasChosenVariant && selectedVariant?.images?.length
+    hasActiveVariantSelection && selectedVariant?.images?.length
       ? selectedVariant.images
       : baseProductImages;
 
@@ -195,6 +211,7 @@ export function useProductVariantSelection(product: Product) {
   return {
     variants,
     hasVariants,
+    isSimpleVariant,
     attributeKeys,
     attributeOptions,
     attributeLabels,
@@ -202,6 +219,7 @@ export function useProductVariantSelection(product: Product) {
     selectedVariantLabel,
     selectedAttributes,
     hasChosenVariant,
+    hasActiveVariantSelection,
     isSelectionComplete,
     hasInvalidCombination,
     selectAttribute,

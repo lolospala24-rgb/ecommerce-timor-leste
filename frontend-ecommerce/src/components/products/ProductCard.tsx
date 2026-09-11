@@ -46,6 +46,9 @@ interface ProductCardProps {
     stock: number;
     isActive: boolean;
     isFeatured?: boolean;
+    /** When true, this product can't be added to the cart directly — it
+     *  needs a variant chosen first (see handleAddToCart). */
+    hasVariants?: boolean;
     createdAt?: string;
     rating?: number;
     totalReviews?: number;
@@ -159,6 +162,15 @@ export function ProductCard({ product, isLocal = false }: ProductCardProps) {
 
     if (product.stock === 0) {
       toast.error('Product is out of stock');
+      return;
+    }
+
+    // The grid has no variant picker — a variant product would otherwise
+    // hit the backend's "please select a variant" error with no way to
+    // actually choose one from here. Quick View already has the real
+    // variant selector, so open that instead of failing silently.
+    if (product.hasVariants) {
+      setQuickViewOpen(true);
       return;
     }
 

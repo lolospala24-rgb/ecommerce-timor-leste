@@ -10,18 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -29,9 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Layers, X } from 'lucide-react';
+import { Plus, Layers } from 'lucide-react';
 import { ProductType, useProductTypes } from '../../../../hooks/useProductTypes';
 import { buildFieldsPayload, fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
+import { CreateProductTypeDialog } from './CreateProductTypeDialog';
+import { FieldNameListEditor } from './FieldNameListEditor';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -46,11 +37,6 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(currentTypeId ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newTypeName, setNewTypeName] = useState('');
-  const [newTypeDescription, setNewTypeDescription] = useState('');
-  const [newTypeFields, setNewTypeFields] = useState<string[]>(['']);
-  const [newTypeSpecFields, setNewTypeSpecFields] = useState<string[]>(['']);
-  const [isCreating, setIsCreating] = useState(false);
   const [editFieldNames, setEditFieldNames] = useState<string[]>([]);
   const [editSpecFieldNames, setEditSpecFieldNames] = useState<string[]>([]);
   const [isSavingFields, setIsSavingFields] = useState(false);
@@ -81,36 +67,10 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
     }
   }, [selectedType?.id, selectedType?.fields, selectedType?.specFields]);
 
-  const handleCreateType = async () => {
-    if (!newTypeName.trim()) {
-      toast.error('Product type name is required');
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const response = await api.post<{ message: string; data: ProductType }>('/products/types', {
-        name: newTypeName.trim(),
-        description: newTypeDescription.trim() || undefined,
-        fields: buildFieldsPayload(newTypeFields),
-        specFields: buildFieldsPayload(newTypeSpecFields),
-      });
-
-      const createdType = (response as any)?.data ?? response;
-      toast.success('Product type created successfully');
-      setNewTypeName('');
-      setNewTypeDescription('');
-      setNewTypeFields(['']);
-      setNewTypeSpecFields(['']);
-      setIsCreateDialogOpen(false);
-      await refetch();
-      if (createdType?.id) {
-        setSelectedTypeId(createdType.id);
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create product type');
-    } finally {
-      setIsCreating(false);
+  const handleTypeCreated = async (createdType: ProductType) => {
+    await refetch();
+    if (createdType?.id) {
+      setSelectedTypeId(createdType.id);
     }
   };
 
@@ -166,48 +126,6 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
     }
   };
 
-  const renderFieldInputs = (
-    fieldNames: string[],
-    onChange: (names: string[]) => void,
-    options: { label: string; description: string; placeholder: string },
-  ) => (
-    <div className="space-y-2">
-      <Label>{options.label}</Label>
-      <p className="text-xs text-muted-foreground">{options.description}</p>
-      {fieldNames.map((field, index) => (
-        <div key={index} className="flex gap-2">
-          <Input
-            placeholder={options.placeholder}
-            value={field}
-            onChange={(e) => {
-              const next = [...fieldNames];
-              next[index] = e.target.value;
-              onChange(next);
-            }}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onChange(fieldNames.filter((_, i) => i !== index))}
-            disabled={fieldNames.length === 1}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => onChange([...fieldNames, ''])}
-      >
-        <Plus className="h-4 w-4 mr-1" />
-        Add Field
-      </Button>
-    </div>
-  );
-
   return (
     <Card>
       <CardHeader>
@@ -219,7 +137,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)} disabled={isSubmitting || isCreating}>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)} disabled={isSubmitting}>
               <Plus className="mr-2 h-4 w-4" />
               New Type
             </Button>
@@ -293,17 +211,21 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
                 </div>
               )}
 
-              {renderFieldInputs(editFieldNames, setEditFieldNames, {
-                label: 'Variant Fields',
-                description: 'Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.',
-                placeholder: 'Field name (e.g., Color)',
-              })}
+              <FieldNameListEditor
+                fieldNames={editFieldNames}
+                onChange={setEditFieldNames}
+                label="Variant Fields"
+                description="Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants."
+                placeholder="Field name (e.g., Color)"
+              />
 
-              {renderFieldInputs(editSpecFieldNames, setEditSpecFieldNames, {
-                label: 'Suggested Specification Fields',
-                description: 'Field names admins will see as quick-add suggestions when filling in specifications for this type (e.g. Material, Warranty).',
-                placeholder: 'Field name (e.g., Warranty)',
-              })}
+              <FieldNameListEditor
+                fieldNames={editSpecFieldNames}
+                onChange={setEditSpecFieldNames}
+                label="Suggested Specification Fields"
+                description="Field names admins will see as quick-add suggestions when filling in specifications for this type (e.g. Material, Warranty)."
+                placeholder="Field name (e.g., Warranty)"
+              />
 
               <Button onClick={handleSaveTypeFields} disabled={isSavingFields}>
                 {isSavingFields ? 'Saving...' : 'Save Type Fields'}
@@ -318,59 +240,14 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
               <p className="text-sm">Change the assigned type here — types are created up front on the Add New Product page</p>
             </div>
           )}
-
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <span />
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Product Type</DialogTitle>
-                <DialogDescription>
-                  Create a type with variant fields that will appear on the storefront product page.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={newTypeName}
-                    onChange={(e) => setNewTypeName(e.target.value)}
-                    placeholder="e.g. Clothing, Electronics"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={newTypeDescription}
-                    onChange={(e) => setNewTypeDescription(e.target.value)}
-                    placeholder="Optional description"
-                    rows={3}
-                  />
-                </div>
-                {renderFieldInputs(newTypeFields, setNewTypeFields, {
-                  label: 'Variant Fields',
-                  description: 'Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.',
-                  placeholder: 'Field name (e.g., Color)',
-                })}
-                {renderFieldInputs(newTypeSpecFields, setNewTypeSpecFields, {
-                  label: 'Suggested Specification Fields',
-                  description: 'Shown as quick-add suggestions when filling in specifications for products of this type.',
-                  placeholder: 'Field name (e.g., Warranty)',
-                })}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateType} disabled={isCreating}>
-                  {isCreating ? 'Creating...' : 'Create Type'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </CardContent>
+
+      <CreateProductTypeDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreated={handleTypeCreated}
+      />
     </Card>
   );
 }

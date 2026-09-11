@@ -42,6 +42,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
   const {
     variants,
     hasVariants,
+    isSimpleVariant,
     attributeKeys,
     attributeOptions,
     attributeLabels,
@@ -240,7 +241,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
               </div>
             )}
 
-            {hasVariants && (
+            {hasVariants && !isSimpleVariant && (
               <ProductVariantSelector
                 variants={variants}
                 attributeKeys={attributeKeys}

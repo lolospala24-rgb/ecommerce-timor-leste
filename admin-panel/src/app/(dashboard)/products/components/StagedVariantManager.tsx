@@ -11,15 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -28,39 +19,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Plus, Trash2, Edit, X, Grid3x3, EyeOff, Eye, Wand2, AlertTriangle } from 'lucide-react';
+import { VariantAttributesEditor } from './VariantAttributesEditor';
+import { VariantGeneratorDialog, type GeneratorPreviewItem } from './VariantGeneratorDialog';
+import { VariantTable, type DisplayVariant } from './VariantTable';
+import { Plus, Wand2 } from 'lucide-react';
 import { fieldsToNameList } from '@/lib/productType';
+import {
+  canonicalizeAttributes,
+  formatAttributesLabel,
+  generateAttributeCombinations,
+} from '@/lib/variantAttributes';
+import type { GeneratorAttributeRow } from '@/lib/variantAttributes';
 import toast from 'react-hot-toast';
-
-// Mirrors VariantManager's canonicalization exactly, so the "this
-// combination already exists" check behaves identically whether the
-// product already exists (VariantManager, live API) or is still being
-// created (here, purely in-memory against the staged array).
-function canonicalizeAttributes(attrs: Record<string, string>): string {
-  return Object.keys(attrs)
-    .filter((k) => k.trim())
-    .sort()
-    .map((k) => `${k.trim().toLowerCase()}=${String(attrs[k]).trim().toLowerCase()}`)
-    .join('|');
-}
-
-function formatAttributesLabel(attrs: Record<string, string> | undefined | null): string {
-  if (!attrs) return '';
-  return Object.values(attrs).filter(Boolean).join(' / ');
-}
-
-const MANY_COMBINATIONS_WARNING_THRESHOLD = 50;
 
 export interface StagedVariant {
   tempId: string;
@@ -94,14 +67,12 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
 
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [generatorStep, setGeneratorStep] = useState<'input' | 'preview'>('input');
-  const [generatorRows, setGeneratorRows] = useState<{ key: string; valuesInput: string }[]>([
+  const [generatorRows, setGeneratorRows] = useState<GeneratorAttributeRow[]>([
     { key: '', valuesInput: '' },
   ]);
   const [generatorBasePrice, setGeneratorBasePrice] = useState(0);
   const [generatorBaseStock, setGeneratorBaseStock] = useState(0);
-  const [generatorPreview, setGeneratorPreview] = useState<
-    { attributes: Record<string, string>; isDuplicate: boolean; selected: boolean }[]
-  >([]);
+  const [generatorPreview, setGeneratorPreview] = useState<GeneratorPreviewItem[]>([]);
 
   const [formData, setFormData] = useState({
     sku: '',
@@ -239,43 +210,19 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
   };
 
   const handlePreviewCombinations = () => {
-    const rows = generatorRows
-      .map((row) => ({
-        key: row.key.trim(),
-        values: Array.from(new Set(row.valuesInput.split(',').map((v) => v.trim()).filter(Boolean))),
-      }))
-      .filter((row) => row.key && row.values.length > 0);
-
-    if (rows.length === 0) {
+    const combinations = generateAttributeCombinations(generatorRows);
+    if (combinations.length === 0) {
       toast.error('Enter at least one attribute with at least one value.');
       return;
     }
 
-    let combinations: Record<string, string>[] = [{}];
-    for (const row of rows) {
-      const next: Record<string, string>[] = [];
-      for (const existing of combinations) {
-        for (const value of row.values) {
-          next.push({ ...existing, [row.key]: value });
-        }
-      }
-      combinations = next;
-    }
-
     const existingCanonical = new Set(variants.map((v) => canonicalizeAttributes(v.attributes || {})));
-    const seenInBatch = new Set<string>();
 
-    const preview = combinations
-      .filter((combo) => {
-        const canonical = canonicalizeAttributes(combo);
-        if (seenInBatch.has(canonical)) return false;
-        seenInBatch.add(canonical);
-        return true;
-      })
-      .map((combo) => {
-        const canonical = canonicalizeAttributes(combo);
-        return { attributes: combo, isDuplicate: existingCanonical.has(canonical), selected: !existingCanonical.has(canonical) };
-      });
+    const preview: GeneratorPreviewItem[] = combinations.map((combo) => {
+      const canonical = canonicalizeAttributes(combo);
+      const isDuplicate = existingCanonical.has(canonical);
+      return { attributes: combo, isDuplicate, selected: !isDuplicate };
+    });
 
     setGeneratorPreview(preview);
     setGeneratorStep('preview');
@@ -304,7 +251,16 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
     closeGenerator();
   };
 
-  const selectedGeneratorCount = generatorPreview.filter((item) => item.selected && !item.isDuplicate).length;
+  const displayVariants: DisplayVariant[] = variants.map((variant) => ({
+    key: variant.tempId,
+    sku: variant.sku,
+    skuPlaceholder: '(auto)',
+    attributes: variant.attributes,
+    price: variant.price,
+    stock: variant.stock,
+    images: variant.images,
+    isActive: variant.isActive,
+  }));
 
   return (
     <Card>
@@ -338,76 +294,14 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
           </div>
         )}
 
-        {variants.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Grid3x3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-            <p>No variants yet</p>
-            <p className="text-sm">Add variants to offer different options for this product (optional)</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Attributes</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Images</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variants.map((variant) => (
-                <TableRow key={variant.tempId}>
-                  <TableCell className="font-mono text-sm">{variant.sku || '(auto)'}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {Object.entries(variant.attributes).map(([key, value]) => (
-                        <Badge key={key} variant="secondary" className="text-xs">
-                          {key}: {String(value)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>${variant.price.toFixed(2)}</TableCell>
-                  <TableCell>{variant.stock}</TableCell>
-                  <TableCell>
-                    {variant.images.length > 0 ? (
-                      <Badge variant="outline">{variant.images.length} images</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">No images</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={variant.isActive ? 'default' : 'secondary'}>
-                      {variant.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button type="button" variant="ghost" size="icon" onClick={() => handleOpenDialog(variant)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => handleToggleActive(variant.tempId)}>
-                        {variant.isActive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600"
-                        onClick={() => setDeleteTarget(variant)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <VariantTable
+          variants={displayVariants}
+          emptyTitle="No variants yet"
+          emptyHint="Add variants to offer different options for this product (optional)"
+          onEdit={(key) => handleOpenDialog(variants.find((v) => v.tempId === key))}
+          onToggleActive={(key) => handleToggleActive(key as string)}
+          onDelete={(key) => setDeleteTarget(variants.find((v) => v.tempId === key) ?? null)}
+        />
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -458,55 +352,13 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Attributes</Label>
-              <div className="space-y-2">
-                {attributes.map((attr, index) => (
-                  <div key={index} className="flex gap-2">
-                    {typeFieldNames.length > 0 ? (
-                      <Select value={attr.key || undefined} onValueChange={(value) => handleAttributeChange(index, 'key', value)}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {typeFieldNames.map((fieldName) => (
-                            <SelectItem key={fieldName} value={fieldName}>
-                              {fieldName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        placeholder="Key (e.g., Color)"
-                        value={attr.key}
-                        onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
-                        className="flex-1"
-                      />
-                    )}
-                    <Input
-                      placeholder="Value (e.g., Red)"
-                      value={attr.value}
-                      onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveAttribute(index)}
-                      disabled={attributes.length === 1}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={handleAddAttribute}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Attribute
-                </Button>
-              </div>
-            </div>
+            <VariantAttributesEditor
+              attributes={attributes}
+              typeFieldNames={typeFieldNames}
+              onAdd={handleAddAttribute}
+              onRemove={handleRemoveAttribute}
+              onChange={handleAttributeChange}
+            />
 
             <div className="space-y-2">
               <Label>Variant Images</Label>
@@ -543,131 +395,27 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
         onConfirm={handleConfirmDelete}
       />
 
-      <Dialog open={isGeneratorOpen} onOpenChange={(open) => !open && closeGenerator()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Generate Variants</DialogTitle>
-            <DialogDescription>
-              {generatorStep === 'input'
-                ? 'List each attribute and its possible values — every combination will be previewed before anything is added.'
-                : 'Review the combinations below. Existing ones are shown grayed out and skipped.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {generatorStep === 'input' ? (
-            <div className="space-y-4 py-4">
-              <div className="space-y-3">
-                {generatorRows.map((row, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder="Attribute (e.g. Color)"
-                      value={row.key}
-                      onChange={(e) => handleGeneratorRowChange(index, 'key', e.target.value)}
-                      className="w-1/3"
-                    />
-                    <Textarea
-                      placeholder="Values, comma-separated (e.g. Black, White, Red)"
-                      value={row.valuesInput}
-                      onChange={(e) => handleGeneratorRowChange(index, 'valuesInput', e.target.value)}
-                      className="flex-1 min-h-[2.5rem]"
-                      rows={1}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveGeneratorRow(index)}
-                      disabled={generatorRows.length === 1}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={handleAddGeneratorRow}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Attribute
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Default Price ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={generatorBasePrice}
-                    onChange={(e) => setGeneratorBasePrice(parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Default Stock</Label>
-                  <Input
-                    type="number"
-                    value={generatorBaseStock}
-                    onChange={(e) => setGeneratorBaseStock(parseInt(e.target.value) || 0)}
-                  />
-                  <p className="text-xs text-muted-foreground">Defaults to 0 so nothing becomes sellable until you set real stock.</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 py-4">
-              {generatorPreview.length > MANY_COMBINATIONS_WARNING_THRESHOLD && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span>This will add {generatorPreview.length} variants. Double-check your attribute values before continuing.</span>
-                </div>
-              )}
-
-              <div className="max-h-80 overflow-y-auto space-y-1.5 rounded-lg border p-2">
-                {generatorPreview.map((item, index) => (
-                  <label
-                    key={index}
-                    className={`flex items-center justify-between gap-3 rounded-md p-2 text-sm ${
-                      item.isDuplicate ? 'opacity-50' : 'hover:bg-muted/50 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={item.selected && !item.isDuplicate}
-                        disabled={item.isDuplicate}
-                        onChange={() => handleToggleGeneratorItem(index)}
-                      />
-                      <span>{formatAttributesLabel(item.attributes)}</span>
-                      {item.isDuplicate && <Badge variant="outline" className="text-xs">Already staged</Badge>}
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                {selectedGeneratorCount} of {generatorPreview.length} combinations selected.
-              </p>
-            </div>
-          )}
-
-          <DialogFooter>
-            {generatorStep === 'preview' && (
-              <Button type="button" variant="outline" onClick={() => setGeneratorStep('input')}>
-                Back
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={closeGenerator}>
-              Cancel
-            </Button>
-            {generatorStep === 'input' ? (
-              <Button type="button" onClick={handlePreviewCombinations}>
-                Preview Combinations
-              </Button>
-            ) : (
-              <Button type="button" onClick={handleConfirmGenerate} disabled={selectedGeneratorCount === 0}>
-                {`Add ${selectedGeneratorCount} Variant${selectedGeneratorCount === 1 ? '' : 's'}`}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <VariantGeneratorDialog
+        open={isGeneratorOpen}
+        onClose={closeGenerator}
+        step={generatorStep}
+        onBack={() => setGeneratorStep('input')}
+        rows={generatorRows}
+        onAddRow={handleAddGeneratorRow}
+        onRemoveRow={handleRemoveGeneratorRow}
+        onRowChange={handleGeneratorRowChange}
+        basePrice={generatorBasePrice}
+        onBasePriceChange={setGeneratorBasePrice}
+        baseStock={generatorBaseStock}
+        onBaseStockChange={setGeneratorBaseStock}
+        preview={generatorPreview}
+        onPreview={handlePreviewCombinations}
+        onToggleItem={handleToggleGeneratorItem}
+        onConfirm={handleConfirmGenerate}
+        confirmVerb="Add"
+        resultVerbPastTense="added"
+        duplicateLabel="Already staged"
+      />
     </Card>
   );
 }

@@ -90,6 +90,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const {
     variants,
     hasVariants,
+    isSimpleVariant,
     attributeKeys,
     attributeOptions,
     attributeLabels,
@@ -109,7 +110,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     mainImageUrl,
     selectThumbnail,
     setMainImageUrl,
-    hasChosenVariant,
+    hasActiveVariantSelection,
   } = useProductVariantSelection(product);
 
   // Scoped to simple (non-variant) products: Product.stock is the only
@@ -340,12 +341,12 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             onThumbnailSelect={selectThumbnail}
             onMainImageChange={setMainImageUrl}
             galleryLabel={
-              hasChosenVariant && selectedVariant?.images?.length && selectedVariantLabel
+              hasActiveVariantSelection && selectedVariant?.images?.length && selectedVariantLabel
                 ? selectedVariantLabel
                 : 'Product'
             }
             isVariantGallery={Boolean(
-              hasChosenVariant && selectedVariant?.images?.length,
+              hasActiveVariantSelection && selectedVariant?.images?.length,
             )}
           />
 
@@ -560,8 +561,13 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             <p className="-mt-1 pl-8 text-xs text-muted-foreground">Cash on Delivery available.</p>
           )}
 
-          {/* Variants */}
-          {hasVariants && (
+          {/* Variants — suppressed when isSimpleVariant: exactly one
+              sellable variant with no distinguishing attributes has
+              nothing for the customer to choose, so the selector/"your
+              selection" UI would be pure redundant chrome. Price/stock/SKU
+              above already reflect it via useProductVariantSelection's
+              auto-resolve. */}
+          {hasVariants && !isSimpleVariant && (
             <ProductVariantSelector
               variants={variants}
               attributeKeys={attributeKeys}
@@ -587,7 +593,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               )}
             </div>
 
-            {selectedVariantLabel && (
+            {selectedVariantLabel && !isSimpleVariant && (
               <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 <Tag className="h-4 w-4 shrink-0" />
                 <span className="truncate">{selectedVariantLabel}</span>
@@ -838,7 +844,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </dl>
             </div>
 
-            {hasVariants && (
+            {hasVariants && !isSimpleVariant && (
               <div>
                 <h3 className="mb-5 text-lg font-semibold">All variants</h3>
                 <div className="overflow-hidden rounded-xl border">

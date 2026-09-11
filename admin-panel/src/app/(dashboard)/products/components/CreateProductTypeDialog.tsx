@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, X } from 'lucide-react';
 import { ProductType } from '@/hooks/useProductTypes';
 import { buildFieldsPayload } from '@/lib/productType';
+import { FieldNameListEditor } from './FieldNameListEditor';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -24,43 +24,6 @@ interface CreateProductTypeDialogProps {
   onOpenChange: (open: boolean) => void;
   onCreated: (type: ProductType) => void;
 }
-
-const renderFieldInputs = (
-  fieldNames: string[],
-  onChange: (names: string[]) => void,
-  options: { label: string; description: string; placeholder: string },
-) => (
-  <div className="space-y-2">
-    <Label>{options.label}</Label>
-    <p className="text-xs text-muted-foreground">{options.description}</p>
-    {fieldNames.map((field, index) => (
-      <div key={index} className="flex gap-2">
-        <Input
-          placeholder={options.placeholder}
-          value={field}
-          onChange={(e) => {
-            const next = [...fieldNames];
-            next[index] = e.target.value;
-            onChange(next);
-          }}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onChange(fieldNames.filter((_, i) => i !== index))}
-          disabled={fieldNames.length === 1}
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-    ))}
-    <Button type="button" variant="outline" size="sm" onClick={() => onChange([...fieldNames, ''])}>
-      <Plus className="h-4 w-4 mr-1" />
-      Add Field
-    </Button>
-  </div>
-);
 
 export function CreateProductTypeDialog({ open, onOpenChange, onCreated }: CreateProductTypeDialogProps) {
   const [name, setName] = useState('');
@@ -128,16 +91,20 @@ export function CreateProductTypeDialog({ open, onOpenChange, onCreated }: Creat
               rows={3}
             />
           </div>
-          {renderFieldInputs(fields, setFields, {
-            label: 'Variant Fields',
-            description: 'Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants.',
-            placeholder: 'Field name (e.g., Color)',
-          })}
-          {renderFieldInputs(specFields, setSpecFields, {
-            label: 'Suggested Specification Fields',
-            description: 'Shown as quick-add suggestions when filling in specifications for products of this type.',
-            placeholder: 'Field name (e.g., Warranty)',
-          })}
+          <FieldNameListEditor
+            fieldNames={fields}
+            onChange={setFields}
+            label="Variant Fields"
+            description="Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants."
+            placeholder="Field name (e.g., Color)"
+          />
+          <FieldNameListEditor
+            fieldNames={specFields}
+            onChange={setSpecFields}
+            label="Suggested Specification Fields"
+            description="Shown as quick-add suggestions when filling in specifications for products of this type."
+            placeholder="Field name (e.g., Warranty)"
+          />
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

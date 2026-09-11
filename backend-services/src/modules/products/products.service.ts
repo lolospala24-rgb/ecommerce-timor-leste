@@ -114,17 +114,8 @@ export class ProductsService {
     if (new Set(explicitSkus.map((s) => s.toLowerCase())).size !== explicitSkus.length) {
       throw new ConflictException('Duplicate SKU across variants in this request');
     }
-    const seenCombos = new Set<string>();
+    this.assertNoDuplicateAttributesWithinBatch(variantDtos.map((v) => v.attributes));
     for (const variantDto of variantDtos) {
-      const canonical = this.canonicalizeVariantAttributes(variantDto.attributes);
-      if (canonical) {
-        if (seenCombos.has(canonical)) {
-          throw new ConflictException(
-            'Duplicate attribute combination across variants in this request',
-          );
-        }
-        seenCombos.add(canonical);
-      }
       await this.assertVariantImageLimit(variantDto.images);
     }
 
@@ -2273,6 +2264,24 @@ export class ProductsService {
       .sort()
       .map((key) => `${key.trim().toLowerCase()}=${String(record[key]).trim().toLowerCase()}`)
       .join('|');
+  }
+
+  // Batch-internal duplicate check — compares a set of not-yet-persisted
+  // variant DTOs against each other only. Used by create()'s nested-variant
+  // path, where the product (and therefore its variants) doesn't exist yet,
+  // so there's nothing in the database to compare against — unlike
+  // assertNoDuplicateVariantAttributes below, which checks a single
+  // variant against already-saved rows for an existing product.
+  private assertNoDuplicateAttributesWithinBatch(attributesList: Array<Record<string, unknown> | undefined>) {
+    const seen = new Set<string>();
+    for (const attributes of attributesList) {
+      const canonical = this.canonicalizeVariantAttributes(attributes);
+      if (!canonical) continue;
+      if (seen.has(canonical)) {
+        throw new ConflictException('Duplicate attribute combination across variants in this request');
+      }
+      seen.add(canonical);
+    }
   }
 
   private async assertNoDuplicateVariantAttributes(
