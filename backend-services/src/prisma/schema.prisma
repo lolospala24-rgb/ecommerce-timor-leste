@@ -1519,3 +1519,219 @@ model HeroBanner {
   @@index([isActive, position])
   @@map("hero_banners")
 }
+
+// ============================================================================
+// Website Health / Audit Dashboard
+// ============================================================================
+// Performance/Accessibility/BestPractices/SEO scores come from Google's
+// PageSpeed Insights API (Google runs the real Lighthouse audit on their own
+// infrastructure — never a self-hosted headless browser on this box, which
+// only has 2 CPU cores and serves live customer traffic). Security scores
+// come from this server's own lightweight header/cookie checks against the
+// single configured, allow-listed base URL (see ssrf-guard.util.ts) — never
+// an arbitrary admin-supplied URL. See WebsiteHealthService's doc-comment
+// for the full architecture.
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum IssueCategory {
+  PERFORMANCE
+  ACCESSIBILITY
+  BEST_PRACTICES
+  SEO
+  SECURITY
+}
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum IssueStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum MetricRating {
+  GOOD
+  NEEDS_IMPROVEMENT
+  POOR
+}
+
+model WebsiteAudit {
+  id          Int         @id @default(autoincrement())
+  status      AuditStatus @default(QUEUED)
+  startedAt   DateTime?
+  completedAt DateTime?
+  // Nullable: a system/scheduled trigger (not built in this phase, but the
+  // column exists so it doesn't need a migration later) has no admin user.
+  triggeredBy Int?
+
+  overallScore       Float?
+  performanceScore   Float?
+  accessibilityScore Float?
+  bestPracticesScore Float?
+  seoScore           Float?
+  securityScore      Float?
+
+  // Recorded test conditions — shown on every report so a score is never
+  // presented without the context it was measured under (spec §57).
+  device  String @default("mobile")
+  baseUrl String
+
+  // Both bumped only when the underlying audit logic/scoring formula
+  // actually changes, so a historical report keeps rendering exactly what
+  // it showed when it was generated even after later audits use a newer
+  // version (spec §41/§42) — never recomputed retroactively.
+  auditEngineVersion String @default("1.0")
+  scoreVersion       String @default("1.0")
+
+  errorMessage String? @db.Text
+
+  targets AuditTarget[]
+  issues  AuditIssue[]
+  metrics AuditMetric[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("website_audits")
+}
+
+// One row per page audited within a WebsiteAudit run (homepage, /products,
+// a representative product detail page, etc. — see AUDIT_TARGET_TEMPLATES).
+model AuditTarget {
+  id      Int    @id @default(autoincrement())
+  auditId Int
+  audit   WebsiteAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  url        String
+  route      String
+  pageType   String
+  statusCode Int?
+  durationMs Int?
+
+  performanceScore   Float?
+  accessibilityScore Float?
+  bestPracticesScore Float?
+  seoScore           Float?
+
+  issues  AuditIssue[]
+  metrics AuditMetric[]
+
+  createdAt DateTime @default(now())
+
+  @@index([auditId])
+  @@index([url])
+  @@map("audit_targets")
+}
+
+model AuditIssue {
+  id      Int    @id @default(autoincrement())
+  auditId Int
+  audit   WebsiteAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  // Null for site-wide findings (e.g. a security header check that isn't
+  // tied to one specific page).
+  targetId Int?
+  target   AuditTarget? @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  category IssueCategory
+  // Stable identifier for the underlying check (a Lighthouse audit id like
+  // "uses-responsive-images", or one of this system's own security rule
+  // ids like "security.hsts-missing") — lets the same finding be recognized
+  // as "the same issue" across separate audit runs.
+  ruleId   String
+  severity IssueSeverity
+  status   IssueStatus @default(OPEN)
+
+  title          String
+  description    String  @db.Text
+  impact         String?
+  recommendation String  @db.Text
+  affectedUrl    String?
+  selector       String?
+  // Sanitized (HTML-escaped, length-capped) before storage — this is
+  // rendered back to the admin as plain text, never dangerouslySetInnerHTML,
+  // but it is escaped at write time too since raw scanner/Lighthouse output
+  // is untrusted input (spec §49).
+  evidence          String? @db.Text
+  documentationUrl  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([category])
+  @@index([severity])
+  @@index([status])
+  @@map("audit_issues")
+}
+
+model AuditMetric {
+  id      Int    @id @default(autoincrement())
+  auditId Int
+  audit   WebsiteAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  targetId Int?
+  target   AuditTarget? @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  category   IssueCategory
+  // e.g. "LCP", "CLS", "TBT", "FCP", "SpeedIndex", "TTFB".
+  metricName String
+  value      Float
+  unit       String
+  threshold  Float?
+  rating     MetricRating?
+
+  createdAt DateTime @default(now())
+
+  @@index([auditId])
+  @@index([targetId])
+  @@map("audit_metrics")
+}
+
+// Singleton settings row (id is always 1) — configured target domain,
+// category weights, scope, and retention. Kept as its own table (rather
+// than reusing the generic app Settings model, if one exists) so its
+// validation (weights summing to 100, baseUrl allow-list) stays scoped to
+// this feature.
+model WebsiteHealthSettings {
+  id Int @id @default(1)
+
+  // The ONLY domain audits are ever allowed to target — see
+  // ssrf-guard.util.ts. Changing this is itself a sensitive, logged action
+  // (spec §38), never accepted as a per-request override from the client.
+  baseUrl String
+
+  // Percent weights, must sum to 100 — enforced in
+  // update-settings.dto.ts / the service layer, not just the UI.
+  weightPerformance    Int @default(25)
+  weightAccessibility  Int @default(15)
+  weightBestPractices  Int @default(15)
+  weightSeo            Int @default(20)
+  weightSecurity       Int @default(25)
+
+  // Which route templates are included by default when an admin starts a
+  // new audit without customizing scope (see AUDIT_TARGET_TEMPLATES ids).
+  defaultScope Json @default("[\"home\",\"products\",\"product-detail\",\"search\",\"cart\",\"local-products\"]")
+
+  timeoutSeconds     Int @default(60)
+  retentionDays      Int @default(90)
+
+  updatedBy Int?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("website_health_settings")
+}

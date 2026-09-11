@@ -33,6 +33,7 @@ const protectedRoutes = [
   '/shipping-rates',
   '/shipping-dashboard',
   '/reports',
+  '/website-health',
   '/profile',
   '/settings',
 ];

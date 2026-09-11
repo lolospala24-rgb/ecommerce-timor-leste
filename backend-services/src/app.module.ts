@@ -37,6 +37,7 @@ import { HeroModule } from './modules/hero/hero.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { StockNotificationsModule } from './modules/stock-notifications/stock-notifications.module';
+import { WebsiteHealthModule } from './modules/website-health/website-health.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -93,6 +94,7 @@ import { AppService } from './app.service';
     CouponsModule,
     FinanceModule,
     StockNotificationsModule,
+    WebsiteHealthModule,
   ],
   controllers: [AppController],
   providers: [

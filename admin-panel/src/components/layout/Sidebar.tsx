@@ -26,6 +26,7 @@ import {
   Route,
   Navigation,
   Gauge,
+  Activity,
   FileBarChart,
   Bell,
   Settings,
@@ -140,7 +141,10 @@ const menuSections: MenuSection[] = [
   },
   {
     label: 'Insights',
-    items: [{ href: '/reports', label: 'Reports', icon: FileBarChart }],
+    items: [
+      { href: '/reports', label: 'Reports', icon: FileBarChart },
+      { href: '/website-health', label: 'Website Health', icon: Activity },
+    ],
   },
 ];
 
