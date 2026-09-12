@@ -104,7 +104,7 @@ export default function AccountOrdersPage() {
           ) : (
             <div className="space-y-4">
               {data?.data.map((order: any) => {
-                const status = statusConfig[order.status] || { label: order.status, color: 'bg-slate-500', icon: Package };
+                const status = statusConfig[order.status] || { label: order.status, color: 'bg-muted-foreground', icon: Package };
                 const StatusIcon = status.icon;
                 const actionNeeded = getActionNeeded(order);
                 return (
@@ -121,7 +121,7 @@ export default function AccountOrdersPage() {
                               {status.label}
                             </Badge>
                             {actionNeeded && (
-                              <Badge variant="outline" className="border-amber-500 text-slate-600">
+                              <Badge variant="outline" className="border-amber-500 text-amber-700">
                                 {actionNeeded}
                               </Badge>
                             )}

@@ -28,8 +28,8 @@ const paymentStatusColors: Record<string, string> = {
   PENDING: 'text-amber-600',
   PAID: 'text-green-600',
   FAILED: 'text-red-600',
-  REFUNDED: 'text-slate-600',
-  PARTIALLY_REFUNDED: 'text-slate-600',
+  REFUNDED: 'text-muted-foreground',
+  PARTIALLY_REFUNDED: 'text-muted-foreground',
 };
 
 const paymentStatusLabels: Record<string, string> = {
@@ -75,7 +75,7 @@ export default function AccountOrderDetailPage() {
     );
   }
 
-  const status = statusConfig[order.status] || { label: order.status, color: 'bg-slate-500' };
+  const status = statusConfig[order.status] || { label: order.status, color: 'bg-muted-foreground' };
 
   return (
     <div className="space-y-6">
@@ -102,7 +102,7 @@ export default function AccountOrderDetailPage() {
           until they do, or until DeliveryAutoConfirmJob's grace period
           passes. See OrdersService.updateShippingStatus. */}
       {order.status === 'SHIPPING' && order.shippingStatus === 'DELIVERED' && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2">
             <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
             <div>
@@ -133,7 +133,7 @@ export default function AccountOrderDetailPage() {
             <CardContent className="space-y-4">
               {order.items?.map((item: any, index: number) => (
                 <div key={index} className="flex gap-4 border-b pb-4 last:border-0 last:pb-0">
-                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-slate-100">
+                  <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
                     <Image
                       src={item.product?.thumbnail || '/images/placeholder.png'}
                       alt={item.product?.name}

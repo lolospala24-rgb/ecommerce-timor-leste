@@ -88,7 +88,7 @@ export default function AccountLayout({
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
           {user.role === 'SELLER' && (
-            <span className="ml-auto shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               Seller
             </span>
           )}
@@ -135,7 +135,7 @@ export default function AccountLayout({
             <h3 className="mt-2 font-semibold">{user.name}</h3>
             <p className="text-sm text-muted-foreground">{user.email}</p>
             {user.role === 'SELLER' && (
-              <span className="mt-2 inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              <span className="mt-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                 Seller
               </span>
             )}
