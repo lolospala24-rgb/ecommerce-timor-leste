@@ -113,7 +113,7 @@ export default function WishlistPage() {
                   src={product.thumbnail || '/images/placeholder.png'}
                   alt={product.name}
                   fill
-                  className="object-cover transition-transform group-hover:scale-105"
+                  className="object-cover transition-transform group-hover:scale-[1.03]"
                 />
               </Link>
               <Button

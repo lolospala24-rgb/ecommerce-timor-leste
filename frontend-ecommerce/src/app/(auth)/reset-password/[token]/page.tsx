@@ -91,7 +91,7 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+      <Card className="rounded-xl border shadow-sm">
         <CardHeader className="space-y-1.5 pb-2 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">Password Reset Successful</CardTitle>
           <CardDescription>
@@ -118,7 +118,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+    <Card className="rounded-xl border shadow-sm">
       <CardHeader className="space-y-1.5 pb-2 text-center">
         <CardTitle className="text-2xl font-bold tracking-tight">Reset Password</CardTitle>
         <CardDescription>

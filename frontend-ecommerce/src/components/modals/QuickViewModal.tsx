@@ -161,7 +161,7 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
         </DialogHeader>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="relative aspect-square overflow-hidden rounded-lg bg-slate-100">
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
             <Image
               src={galleryImages[0] || product.thumbnail || '/images/placeholder.png'}
               alt={product.name}

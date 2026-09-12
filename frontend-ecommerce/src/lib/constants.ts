@@ -75,7 +75,7 @@ export const PAYMENT_STATUS = {
   PENDING: { value: 'PENDING', label: 'Pending', color: 'bg-amber-500' },
   PAID: { value: 'PAID', label: 'Paid', color: 'bg-green-600' },
   FAILED: { value: 'FAILED', label: 'Failed', color: 'bg-red-600' },
-  REFUNDED: { value: 'REFUNDED', label: 'Refunded', color: 'bg-slate-500' },
+  REFUNDED: { value: 'REFUNDED', label: 'Refunded', color: 'bg-muted-foreground' },
 } as const;
 
 // Payment Methods

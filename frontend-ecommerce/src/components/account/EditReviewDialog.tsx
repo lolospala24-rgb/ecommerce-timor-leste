@@ -83,7 +83,7 @@ export function EditReviewDialog({ review, onOpenChange }: EditReviewDialogProps
                   <Star
                     className={cn(
                       'h-8 w-8 transition-colors',
-                      star <= rating ? 'fill-amber-500 text-amber-500' : 'text-slate-300',
+                      star <= rating ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/40',
                     )}
                   />
                 </button>

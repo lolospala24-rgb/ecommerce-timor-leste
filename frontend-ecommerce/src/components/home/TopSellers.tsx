@@ -87,7 +87,7 @@ function SellerCard({ seller }: { seller: any }) {
   return (
     <Link
       href={`/sellers/${seller.id}`}
-      className="group block rounded-xl border bg-card p-5 transition-all hover:shadow-lg hover:-translate-y-1 hover:border-primary/20"
+      className="group block rounded-xl border bg-card p-5 transition-colors hover:border-primary/30 hover:bg-muted/20"
     >
       <div className="flex items-start gap-4">
         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-primary/10">

@@ -46,7 +46,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, isUpdating }: CartI
       {/* Product Image */}
       <Link
         href={`/products/${item.slug}`}
-        className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-slate-100"
+        className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-muted"
       >
         {item.thumbnail ? (
           <Image
@@ -57,7 +57,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, isUpdating }: CartI
             sizes="96px"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-slate-400">
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <ShoppingBag className="h-8 w-8" />
           </div>
         )}

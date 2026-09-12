@@ -76,7 +76,7 @@ export function RatingStars({
         {[...Array(emptyStars)].map((_, i) => (
           <Star
             key={`empty-${i}`}
-            className={cn('text-slate-300', sizeClasses[size])}
+            className={cn('text-muted-foreground/40', sizeClasses[size])}
           />
         ))}
       </div>
@@ -124,7 +124,7 @@ export function StaticRatingStars({ rating, size = 'md' }: { rating: number; siz
       {[...Array(emptyStars)].map((_, i) => (
         <Star
           key={`empty-${i}`}
-          className={cn('text-slate-300', sizeClasses[size])}
+          className={cn('text-muted-foreground/40', sizeClasses[size])}
         />
       ))}
     </div>

@@ -41,7 +41,7 @@ export default function LoginPage() {
 
 function LoginFormSkeleton() {
   return (
-    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+    <Card className="rounded-xl border shadow-sm">
       <CardContent className="flex items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </CardContent>
@@ -84,7 +84,7 @@ function LoginForm() {
   };
 
   return (
-    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+    <Card className="rounded-xl border shadow-sm">
       <CardHeader className="space-y-1.5 pb-2 text-center">
         <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back</CardTitle>
         <CardDescription>

@@ -43,7 +43,7 @@ export function SupportChatWidget() {
     // where there's no sticky bottom bar to clash with.
     <div className="fixed bottom-24 right-4 z-40 md:bottom-6 md:right-6">
       {open && (
-        <div className="mb-3 w-64 rounded-2xl border border-border bg-card p-4 shadow-xl">
+        <div className="mb-3 w-64 rounded-xl border border-border bg-card p-4 shadow-lg">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{t('support.title')}</p>
             <button
@@ -84,7 +84,7 @@ export function SupportChatWidget() {
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-label={t('support.title')}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:scale-105 hover:bg-primary/90"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>

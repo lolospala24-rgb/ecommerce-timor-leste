@@ -173,7 +173,7 @@ export default function GoogleMapPicker({
               type="button"
               onClick={handleUseMyLocation}
               disabled={locating}
-              className="flex shrink-0 items-center gap-1.5 rounded border px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-60"
+              className="flex shrink-0 items-center gap-1.5 rounded border px-3 py-2 text-sm hover:bg-muted disabled:opacity-60"
               title="Use my current location"
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
@@ -184,15 +184,15 @@ export default function GoogleMapPicker({
 
         <div className="h-[60vh] w-full">
           {!GOOGLE_MAPS_API_KEY ? (
-            <div className="flex h-full w-full items-center justify-center bg-slate-100 p-6 text-center text-sm text-red-700">
+            <div className="flex h-full w-full items-center justify-center bg-muted p-6 text-center text-sm text-red-700">
               {MISSING_KEY_ERROR}
             </div>
           ) : loadError ? (
-            <div className="flex h-full w-full items-center justify-center bg-slate-100 p-6 text-center text-sm text-red-700">
+            <div className="flex h-full w-full items-center justify-center bg-muted p-6 text-center text-sm text-red-700">
               Failed to load Google Maps. Check the API key and network connection.
             </div>
           ) : !isLoaded ? (
-            <div className="flex h-full w-full items-center justify-center bg-slate-100 p-6 text-center text-sm text-slate-600">
+            <div className="flex h-full w-full items-center justify-center bg-muted p-6 text-center text-sm text-muted-foreground">
               Loading map...
             </div>
           ) : (
@@ -215,7 +215,7 @@ export default function GoogleMapPicker({
             </GoogleMap>
           )}
         </div>
-        <div className="mt-2 text-sm text-slate-600">
+        <div className="mt-2 text-sm text-muted-foreground">
           {loading
             ? 'Reverse geocoding...'
             : picked

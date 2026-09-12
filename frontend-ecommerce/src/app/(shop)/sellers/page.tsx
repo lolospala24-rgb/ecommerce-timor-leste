@@ -48,7 +48,7 @@ export default function SellersPage() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
+            <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function SellersPage() {
 
       {/* Statistics */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border p-4 bg-card">
+        <div className="rounded-xl border p-4 bg-card">
           <div className="flex items-center gap-3">
             <Store className="h-5 w-5 text-primary" />
             <div>
@@ -85,7 +85,7 @@ export default function SellersPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-2xl border p-4 bg-card">
+        <div className="rounded-xl border p-4 bg-card">
           <div className="flex items-center gap-3">
             <Package className="h-5 w-5 text-primary" />
             <div>
@@ -96,7 +96,7 @@ export default function SellersPage() {
             </div>
           </div>
         </div>
-        <div className="rounded-2xl border p-4 bg-card">
+        <div className="rounded-xl border p-4 bg-card">
           <div className="flex items-center gap-3">
             <ShoppingBag className="h-5 w-5 text-primary" />
             <div>
@@ -158,7 +158,7 @@ function SellerCard({ seller }: { seller: any }) {
   return (
     <Link
       href={`/sellers/${seller.id}`}
-      className="group block overflow-hidden rounded-2xl border border-slate-100 bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
+      className="group block overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="p-6">
         {/* Store Header */}

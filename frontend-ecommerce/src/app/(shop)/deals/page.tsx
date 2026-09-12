@@ -30,7 +30,7 @@ export default function DealsPage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-2xl" />
+            <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       ) : !coupons || coupons.length === 0 ? (
@@ -50,7 +50,7 @@ export default function DealsPage() {
       <div className="flex justify-center pt-2">
         <Link
           href="/products"
-          className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+          className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-muted/40"
         >
           {t('deals.browseProducts')}
           <ArrowRight className="h-4 w-4" />

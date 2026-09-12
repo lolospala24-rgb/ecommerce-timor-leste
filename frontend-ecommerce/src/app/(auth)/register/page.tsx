@@ -105,7 +105,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <Card className="rounded-2xl border-0 shadow-2xl shadow-primary/5">
+    <Card className="rounded-xl border shadow-sm">
       <CardHeader className="space-y-1.5 pb-2 text-center">
         <CardTitle className="text-2xl font-bold tracking-tight">Create Account</CardTitle>
         <CardDescription>
@@ -246,7 +246,7 @@ export default function RegisterPage() {
             <input
               type="checkbox"
               id="terms"
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+              className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary"
               {...register('terms')}
             />
             <Label htmlFor="terms" className="text-sm font-normal">

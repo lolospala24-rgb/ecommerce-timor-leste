@@ -134,7 +134,7 @@ export default function OrdersPage() {
                               {statusLabels[order.status]}
                             </Badge>
                             {actionNeeded && (
-                              <Badge variant="outline" className="border-amber-500 text-slate-600">
+                              <Badge variant="outline" className="border-amber-500 text-amber-700">
                                 {actionNeeded}
                               </Badge>
                             )}

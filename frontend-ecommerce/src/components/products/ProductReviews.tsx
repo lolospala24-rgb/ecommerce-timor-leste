@@ -144,7 +144,7 @@ export function ProductReviews({
                             'h-8 w-8 transition-colors',
                             star <= ratingInput
                               ? 'fill-amber-500 text-amber-500'
-                              : 'text-slate-300',
+                              : 'text-muted-foreground/40',
                           )}
                         />
                       </button>
