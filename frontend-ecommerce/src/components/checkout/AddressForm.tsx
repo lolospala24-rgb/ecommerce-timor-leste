@@ -9,15 +9,42 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, MapPin, ChevronDown } from 'lucide-react';
-import { useCreateAddress, useUpdateAddress, useShippingZones } from '@/hooks/useAddresses';
+import {
+  Loader2,
+  Search,
+  MapPin,
+  Landmark,
+  Home,
+  Briefcase,
+  Tag,
+  User,
+  Phone,
+  Plus,
+  AlertCircle,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useCreateAddress, useUpdateAddress, useShippingZones, usePostos, useSucos } from '@/hooks/useAddresses';
 import {
   GOOGLE_MAPS_API_KEY,
   GOOGLE_MAPS_LIBRARIES,
   TIMOR_LESTE_BOUNDS,
   extractLocationParts,
 } from '@/lib/googleMapsAddress';
+
+const SAVE_AS_OPTIONS = [
+  { value: 'Home', label: 'Home', icon: Home },
+  { value: 'Office', label: 'Office', icon: Briefcase },
+  { value: 'Other', label: 'Other', icon: Tag },
+] as const;
 
 const addressSchema = z.object({
   label: z.string().trim().optional(),
@@ -29,11 +56,13 @@ const addressSchema = z.object({
     return value;
   }, z.number().optional()),
   municipality: z.string().trim().min(1, 'Please select a municipality'),
-  postoAdmin: z.string().trim().min(2, 'Please enter a valid Posto Administrativo'),
-  suco: z.string().trim().min(2, 'Please enter a valid Suco'),
+  postoAdmin: z.string().trim().min(1, 'Please select a Posto Administrativo'),
+  suco: z.string().trim().min(1, 'Please select or enter a Suco'),
+  village: z.string().trim().optional(),
+  street: z.string().trim().optional(),
   reference: z.string().trim().optional(),
-  recipientName: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
+  recipientName: z.string().trim().min(2, 'Please enter the recipient name'),
+  phone: z.string().trim().min(7, 'Please enter a valid phone number'),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   isPrimary: z.boolean().default(false),
@@ -45,7 +74,7 @@ type AddressFormData = z.infer<typeof addressSchema>;
 // both to prefill from an existing address and to auto-match a Places
 // search result, so the two code paths can't silently disagree on what
 // counts as a match.
-function municipalityNamesMatch(a?: string | null, b?: string | null): boolean {
+function namesMatch(a?: string | null, b?: string | null): boolean {
   if (!a || !b) return false;
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
@@ -57,20 +86,23 @@ interface AddressFormProps {
 }
 
 export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormProps) {
+  const isEditing = !!initialData?.id;
   const { mutateAsync: createAddress, isPending: isCreating } = useCreateAddress();
   const { mutateAsync: updateAddress, isPending: isUpdating } = useUpdateAddress();
-  const { municipalities } = useShippingZones();
+  const { municipalities, municipalitiesLoading } = useShippingZones();
   const isLoading = isCreating || isUpdating;
   const [error, setError] = useState('');
 
   const { control, register, handleSubmit, setValue, watch, formState: { errors } } = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
-      label: initialData?.label ?? '',
+      label: initialData?.label ?? 'Home',
       municipality: '',
       municipalityId: initialData?.municipalityId ? Number(initialData.municipalityId) : undefined,
       postoAdmin: initialData?.postoAdmin ?? '',
       suco: initialData?.suco ?? '',
+      village: initialData?.village ?? '',
+      street: initialData?.street ?? '',
       reference: initialData?.reference ?? initialData?.placeName ?? '',
       recipientName: initialData?.recipientName ?? '',
       phone: initialData?.phone ?? '',
@@ -88,7 +120,7 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       name: string;
       provinceId: number | null;
       provinceName: string | null;
-    }> ) ?? [];
+    }>) ?? [];
   }, [municipalities]);
 
   const selectedMunicipalityValue = watch('municipality') as string | undefined;
@@ -96,8 +128,10 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     () => typedMunicipalities.find((m) => m.value === selectedMunicipalityValue),
     [typedMunicipalities, selectedMunicipalityValue],
   );
-
   const currentMunicipalityId = watch('municipalityId');
+  const watchedPostoAdmin = watch('postoAdmin');
+  const watchedSuco = watch('suco');
+  const watchedLabel = watch('label');
 
   useEffect(() => {
     if (!initialData || !typedMunicipalities?.length || selectedMunicipalityValue) {
@@ -108,9 +142,8 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       if (initialData.municipalityId && m.id != null) {
         return m.id === Number(initialData.municipalityId);
       }
-
       return (
-        municipalityNamesMatch(m.name, initialData.municipality) &&
+        namesMatch(m.name, initialData.municipality) &&
         (initialData.province ? m.provinceName === initialData.province : true)
       );
     })?.value;
@@ -121,15 +154,49 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
   }, [initialData, typedMunicipalities, selectedMunicipalityValue, setValue]);
 
   useEffect(() => {
-    if (!selectedMunicipality) {
-      return;
-    }
-
+    if (!selectedMunicipality) return;
     const nextMunicipalityId = selectedMunicipality.id ?? undefined;
     if (nextMunicipalityId !== currentMunicipalityId) {
       setValue('municipalityId', nextMunicipalityId);
     }
   }, [selectedMunicipality, currentMunicipalityId, setValue]);
+
+  // Posto Administrativo — always a real dependent dropdown: POSTOS_DATA has
+  // full coverage for all 13 municipalities, so there's no case where this
+  // needs a manual-entry fallback the way Suco does below.
+  const {
+    postos,
+    isLoading: postosLoading,
+    isError: postosError,
+  } = usePostos(selectedMunicipality?.name ?? '');
+  const postoOptions = useMemo(
+    () => (Array.isArray(postos) ? (postos as Array<{ name: string }>) : []),
+    [postos],
+  );
+
+  // Posto/Suco are cleared only from the Selects' own onValueChange below —
+  // never from a value-watching effect. A watcher can't tell "the customer
+  // just changed municipality" apart from "the initial-data prefill effect
+  // above just resolved the municipality asynchronously", and would wipe
+  // out a freshly-prefilled Posto/Suco on the edit form the moment the
+  // municipality match effect ran. onValueChange only ever fires for a real
+  // user interaction, so it can't be confused by that prefill.
+
+  // Suco — a real dependent dropdown only where the official list actually
+  // has data (today: a handful of postos in Dili/Baucau/Bobonaro). Most of
+  // the country has no curated Suco list yet, so this degrades to a plain
+  // text field rather than blocking address entry outside those areas.
+  const {
+    sucos,
+    isLoading: sucosLoading,
+  } = useSucos(selectedMunicipality?.name ?? '', watchedPostoAdmin ?? '');
+  const sucoOptions = useMemo(
+    () => (Array.isArray(sucos) ? (sucos as Array<{ name: string }>) : []),
+    [sucos],
+  );
+  const sucoHasCuratedList = !sucosLoading && sucoOptions.length > 0;
+  const sucoValueInList = sucoOptions.some((s) => namesMatch(s.name, watchedSuco));
+  const useSucoDropdown = sucoHasCuratedList && (!watchedSuco || sucoValueInList);
 
   // Address search — the whole point of this box is to let most customers
   // skip typing Posto Administrativo/Suco by hand, which are official
@@ -149,8 +216,10 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
 
     const parts = extractLocationParts(place?.address_components, place?.formatted_address || place?.name || '');
 
-    if (parts.suco) setValue('suco', parts.suco);
     if (parts.postoAdmin) setValue('postoAdmin', parts.postoAdmin);
+    if (parts.suco) setValue('suco', parts.suco);
+    if (parts.village) setValue('village', parts.village);
+    if (parts.street) setValue('street', parts.street);
     setValue('latitude', location.lat());
     setValue('longitude', location.lng());
     if (!watch('reference') && parts.placeName) setValue('reference', parts.placeName);
@@ -161,33 +230,10 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
     // for the customer to pick (silently guessing wrong here would be
     // worse than leaving it blank).
     if (parts.municipality) {
-      const match = typedMunicipalities.find((m) => municipalityNamesMatch(m.name, parts.municipality));
+      const match = typedMunicipalities.find((m) => namesMatch(m.name, parts.municipality));
       if (match) setValue('municipality', match.value);
     }
   }, [setValue, typedMunicipalities, watch]);
-
-  // The 3 administrative-geography fields (Municipality/Posto Administrativo/
-  // Suco) are the actual source of past confusion — official terms, all
-  // required, shown together as a wall of inputs. They're collapsed by
-  // default: search fills them silently, and most customers never need to
-  // look at them directly. Auto-expanded if there's nothing to summarize
-  // yet (fresh form, no search done) or if validation actually
-  // fails on one of the required ones — a hidden error would be worse than
-  // the fields being visible.
-  const [showDetails, setShowDetails] = useState(false);
-  const watchedPostoAdmin = watch('postoAdmin');
-  const watchedSuco = watch('suco');
-  const hasAddressSummary = !!(watchedPostoAdmin && watchedSuco && selectedMunicipality);
-
-  useEffect(() => {
-    if (errors.municipality || errors.postoAdmin || errors.suco) {
-      setShowDetails(true);
-    }
-  }, [errors.municipality, errors.postoAdmin, errors.suco]);
-
-  const addressSummary = [watchedPostoAdmin, watchedSuco, selectedMunicipality?.name]
-    .filter(Boolean)
-    .join(', ');
 
   const onSubmit = async (data: AddressFormData) => {
     setError('');
@@ -197,10 +243,12 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
       ...data,
       municipality,
       province,
-      phone: data.phone?.trim() || undefined,
+      phone: data.phone?.trim(),
       label: data.label?.trim() || undefined,
       reference: data.reference?.trim() || undefined,
-      recipientName: data.recipientName?.trim() || undefined,
+      recipientName: data.recipientName?.trim(),
+      village: data.village?.trim() || undefined,
+      street: data.street?.trim() || undefined,
     };
 
     if (selectedMunicipality?.id != null) {
@@ -227,173 +275,361 @@ export function AddressForm({ onSuccess, onCancel, initialData }: AddressFormPro
   };
 
   return (
-    <div className="space-y-5">
-      {error && <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Search — the fast path. Most customers should never need to type
-            Posto Administrativo/Suco by hand once they pick a result here. */}
-        <div className="space-y-2">
-          <Label htmlFor="address-search">Find your address</Label>
-          {isSearchLoaded ? (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Autocomplete
-                onLoad={(ac) => {
-                  autocompleteRef.current = ac;
-                }}
-                onPlaceChanged={handlePlaceChanged}
-                options={{
-                  componentRestrictions: { country: 'tl' },
-                  bounds: TIMOR_LESTE_BOUNDS,
-                  strictBounds: true,
-                  fields: ['geometry', 'formatted_address', 'name', 'address_components'],
-                }}
-              >
-                <input
-                  id="address-search"
-                  type="text"
-                  placeholder="Start typing an address in Timor-Leste..."
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </Autocomplete>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel?.(); }}>
+      <DialogContent className="flex max-h-[92vh] w-[95vw] max-w-[860px] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 space-y-2 border-b px-5 py-5 text-left sm:px-8">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MapPin className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <DialogTitle className="text-lg">
+                {isEditing ? 'Edit Address' : 'Add New Address'}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditing
+                  ? 'Update your delivery address details.'
+                  : 'Save an address for faster checkout and delivery.'}
+              </DialogDescription>
             </div>
-          ) : (
-            <Input disabled placeholder="Loading address search..." />
-          )}
-          <p className="text-xs text-muted-foreground">
-            Search and pick a result to fill in the fields below automatically — you can still edit anything after.
-          </p>
-        </div>
+          </div>
+        </DialogHeader>
 
-        {/* Collapsed by default — search already filled these in. Shown as
-            a plain-language summary instead of raw field names, with an
-            explicit way in for the two cases that need it: search missed
-            something, or the customer wants to double-check/change it. */}
-        {hasAddressSummary ? (
-          <button
-            type="button"
-            onClick={() => setShowDetails((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-left"
-          >
-            <span className="flex min-w-0 items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-foreground">{addressSummary}</span>
-                <span className="block text-xs text-muted-foreground">Address confirmed</span>
-              </span>
-            </span>
-            <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
-              {showDetails ? 'Hide' : 'Edit'}
-              <ChevronDown className={`h-4 w-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-            </span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowDetails((v) => !v)}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Can&apos;t find your address above? Enter it manually
-          </button>
-        )}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-8">
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
 
-        {showDetails && (
-          <div className="space-y-4 rounded-lg border border-input p-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="municipality">Municipality *</Label>
-                <Controller
-                  control={control}
-                  name="municipality"
-                  defaultValue={initialData?.municipality ?? (initialData?.municipalityId ? String(initialData.municipalityId) : '')}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? ''}
-                      onValueChange={(value) => field.onChange(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select municipality" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(typedMunicipalities || []).map((m) => (
-                          <SelectItem key={m.value} value={m.value}>
-                            {m.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            {/* Address Search */}
+            <div className="space-y-1.5">
+              {isSearchLoaded ? (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Autocomplete
+                    onLoad={(ac) => {
+                      autocompleteRef.current = ac;
+                    }}
+                    onPlaceChanged={handlePlaceChanged}
+                    options={{
+                      componentRestrictions: { country: 'tl' },
+                      bounds: TIMOR_LESTE_BOUNDS,
+                      strictBounds: true,
+                      fields: ['geometry', 'formatted_address', 'name', 'address_components'],
+                    }}
+                  >
+                    <input
+                      id="address-search"
+                      type="text"
+                      placeholder="Start typing your address..."
+                      className="flex h-12 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </Autocomplete>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Loader2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  <Input disabled className="h-12 pl-10" placeholder="Loading address search..." />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                e.g. Dili, Timor-Leste, or a specific location
+              </p>
+            </div>
+
+            {/* Location */}
+            <FormSection title="Location" subtitle="Select your address location in Timor-Leste.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldWrap label="Municipality" htmlFor="municipality" required error={errors.municipality?.message}>
+                  <Controller
+                    control={control}
+                    name="municipality"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // A real municipality change (not the initial-data
+                          // prefill, which sets this via setValue and never
+                          // touches onValueChange) invalidates whatever
+                          // Posto/Suco was picked for the old municipality.
+                          setValue('postoAdmin', '');
+                          setValue('suco', '');
+                        }}
+                      >
+                        <SelectTrigger id="municipality" className="h-11">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <SelectValue placeholder={municipalitiesLoading ? 'Loading…' : 'Select municipality'} />
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {typedMunicipalities.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>
+                              {m.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </FieldWrap>
+
+                <FieldWrap label="Posto Administrativo" htmlFor="postoAdmin" required error={errors.postoAdmin?.message}>
+                  <Controller
+                    control={control}
+                    name="postoAdmin"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Same reasoning as Municipality above — only a
+                          // genuine user pick lands here.
+                          setValue('suco', '');
+                        }}
+                        disabled={!selectedMunicipality || postosLoading}
+                      >
+                        <SelectTrigger id="postoAdmin" className="h-11">
+                          <span className="flex min-w-0 items-center gap-2">
+                            {postosLoading ? (
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                            ) : (
+                              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <SelectValue
+                              placeholder={!selectedMunicipality ? 'Select municipality first' : 'Select posto'}
+                            />
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {postoOptions.map((p) => (
+                            <SelectItem key={p.name} value={p.name}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {postosError && (
+                    <FieldHint error>Couldn&apos;t load Posto options — you can still type Suco/Aldeia manually below.</FieldHint>
                   )}
+                </FieldWrap>
+
+                <FieldWrap label="Suco" htmlFor="suco" required error={errors.suco?.message}>
+                  {useSucoDropdown ? (
+                    <Controller
+                      control={control}
+                      name="suco"
+                      render={({ field }) => (
+                        <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                          <SelectTrigger id="suco" className="h-11">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <SelectValue placeholder="Select suco" />
+                            </span>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sucoOptions.map((s) => (
+                              <SelectItem key={s.name} value={s.name}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  ) : (
+                    <div className="relative">
+                      {sucosLoading && !!watchedPostoAdmin && (
+                        <Loader2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                      )}
+                      <Input
+                        id="suco"
+                        className={cn('h-11', sucosLoading && !!watchedPostoAdmin && 'pl-9')}
+                        placeholder={watchedPostoAdmin ? 'e.g., Bidau Lecidere' : 'Select posto first'}
+                        disabled={!watchedPostoAdmin}
+                        {...register('suco')}
+                      />
+                    </div>
+                  )}
+                  {!useSucoDropdown && !!watchedPostoAdmin && (
+                    <FieldHint>No official list yet for this posto — type the suco name.</FieldHint>
+                  )}
+                </FieldWrap>
+
+                <FieldWrap label="Aldeia" htmlFor="village" hint="Optional">
+                  <Input id="village" placeholder="e.g., Same aldeia name" {...register('village')} className="h-11" />
+                </FieldWrap>
+              </div>
+
+              <FieldWrap label="Street" htmlFor="street" hint="Optional">
+                <Input id="street" placeholder="Street name, house number, etc." {...register('street')} className="h-11" />
+              </FieldWrap>
+            </FormSection>
+
+            {/* Delivery Reference */}
+            <FormSection title="Delivery Reference" subtitle="Help the courier find your location easily.">
+              <FieldWrap label="Reference Point" htmlFor="reference">
+                <Input
+                  id="reference"
+                  placeholder="e.g. Near the church, market, building, etc."
+                  className="h-11"
+                  {...register('reference')}
                 />
-                {errors.municipality && <p className="text-sm text-destructive">{errors.municipality.message}</p>}
+              </FieldWrap>
+            </FormSection>
+
+            {/* Recipient */}
+            <FormSection title="Recipient" subtitle="Who should the courier ask for?">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldWrap label="Recipient Name" htmlFor="recipientName" required error={errors.recipientName?.message}>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="recipientName" className="h-11 pl-9" placeholder="Full name" {...register('recipientName')} />
+                  </div>
+                </FieldWrap>
+                <FieldWrap label="Phone Number" htmlFor="phone" required error={errors.phone?.message}>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="phone" className="h-11 pl-9" placeholder="+670 7123 4567" {...register('phone')} />
+                  </div>
+                </FieldWrap>
+              </div>
+            </FormSection>
+
+            {/* Save As */}
+            <FormSection title="Save as" subtitle="Choose a label for this address.">
+              <div className="grid grid-cols-3 gap-3">
+                {SAVE_AS_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = namesMatch(watchedLabel, option.value);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setValue('label', option.value)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        'flex flex-col items-center gap-1.5 rounded-lg border px-3 py-3.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-input text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="postoAdmin">Posto Administrativo *</Label>
-                <Input id="postoAdmin" placeholder="e.g., Cristo Rei" {...register('postoAdmin')} />
-                <p className="text-xs text-muted-foreground">The sub-district your address is in</p>
-                {errors.postoAdmin && <p className="text-sm text-destructive">{errors.postoAdmin.message}</p>}
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-input px-4 py-3">
+                <div className="min-w-0">
+                  <Label htmlFor="isPrimary" className="cursor-pointer">Set as primary address</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    This will be your default address for checkout.
+                  </p>
+                </div>
+                <Switch
+                  id="isPrimary"
+                  checked={!!watch('isPrimary')}
+                  onCheckedChange={(c) => setValue('isPrimary', c)}
+                />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="suco">Suco *</Label>
-              <Input id="suco" placeholder="e.g., Bidau Lecidere" {...register('suco')} />
-              <p className="text-xs text-muted-foreground">The suco (village cluster) your address is in</p>
-              {errors.suco && <p className="text-sm text-destructive">{errors.suco.message}</p>}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="reference">Reference Point</Label>
-          <Input id="reference" placeholder="Near church, behind market, etc." {...register('reference')} />
-          <p className="text-xs text-muted-foreground">Helps the courier find you — a nearby landmark is enough</p>
-        </div>
-
-        {/* Label, contact, primary */}
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recipient &amp; contact</p>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="recipientName">Recipient Name</Label>
-              <Input id="recipientName" placeholder="Who should the courier ask for?" {...register('recipientName')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" placeholder="+670 1234 5678" {...register('phone')} />
-            </div>
+            </FormSection>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="label">Save this address as</Label>
-            <Input id="label" placeholder="Home, Office, etc." {...register('label')} />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-input px-3 py-2.5">
-            <Label htmlFor="isPrimary" className="cursor-pointer">Use as my default address</Label>
-            <Switch id="isPrimary" checked={!!watch('isPrimary')} onCheckedChange={(c) => setValue('isPrimary', c)} />
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          {onCancel && (
-            <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+          <DialogFooter className="shrink-0 gap-2 border-t px-5 py-4 sm:px-8">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1 sm:flex-none"
+              onClick={() => onCancel?.()}
+            >
               Cancel
             </Button>
-          )}
-          <Button type="submit" className="flex-1" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : initialData ? 'Update Address' : 'Add Address'}
-          </Button>
-        </div>
-      </form>
+            <Button type="submit" className="h-11 flex-1 gap-1.5 sm:flex-none sm:min-w-[160px]" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : isEditing ? (
+                'Update Address'
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Add Address
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FormSection({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3.5">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      {children}
     </div>
+  );
+}
+
+function FieldWrap({
+  label,
+  htmlFor,
+  required,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  required?: boolean;
+  hint?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <Label htmlFor={htmlFor}>
+          {label}
+          {required && <span className="text-destructive"> *</span>}
+        </Label>
+        {hint && !error && <span className="text-xs text-muted-foreground">{hint}</span>}
+      </div>
+      {children}
+      {error && <FieldHint error>{error}</FieldHint>}
+    </div>
+  );
+}
+
+function FieldHint({ children, error }: { children: React.ReactNode; error?: boolean }) {
+  return (
+    <p className={cn('flex items-center gap-1 text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
+      {error && <AlertCircle className="h-3 w-3 shrink-0" />}
+      {children}
+    </p>
   );
 }

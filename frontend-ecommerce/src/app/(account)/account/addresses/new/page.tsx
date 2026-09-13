@@ -3,16 +3,24 @@
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// AddressForm pulls in @react-google-maps/api (~130KB) for its address
-// search box — code-split so that weight isn't part of this route's
-// initial JS. Same pattern as GoogleMapPicker in the checkout flow.
+// AddressForm renders itself as a Dialog (header/body/footer included) —
+// pulls in @react-google-maps/api (~130KB) for its address search box, so
+// it's code-split to keep that weight out of this route's initial JS. Same
+// pattern as GoogleMapPicker in the checkout flow.
 const AddressForm = dynamic(
   () => import('@/components/checkout/AddressForm').then((mod) => mod.AddressForm),
-  { ssr: false, loading: () => <Skeleton className="h-96 w-full" /> },
+  { ssr: false, loading: () => <DialogSkeleton /> },
 );
+
+function DialogSkeleton() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <Skeleton className="h-[600px] w-full max-w-[860px] rounded-lg" />
+    </div>
+  );
+}
 
 function NewAddressContent() {
   const router = useRouter();
@@ -40,25 +48,17 @@ function NewAddressContent() {
   const hasPrefill = Object.values(prefillData).some((value) => value !== undefined);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add New Address</CardTitle>
-        <CardDescription>Add a new delivery address. Select municipality from shipping zones.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <AddressForm
-          initialData={hasPrefill ? prefillData : undefined}
-          onSuccess={() => router.push(redirectTo)}
-          onCancel={() => router.back()}
-        />
-      </CardContent>
-    </Card>
+    <AddressForm
+      initialData={hasPrefill ? prefillData : undefined}
+      onSuccess={() => router.push(redirectTo)}
+      onCancel={() => router.back()}
+    />
   );
 }
 
 export default function NewAddressPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+    <Suspense fallback={<DialogSkeleton />}>
       <NewAddressContent />
     </Suspense>
   );

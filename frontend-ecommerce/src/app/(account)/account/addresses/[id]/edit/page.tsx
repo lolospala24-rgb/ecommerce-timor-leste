@@ -4,18 +4,25 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft } from 'lucide-react';
 import { useAddresses } from '@/hooks/useAddresses';
 
-// AddressForm pulls in @react-google-maps/api (~130KB) for its address
-// search box — code-split so that weight isn't part of this route's
-// initial JS. Same pattern as GoogleMapPicker in the checkout flow.
+// AddressForm renders itself as a Dialog (header/body/footer included) —
+// pulls in @react-google-maps/api (~130KB) for its address search box, so
+// it's code-split to keep that weight out of this route's initial JS. Same
+// pattern as GoogleMapPicker in the checkout flow.
 const AddressForm = dynamic(
   () => import('@/components/checkout/AddressForm').then((mod) => mod.AddressForm),
-  { ssr: false, loading: () => <Skeleton className="h-96 w-full" /> },
+  { ssr: false, loading: () => <DialogSkeleton /> },
 );
+
+function DialogSkeleton() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <Skeleton className="h-[600px] w-full max-w-[860px] rounded-lg" />
+    </div>
+  );
+}
 
 export default function EditAddressPage() {
   const params = useParams();
@@ -26,7 +33,7 @@ export default function EditAddressPage() {
   const address = addresses?.find((a: any) => a.id === addressId);
 
   if (isLoading) {
-    return <Skeleton className="h-96 w-full" />;
+    return <DialogSkeleton />;
   }
 
   if (!address) {
@@ -43,21 +50,10 @@ export default function EditAddressPage() {
   const handleSuccess = () => router.push('/account/addresses');
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <CardTitle>Edit Address</CardTitle>
-            <CardDescription>Update your delivery address</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <AddressForm initialData={address} onSuccess={handleSuccess} />
-      </CardContent>
-    </Card>
+    <AddressForm
+      initialData={address}
+      onSuccess={handleSuccess}
+      onCancel={() => router.back()}
+    />
   );
 }
