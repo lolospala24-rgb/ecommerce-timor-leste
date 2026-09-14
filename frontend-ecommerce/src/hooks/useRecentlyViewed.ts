@@ -1,9 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import api from '@/lib/api';
+import { normalizeProduct, unwrapApiData } from '@/lib/product';
 
 const STORAGE_KEY = 'recentlyViewedProducts';
-const MAX_ITEMS = 12;
+const MAX_ITEMS = 20;
 
 function readIds(): number[] {
   if (typeof window === 'undefined') return [];
@@ -43,5 +46,40 @@ export function useRecentlyViewed() {
     });
   }, []);
 
-  return { ids, addProduct };
+  const clearAll = useCallback(() => {
+    writeIds([]);
+    setIds([]);
+  }, []);
+
+  return { ids, addProduct, clearAll };
+}
+
+// Hydrates the stored ids into real product records. Shared by the
+// homepage/product-detail "Recently Viewed" widget and the full
+// /account/recently-viewed page so the fetch-and-normalize logic (and the
+// "a viewed product may since have been deleted/deactivated" handling)
+// exists in exactly one place.
+export function useRecentlyViewedProducts(options?: { excludeId?: number; limit?: number }) {
+  const { ids, clearAll } = useRecentlyViewed();
+  const displayIds = ids.filter((id) => id !== options?.excludeId).slice(0, options?.limit ?? MAX_ITEMS);
+
+  const results = useQueries({
+    queries: displayIds.map((id) => ({
+      queryKey: ['products', id],
+      queryFn: async () => {
+        const response = await api.get(`/products/${id}`);
+        return normalizeProduct(unwrapApiData(response));
+      },
+      staleTime: 60_000,
+    })),
+  });
+
+  const isLoading = displayIds.length > 0 && results.some((r) => r.isLoading);
+  // A product can 404 (deleted/deactivated since it was viewed) — drop it
+  // rather than showing a broken card.
+  const products = results
+    .map((r) => r.data)
+    .filter((p): p is NonNullable<typeof p> => !!p && (p as any).id);
+
+  return { products, isLoading, hasAny: ids.length > 0, clearAll };
 }

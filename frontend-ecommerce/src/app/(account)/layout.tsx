@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   MapPin,
   Heart,
+  History,
   Star,
   Settings,
   LogOut,
@@ -22,6 +23,7 @@ const menuItems = [
   { href: '/orders', label: 'My Orders', icon: ShoppingBag },
   { href: '/addresses', label: 'Addresses', icon: MapPin },
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
+  { href: '/recently-viewed', label: 'Recently Viewed', icon: History },
   { href: '/reviews', label: 'My Reviews', icon: Star },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
