@@ -128,6 +128,39 @@ export function normalizeProduct(raw: unknown): Product {
   };
 }
 
+// Sellers sometimes type the same attribute with different casing across
+// variants of the same product (e.g. "Size" on one, "SIZE" on another —
+// confirmed live on a real product: variant A had {Size: "L"}, variant B
+// had {SIZE: "XL"}). Every function below treats attribute keys as exact
+// strings, so without this, "Size" and "SIZE" render as two separate
+// option groups with one value each — and since no single variant has
+// both keys, a customer can never complete a selection that satisfies
+// both groups, making the product unbuyable via variants at all. This
+// remaps every variant's attribute keys onto one canonical (trimmed,
+// first-seen casing) spelling per case-insensitive key, so "Size" and
+// "SIZE" merge into a single group with both "L" and "XL" as options.
+export function normalizeVariantAttributeKeys(variants: ProductVariant[]): ProductVariant[] {
+  const canonicalByLower = new Map<string, string>();
+
+  variants.forEach((variant) => {
+    Object.keys(variant.attributes ?? {}).forEach((key) => {
+      const trimmed = key.trim();
+      const lower = trimmed.toLowerCase();
+      if (!canonicalByLower.has(lower)) canonicalByLower.set(lower, trimmed);
+    });
+  });
+
+  return variants.map((variant) => {
+    if (!variant.attributes) return variant;
+    const normalized: Record<string, string> = {};
+    Object.entries(variant.attributes).forEach(([key, value]) => {
+      const canonical = canonicalByLower.get(key.trim().toLowerCase()) ?? key;
+      normalized[canonical] = value;
+    });
+    return { ...variant, attributes: normalized };
+  });
+}
+
 export function getVariantAttributeKeys(
   variants: ProductVariant[],
   typeFields?: Record<string, string> | unknown,

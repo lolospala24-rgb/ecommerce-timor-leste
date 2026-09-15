@@ -9,12 +9,13 @@ import {
   getVariantAttributeKeys,
   getVariantAttributeLabels,
   getVariantAttributeOptions,
+  normalizeVariantAttributeKeys,
 } from '@/lib/product';
 import type { GalleryThumbnailItem } from '@/lib/product';
 
 export function useProductVariantSelection(product: Product) {
   const variants = useMemo(
-    () => (Array.isArray(product.variants) ? product.variants : []),
+    () => normalizeVariantAttributeKeys(Array.isArray(product.variants) ? product.variants : []),
     [product.variants],
   );
   const hasVariants = variants.length > 0;

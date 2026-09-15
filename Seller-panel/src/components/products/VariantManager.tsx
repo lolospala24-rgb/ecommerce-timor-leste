@@ -96,9 +96,26 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
     setDialogOpen(true);
   };
 
+  // If this product already has a variant with an attribute named "Size",
+  // typing "SIZE" or "size" on another variant must land on that same
+  // attribute — not create a second, case-different group. Storefront
+  // customers would otherwise see "Size" and "SIZE" as two separate,
+  // each-with-one-option selectors that together can never be fully
+  // satisfied by any real variant (confirmed live on a real product).
+  const existingKeyCasing = new Map<string, string>();
+  (variants || []).forEach((v) => {
+    Object.keys(v.attributes || {}).forEach((k) => {
+      const lower = k.trim().toLowerCase();
+      if (!existingKeyCasing.has(lower)) existingKeyCasing.set(lower, k.trim());
+    });
+  });
+
   const buildAttributesObject = () =>
     attrRows.reduce<Record<string, string>>((acc, row) => {
-      if (row.key.trim()) acc[row.key.trim()] = row.value.trim();
+      const trimmedKey = row.key.trim();
+      if (!trimmedKey) return acc;
+      const canonicalKey = existingKeyCasing.get(trimmedKey.toLowerCase()) ?? trimmedKey;
+      acc[canonicalKey] = row.value.trim();
       return acc;
     }, {});
 
@@ -146,7 +163,13 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
   };
 
   const buildPreview = () => {
-    const combos = generateAttributeCombinations(generatorRows);
+    // Same casing fix as the single-variant dialog: fold generator rows
+    // onto whatever casing this product's existing variants already use.
+    const canonicalRows = generatorRows.map((row) => ({
+      ...row,
+      key: existingKeyCasing.get(row.key.trim().toLowerCase()) ?? row.key,
+    }));
+    const combos = generateAttributeCombinations(canonicalRows);
     if (combos.length === 0) {
       toast.error('Enter at least one attribute with values');
       return;
