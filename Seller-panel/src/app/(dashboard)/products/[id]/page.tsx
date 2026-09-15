@@ -12,12 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDeleteProduct, useSellerProduct, useUpdateStock } from '@/hooks/useSellerProducts';
+import { useProductTypes } from '@/hooks/useProductTypes';
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const id = Number(params.id);
   const { data: product, isLoading } = useSellerProduct(id);
+  const { data: productTypes } = useProductTypes();
   const deleteProduct = useDeleteProduct();
   const updateStock = useUpdateStock();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -93,7 +95,11 @@ export default function EditProductPage() {
       <ProductForm initialData={product} />
 
       <div className="mt-6">
-        <VariantManager productId={product.id} baseSku={product.sku} />
+        <VariantManager
+          productId={product.id}
+          baseSku={product.sku}
+          suggestedAttributeFields={productTypes?.find((t) => t.id === product.typeId)?.fields}
+        />
       </div>
 
       <ConfirmDialog

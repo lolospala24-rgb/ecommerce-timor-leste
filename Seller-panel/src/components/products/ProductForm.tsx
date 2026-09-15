@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X, ListChecks, Shapes } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -17,9 +18,21 @@ import {
 } from '@/components/ui/select';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 import { useCategories } from '@/hooks/useCategories';
+import { useProductTypes } from '@/hooks/useProductTypes';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useSellerProducts';
 import { useAuthStore } from '@/stores/authStore';
+import { parseProductTypeFields } from '@/lib/productType';
 import type { SellerProduct } from '@/types/product.types';
+
+type SpecRow = { key: string; value: string };
+
+const toSpecRows = (specifications?: Record<string, unknown> | null): SpecRow[] => {
+  const entries = Object.entries(specifications ?? {}).map(([key, value]) => ({
+    key,
+    value: String(value ?? ''),
+  }));
+  return entries.length > 0 ? entries : [{ key: '', value: '' }];
+};
 
 interface ProductFormProps {
   initialData?: SellerProduct;
@@ -29,6 +42,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
   const router = useRouter();
   const { user } = useAuthStore();
   const { data: categories } = useCategories();
+  const { data: productTypes } = useProductTypes();
   const isEdit = !!initialData;
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct(initialData?.id ?? 0);
@@ -45,11 +59,30 @@ export function ProductForm({ initialData }: ProductFormProps) {
     brand: initialData?.brand ?? '',
     weight: initialData?.weight?.toString() ?? '',
     categoryId: initialData?.categoryId?.toString() ?? '',
+    typeId: initialData?.typeId?.toString() ?? '',
     lowStockThreshold: initialData?.lowStockThreshold?.toString() ?? '10',
     isActive: initialData?.isActive ?? true,
     isFeatured: initialData?.isFeatured ?? false,
   });
   const [images, setImages] = useState<string[]>(initialData?.images ?? []);
+  const [specRows, setSpecRows] = useState<SpecRow[]>(() => toSpecRows(initialData?.specifications));
+
+  const selectedType = productTypes?.find((t) => t.id === Number(form.typeId));
+  // Advisory quick-add chips only — never forces a type's fields into the
+  // rows below, so a seller's own custom specs are never silently
+  // overwritten just by picking (or switching) a product type.
+  const suggestedSpecFields = useMemo(() => parseProductTypeFields(selectedType?.specFields), [selectedType]);
+  const existingSpecKeys = new Set(specRows.map((r) => r.key.trim().toLowerCase()).filter(Boolean));
+  const availableSpecSuggestions = suggestedSpecFields.filter((f) => !existingSpecKeys.has(f.key.toLowerCase()));
+
+  const addSuggestedSpec = (key: string) => {
+    setSpecRows((prev) => {
+      if (prev.length === 1 && !prev[0].key.trim() && !prev[0].value.trim()) {
+        return [{ key, value: '' }];
+      }
+      return [...prev, { key, value: '' }];
+    });
+  };
 
   const isVerified = user?.seller?.isVerified ?? false;
   const isSaving = createProduct.isPending || updateProduct.isPending;
@@ -59,6 +92,13 @@ export function ProductForm({ initialData }: ProductFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const specifications = specRows.reduce<Record<string, string>>((acc, row) => {
+      const key = row.key.trim();
+      const value = row.value.trim();
+      if (key && value) acc[key] = value;
+      return acc;
+    }, {});
 
     const payload = {
       name: form.name.trim(),
@@ -72,6 +112,8 @@ export function ProductForm({ initialData }: ProductFormProps) {
       brand: form.brand.trim() || undefined,
       weight: form.weight ? Number(form.weight) : undefined,
       categoryId: Number(form.categoryId),
+      typeId: form.typeId ? Number(form.typeId) : undefined,
+      specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
       lowStockThreshold: form.lowStockThreshold ? Number(form.lowStockThreshold) : undefined,
       isActive: form.isActive,
       isFeatured: form.isFeatured,
@@ -175,6 +217,78 @@ export function ProductForm({ initialData }: ProductFormProps) {
               </div>
             </div>
           </div>
+
+          <div className="rounded-lg border bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-medium">Specifications</h3>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">
+              General details shown on the product page (e.g. Material, Country of Origin) — separate from variant options like Color or Size.
+            </p>
+
+            {availableSpecSuggestions.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <Label className="text-xs text-muted-foreground">Suggested for {selectedType?.name}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {availableSpecSuggestions.map((field) => (
+                    <Badge
+                      key={field.key}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-secondary/70"
+                      onClick={() => addSuggestedSpec(field.key)}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      {field.label}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {specRows.map((row, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    placeholder="Field (e.g. Material)"
+                    value={row.key}
+                    onChange={(e) => {
+                      const next = [...specRows];
+                      next[idx] = { ...next[idx], key: e.target.value };
+                      setSpecRows(next);
+                    }}
+                  />
+                  <Input
+                    placeholder="Value (e.g. 100% Cotton)"
+                    value={row.value}
+                    onChange={(e) => {
+                      const next = [...specRows];
+                      next[idx] = { ...next[idx], value: e.target.value };
+                      setSpecRows(next);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={() => setSpecRows(specRows.filter((_, i) => i !== idx))}
+                    disabled={specRows.length === 1}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSpecRows([...specRows, { key: '', value: '' }])}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Field
+              </Button>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -206,6 +320,29 @@ export function ProductForm({ initialData }: ProductFormProps) {
                 {categories?.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-lg border bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Shapes className="h-4 w-4 text-muted-foreground" />
+              <h3 className="font-medium">Product Type</h3>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Optional — picking a type suggests matching fields below and for variants.
+            </p>
+            <Select value={form.typeId || 'none'} onValueChange={(v) => set('typeId', v === 'none' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="No specific type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No specific type</SelectItem>
+                {productTypes?.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    {t.name}
                   </SelectItem>
                 ))}
               </SelectContent>

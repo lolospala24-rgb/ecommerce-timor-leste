@@ -39,29 +39,42 @@ export function parseProductTypeFields(value: unknown): ProductTypeFieldDefiniti
     }
   }
 
+  // Same comma-confusion bug as variant attributes (see
+  // normalizeVariantAttributeKeys above): an admin typing
+  // "Brand,Material,Warranty" into one field-name box produces a single
+  // literal key instead of three. Splitting here turns that into three
+  // separate suggested fields instead of one garbled one.
+  const splitKey = (key: string) => key.split(',').map((k) => k.trim()).filter(Boolean);
+
   if (Array.isArray(parsed)) {
     return parsed
-      .map((entry) => {
+      .flatMap((entry) => {
         if (typeof entry === 'string' && entry.trim()) {
-          return { key: entry.trim(), label: entry.trim() };
+          return splitKey(entry).map((k) => ({ key: k, label: k }));
         }
         if (entry && typeof entry === 'object') {
           const item = entry as Record<string, unknown>;
-          const key = String(item.key ?? item.name ?? item.label ?? '').trim();
-          if (!key) return null;
-          const label = String(item.label ?? item.name ?? key).trim();
-          return { key, label };
+          const rawKey = String(item.key ?? item.name ?? item.label ?? '').trim();
+          if (!rawKey) return [];
+          const rawLabel = String(item.label ?? item.name ?? rawKey).trim();
+          const keys = splitKey(rawKey);
+          return keys.length > 1 ? keys.map((k) => ({ key: k, label: k })) : [{ key: rawKey, label: rawLabel }];
         }
-        return null;
+        return [];
       })
-      .filter((entry): entry is ProductTypeFieldDefinition => entry !== null);
+      .filter((entry): entry is ProductTypeFieldDefinition => Boolean(entry));
   }
 
   if (typeof parsed === 'object' && parsed !== null) {
-    return Object.entries(parsed as Record<string, unknown>).map(([key, value]) => ({
-      key,
-      label: String(value ?? key),
-    }));
+    // The object shape is always `{ fieldName: "select" }` — the value is
+    // a literal type marker, never a real label (admin-panel's
+    // buildFieldsPayload never writes anything else), so the key is what
+    // both the field name AND its display label should be. Using the
+    // value as the label here previously showed the literal word "select"
+    // as the option-group heading instead of the actual field name.
+    return Object.keys(parsed as Record<string, unknown>).flatMap((key) =>
+      splitKey(key).map((k) => ({ key: k, label: k })),
+    );
   }
 
   return [];

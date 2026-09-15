@@ -1,3 +1,21 @@
+export interface ProductType {
+  id: number;
+  name: string;
+  nameTetum: string | null;
+  description: string | null;
+  slug: string;
+  // `{ fieldName: "select" }` — the key is the actual field name, the value
+  // is always the literal type marker "select" (see admin-panel's
+  // buildFieldsPayload). Suggested Variant attribute names for this type.
+  fields: Record<string, string> | null;
+  // Same `{ fieldName: "select" }` shape — suggested Specification field
+  // names for this type, kept separate from `fields` since a type's
+  // variant options (e.g. Size) aren't always the same as its spec sheet
+  // (e.g. Material, Gender).
+  specFields: Record<string, string> | null;
+  isActive: boolean;
+}
+
 export interface ProductVariant {
   id: number;
   productId: number;

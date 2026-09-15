@@ -33,6 +33,7 @@ import {
   slugifyVariantValue,
   type GeneratorAttributeRow,
 } from '@/lib/variantAttributes';
+import { parseProductTypeFields } from '@/lib/productType';
 import type { ProductVariant } from '@/types/product.types';
 
 const emptyForm = {
@@ -43,7 +44,17 @@ const emptyForm = {
   isActive: true,
 };
 
-export function VariantManager({ productId, baseSku }: { productId: number; baseSku?: string | null }) {
+interface VariantManagerProps {
+  productId: number;
+  baseSku?: string | null;
+  // The assigned Product Type's suggested attribute names (e.g. "Size",
+  // "Color") — advisory quick-add chips only, never forced into a variant's
+  // rows on their own so a seller's own custom attributes are never
+  // silently overwritten by picking a type.
+  suggestedAttributeFields?: Record<string, string> | null;
+}
+
+export function VariantManager({ productId, baseSku, suggestedAttributeFields }: VariantManagerProps) {
   const { data: variants, isLoading } = useProductVariants(productId);
   const createVariant = useCreateVariant(productId);
   const updateVariant = useUpdateVariant(productId);
@@ -109,6 +120,19 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
       if (!existingKeyCasing.has(lower)) existingKeyCasing.set(lower, k.trim());
     });
   });
+
+  const suggestedAttrNames = parseProductTypeFields(suggestedAttributeFields);
+  const currentRowKeys = new Set(attrRows.map((r) => r.key.trim().toLowerCase()).filter(Boolean));
+  const availableAttrSuggestions = suggestedAttrNames.filter((f) => !currentRowKeys.has(f.key.toLowerCase()));
+
+  const addSuggestedAttrRow = (key: string) => {
+    setAttrRows((prev) => {
+      if (prev.length === 1 && !prev[0].key.trim() && !prev[0].value.trim()) {
+        return [{ key, value: '' }];
+      }
+      return [...prev, { key, value: '' }];
+    });
+  };
 
   const buildAttributesObject = () =>
     attrRows.reduce<Record<string, string>>((acc, row) => {
@@ -296,6 +320,21 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
               <p className="text-xs text-muted-foreground">
                 One attribute name per row (e.g. &quot;Color&quot;) — use &quot;+ Add attribute&quot; below for more, not commas in this field.
               </p>
+              {availableAttrSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {availableAttrSuggestions.map((field) => (
+                    <Badge
+                      key={field.key}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-secondary/70"
+                      onClick={() => addSuggestedAttrRow(field.key)}
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      {field.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {attrRows.map((row, idx) => (
                 <div key={idx} className="flex gap-2">
                   <Input
