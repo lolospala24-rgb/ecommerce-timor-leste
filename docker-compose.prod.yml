@@ -59,6 +59,15 @@ services:
     networks:
       - ecommerce-network
 
+  seller:
+    build: ./Seller-panel
+    container_name: ecommerce-seller
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - ecommerce-network
+
   nginx:
     image: nginx:alpine
     container_name: ecommerce-nginx
@@ -79,6 +88,7 @@ services:
       - backend
       - frontend
       - admin
+      - seller
     networks:
       - ecommerce-network
 

@@ -32,8 +32,10 @@ async function bootstrap() {
   const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.ADMIN_URL,
+    process.env.SELLER_URL,
     'http://localhost:3000',
     'http://localhost:3002',
+    'http://localhost:3003',
   ].filter((origin): origin is string => Boolean(origin));
 
   app.use(cors({

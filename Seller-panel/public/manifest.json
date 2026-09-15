@@ -1,0 +1,25 @@
+{
+  "name": "ShoplyLospala Seller Panel",
+  "short_name": "Seller Panel",
+  "description": "Manage your store, products, orders and earnings on ShoplyLospala.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fbfbf8",
+  "theme_color": "#3d6b4f",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
