@@ -7,12 +7,14 @@ import { useAuthStore } from '@/stores/authStore';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { AlertTriangle } from 'lucide-react';
+import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const [checked, setChecked] = useState(false);
+  useNotificationSocket();
 
   useEffect(() => {
     checkAuth().finally(() => setChecked(true));
