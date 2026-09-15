@@ -14,6 +14,25 @@ export function useSellerOrders(params: { page?: number; limit?: number; status?
   });
 }
 
+const EXPORT_PAGE_LIMIT = 100;
+const EXPORT_MAX_PAGES = 20; // caps at 2,000 orders — generous for a single store's history
+
+// Not a hook — a plain fetch-all helper shared by CSV export (this file's
+// callers) and the derived Customers directory (useCustomers.ts), which
+// both need every one of the seller's own orders, not just one page.
+export async function fetchAllSellerOrders(status?: OrderStatus): Promise<SellerOrder[]> {
+  const all: SellerOrder[] = [];
+  let page = 1;
+  while (page <= EXPORT_MAX_PAGES) {
+    const res = await api.get('/orders/seller/orders', { params: { page, limit: EXPORT_PAGE_LIMIT, status } });
+    const body = unwrapPaginated<SellerOrder>(res);
+    all.push(...body.data);
+    if (!body.pagination?.hasNext) break;
+    page += 1;
+  }
+  return all;
+}
+
 export function useSellerOrder(id: number | undefined) {
   return useQuery({
     queryKey: ['seller-order', id],

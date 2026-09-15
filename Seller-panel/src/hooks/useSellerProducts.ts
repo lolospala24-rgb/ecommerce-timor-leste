@@ -20,6 +20,25 @@ export function useSellerProducts(params: { page?: number; limit?: number; statu
   });
 }
 
+const EXPORT_PAGE_LIMIT = 100;
+const EXPORT_MAX_PAGES = 20; // caps at 2,000 products — generous for a single store's catalog
+
+// Not a hook — a plain fetch-all helper for CSV export. There's no seller-
+// facing export endpoint (only admin's `/products/export`), so this pages
+// through the seller's own catalog client-side.
+export async function fetchAllSellerProducts(status?: ProductStatusFilter): Promise<SellerProduct[]> {
+  const all: SellerProduct[] = [];
+  let page = 1;
+  while (page <= EXPORT_MAX_PAGES) {
+    const res = await api.get('/products/my-products', { params: { page, limit: EXPORT_PAGE_LIMIT, status } });
+    const body = unwrapPaginated<SellerProduct>(res);
+    all.push(...body.data);
+    if (!body.pagination?.hasNext) break;
+    page += 1;
+  }
+  return all;
+}
+
 export function useSellerProduct(id: number | undefined) {
   return useQuery({
     queryKey: ['seller-product', id],

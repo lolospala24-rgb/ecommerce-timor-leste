@@ -14,14 +14,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Box } from 'lucide-react';
 import { useDeleteProduct, useToggleProductStatus } from '@/hooks/useSellerProducts';
 import type { SellerProduct } from '@/types/product.types';
 
-export function ProductsTable({ products }: { products: SellerProduct[] }) {
+interface ProductsTableProps {
+  products: SellerProduct[];
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onToggleSelectAll?: () => void;
+}
+
+export function ProductsTable({ products, selectedIds, onToggleSelect, onToggleSelectAll }: ProductsTableProps) {
   const [deleteTarget, setDeleteTarget] = useState<SellerProduct | null>(null);
   const deleteProduct = useDeleteProduct();
   const toggleStatus = useToggleProductStatus();
+  const selectable = !!selectedIds && !!onToggleSelect;
+  const allSelected = selectable && products.length > 0 && products.every((p) => selectedIds!.has(p.id));
 
   if (products.length === 0) {
     return (
@@ -43,6 +53,11 @@ export function ProductsTable({ products }: { products: SellerProduct[] }) {
       <Table>
         <TableHeader>
           <TableRow>
+            {selectable && (
+              <TableHead className="w-10">
+                <Checkbox checked={allSelected} onCheckedChange={() => onToggleSelectAll?.()} aria-label="Select all" />
+              </TableHead>
+            )}
             <TableHead>Product</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>Price</TableHead>
@@ -58,6 +73,11 @@ export function ProductsTable({ products }: { products: SellerProduct[] }) {
             const isLow = product.stock > 0 && product.stock < lowThreshold;
             return (
               <TableRow key={product.id}>
+                {selectable && (
+                  <TableCell>
+                    <Checkbox checked={selectedIds!.has(product.id)} onCheckedChange={() => onToggleSelect?.(product.id)} aria-label={`Select ${product.name}`} />
+                  </TableCell>
+                )}
                 <TableCell>
                   <Link href={`/products/${product.id}`} className="flex items-center gap-3">
                     <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-md border bg-muted">

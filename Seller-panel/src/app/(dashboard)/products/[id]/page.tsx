@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ProductForm } from '@/components/products/ProductForm';
+import { VariantManager } from '@/components/products/VariantManager';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +91,10 @@ export default function EditProductPage() {
       </div>
 
       <ProductForm initialData={product} />
+
+      <div className="mt-6">
+        <VariantManager productId={product.id} baseSku={product.sku} />
+      </div>
 
       <ConfirmDialog
         open={deleteOpen}
