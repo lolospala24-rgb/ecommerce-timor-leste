@@ -80,7 +80,18 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
       stock: String(variant.stock ?? ''),
       isActive: variant.isActive,
     });
-    const rows = Object.entries(variant.attributes || {}).map(([key, value]) => ({ key, value }));
+    // Some older variants have a single comma-joined key like
+    // "Color,Size,Storage" (from a form that let a comma slip into the
+    // attribute-name field instead of the value field) — split those into
+    // one row per name so the seller can see and fix each one separately,
+    // rather than editing them as one garbled field. The value is only
+    // carried onto the first split row; the rest start blank since there's
+    // no way to know which original value belonged to which name.
+    const rows = Object.entries(variant.attributes || {}).flatMap(([key, value], entryIdx) => {
+      const names = key.split(',').map((n) => n.trim()).filter(Boolean);
+      if (names.length <= 1) return [{ key, value }];
+      return names.map((name, i) => ({ key: name, value: entryIdx === 0 && i === 0 ? value : '' }));
+    });
     setAttrRows(rows.length > 0 ? rows : [{ key: '', value: '' }]);
     setDialogOpen(true);
   };
@@ -259,14 +270,22 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Attributes</Label>
+              <p className="text-xs text-muted-foreground">
+                One attribute name per row (e.g. &quot;Color&quot;) — use &quot;+ Add attribute&quot; below for more, not commas in this field.
+              </p>
               {attrRows.map((row, idx) => (
                 <div key={idx} className="flex gap-2">
                   <Input
-                    placeholder="e.g. Color"
+                    placeholder="Name, e.g. Color"
                     value={row.key}
                     onChange={(e) => {
+                      // A comma here almost always means the seller meant
+                      // "+ Add attribute" (a separate row) instead — strip it
+                      // rather than silently saving something like
+                      // "Color,Size" as one literal attribute name.
+                      const sanitized = e.target.value.replace(/,/g, '');
                       const next = [...attrRows];
-                      next[idx] = { ...next[idx], key: e.target.value };
+                      next[idx] = { ...next[idx], key: sanitized };
                       setAttrRows(next);
                     }}
                   />
@@ -377,7 +396,7 @@ export function VariantManager({ productId, baseSku }: { productId: number; base
                       value={row.key}
                       onChange={(e) => {
                         const next = [...generatorRows];
-                        next[idx] = { ...next[idx], key: e.target.value };
+                        next[idx] = { ...next[idx], key: e.target.value.replace(/,/g, '') };
                         setGeneratorRows(next);
                       }}
                       className="w-40"
