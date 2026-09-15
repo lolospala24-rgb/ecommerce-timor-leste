@@ -34,8 +34,13 @@ export function FieldNameListEditor({
             placeholder={placeholder}
             value={field}
             onChange={(e) => {
+              // A comma here almost always means "+ Add Field" was meant
+              // instead of a literal comma-joined name — confirmed live on
+              // a real ProductType ("Brand,Material,Warranty" saved as one
+              // field instead of three). Strip it rather than silently
+              // saving a compound key.
               const next = [...fieldNames];
-              next[index] = e.target.value;
+              next[index] = e.target.value.replace(/,/g, '');
               onChange(next);
             }}
           />

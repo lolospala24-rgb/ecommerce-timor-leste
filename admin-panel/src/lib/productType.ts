@@ -15,22 +15,31 @@ export function parseProductTypeFields(value: unknown): ProductTypeFieldDefiniti
     }
   }
 
+  // A field-name input can end up with a comma-joined value like
+  // "Brand,Material,Warranty" (typed as one name instead of using "+ Add
+  // field" three times — confirmed live on a real ProductType). Splitting
+  // here turns that into three separate suggested chips wherever this is
+  // consumed (ProductSpecifications, the seller apps' variant/spec
+  // pickers) instead of one garbled one.
+  const splitKey = (key: string) => key.split(',').map((k) => k.trim()).filter(Boolean);
+
   if (Array.isArray(parsed)) {
     return parsed
-      .map((entry) => {
+      .flatMap((entry) => {
         if (typeof entry === 'string' && entry.trim()) {
-          return { key: entry.trim(), label: entry.trim() };
+          return splitKey(entry).map((k) => ({ key: k, label: k }));
         }
         if (entry && typeof entry === 'object') {
           const item = entry as Record<string, unknown>;
-          const key = String(item.key ?? item.name ?? item.label ?? '').trim();
-          if (!key) return null;
-          const label = String(item.label ?? item.name ?? key).trim();
-          return { key, label };
+          const rawKey = String(item.key ?? item.name ?? item.label ?? '').trim();
+          if (!rawKey) return [];
+          const rawLabel = String(item.label ?? item.name ?? rawKey).trim();
+          const keys = splitKey(rawKey);
+          return keys.length > 1 ? keys.map((k) => ({ key: k, label: k })) : [{ key: rawKey, label: rawLabel }];
         }
-        return null;
+        return [];
       })
-      .filter((entry): entry is ProductTypeFieldDefinition => entry !== null);
+      .filter((entry): entry is ProductTypeFieldDefinition => Boolean(entry));
   }
 
   if (typeof parsed === 'object' && parsed !== null) {
@@ -38,10 +47,9 @@ export function parseProductTypeFields(value: unknown): ProductTypeFieldDefiniti
     // buildFieldsPayload — the value is always a type marker like
     // "select", never a human label), so the key is what both the badge
     // key and its display label should be.
-    return Object.keys(parsed as Record<string, unknown>).map((key) => ({
-      key,
-      label: key,
-    }));
+    return Object.keys(parsed as Record<string, unknown>).flatMap((key) =>
+      splitKey(key).map((k) => ({ key: k, label: k })),
+    );
   }
 
   return [];
