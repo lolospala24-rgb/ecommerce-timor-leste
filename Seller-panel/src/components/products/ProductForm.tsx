@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Loader2, Plus, X, ListChecks, Shapes } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ import { useProductTypes } from '@/hooks/useProductTypes';
 import { useCreateProduct, useUpdateProduct } from '@/hooks/useSellerProducts';
 import { useAuthStore } from '@/stores/authStore';
 import { parseProductTypeFields } from '@/lib/productType';
+import { RequestProductTypeDialog } from '@/components/products/RequestProductTypeDialog';
 import type { SellerProduct } from '@/types/product.types';
 
 type SpecRow = { key: string; value: string };
@@ -66,6 +68,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
   });
   const [images, setImages] = useState<string[]>(initialData?.images ?? []);
   const [specRows, setSpecRows] = useState<SpecRow[]>(() => toSpecRows(initialData?.specifications));
+  const [requestTypeOpen, setRequestTypeOpen] = useState(false);
 
   const selectedType = productTypes?.find((t) => t.id === Number(form.typeId));
   // Advisory quick-add chips only — never forces a type's fields into the
@@ -347,6 +350,18 @@ export function ProductForm({ initialData }: ProductFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            <div className="mt-2.5 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setRequestTypeOpen(true)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Don&apos;t see your type? Request one
+              </button>
+              <Link href="/products/type-requests" className="text-xs text-muted-foreground hover:underline">
+                My requests
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -360,6 +375,8 @@ export function ProductForm({ initialData }: ProductFormProps) {
           </div>
         </div>
       </div>
+
+      <RequestProductTypeDialog open={requestTypeOpen} onOpenChange={setRequestTypeOpen} />
     </form>
   );
 }

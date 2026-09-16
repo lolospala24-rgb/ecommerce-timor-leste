@@ -38,6 +38,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { StockNotificationsModule } from './modules/stock-notifications/stock-notifications.module';
 import { WebsiteHealthModule } from './modules/website-health/website-health.module';
+import { ProductTypeRequestsModule } from './modules/product-type-requests/product-type-requests.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -95,6 +96,7 @@ import { AppService } from './app.service';
     FinanceModule,
     StockNotificationsModule,
     WebsiteHealthModule,
+    ProductTypeRequestsModule,
   ],
   controllers: [AppController],
   providers: [

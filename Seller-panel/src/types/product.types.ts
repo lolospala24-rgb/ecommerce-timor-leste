@@ -16,6 +16,26 @@ export interface ProductType {
   isActive: boolean;
 }
 
+export type ProductTypeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ProductTypeRequest {
+  id: number;
+  sellerId: number;
+  name: string;
+  nameTetum: string | null;
+  description: string | null;
+  fields: Record<string, string> | null;
+  specFields: Record<string, string> | null;
+  status: ProductTypeRequestStatus;
+  reviewedBy: number | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  resultingTypeId: number | null;
+  resultingType: { id: number; name: string; slug: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProductVariant {
   id: number;
   productId: number;

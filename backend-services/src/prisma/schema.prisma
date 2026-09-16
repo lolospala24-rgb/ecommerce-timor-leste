@@ -80,6 +80,17 @@ enum AuthProvider {
   GOOGLE
 }
 
+// Product Types themselves stay admin-only to create/edit (a shared,
+// platform-wide taxonomy would fragment into duplicates like "Ropa" /
+// "Clothes" / "Pakaian" if every seller could create their own) — this is
+// the middle ground: a seller proposes one, an admin reviews and either
+// approves it (which creates the real ProductType) or rejects it.
+enum ProductTypeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -115,6 +126,7 @@ model User {
   helpfulVotes    ReviewHelpful[]
   reviewReports   ReviewReport[]
   verifiedSellers Seller[]        @relation("AdminVerifiesSeller")
+  reviewedTypeRequests ProductTypeRequest[] @relation("AdminReviewsTypeRequest")
   videoLikes      VideoLike[]
   videoSaves      VideoSave[]
   videoComments   VideoComment[]
@@ -182,6 +194,7 @@ model Seller {
   ledgerEntries   SellerLedgerEntry[]
   payouts         Payout[]
   followers       SellerFollow[]
+  typeRequests    ProductTypeRequest[]
 
   @@map("sellers")
 }
@@ -409,8 +422,43 @@ model ProductType {
 
   // Relations
   products Product[]
+  requestsApprovedInto ProductTypeRequest[]
 
   @@map("product_types")
+}
+
+// A seller's proposal for a new Product Type, reviewed by an admin. Kept as
+// its own table (not written straight into ProductType) so a seller can
+// never create/mutate the shared taxonomy directly — see
+// ProductTypeRequestStatus's doc-comment for why that boundary matters.
+model ProductTypeRequest {
+  id              Int      @id @default(autoincrement())
+  sellerId        Int
+  name            String
+  nameTetum       String?
+  description     String?
+  // Same `{ fieldName: "select" }` shape as ProductType.fields/specFields —
+  // carried over as-is into the real ProductType on approval.
+  fields          Json     @default("{}")
+  specFields      Json     @default("{}")
+  status          ProductTypeRequestStatus @default(PENDING)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  // Set only once APPROVED — points at the ProductType the approval
+  // created, so the seller's request list can link straight to it.
+  resultingTypeId Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  seller          Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  reviewedByAdmin User?        @relation("AdminReviewsTypeRequest", fields: [reviewedBy], references: [id])
+  resultingType   ProductType? @relation(fields: [resultingTypeId], references: [id])
+
+  @@index([sellerId])
+  @@index([status])
+  @@map("product_type_requests")
 }
 
 model ProductAttribute {

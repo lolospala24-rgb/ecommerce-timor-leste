@@ -12,6 +12,7 @@ import {
   Video,
   LayoutTemplate,
   ClipboardList,
+  Shapes,
   Banknote,
   RotateCcw,
   Wallet,
@@ -91,6 +92,7 @@ const menuSections: MenuSection[] = [
     label: 'Catalog',
     items: [
       { href: '/products', label: 'Products', icon: Box },
+      { href: '/product-type-requests', label: 'Type Requests', icon: Shapes },
       { href: '/categories', label: 'Categories', icon: FolderTree },
       { href: '/video-shop', label: 'Video Management', icon: Video },
       { href: '/homepage', label: 'Homepage', icon: LayoutTemplate },

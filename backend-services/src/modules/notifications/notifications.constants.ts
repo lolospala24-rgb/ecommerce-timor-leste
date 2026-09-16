@@ -30,6 +30,8 @@ export enum NotificationEvent {
   PROMO = 'PROMO',
   SYSTEM = 'SYSTEM',
   DRIVER_ASSIGNED = 'DRIVER_ASSIGNED',
+  PRODUCT_TYPE_REQUEST_APPROVED = 'PRODUCT_TYPE_REQUEST_APPROVED',
+  PRODUCT_TYPE_REQUEST_REJECTED = 'PRODUCT_TYPE_REQUEST_REJECTED',
 }
 
 // Default category + priority per event — call sites can still override
@@ -57,4 +59,6 @@ export const NOTIFICATION_DEFAULTS: Record<
   [NotificationEvent.PROMO]: { category: 'SYSTEM', priority: 'INFO' },
   [NotificationEvent.SYSTEM]: { category: 'SYSTEM', priority: 'INFO' },
   [NotificationEvent.DRIVER_ASSIGNED]: { category: 'SHIPPING', priority: 'INFO' },
+  [NotificationEvent.PRODUCT_TYPE_REQUEST_APPROVED]: { category: 'PRODUCT', priority: 'SUCCESS' },
+  [NotificationEvent.PRODUCT_TYPE_REQUEST_REJECTED]: { category: 'PRODUCT', priority: 'WARNING' },
 };
