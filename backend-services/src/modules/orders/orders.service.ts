@@ -160,33 +160,35 @@ export class OrdersService {
       throw new BadRequestException('Bank transfer is currently unavailable');
     }
 
-    // Validate + atomically redeem the coupon (if any) once for the whole
-    // checkout, before any orders/stock changes happen — a coupon applies
-    // to the full cart, not per seller, and its discount amount is split
-    // proportionally across each seller's Order below (each seller gets
-    // its own Order row; see the seller-grouping loop above).
+    // Validate the coupon (read-only) once for the whole checkout — a
+    // coupon applies to the full cart, not per seller, and its discount is
+    // split proportionally across each seller's Order below. Actually
+    // *redeeming* it (the atomic usedCount increment + CouponUsage row)
+    // happens inside the single checkout transaction further down, together
+    // with every seller's order — never on its own, so a coupon can never
+    // be burned for a checkout that doesn't actually go through.
     const cartSubtotal: number = Array.from(sellerGroups.values()).reduce(
       (sum: number, g: any) => sum + g.subtotal,
       0,
     );
-    let appliedCoupon: { couponUsageId: number; totalDiscount: number } | null = null;
+    let validatedCoupon: { coupon: { id: number; usageLimit: number | null }; discountAmount: number } | null = null;
     if (createOrderDto.couponCode) {
       const { coupon, discountAmount } = await this.couponsService.validateForCustomer(
         createOrderDto.couponCode,
         userId,
         cartSubtotal,
       );
-      const usage = await this.prisma.$transaction((tx) =>
-        this.couponsService.recordUsage(tx, coupon, userId, discountAmount),
-      );
-      appliedCoupon = { couponUsageId: usage.id, totalDiscount: discountAmount };
+      validatedCoupon = { coupon, discountAmount };
     }
 
-    // Create orders for each seller
-    const orders = [];
+    // ---- Phase 1: pure computation for every seller group, no DB writes ----
+    // Shipping/discount/tax/total only depend on data already fetched above
+    // (cart, address, settings), so it's all computed up front — keeping the
+    // transaction below limited to the writes that actually need to be atomic.
     const orderNumberPrefix = `ORD-${Date.now()}-`;
     const sellerGroupList = Array.from(sellerGroups.values());
     let distributedDiscount = 0;
+    const preparedGroups: Array<{ group: any; orderCreateData: any; total: number }> = [];
 
     for (let groupIndex = 0; groupIndex < sellerGroupList.length; groupIndex++) {
       const group = sellerGroupList[groupIndex];
@@ -246,14 +248,14 @@ export class OrdersService {
       // This seller's proportional share of the cart-wide coupon discount.
       // The last group absorbs whatever's left after rounding every earlier
       // share to the cent, so the shares always sum to exactly
-      // appliedCoupon.totalDiscount rather than drifting a cent off from
+      // validatedCoupon.discountAmount rather than drifting a cent off from
       // rounding each share independently.
       let discountShare = 0;
-      if (appliedCoupon) {
+      if (validatedCoupon) {
         const isLastGroup = groupIndex === sellerGroupList.length - 1;
         discountShare = isLastGroup
-          ? Math.round((appliedCoupon.totalDiscount - distributedDiscount) * 100) / 100
-          : Math.round(((appliedCoupon.totalDiscount * group.subtotal) / cartSubtotal) * 100) / 100;
+          ? Math.round((validatedCoupon.discountAmount - distributedDiscount) * 100) / 100
+          : Math.round(((validatedCoupon.discountAmount * group.subtotal) / cartSubtotal) * 100) / 100;
         distributedDiscount += discountShare;
       }
       const discountedSubtotal = Math.round((group.subtotal - discountShare) * 100) / 100;
@@ -288,7 +290,9 @@ export class OrdersService {
       // Generate unique order number
       const orderNumber = `${orderNumberPrefix}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      // Create order
+      // Create order. couponUsageId is filled in below, inside the
+      // transaction, once the coupon has actually been redeemed — it
+      // doesn't exist yet at this pre-transaction computation stage.
       const orderCreateData = {
         orderNumber,
         customerId: userId,
@@ -298,7 +302,6 @@ export class OrdersService {
         taxAmount,
         serviceFee,
         discountAmount: discountShare,
-        couponUsageId: appliedCoupon?.couponUsageId ?? null,
         total,
         status: OrderStatus.PENDING,
         paymentMethod: createOrderDto.paymentMethod,
@@ -321,22 +324,37 @@ export class OrdersService {
         },
       };
 
-      let order;
-      // Populated (base-product items only — variant-level stock isn't
-      // modeled by the low-stock notification yet) whenever this order's
-      // decrement crosses the low-stock/out-of-stock line, so it fires
-      // exactly once per crossing rather than once per order that happens
-      // to touch an already-low product.
-      const lowStockAlerts: Array<{ productId: number; productName: string; sellerId: number; newStock: number }> = [];
-      try {
-        // Atomic, race-safe checkout: reserve stock and create the order
-        // in a single DB transaction. The conditional `stock: { gte }` guard
-        // means concurrent checkouts on the same product can never both
-        // succeed for more units than are actually in stock — the losing
-        // request's updateMany matches zero rows and we abort the whole
-        // transaction (order + any earlier stock reservations in this loop
-        // are rolled back together).
-        order = await this.prisma.$transaction(async (tx) => {
+      preparedGroups.push({ group, orderCreateData, total });
+    }
+
+    // ---- Phase 2: one atomic transaction for every write in this checkout ----
+    // Coupon redemption and every seller's order (+ stock reservation, + COD
+    // payment record) commit or roll back together. Before this fix, the
+    // coupon was redeemed in its own transaction ahead of this loop, and
+    // each seller's order was its own separate transaction — so a stock
+    // failure on seller 2 of a 3-seller cart left seller 1's order (and
+    // stock decrement) committed while the customer saw a hard failure, and
+    // burned the coupon on a checkout that never actually completed. Now a
+    // failure anywhere rolls back everything: no coupon usage, no orders, no
+    // stock touched — matching what the customer actually sees (either the
+    // whole checkout went through, or none of it did).
+    const allLowStockAlerts: Array<{ productId: number; productName: string; sellerId: number; newStock: number }> = [];
+    let orders: any[];
+    try {
+      orders = await this.prisma.$transaction(async (tx) => {
+        let couponUsageId: number | null = null;
+        if (validatedCoupon) {
+          const usage = await this.couponsService.recordUsage(
+            tx,
+            validatedCoupon.coupon,
+            userId,
+            validatedCoupon.discountAmount,
+          );
+          couponUsageId = usage.id;
+        }
+
+        const createdOrders = [];
+        for (const { group, orderCreateData, total } of preparedGroups) {
           for (const item of group.items) {
             // Variant and base-product stock are separate pools (mirrors
             // cart-add's `currentVariant ? currentVariant.stock : prod.stock`
@@ -358,12 +376,17 @@ export class OrdersService {
               );
             }
 
+            // Populated (base-product items only — variant-level stock isn't
+            // modeled by the low-stock notification yet) whenever this
+            // order's decrement crosses the low-stock/out-of-stock line, so
+            // it fires exactly once per crossing rather than once per order
+            // that happens to touch an already-low product.
             if (!item.variantId) {
               const beforeStock = item.product.stock;
               if (beforeStock > LOW_STOCK_THRESHOLD) {
                 const afterStock = beforeStock - item.quantity;
                 if (afterStock <= LOW_STOCK_THRESHOLD) {
-                  lowStockAlerts.push({
+                  allLowStockAlerts.push({
                     productId: item.productId,
                     productName: item.product.name,
                     sellerId: group.sellerId,
@@ -375,7 +398,7 @@ export class OrdersService {
           }
 
           const createdOrder = await tx.order.create({
-            data: orderCreateData,
+            data: { ...orderCreateData, couponUsageId },
             include: {
               items: {
                 include: {
@@ -401,23 +424,25 @@ export class OrdersService {
             });
           }
 
-          return createdOrder;
-        });
-      } catch (error) {
-        this.logger.error(
-          `Order create failed for seller ${group.sellerId}: ${error instanceof Error ? error.message : error}`,
-          error instanceof Error ? error.stack : undefined,
-        );
-        throw error;
-      }
+          createdOrders.push(createdOrder);
+        }
 
-      orders.push(order);
+        return createdOrders;
+      });
+    } catch (error) {
+      this.logger.error(
+        `Checkout failed for user ${userId}: ${error instanceof Error ? error.message : error}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
 
-      // The order (with stock reserved and payment record, if COD) is
-      // already committed at this point — everything below is best-effort
-      // notification. A flaky mail server or websocket hiccup must never
-      // surface as a request failure for an order that actually succeeded,
-      // which is why this has its own try/catch that only logs.
+    // ---- Phase 3: best-effort side effects, one per created order ----
+    // Every order above is already committed — a flaky mail server or
+    // websocket hiccup here must never surface as a request failure for an
+    // order that actually succeeded, which is why each iteration has its
+    // own try/catch that only logs.
+    for (const order of orders) {
       try {
         // Send order confirmation email
         await this.mailService.sendOrderConfirmation(
@@ -480,7 +505,7 @@ export class OrdersService {
           status: order.status,
           paymentMethod: order.paymentMethod,
           total: order.total,
-          shippingCost,
+          shippingCost: order.shippingCost,
           createdAt: order.createdAt,
         });
 
@@ -488,7 +513,7 @@ export class OrdersService {
         // decrement above), not one per unit sold — buying the item that
         // takes a product from 11 down to 9 fires once; further purchases
         // that keep it under the threshold don't re-fire.
-        for (const alert of lowStockAlerts) {
+        for (const alert of allLowStockAlerts.filter((a) => a.sellerId === order.sellerId)) {
           await this.notificationsService.sendLowStockAlert(
             alert.productId,
             alert.productName,
