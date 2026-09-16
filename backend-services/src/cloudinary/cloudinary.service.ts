@@ -3,6 +3,22 @@ import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse, UploadApiOptions } from 'cloudinary';
 import * as streamifier from 'streamifier';
 
+// Every upload path (product images, store logos, payment proofs, reviews,
+// videos) funnels through uploadFile() below, so this is the one place that
+// needs to check what a file actually IS rather than what its filename/
+// Content-Type claims — multer's fileFilter only sees those client-supplied
+// labels, never the bytes (file.buffer isn't populated until after multer
+// finishes reading the upload, by which point fileFilter has already run).
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime', // .mov
+]);
+
 @Injectable()
 export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
@@ -31,6 +47,17 @@ export class CloudinaryService {
     file: Express.Multer.File,
     options?: UploadApiOptions,
   ): Promise<UploadApiResponse> {
+    // Inspect the actual file bytes rather than trusting the client-supplied
+    // extension/Content-Type — a renamed non-image file would otherwise
+    // sail through multer's filename/mimetype check untouched.
+    const { fileTypeFromBuffer } = await import('file-type');
+    const detected = await fileTypeFromBuffer(file.buffer);
+    if (!detected || !ALLOWED_UPLOAD_MIME_TYPES.has(detected.mime)) {
+      throw new BadRequestException(
+        'This file does not look like a valid image or video. Please upload a real JPG, PNG, GIF, WEBP, MP4, WebM, or MOV file.',
+      );
+    }
+
     return new Promise((resolve, reject) => {
       const uploadOptions: UploadApiOptions = {
         folder: options?.folder || 'ecommerce-timor',
