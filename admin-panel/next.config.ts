@@ -23,7 +23,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsScriptSrc}`,
   `style-src 'self' 'unsafe-inline' ${googleFontsStyleSrc}`,
-  `img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com ${googleMapsImgSrc}`,
+  `img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com ${googleMapsImgSrc}`,
   `font-src 'self' data: ${googleFontsFontSrc}`,
   `connect-src 'self' ${apiUrl} ${apiWsUrl} ${googleMapsConnectSrc}`,
   "frame-ancestors 'none'",
@@ -38,11 +38,6 @@ const permissionsPolicy = 'camera=(), microphone=(), geolocation=(), payment=(),
 const nextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: 'http',
-        hostname: 'res.cloudinary.com',
-        pathname: '/**',
-      },
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
@@ -65,19 +60,7 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
-  
-  rewrites: async () => {
-    // Make sure NEXT_PUBLIC_API_URL is defined
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/v1/:path*`,
-      },
-    ];
-  },
-  
+
   headers: async () => {
     return [
       {

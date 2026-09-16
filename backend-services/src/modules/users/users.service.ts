@@ -323,11 +323,22 @@ export class UsersService {
             status: { notIn: ['DELIVERED', 'CANCELLED'] },
           },
         },
+        seller: {
+          include: { _count: { select: { products: true } } },
+        },
       },
     });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // Unlike blockUser/changeRole, this used to have no admin protection at
+    // all — any admin account could be hard-deleted via this endpoint with
+    // no server-side check, relying entirely on the admin-panel UI hiding
+    // the button for ADMIN-role rows. Mirrors the same guard blockUser uses.
+    if (user.role === Role.ADMIN) {
+      throw new ForbiddenException('Cannot delete an admin user');
     }
 
     // Check if user has pending orders
@@ -337,9 +348,19 @@ export class UsersService {
       );
     }
 
+    // Seller.products.onDelete: Cascade means hard-deleting this user would
+    // silently wipe their entire store catalog (and every review/wishlist
+    // entry/stock-notification tied to those products) with no recovery
+    // path. A seller with no products yet is fine to delete outright.
+    if (user.seller && user.seller._count.products > 0) {
+      throw new BadRequestException(
+        `Cannot delete this seller: they still have ${user.seller._count.products} product(s) in their store. Remove or reassign those products first.`,
+      );
+    }
+
     // Soft delete or hard delete?
     // For GDPR compliance, we'll hard delete but check dependencies first
-    
+
     await this.prisma.user.delete({
       where: { id },
     });
