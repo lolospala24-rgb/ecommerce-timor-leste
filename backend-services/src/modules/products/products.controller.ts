@@ -33,6 +33,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { clampLimit } from '../../common/utils/pagination.util';
 import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('products')
@@ -91,7 +92,7 @@ export class ProductsController {
   @Get('featured')
   async getFeaturedProducts(@Query('limit') limit?: string) {
     const products = await this.productsService.getFeaturedProducts(
-      limit ? parseInt(limit) : 10,
+      clampLimit(limit, 10),
     );
     return { data: products };
   }
@@ -100,7 +101,7 @@ export class ProductsController {
   @Get('new-arrivals')
   async getNewArrivals(@Query('limit') limit?: string) {
     const products = await this.productsService.getNewArrivals(
-      limit ? parseInt(limit) : 10,
+      clampLimit(limit, 10),
     );
     return { data: products };
   }
@@ -109,7 +110,7 @@ export class ProductsController {
   @Get('best-sellers')
   async getBestSellers(@Query('limit') limit?: string) {
     const products = await this.productsService.getBestSellers(
-      limit ? parseInt(limit) : 10,
+      clampLimit(limit, 10),
     );
     return { data: products };
   }
@@ -117,9 +118,8 @@ export class ProductsController {
   @Public()
   @Get('popular')
   async getPopularProducts(@Query('limit') limit?: string) {
-    const limitValue = limit ? parseInt(limit, 10) : 10;
     const products = await this.productsService.getPopularProducts(
-      Number.isNaN(limitValue) ? 10 : limitValue,
+      clampLimit(limit, 10),
     );
     return { data: products };
   }
@@ -146,7 +146,7 @@ export class ProductsController {
   ) {
     const result = await this.productsService.getSellerProducts(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       status,
     });
     return result;
@@ -157,7 +157,7 @@ export class ProductsController {
   async searchProducts(@Query('q') query: string, @Query('limit') limit?: string) {
     const products = await this.productsService.searchProducts(
       query,
-      limit ? parseInt(limit) : 20,
+      clampLimit(limit, 20),
     );
     return { data: products };
   }
@@ -171,7 +171,7 @@ export class ProductsController {
   ) {
     const result = await this.productsService.getProductsByCategory(categoryId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return result;
   }
@@ -185,7 +185,7 @@ export class ProductsController {
   ) {
     const result = await this.productsService.getProductsBySeller(sellerId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return result;
   }
@@ -290,7 +290,7 @@ export class ProductsController {
   ) {
     const result = await this.productsService.getProductReviews(id, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return result;
   }
@@ -303,7 +303,7 @@ export class ProductsController {
   ) {
     const products = await this.productsService.getRelatedProducts(
       id,
-      limit ? parseInt(limit) : 5,
+      clampLimit(limit, 5),
     );
     return { data: products };
   }

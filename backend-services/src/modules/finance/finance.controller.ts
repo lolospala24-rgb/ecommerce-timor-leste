@@ -7,6 +7,7 @@ import { RecordRemittanceDto } from './dto/record-remittance.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role, LedgerEntryType, PlatformLedgerType } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 // Every route here is the Admin Financial Command Center's data source —
 // all admin-only, all read from (or, for adjustments, write through
@@ -38,7 +39,7 @@ export class FinanceController {
       sellerId: sellerId ? parseInt(sellerId) : undefined,
       type,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 25,
+      limit: clampLimit(limit, 25),
     });
   }
 
@@ -92,7 +93,7 @@ export class FinanceController {
     return this.financeService.getPlatformLedger({
       type,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 25,
+      limit: clampLimit(limit, 25),
     });
   }
 

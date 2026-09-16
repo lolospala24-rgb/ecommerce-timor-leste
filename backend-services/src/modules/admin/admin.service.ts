@@ -15,6 +15,7 @@ import { BlockUserDto } from './dto/block-user.dto';
 import { AdminStatsQueryDto } from './dto/admin-stats.dto';
 import { Role } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { SAFE_USER_SELECT } from '../../common/utils/safe-select.util';
 
 @Injectable()
 export class AdminService {
@@ -402,7 +403,7 @@ export class AdminService {
   async approveSeller(id: number, dto: ApproveSellerDto, adminId: number) {
     const seller = await this.prisma.seller.findUnique({
       where: { id },
-      include: { user: true },
+      include: { user: { select: SAFE_USER_SELECT } },
     });
 
     if (!seller) {
@@ -421,7 +422,7 @@ export class AdminService {
           verifiedAt: new Date(),
           verifiedBy: adminId,
         },
-        include: { user: true },
+        include: { user: { select: SAFE_USER_SELECT } },
       });
 
       await prisma.adminLog.create({
@@ -456,7 +457,7 @@ export class AdminService {
   async rejectSeller(id: number, reason: string, adminId: number) {
     const seller = await this.prisma.seller.findUnique({
       where: { id },
-      include: { user: true },
+      include: { user: { select: SAFE_USER_SELECT } },
     });
 
     if (!seller) {
@@ -470,7 +471,7 @@ export class AdminService {
           isVerified: false,
           rejectionReason: reason,
         },
-        include: { user: true },
+        include: { user: { select: SAFE_USER_SELECT } },
       });
 
       await prisma.adminLog.create({

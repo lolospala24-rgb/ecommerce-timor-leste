@@ -29,6 +29,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { OrderOwnerGuard } from './guards/order-owner.guard';
 import { CourierWebhookGuard } from './guards/courier-webhook.guard';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('orders')
 export class OrdersController {
@@ -74,7 +75,7 @@ export class OrdersController {
   ) {
     const result = await this.ordersService.getUserOrders(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       status,
     });
     return result;
@@ -90,7 +91,7 @@ export class OrdersController {
   ) {
     const result = await this.ordersService.getSellerOrders(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       status,
     });
     return result;
@@ -146,7 +147,7 @@ export class OrdersController {
   ) {
     const result = await this.ordersService.getDriverDeliveries(driverUserId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return result;
   }
@@ -283,7 +284,7 @@ export class OrdersController {
   ) {
     const result = await this.ordersService.getAllOrdersAdmin({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
       status,
       sellerId: sellerId ? parseInt(sellerId) : undefined,
     });

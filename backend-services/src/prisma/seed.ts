@@ -1,15 +1,36 @@
 ﻿import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
+
+// Never let this script touch a production database: hardcoded/generated
+// demo credentials (including a full ADMIN account) are only safe on a
+// throwaway local/dev database.
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ Refusing to run the demo seed script with NODE_ENV=production.');
+  process.exit(1);
+}
+
+// Each credential comes from its own env var when set (e.g. for reproducible
+// CI fixtures); otherwise a fresh random password is generated and printed
+// once so it's never a guessable, hardcoded literal sitting in source control.
+function resolveSeedPassword(envVar: string, label: string): string {
+  const fromEnv = process.env[envVar];
+  if (fromEnv) return fromEnv;
+  const generated = crypto.randomBytes(12).toString('base64url');
+  console.log(`🔑 Generated ${label} password (set ${envVar} to override): ${generated}`);
+  return generated;
+}
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
   // ==================== CREATE ADMIN USER ====================
   console.log('📝 Creating admin user...');
-  
-  const adminPassword = await bcrypt.hash('Admin@123', 10);
+
+  const adminPasswordPlain = resolveSeedPassword('SEED_ADMIN_PASSWORD', 'admin');
+  const adminPassword = await bcrypt.hash(adminPasswordPlain, 12);
   
   const admin = await prisma.user.upsert({
     where: { email: 'admin@ecommercetimor.com' },
@@ -64,7 +85,8 @@ async function main() {
   // ==================== CREATE SAMPLE USER ====================
   console.log('📝 Creating sample customer...');
   
-  const userPassword = await bcrypt.hash('User@123', 10);
+  const customerPasswordPlain = resolveSeedPassword('SEED_CUSTOMER_PASSWORD', 'customer');
+  const userPassword = await bcrypt.hash(customerPasswordPlain, 12);
   
   const customer = await prisma.user.upsert({
     where: { email: 'customer@example.com' },
@@ -84,7 +106,8 @@ async function main() {
   // ==================== CREATE SAMPLE SELLER ====================
   console.log('📝 Creating sample seller...');
   
-  const sellerPassword = await bcrypt.hash('Seller@123', 10);
+  const sellerPasswordPlain = resolveSeedPassword('SEED_SELLER_PASSWORD', 'seller');
+  const sellerPassword = await bcrypt.hash(sellerPasswordPlain, 12);
   
   const sellerUser = await prisma.user.upsert({
     where: { email: 'seller@example.com' },
@@ -391,13 +414,12 @@ async function main() {
   console.log('✅ Notifications created');
   console.log('\n🎉 Database seeding completed successfully!');
   console.log('========================================');
-  console.log('🔑 Login Credentials:');
-  console.log('   Admin:   admin@ecommercetimor.com / Admin@123');
-  console.log('   Seller:  seller@example.com / Seller@123');
-  console.log('   Customer: customer@example.com / User@123');
+  console.log('🔑 Login emails (passwords printed above, or from your SEED_*_PASSWORD env vars):');
+  console.log('   Admin:    admin@ecommercetimor.com');
+  console.log('   Seller:   seller@example.com');
+  console.log('   Customer: customer@example.com');
   console.log('========================================\n');
 }
-
 main()
   .catch((e) => {
     console.error('❌ Seed failed:', e);

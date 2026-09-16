@@ -18,6 +18,7 @@ import { SellerFilterDto } from './dto/seller-filter.dto';
 import { hashPassword } from '../../common/utils/bcrypt.util';
 import { Role } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { SAFE_USER_SELECT } from '../../common/utils/safe-select.util';
 
 @Injectable()
 export class SellersService {
@@ -537,7 +538,7 @@ export class SellersService {
     const seller = await this.prisma.seller.findUnique({
       where: { id },
       include: {
-        user: true,
+        user: { select: SAFE_USER_SELECT },
       },
     });
 
@@ -560,7 +561,7 @@ export class SellersService {
           rejectionReason: !isApproved ? rejectionReason : null,
         },
         include: {
-          user: true,
+          user: { select: SAFE_USER_SELECT },
         },
       });
 

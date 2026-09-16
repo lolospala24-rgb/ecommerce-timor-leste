@@ -27,6 +27,7 @@ import { CourierWebhookDto } from './dto/courier-webhook.dto';
 import { DELIVERY_AUTO_CONFIRM_GRACE_DAYS, SHIPPING_STATUS_TRANSITIONS } from './orders.constants';
 import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { SAFE_USER_SELECT, SAFE_SELLER_SELECT } from '../../common/utils/safe-select.util';
 import { OrderStatus, PaymentMethod, PaymentStatus, Role, ShippingStatus } from '@prisma/client';
 
 @Injectable()
@@ -382,12 +383,8 @@ export class OrdersService {
                   variant: true,
                 },
               },
-              customer: true,
-              seller: {
-                include: {
-                  user: true,
-                },
-              },
+              customer: { select: SAFE_USER_SELECT },
+              seller: { select: SAFE_SELLER_SELECT },
               address: true,
             },
           });
@@ -860,12 +857,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        customer: true,
-        seller: {
-          include: {
-            user: true,
-          },
-        },
+        customer: { select: SAFE_USER_SELECT },
+        seller: { select: SAFE_SELLER_SELECT },
         items: {
           include: {
             product: true,
@@ -954,8 +947,8 @@ export class OrdersService {
     }
 
     const orderInclude = {
-      customer: true,
-      seller: true,
+      customer: { select: SAFE_USER_SELECT },
+      seller: { select: SAFE_SELLER_SELECT },
       items: {
         include: {
           product: true,
@@ -1064,12 +1057,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        customer: true,
-        seller: {
-          include: {
-            user: true,
-          },
-        },
+        customer: { select: SAFE_USER_SELECT },
+        seller: { select: SAFE_SELLER_SELECT },
         items: {
           include: {
             product: true,
@@ -1180,8 +1169,8 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        customer: true,
-        seller: { include: { user: true } },
+        customer: { select: SAFE_USER_SELECT },
+        seller: { select: SAFE_SELLER_SELECT },
         items: { include: { product: true, variant: true } },
         payment: true,
       },
@@ -1265,9 +1254,6 @@ export class OrdersService {
   async confirmDelivery(id: number, userId: number) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: {
-        customer: true,
-      },
     });
 
     if (!order) {

@@ -41,11 +41,13 @@ async function bootstrap() {
   app.use(cors({
     origin: (origin, callback) => {
       // No Origin header = same-origin/server-to-server/non-browser client.
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} is not allowed by CORS`));
-      }
+      // A disallowed origin must resolve with callback(null, false) rather
+      // than an Error — throwing here turned every cross-origin request
+      // (even plain unauthenticated GETs to public endpoints) into a 500,
+      // since CORS is a browser-enforced policy: the right server-side
+      // behavior is to just omit the Access-Control-* headers, not fail
+      // the request outright.
+      callback(null, !origin || allowedOrigins.includes(origin));
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

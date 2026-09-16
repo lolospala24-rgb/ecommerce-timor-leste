@@ -23,6 +23,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 import { multerConfig } from '../../common/config/multer.config';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('payments')
 export class PaymentsController {
@@ -102,7 +103,7 @@ export class PaymentsController {
       userRole,
       {
         page: page ? parseInt(page) : 1,
-        limit: limit ? parseInt(limit) : 10,
+        limit: clampLimit(limit, 10),
         status,
       },
     );
@@ -117,7 +118,7 @@ export class PaymentsController {
   ) {
     const result = await this.paymentsService.getUserPayments(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return result;
   }
@@ -130,7 +131,7 @@ export class PaymentsController {
   ) {
     const result = await this.paymentsService.getPendingPayments({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return result;
   }

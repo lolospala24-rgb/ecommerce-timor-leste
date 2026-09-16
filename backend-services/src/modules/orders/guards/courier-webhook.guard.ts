@@ -1,4 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 
 // Secures the external-courier tracking webhook (@Public, so it skips the
 // normal JWT guard entirely — a real courier's system has no customer/staff
@@ -16,10 +17,22 @@ export class CourierWebhookGuard implements CanActivate {
     }
 
     const providedSecret = request.headers['x-courier-api-key'];
-    if (!providedSecret || providedSecret !== configuredSecret) {
+    if (!providedSecret || !this.secretsMatch(String(providedSecret), configuredSecret)) {
       throw new UnauthorizedException('Invalid courier API key');
     }
 
     return true;
+  }
+
+  // timingSafeEqual throws on mismatched buffer lengths, so the length is
+  // checked separately first — a length mismatch alone doesn't need to be
+  // constant-time, only the byte-by-byte comparison of same-length secrets does.
+  private secretsMatch(provided: string, configured: string): boolean {
+    const providedBuf = Buffer.from(provided);
+    const configuredBuf = Buffer.from(configured);
+    if (providedBuf.length !== configuredBuf.length) {
+      return false;
+    }
+    return timingSafeEqual(providedBuf, configuredBuf);
   }
 }

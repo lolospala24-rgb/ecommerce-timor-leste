@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('reports')
 @Roles(Role.ADMIN)
@@ -32,7 +33,7 @@ export class ReportsController {
     const report = await this.reportsService.getSellersReport({
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return report;
   }
@@ -46,7 +47,7 @@ export class ReportsController {
     const report = await this.reportsService.getProductsReport({
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return report;
   }

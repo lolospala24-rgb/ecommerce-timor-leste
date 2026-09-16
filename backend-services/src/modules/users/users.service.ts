@@ -416,8 +416,16 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Prevent changing own role if it would lock out
-    // This check should be done in controller with current user context
+    // Refuse to demote the last remaining admin — otherwise the platform
+    // could end up with zero accounts able to manage users/sellers/orders.
+    if (user.role === Role.ADMIN && role !== Role.ADMIN) {
+      const otherAdmins = await this.prisma.user.count({
+        where: { role: Role.ADMIN, id: { not: id } },
+      });
+      if (otherAdmins === 0) {
+        throw new BadRequestException('Cannot change role: this is the last remaining admin account');
+      }
+    }
 
     const updatedUser = await this.prisma.user.update({
       where: { id },

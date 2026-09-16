@@ -14,6 +14,7 @@ import { RequestPayoutDto, ApprovePayoutDto, RejectPayoutDto, AdminCreatePayoutD
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role, PayoutStatus } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('payouts')
 export class PayoutsController {
@@ -35,7 +36,7 @@ export class PayoutsController {
   ) {
     return this.payoutsService.getMyLedger(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
   }
 
@@ -56,7 +57,7 @@ export class PayoutsController {
   ) {
     return this.payoutsService.findMyPayouts(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
   }
 
@@ -70,7 +71,7 @@ export class PayoutsController {
     return this.payoutsService.findAllForAdmin({
       status,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
   }
 
@@ -90,7 +91,7 @@ export class PayoutsController {
   ) {
     return this.payoutsService.getSellerLedgerForAdmin(sellerId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
   }
 

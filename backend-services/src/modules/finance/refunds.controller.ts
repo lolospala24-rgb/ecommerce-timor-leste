@@ -15,6 +15,7 @@ import { ApproveRefundDto, RejectRefundDto } from './dto/process-refund.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role, RefundStatus } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('refunds')
 export class RefundsController {
@@ -65,7 +66,7 @@ export class RefundsController {
     return this.refundsService.findAllForAdmin({
       status,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
   }
 
@@ -77,7 +78,7 @@ export class RefundsController {
   ) {
     return this.refundsService.findMyRefunds(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
   }
 

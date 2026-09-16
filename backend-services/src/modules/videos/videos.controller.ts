@@ -24,6 +24,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('videos')
 export class VideosController {
@@ -47,7 +48,7 @@ export class VideosController {
   ) {
     const result = await this.service.getSavedVideos(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return { success: true, data: result.items, total: result.total };
   }
@@ -72,7 +73,7 @@ export class VideosController {
       sellerId: sellerId ? parseInt(sellerId) : undefined,
       categoryId: categoryId ? parseInt(categoryId) : undefined,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
       sortBy,
       sortOrder,
     });
@@ -103,7 +104,7 @@ export class VideosController {
       search,
       videoId: videoId ? parseInt(videoId) : undefined,
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return { success: true, data: result.items, total: result.total };
   }
@@ -243,7 +244,7 @@ export class VideosController {
   ) {
     const result = await this.service.getComments(id, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return { success: true, data: result.items, total: result.total };
   }
@@ -268,7 +269,6 @@ export class VideosController {
     return { success: true };
   }
 
-  @Public()
   @Post('comments/:commentId/like')
   async likeComment(@Param('commentId', ParseIntPipe) commentId: number) {
     const comment = await this.service.likeComment(commentId);

@@ -27,6 +27,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 import { multerConfig } from '../../common/config/multer.config';
 
 @Controller('sellers')
@@ -66,7 +67,7 @@ export class SellersController {
   ) {
     const result = await this.sellersService.findVerified({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       search,
     });
     return result;
@@ -213,7 +214,7 @@ export class SellersController {
   ) {
     const result = await this.sellersService.getSellerProducts(id, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return result;
   }
@@ -227,7 +228,7 @@ export class SellersController {
   ) {
     const result = await this.sellersService.getSellerOrders(id, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return result;
   }

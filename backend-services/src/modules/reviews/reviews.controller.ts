@@ -23,6 +23,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -57,7 +58,7 @@ export class ReviewsController {
   ) {
     const result = await this.reviewsService.getProductReviews(productId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       rating: rating ? parseInt(rating) : undefined,
       withImages: withImages === 'true',
     });
@@ -88,7 +89,7 @@ export class ReviewsController {
   ) {
     const result = await this.reviewsService.getUserReviews(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
     });
     return result;
   }
@@ -103,7 +104,7 @@ export class ReviewsController {
   ) {
     const result = await this.reviewsService.getSellerReviews(userId, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       status,
     });
     return result;
@@ -117,7 +118,7 @@ export class ReviewsController {
   ) {
     const result = await this.reviewsService.getPendingReviews({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
     });
     return result;
   }
@@ -132,7 +133,7 @@ export class ReviewsController {
   ) {
     const result = await this.reviewsService.getAdminReviews({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
       status,
       search,
     });

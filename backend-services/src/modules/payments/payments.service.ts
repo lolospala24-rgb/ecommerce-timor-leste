@@ -18,6 +18,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { PaymentMethod, PaymentStatus, OrderStatus } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
+import { SAFE_USER_SELECT, SAFE_SELLER_SELECT } from '../../common/utils/safe-select.util';
 
 @Injectable()
 export class PaymentsService {
@@ -37,12 +38,6 @@ export class PaymentsService {
     const order = await this.prisma.order.findUnique({
       where: { id: createPaymentDto.orderId },
       include: {
-        customer: true,
-        seller: {
-          include: {
-            user: true,
-          },
-        },
         payment: true,
       },
     });
@@ -90,12 +85,8 @@ export class PaymentsService {
       include: {
         order: {
           include: {
-            customer: true,
-            seller: {
-              include: {
-                user: true,
-              },
-            },
+            customer: { select: SAFE_USER_SELECT },
+            seller: { select: SAFE_SELLER_SELECT },
           },
         },
       },
@@ -118,12 +109,8 @@ export class PaymentsService {
       include: {
         order: {
           include: {
-            customer: true,
-            seller: {
-              include: {
-                user: true,
-              },
-            },
+            customer: { select: SAFE_USER_SELECT },
+            seller: { select: SAFE_SELLER_SELECT },
           },
         },
       },
@@ -225,7 +212,7 @@ export class PaymentsService {
       include: {
         order: {
           include: {
-            customer: true,
+            customer: { select: SAFE_USER_SELECT },
           },
         },
       },
@@ -356,8 +343,8 @@ export class PaymentsService {
       include: {
         order: {
           include: {
-            customer: true,
-            seller: { include: { user: true } },
+            customer: { select: SAFE_USER_SELECT },
+            seller: { select: SAFE_SELLER_SELECT },
           },
         },
       },

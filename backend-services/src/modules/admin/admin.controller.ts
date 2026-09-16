@@ -20,6 +20,7 @@ import { AdminStatsQueryDto } from './dto/admin-stats.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('admin')
 @Roles(Role.ADMIN)
@@ -61,7 +62,7 @@ export class AdminController {
   ) {
     const result = await this.adminService.getAllSellers({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       search,
       isVerified: isVerified ? isVerified === 'true' : undefined,
     });
@@ -117,7 +118,7 @@ export class AdminController {
   ) {
     const result = await this.adminService.getAllUsers({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       search,
       role,
       isActive: isActive ? isActive === 'true' : undefined,
@@ -178,7 +179,7 @@ export class AdminController {
   ) {
     const result = await this.adminService.getAllProducts({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       search,
       sellerId: sellerId ? parseInt(sellerId) : undefined,
     });
@@ -210,7 +211,7 @@ export class AdminController {
   ) {
     const result = await this.adminService.getAllOrders({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 10,
+      limit: clampLimit(limit, 10),
       status,
     });
     return result;
@@ -234,7 +235,7 @@ export class AdminController {
   ) {
     const result = await this.adminService.getAdminLogs({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 50,
+      limit: clampLimit(limit, 50),
       action,
     });
     return result;
@@ -263,13 +264,13 @@ export class AdminController {
 
   @Get('reports/top-sellers')
   async getTopSellers(@Query('limit') limit?: string) {
-    const sellers = await this.adminService.getTopSellers(limit ? parseInt(limit) : 10);
+    const sellers = await this.adminService.getTopSellers(clampLimit(limit, 10));
     return { data: sellers };
   }
 
   @Get('reports/top-products')
   async getTopProducts(@Query('limit') limit?: string) {
-    const products = await this.adminService.getTopProducts(limit ? parseInt(limit) : 10);
+    const products = await this.adminService.getTopProducts(clampLimit(limit, 10));
     return { data: products };
   }
 

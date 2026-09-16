@@ -8,6 +8,7 @@ import { UpdateIssueStatusDto } from './dto/update-issue-status.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 // All routes ADMIN-only — this codebase's established RBAC model is
 // role-based (Roles(Role.ADMIN) + the global RolesGuard), not a granular
@@ -50,7 +51,7 @@ export class WebsiteHealthController {
 
   @Get('audits')
   async listAudits(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.websiteHealthService.getAuditList(page ? parseInt(page, 10) : 1, limit ? parseInt(limit, 10) : 20);
+    return this.websiteHealthService.getAuditList(page ? parseInt(page, 10) : 1, clampLimit(limit, 20));
   }
 
   @Get('audits/:id')
@@ -90,7 +91,7 @@ export class WebsiteHealthController {
 
   @Get('history')
   async getHistory(@Query('limit') limit?: string) {
-    const history = await this.websiteHealthService.getHistory(limit ? parseInt(limit, 10) : 30);
+    const history = await this.websiteHealthService.getHistory(clampLimit(limit, 30));
     return { data: history };
   }
 }

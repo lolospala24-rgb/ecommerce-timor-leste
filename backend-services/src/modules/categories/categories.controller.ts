@@ -21,6 +21,7 @@ import { CategoryProductsQueryDto } from './dto/category-products-query.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
+import { clampLimit } from '../../common/utils/pagination.util';
 
 @Controller('categories')
 export class CategoriesController {
@@ -44,7 +45,7 @@ export class CategoriesController {
   ) {
     const result = await this.categoriesService.findAll({
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
       search,
       parentId: parentId ? parseInt(parentId) : undefined,
       includeProducts: includeProducts === 'true',
@@ -185,7 +186,7 @@ export class CategoriesController {
   ) {
     const result = await this.categoriesService.getCategoryProducts(id, {
       page: page ? parseInt(page) : 1,
-      limit: limit ? parseInt(limit) : 20,
+      limit: clampLimit(limit, 20),
       includeSubcategories: includeSubcategories === 'true',
     });
     return result;
