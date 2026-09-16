@@ -47,10 +47,16 @@ export function ImageUpload({ images, setImages, maxImages = 10 }: ImageUploadPr
           timeout: 60000,
           onUploadProgress: (e: any) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
         });
-        const urls: string[] = res?.data?.urls || res?.urls || [];
+        // The upload controller's own `{ message, data: { urls } }` gets
+        // wrapped again by the global TransformInterceptor as `{ status,
+        // data: <that> }` — after axios's interceptor unwraps the outer
+        // layer, the real array sits two levels deep: res.data.data.urls.
+        const urls: string[] = res?.data?.data?.urls || res?.data?.urls || res?.urls || [];
         if (urls.length > 0) {
           setImages([...images, ...urls]);
           toast.success(`${urls.length} image(s) uploaded`);
+        } else {
+          toast.error('No images were uploaded. Please try again.');
         }
       } catch (error: any) {
         toast.error(error?.response?.data?.message || 'Failed to upload images');
