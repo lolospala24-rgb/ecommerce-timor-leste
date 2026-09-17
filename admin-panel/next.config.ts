@@ -21,11 +21,12 @@ const googleFontsFontSrc = 'https://fonts.gstatic.com';
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsScriptSrc}`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsScriptSrc} https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`,
   `style-src 'self' 'unsafe-inline' ${googleFontsStyleSrc}`,
   `img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com ${googleMapsImgSrc}`,
   `font-src 'self' data: ${googleFontsFontSrc}`,
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} ${googleMapsConnectSrc}`,
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} ${googleMapsConnectSrc} https://www.google.com/recaptcha/`,
+  "frame-src https://www.google.com/recaptcha/",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

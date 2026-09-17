@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
+import { getRecaptchaToken } from '@/lib/recaptcha';
 import type { User } from '@/types/user.types';
 
 interface AuthState {
@@ -35,7 +36,8 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/login', { email, password });
+          const recaptchaToken = await getRecaptchaToken('login');
+          const response = await api.post('/auth/login', { email, password, recaptchaToken });
           // Tokens are set by the backend as httpOnly cookies — nothing to
           // store client-side beyond the user object for UI state.
           const { user } = response.data;

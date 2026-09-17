@@ -7,11 +7,12 @@ const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
 
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com http://res.cloudinary.com https://images.unsplash.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiUrl} ${apiWsUrl}`,
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://www.google.com/recaptcha/`,
+  "frame-src https://www.google.com/recaptcha/",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

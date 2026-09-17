@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { FirebaseService } from './firebase.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { RecaptchaGuard } from './guards/recaptcha.guard';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MailModule } from '../../mail/mail.module';
@@ -36,6 +37,7 @@ import { SettingsModule } from '../settings/settings.module';
     FirebaseService,
     JwtStrategy,
     LocalStrategy,
+    RecaptchaGuard,
   ],
   exports: [AuthService],
 })

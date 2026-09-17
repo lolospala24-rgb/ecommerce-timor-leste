@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Cookies from 'js-cookie';
 import api from '@/lib/api';
+import { getRecaptchaToken } from '@/lib/recaptcha';
 
 export interface SellerUser {
   id: number;
@@ -56,7 +57,8 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-          const response: any = await api.post('/auth/login', { email, password });
+          const recaptchaToken = await getRecaptchaToken('login');
+          const response: any = await api.post('/auth/login', { email, password, recaptchaToken });
           const data = response.data || response;
           const user = data.user as SellerUser;
 

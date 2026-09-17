@@ -23,7 +23,7 @@ const contentSecurityPolicy = [
   // Next.js dev-mode Fast Refresh/HMR (react-refresh-utils runtime) uses
   // eval() internally, so 'unsafe-eval' is needed in dev only; production
   // builds don't use eval-based HMR, so it stays out of the prod CSP.
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://maps.googleapis.com${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.googletagmanager.com' : ''}`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://maps.googleapis.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.googletagmanager.com' : ''}`,
   // No nonce equivalent exists for inline style *attributes* (only <style>
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
@@ -37,9 +37,9 @@ const contentSecurityPolicy = [
   // Sentry ingest is only reachable (and only added to the policy) once
   // NEXT_PUBLIC_SENTRY_DSN is actually set at build time — no DSN means no
   // outbound Sentry traffic at all, so there's nothing to allow.
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
   "worker-src 'self' blob:",
-  `frame-src 'self'${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
+  `frame-src 'self' https://www.google.com/recaptcha/${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
