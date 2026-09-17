@@ -39,6 +39,7 @@ const RULE_OPTIONS: { value: HomepageSectionRule; label: string; description: st
   { value: 'ON_SALE', label: 'On Sale', description: 'Products with an active discount' },
   { value: 'LIMITED_STOCK', label: 'Limited Stock', description: 'Products running low on stock' },
   { value: 'CATEGORY', label: 'Category', description: 'Products from a specific category' },
+  { value: 'FLASH_SALE', label: 'Flash Sale', description: 'Products with an active seller Promotion, soonest-ending first — shows a live countdown timer' },
 ];
 
 const SORT_OPTIONS = [

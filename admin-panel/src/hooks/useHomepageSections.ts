@@ -13,7 +13,8 @@ export type HomepageSectionRule =
   | 'LOCAL'
   | 'ON_SALE'
   | 'LIMITED_STOCK'
-  | 'CATEGORY';
+  | 'CATEGORY'
+  | 'FLASH_SALE';
 
 export interface HomepageSectionProductInput {
   productId: number;

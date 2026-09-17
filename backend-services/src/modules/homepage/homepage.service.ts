@@ -3,6 +3,7 @@ import { HomepageSectionRule, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { resolveProductOrigin } from '../../common/utils/product-origin.util';
+import { PromotionsService } from '../promotions/promotions.service';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto';
@@ -43,6 +44,7 @@ export class HomepageService {
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private promotionsService: PromotionsService,
   ) {}
 
   // ==========================================================================
@@ -85,6 +87,13 @@ export class HomepageService {
         rule: section.rule,
         displayOrder: section.displayOrder,
         products,
+        // Countdown target for the frontend's Flash Sale timer — the
+        // soonest a currently-shown product's promotion actually expires
+        // (resolveFlashSale already orders products this way, so the
+        // first one with a promotion is always the earliest).
+        ...(section.rule === HomepageSectionRule.FLASH_SALE
+          ? { endsAt: (products as any[]).find((p) => p.promotion)?.promotion?.endAt ?? null }
+          : {}),
       }));
 
     await this.redisService.set(HOMEPAGE_CACHE_KEY, JSON.stringify(result), HOMEPAGE_CACHE_TTL);
@@ -313,6 +322,8 @@ export class HomepageService {
           Number(cfg.stockThreshold) || DEFAULT_LIMITED_STOCK_THRESHOLD,
           section.sort,
         );
+      case HomepageSectionRule.FLASH_SALE:
+        return this.resolveFlashSale(limit);
       default:
         return [];
     }
@@ -453,5 +464,30 @@ export class HomepageService {
       include: PRODUCT_CARD_INCLUDE,
     });
     return products.map((p) => this.withRatings(p));
+  }
+
+  // Ordered by promotion.endAt ascending (soonest-ending first) — the
+  // whole point of a "flash sale" shelf is urgency, unlike every other
+  // rule above which has no inherent time pressure. Pricing goes through
+  // PromotionsService.attachPricing, the same single trusted calculation
+  // every other price-showing surface (product list/detail, cart,
+  // checkout) uses — never reimplemented here.
+  private async resolveFlashSale(limit: number) {
+    const now = new Date();
+    const items = await this.prisma.promotionItem.findMany({
+      where: {
+        promotion: { isActive: true, startAt: { lte: now }, endAt: { gte: now } },
+        product: { isActive: true, stock: { gt: 0 } },
+      },
+      include: {
+        product: { include: PRODUCT_CARD_INCLUDE },
+        promotion: { select: { endAt: true } },
+      },
+      orderBy: { promotion: { endAt: 'asc' } },
+      take: limit,
+    });
+
+    const products = items.map((item) => this.withRatings(item.product));
+    return this.promotionsService.attachPricing(products, now);
   }
 }

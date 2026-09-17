@@ -1569,6 +1569,7 @@ enum HomepageSectionRule {
   ON_SALE // isActive + stock>0 + comparePrice > price
   LIMITED_STOCK // isActive + 0 < stock <= config.stockThreshold (default 5)
   CATEGORY // isActive + stock>0 within config.categoryId
+  FLASH_SALE // isActive + stock>0 with a currently-ACTIVE seller Promotion (see Promotion model), ordered by promotion.endAt ascending — soonest-ending first. The resolved section response carries an extra `endsAt` (earliest endAt among its products) for the frontend's countdown timer; no config needed, unlike ON_SALE this can never include a product whose "discount" is just a static comparePrice.
 }
 
 model HomepageSection {

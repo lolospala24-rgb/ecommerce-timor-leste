@@ -18,9 +18,13 @@ export interface HomepageSection {
     | 'LOCAL'
     | 'ON_SALE'
     | 'LIMITED_STOCK'
-    | 'CATEGORY';
+    | 'CATEGORY'
+    | 'FLASH_SALE';
   displayOrder: number;
   products: Product[];
+  /** Only present for rule === 'FLASH_SALE' — the soonest a currently-shown
+   *  product's promotion expires, for the countdown timer. */
+  endsAt?: string | null;
 }
 
 export const useHomepageSections = () => {

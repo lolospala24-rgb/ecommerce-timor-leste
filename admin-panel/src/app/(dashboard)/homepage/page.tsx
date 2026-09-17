@@ -34,6 +34,7 @@ const RULE_LABELS: Record<HomepageSectionRule, string> = {
   ON_SALE: 'Automatic · On Sale',
   LIMITED_STOCK: 'Automatic · Limited Stock',
   CATEGORY: 'Automatic · Category',
+  FLASH_SALE: 'Automatic · Flash Sale',
 };
 
 export default function HomepageSectionsPage() {

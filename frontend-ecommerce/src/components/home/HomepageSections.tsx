@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useHomepageSections, type HomepageSection } from '@/hooks/useHomepageSections';
 import { ProductCard } from '@/components/products/ProductCard';
+import { FlashSaleSection } from './FlashSaleSection';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
@@ -16,6 +17,7 @@ import {
   AlertTriangle,
   FolderOpen,
   Layers,
+  Flame,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,6 +34,7 @@ const RULE_ICONS: Record<HomepageSection['rule'], LucideIcon> = {
   ON_SALE: Tag,
   LIMITED_STOCK: AlertTriangle,
   CATEGORY: FolderOpen,
+  FLASH_SALE: Flame,
 };
 
 function SectionSkeleton() {
@@ -123,9 +126,13 @@ export function HomepageSections() {
 
   return (
     <>
-      {sections.map((section, index) => (
-        <ProductSection key={section.id} section={section} isFirstSection={index === 0} />
-      ))}
+      {sections.map((section, index) =>
+        section.rule === 'FLASH_SALE' ? (
+          <FlashSaleSection key={section.id} section={section} isFirstSection={index === 0} />
+        ) : (
+          <ProductSection key={section.id} section={section} isFirstSection={index === 0} />
+        ),
+      )}
     </>
   );
 }
