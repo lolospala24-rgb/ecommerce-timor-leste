@@ -22,10 +22,16 @@ services:
     image: redis:7-alpine
     container_name: ecommerce-redis
     restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
       - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: ./backend-services
@@ -37,7 +43,7 @@ services:
       mysql:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ecommerce-network
 
