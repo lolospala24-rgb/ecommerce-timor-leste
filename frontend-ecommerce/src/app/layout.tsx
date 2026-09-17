@@ -1,10 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome';
 import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
+import { PwaInstall } from '@/components/pwa/PwaInstall';
+
+export const viewport: Viewport = {
+  themeColor: '#ffffff',
+};
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -49,6 +54,17 @@ export async function generateMetadata(): Promise<Metadata> {
     creator: DEVELOPER.name,
     icons: {
       icon: settings?.faviconUrl || '/favicon.ico',
+      // iOS ignores the Web App Manifest's icons entirely for "Add to Home
+      // Screen" — it only ever reads this link tag.
+      apple: settings?.logoUrl || '/favicon.ico',
+    },
+    // manifest.ts already generates a <link rel="manifest">; this section
+    // is the iOS-only half of installability (Safari never reads the
+    // manifest's `display`/`theme_color`, only these Apple-specific tags).
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: siteName.length > 12 ? 'Lolospala' : siteName,
     },
     // Renders <meta name="google-site-verification" content="..."> only
     // once the env var is set — no broken empty tag ships before then. Set
@@ -151,6 +167,7 @@ export default function RootLayout({
               },
             }}
           />
+          <PwaInstall />
         </Providers>
       </body>
     </html>

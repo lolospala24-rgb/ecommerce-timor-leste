@@ -1,4 +1,5 @@
 const { withSentryConfig } = require('@sentry/nextjs');
+const withSerwist = require('@serwist/next').default;
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const apiWsUrl = apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
@@ -123,6 +124,15 @@ const nextConfig = {
 // itself. Only applying the wrapper when a DSN is actually set keeps every
 // page's bundle size exactly as it was before this integration until
 // Sentry is really turned on.
-module.exports = process.env.NEXT_PUBLIC_SENTRY_DSN
+const configWithSentry = process.env.NEXT_PUBLIC_SENTRY_DSN
   ? withSentryConfig(nextConfig, { silent: true })
   : nextConfig;
+
+// Disabled in dev — a caching service worker fighting Fast Refresh/HMR is
+// a worse dev experience than just not having one; production is the only
+// build that ever registers sw.js (see PwaInstall's registration guard).
+module.exports = withSerwist({
+  swSrc: 'src/app/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+})(configWithSentry);

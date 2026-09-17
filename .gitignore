@@ -1,6 +1,11 @@
 node_modules/
 .next/
 dist/
+# Serwist-generated service worker — rebuilt fresh by `npm run build` every
+# time (frontend-ecommerce/Dockerfile runs it before COPY-ing public/), so
+# committing it would just be stale-build churn.
+frontend-ecommerce/public/sw.js
+frontend-ecommerce/public/sw.js.map
 .tmp-prisma-client/
 *.tsbuildinfo
 trace.txt
