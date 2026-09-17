@@ -63,16 +63,16 @@ export function FlashSaleSection({ section, isFirstSection = false }: { section:
   if (countdown?.expired) return null;
 
   return (
-    <section className="py-12 md:py-16">
+    <section className="py-8 md:py-16">
       <div className="container-custom">
         <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-red-600 to-orange-500">
-          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/15">
-                <Flame className="h-5 w-5 text-white" />
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/15 sm:h-10 sm:w-10">
+                <Flame className="h-4 w-4 text-white sm:h-5 sm:w-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white sm:text-2xl">{section.title}</h2>
+                <h2 className="text-lg font-bold text-white sm:text-2xl">{section.title}</h2>
                 {section.subtitle && <p className="text-sm text-white/80">{section.subtitle}</p>}
               </div>
             </div>

@@ -28,7 +28,7 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
   return (
     <div className="min-w-0 flex-[0_0_100%] px-1">
       <div className="relative overflow-hidden rounded-xl border bg-card">
-        <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
+        <div className="grid gap-6 p-5 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
           <div className="text-center md:text-left">
             {banner.badge && (
               <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary">
@@ -112,7 +112,7 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
   }, [emblaApi, startAutoplay, stopAutoplay]);
 
   return (
-    <div className="container-custom py-6 sm:py-8">
+    <div className="container-custom py-4 sm:py-8">
       <div className="relative">
         <div ref={emblaRef} className="overflow-hidden">
           <div className="flex">
@@ -148,7 +148,7 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 
 function HeroSkeleton() {
   return (
-    <div className="container-custom py-6 sm:py-8">
+    <div className="container-custom py-4 sm:py-8">
       <Skeleton className="h-[420px] w-full rounded-xl sm:h-[320px]" />
     </div>
   );

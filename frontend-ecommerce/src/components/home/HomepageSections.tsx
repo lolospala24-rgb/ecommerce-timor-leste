@@ -39,9 +39,9 @@ const RULE_ICONS: Record<HomepageSection['rule'], LucideIcon> = {
 
 function SectionSkeleton() {
   return (
-    <section className="py-12 md:py-16">
+    <section className="py-8 md:py-16">
       <div className="container-custom">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-5 sm:mb-8">
           <div className="space-y-2">
             <Skeleton className="h-7 w-56" />
             <Skeleton className="h-4 w-72" />
@@ -67,16 +67,16 @@ function ProductSection({ section, isFirstSection = false }: { section: Homepage
   const Icon = RULE_ICONS[section.rule] ?? Layers;
 
   return (
-    <section className="py-12 md:py-16">
+    <section className="py-8 md:py-16">
       <div className="container-custom">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 sm:mb-8 gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <Icon className="h-5 w-5 text-primary" />
-              <h2 className="text-2xl font-bold sm:text-3xl">{section.title}</h2>
+              <Icon className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
+              <h2 className="text-lg font-bold sm:text-3xl">{section.title}</h2>
             </div>
             {section.subtitle && (
-              <p className="text-muted-foreground mt-1">{section.subtitle}</p>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">{section.subtitle}</p>
             )}
           </div>
           <Button variant="ghost" className="gap-1 group" asChild>

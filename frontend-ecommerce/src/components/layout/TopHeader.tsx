@@ -65,7 +65,13 @@ export function TopHeader() {
   const currentLanguage = languages.find((l) => l.code === locale) ?? languages[0];
 
   return (
-    <div className="border-b bg-muted/30">
+    // Desktop-only — every item here (help/settings/get-app/become-seller,
+    // language, theme, login/account) has a mobile home in MobileNav's
+    // drawer (language + theme toggle added there specifically for this).
+    // Showing it on mobile too meant 3 stacked chrome rows before any
+    // content, and a redundant Login link right above Header's own Sign In
+    // button.
+    <div className="hidden border-b bg-muted/30 md:block">
       <div className="container-custom">
         <div className="flex h-8 items-center justify-between text-xs">
           {/* Left side - Language & Currency. Currency stays a static USD

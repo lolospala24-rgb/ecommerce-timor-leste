@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/stores/authStore';
 import { useCategoryTree } from '@/hooks/useCategories';
 import { getCategoryIcon } from '@/lib/categoryIcons';
@@ -10,6 +11,12 @@ import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Home,
   Package,
@@ -31,6 +38,9 @@ import {
   Headset,
   Gift,
   ChevronDown,
+  Globe,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import type { Category, CategoryChild } from '@/types/category.types';
 
@@ -65,7 +75,9 @@ const accountItems = [
 export function MobileNav({ open, onOpenChange }: MobileNavProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { t } = useTranslation();
+  const { t, locale, setLocale, languages } = useTranslation();
+  const { theme, setTheme } = useTheme();
+  const currentLanguage = languages.find((l) => l.code === locale) ?? languages[0];
   // Desktop gets the hover-driven mega menu (CategoriesMegaMenu); mobile has
   // no hover, so this is a plain accordion instead — same category tree,
   // same routes, just a drill-down interaction that works with touch.
@@ -87,11 +99,43 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
           <SheetHeader className="border-b p-4">
             <div className="flex items-center justify-between">
               <SheetTitle>Menu</SheetTitle>
-              <SheetClose asChild>
-                <Button variant="ghost" size="icon">
-                  <X className="h-4 w-4" />
+              <div className="flex items-center gap-1">
+                {/* Language + theme — the only two TopHeader items with no
+                    other mobile home now that TopHeader is desktop-only. */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs font-medium">
+                      <Globe className="h-3.5 w-3.5" />
+                      {currentLanguage.nativeLabel}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    {languages.map((lang) => (
+                      <DropdownMenuItem
+                        key={lang.code}
+                        onClick={() => setLocale(lang.code)}
+                        className={lang.code === locale ? 'font-medium text-primary' : ''}
+                      >
+                        {lang.nativeLabel}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  aria-label={t('theme.toggleLabel')}
+                >
+                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </Button>
-              </SheetClose>
+                <SheetClose asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </SheetClose>
+              </div>
             </div>
           </SheetHeader>
 

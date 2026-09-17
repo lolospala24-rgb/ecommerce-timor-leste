@@ -45,7 +45,7 @@ export default function QuickMenu() {
   const { t } = useTranslation();
 
   return (
-    <section className="border-b bg-background py-8">
+    <section className="border-b bg-background py-6 md:py-8">
       <div className="container-custom">
         <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {t('home.quickMenu.title')}

@@ -134,7 +134,10 @@ export function Header() {
       <TopHeader />
 
       {/* Main Header */}
-      <header className="sticky top-0 z-40 border-b bg-background">
+      <header
+        className="sticky top-0 z-40 border-b bg-background"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo — the site name/logo are admin-editable (Settings → General),
@@ -192,16 +195,11 @@ export function Header() {
 
             {/* Actions */}
             <div className="flex items-center gap-1">
-              {/* Search Button - Mobile */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden h-9 w-9"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
+              {/* Mobile search moved to its own full-width row below —
+                  see the row right after this header's main flex row. An
+                  icon-only trigger here read as an afterthought; a real
+                  search-bar shape is what a phone-native header actually
+                  looks like. */}
 
               {/* Theme Toggle removed from here - moved to TopHeader */}
 
@@ -406,6 +404,22 @@ export function Header() {
                 <Menu className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Mobile-only search row — a real search-bar shape (not an icon
+              in the action row above) is what makes a mobile header feel
+              native rather than a shrunk desktop bar. Tapping it opens the
+              same search overlay the desktop search box + icon both use. */}
+          <div className="pb-3 md:hidden">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label={t('search.placeholder')}
+              className="flex w-full items-center gap-2.5 rounded-full border bg-muted/50 px-4 py-2.5 text-left text-sm text-muted-foreground"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t('search.placeholder')}</span>
+            </button>
           </div>
 
           {/* Mobile-only second row: All Categories + Video Shop. Opening
