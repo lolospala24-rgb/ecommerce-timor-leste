@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDeleteProduct, useSellerProduct, useUpdateStock } from '@/hooks/useSellerProducts';
 import { useProductTypes } from '@/hooks/useProductTypes';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function EditProductPage() {
   const params = useParams();
@@ -22,6 +23,7 @@ export default function EditProductPage() {
   const { data: productTypes } = useProductTypes();
   const deleteProduct = useDeleteProduct();
   const updateStock = useUpdateStock();
+  const { user } = useAuthStore();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [stockDelta, setStockDelta] = useState('');
 
@@ -38,6 +40,24 @@ export default function EditProductPage() {
     return (
       <div className="py-16 text-center text-sm text-muted-foreground">
         Product not found.{' '}
+        <Link href="/products" className="text-primary hover:underline">
+          Back to products
+        </Link>
+      </div>
+    );
+  }
+
+  // The lookup behind useSellerProduct is the same @Public() endpoint the
+  // storefront uses, so it happily returns any product by id — a seller
+  // could otherwise land on this page for a competitor's product (via a
+  // guessed/typed URL) and see the full "editable" chrome (Delete button,
+  // stock form) even though every actual mutation is already rejected
+  // server-side. This check makes that rejection visible up front instead
+  // of only after an attempted action.
+  if (product.sellerId !== user?.seller?.id) {
+    return (
+      <div className="py-16 text-center text-sm text-muted-foreground">
+        This product doesn&apos;t belong to your store.{' '}
         <Link href="/products" className="text-primary hover:underline">
           Back to products
         </Link>
