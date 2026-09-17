@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSeller } from '@/hooks/useSellers';
 import { useSellerProducts } from '@/hooks/useProducts';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { useAuthStore } from '@/stores/authStore';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductSort } from '@/components/products/ProductSort';
@@ -25,6 +26,7 @@ import {
   CheckCircle,
   XCircle,
   MessageCircle,
+  Tag,
 } from 'lucide-react';
 
 export default function SellerDetailPage() {
@@ -32,6 +34,7 @@ export default function SellerDetailPage() {
   const router = useRouter();
   const sellerId = parseInt(params.id as string);
   const { user } = useAuthStore();
+  const { t } = useTranslation();
   
   const [filters, setFilters] = useState({
     page: 1,
@@ -43,6 +46,11 @@ export default function SellerDetailPage() {
   const { data: productsData, isLoading: productsLoading } = useSellerProducts(
     sellerId,
     filters,
+  );
+  const hasActivePromotions = !!seller?.hasActivePromotions;
+  const { data: promoData, isLoading: promoLoading } = useSellerProducts(
+    sellerId,
+    { page: 1, limit: 8, hasActivePromotion: true, enabled: hasActivePromotions },
   );
 
   const handlePageChange = (page: number) => {
@@ -222,9 +230,15 @@ export default function SellerDetailPage() {
         </div>
       )}
 
-      {/* Products / Reviews */}
-      <Tabs defaultValue="products" className="space-y-4">
+      {/* Promo Toko / Products / Reviews */}
+      <Tabs defaultValue={hasActivePromotions ? 'promo' : 'products'} className="space-y-4">
         <TabsList>
+          {hasActivePromotions && (
+            <TabsTrigger value="promo" className="gap-1.5">
+              <Tag className="h-3.5 w-3.5" />
+              {t('promotion.storeTab')}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="products">
             Products
             <span className="ml-2 text-xs bg-muted px-2 py-0.5 rounded-full">
@@ -240,6 +254,21 @@ export default function SellerDetailPage() {
             )}
           </TabsTrigger>
         </TabsList>
+
+        {hasActivePromotions && (
+          <TabsContent value="promo" className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t('promotion.storeSubtitle')}</p>
+            {promoLoading ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-64 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <ProductGrid products={promoData?.data || []} />
+            )}
+          </TabsContent>
+        )}
 
         <TabsContent value="products" className="space-y-4">
           <div className="flex flex-wrap items-center justify-end gap-4">

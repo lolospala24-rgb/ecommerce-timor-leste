@@ -431,12 +431,13 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
   const nameTetum = item?.nameTetum || null;
   const slug = item?.slug || '#';
   const price = typeof item?.price === 'number' ? item.price : 0;
-  const comparePrice = typeof item?.comparePrice === 'number' ? item.comparePrice : null;
+  const originalPrice = typeof item?.originalPrice === 'number' ? item.originalPrice : null;
   const thumbnail = item?.thumbnail || null;
   const quantity = typeof item?.quantity === 'number' ? item.quantity : 1;
   const stock = typeof item?.stock === 'number' ? item.stock : 0;
 
-  const discount = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+  const discount =
+    originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const itemTotal = price * quantity;
 
   return (
@@ -476,9 +477,9 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
         )}
         <div className="flex items-center gap-2 mt-1">
           <span className="font-semibold text-primary">${price.toFixed(2)}</span>
-          {comparePrice && comparePrice > price && (
+          {originalPrice != null && (
             <span className="text-sm text-muted-foreground line-through">
-              ${comparePrice.toFixed(2)}
+              ${originalPrice.toFixed(2)}
             </span>
           )}
         </div>

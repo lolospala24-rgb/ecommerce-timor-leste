@@ -195,6 +195,7 @@ model Seller {
   payouts         Payout[]
   followers       SellerFollow[]
   typeRequests    ProductTypeRequest[]
+  promotions      Promotion[]
 
   @@map("sellers")
 }
@@ -335,6 +336,7 @@ model Product {
   videos            Video[]
   homepageSectionEntries HomepageSectionProduct[]
   stockNotifications StockNotification[]
+  promotionItems    PromotionItem[]
 
   @@index([sellerId])
   @@index([categoryId])
@@ -398,6 +400,7 @@ model ProductVariant {
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems  CartItem[]
   orderItems OrderItem[]
+  promotionItems PromotionItem[]
 
   @@index([productId])
   @@map("product_variants")
@@ -622,6 +625,15 @@ model OrderItem {
   quantity  Int
   price     Float
   total     Float
+  // Snapshot of the unit price *before* any promotion discount, captured
+  // once at order creation — only set when a Promotion was actually applied
+  // (null otherwise, meaning `price` already is the "normal" price). Kept
+  // immutable and independent of Promotion so a seller editing/deleting the
+  // promotion later never retroactively changes what a historical order
+  // shows or owes. promotionId is informational/traceability only — pricing
+  // never re-reads it.
+  originalPrice Float?
+  promotionId   Int?
   createdAt DateTime @default(now())
 
   // Relations
@@ -633,9 +645,11 @@ model OrderItem {
   // instead; see ProductsService.deleteVariant, which also enforces this
   // at the application layer with a clear error message before the DB
   // constraint would ever be hit.
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  promotion Promotion?      @relation(fields: [promotionId], references: [id], onDelete: SetNull)
 
   @@index([variantId])
+  @@index([promotionId])
   @@map("order_items")
 }
 
@@ -691,6 +705,66 @@ model CouponUsage {
 
   @@index([couponId, userId])
   @@map("coupon_usages")
+}
+
+enum PromotionDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+// Seller-owned, product-scoped, time-bound marketing discount — distinct
+// from Coupon (platform-wide, admin-only, cart/code-based, no product
+// scoping — see Coupon's doc-comment). A Promotion never touches
+// Product.price/ProductVariant.price; it's a read-time overlay resolved by
+// PromotionsService.getEffectivePrice/attachPricing, the single trusted
+// calculation path every surface (product list/detail, seller store, cart,
+// checkout) goes through. Status (Scheduled/Active/Expired/Deactivated) is
+// always derived at read time from isActive + startAt/endAt vs now — same
+// pattern as Coupon, no cron job flips anything.
+model Promotion {
+  id            Int                   @id @default(autoincrement())
+  sellerId      Int
+  name          String
+  description   String?
+  discountType  PromotionDiscountType
+  discountValue Float
+  startAt       DateTime
+  endAt         DateTime
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  // Relations
+  seller Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  items  PromotionItem[]
+  orderItems OrderItem[]
+
+  @@index([sellerId])
+  @@index([isActive, startAt, endAt])
+  @@map("promotions")
+}
+
+// One row per product (or, optionally, a single variant) included in a
+// Promotion. variantId is nullable and v1's seller UI never sets it — a
+// promotion targets whole products, discounting every one of that
+// product's own price/each variant's own price uniformly. The column exists
+// so a future variant-level promotion doesn't require a schema change.
+model PromotionItem {
+  id          Int      @id @default(autoincrement())
+  promotionId Int
+  productId   Int
+  variantId   Int?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  promotion Promotion       @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, productId, variantId])
+  @@index([productId])
+  @@index([variantId])
+  @@map("promotion_items")
 }
 
 model Payment {

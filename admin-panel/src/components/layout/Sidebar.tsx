@@ -33,6 +33,7 @@ import {
   Settings,
   ImageIcon,
   TicketPercent,
+  Megaphone,
   Menu,
   X as XIcon,
   ChevronLeft,
@@ -104,6 +105,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/orders', label: 'Orders', icon: ClipboardList },
       { href: '/coupons', label: 'Coupons', icon: TicketPercent },
+      { href: '/promotions', label: 'Promotions', icon: Megaphone },
       { href: '/reviews', label: 'Reviews', icon: Star },
     ],
   },

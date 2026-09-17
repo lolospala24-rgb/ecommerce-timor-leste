@@ -23,6 +23,7 @@ import { ShippingEstimator } from './ShippingEstimator';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
+import { getProductPricing } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
@@ -103,6 +104,8 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     isAttributeValueAvailable,
     displayPrice,
     displayComparePrice,
+    displayEffectivePrice,
+    displayPromotion,
     displayStock,
     displaySku,
     galleryImages,
@@ -142,15 +145,14 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     }
   };
 
-  const discount =
-    displayComparePrice && displayComparePrice > displayPrice
-      ? Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)
-      : 0;
-
-  const savings =
-    displayComparePrice && displayComparePrice > displayPrice
-      ? displayComparePrice - displayPrice
-      : 0;
+  const pricing = getProductPricing({
+    price: displayPrice,
+    comparePrice: displayComparePrice,
+    effectivePrice: displayEffectivePrice,
+    promotion: displayPromotion,
+  });
+  const discount = pricing.discountPercent;
+  const savings = pricing.savings;
 
   // Wholesale/packaging pricing is reference information entered by the
   // seller — it is not purchasable through Add to Cart/Buy Now at these
@@ -468,12 +470,12 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 </span>
               ) : (
                 <span className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-                  ${displayPrice.toFixed(2)}
+                  ${pricing.currentPrice.toFixed(2)}
                 </span>
               )}
-              {displayComparePrice && displayComparePrice > displayPrice && (
+              {pricing.originalPrice != null && (
                 <span className="pb-1 text-base text-muted-foreground line-through">
-                  ${displayComparePrice.toFixed(2)}
+                  ${pricing.originalPrice.toFixed(2)}
                 </span>
               )}
               {discount > 0 && (
@@ -979,7 +981,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       >
         <div className="flex items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold text-primary">${displayPrice.toFixed(2)}</p>
+            <p className="truncate text-lg font-bold text-primary">${pricing.currentPrice.toFixed(2)}</p>
             {selectionHint ? (
               <p className="truncate text-xs text-amber-700">{selectionHint}</p>
             ) : (

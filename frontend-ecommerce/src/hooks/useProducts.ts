@@ -166,7 +166,19 @@ export const useBestSellers = (limit: number = 10) => {
 
 export const useSellerProducts = (
   sellerId: number,
-  filters?: { page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc' | 'desc' },
+  filters?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    /** Powers the storefront's "Promo Toko" tab — only this seller's
+     *  currently-active-promotion products. */
+    hasActivePromotion?: boolean;
+    /** Defaults to true — pass false to skip firing this query (e.g. the
+     *  Promo Toko lookup shouldn't run until we already know this seller
+     *  has an active promotion). */
+    enabled?: boolean;
+  },
 ) => {
   return useQuery({
     queryKey: ['products', 'seller', sellerId, filters],
@@ -174,6 +186,7 @@ export const useSellerProducts = (
       const params = new URLSearchParams();
       if (filters?.page) params.append('page', filters.page.toString());
       if (filters?.limit) params.append('limit', filters.limit.toString());
+      if (filters?.hasActivePromotion) params.append('hasActivePromotion', 'true');
 
       const mappedSort = mapProductSortParams(filters?.sortBy, filters?.sortOrder);
       if (mappedSort.sortBy) params.append('sortBy', mappedSort.sortBy);
@@ -182,7 +195,7 @@ export const useSellerProducts = (
       const response = await api.get(`/products/seller/${sellerId}?${params.toString()}`);
       return response.data;
     },
-    enabled: !!sellerId,
+    enabled: !!sellerId && filters?.enabled !== false,
   });
 };
 

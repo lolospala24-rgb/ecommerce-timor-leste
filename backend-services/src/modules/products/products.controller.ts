@@ -143,11 +143,13 @@ export class ProductsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
+    @Query('search') search?: string,
   ) {
     const result = await this.productsService.getSellerProducts(userId, {
       page: page ? parseInt(page) : 1,
       limit: clampLimit(limit, 10),
       status,
+      search,
     });
     return result;
   }
@@ -182,10 +184,12 @@ export class ProductsController {
     @Param('sellerId', ParseIntPipe) sellerId: number,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('hasActivePromotion') hasActivePromotion?: string,
   ) {
     const result = await this.productsService.getProductsBySeller(sellerId, {
       page: page ? parseInt(page) : 1,
       limit: clampLimit(limit, 20),
+      hasActivePromotion: hasActivePromotion === 'true',
     });
     return result;
   }

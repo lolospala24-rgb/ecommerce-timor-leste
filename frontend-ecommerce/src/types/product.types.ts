@@ -1,3 +1,15 @@
+// A currently-active seller Promotion covering a product (or one of its
+// variants) — attached server-side by PromotionsService.attachPricing, never
+// computed client-side. Null/absent means no active promotion right now;
+// Scheduled/Expired/Deactivated promotions never appear here at all.
+export interface ActivePromotion {
+  id: number;
+  name: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  endAt: string;
+}
+
 export interface ProductVariant {
   id: number;
   sku: string;
@@ -9,6 +21,10 @@ export interface ProductVariant {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Server-computed "price to charge/show right now" for this variant —
+  // equals `price` when no promotion is active. Always prefer this over
+  // `price` for display; never recompute a discount client-side.
+  effectivePrice?: number;
 }
 
 export interface Product {
@@ -83,6 +99,10 @@ export interface Product {
   ratingDistribution?: { rating: number; count: number }[];
   // Units sold across DELIVERED orders only — see products.service.ts#findBySlug.
   salesCount?: number;
+  // Server-computed — see ProductVariant.effectivePrice's comment. Prefer
+  // this over `price` everywhere a product's "now" price is shown.
+  effectivePrice?: number;
+  promotion?: ActivePromotion | null;
 }
 
 export interface ProductFilters {

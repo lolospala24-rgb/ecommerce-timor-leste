@@ -19,6 +19,8 @@ import {
   useSubscribeNotifyMe,
   useUnsubscribeNotifyMe,
 } from '@/hooks/useStockNotifications';
+import { getProductPricing } from '@/lib/pricing';
+import type { ActivePromotion } from '@/types/product.types';
 
 // Only loaded once a shopper actually opens Quick View — keeps the variant
 // selector / product-detail logic it pulls in out of every page that
@@ -42,6 +44,8 @@ interface ProductCardProps {
     slug: string;
     price: number;
     comparePrice?: number | null;
+    effectivePrice?: number;
+    promotion?: ActivePromotion | null;
     thumbnail: string | null;
     stock: number;
     isActive: boolean;
@@ -108,9 +112,7 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
     }
   };
 
-  const discount = product.comparePrice && product.comparePrice > product.price
-    ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
-    : 0;
+  const pricing = getProductPricing(product);
 
   const isNew = useMemo(() => {
     if (!product.createdAt) return false;
@@ -213,9 +215,9 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             />
           </Link>
 
-          {discount > 0 && (
+          {pricing.badgeLabel && (
             <Badge className="absolute left-2.5 top-2.5 z-10 rounded-md border-0 bg-red-600 px-2 py-1 text-white hover:bg-red-600">
-              -{discount}%
+              {pricing.badgeLabel}
             </Badge>
           )}
 
@@ -281,11 +283,11 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
 
             <div className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
               <span className="text-lg font-bold text-primary">
-                ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+                ${pricing.currentPrice.toFixed(2)}
               </span>
-              {discount > 0 && product.comparePrice && (
+              {pricing.originalPrice != null && (
                 <span className="text-xs text-muted-foreground line-through">
-                  ${product.comparePrice.toFixed(2)}
+                  ${pricing.originalPrice.toFixed(2)}
                 </span>
               )}
             </div>

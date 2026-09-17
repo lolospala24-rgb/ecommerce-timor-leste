@@ -16,6 +16,7 @@ import { SettingsService } from '../settings/settings.service';
 import { FinanceService } from '../finance/finance.service';
 import { RefundsService } from '../finance/refunds.service';
 import { CouponsService } from '../coupons/coupons.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { LOW_STOCK_THRESHOLD, NotificationEvent } from '../notifications/notifications.constants';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -46,6 +47,7 @@ export class OrdersService {
     private refundsService: RefundsService,
     private notificationsGateway: NotificationsGateway,
     private couponsService: CouponsService,
+    private promotionsService: PromotionsService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
@@ -88,6 +90,16 @@ export class OrdersService {
       }
     }
 
+    // One batch lookup for every product in the checkout — the single
+    // trusted source for "is there an active promotion" used below for
+    // subtotal, per-item validation, and the actual OrderItem price/
+    // originalPrice snapshot. Never re-derived from anything the client
+    // sent (couponCode is the only client-supplied discount input, and
+    // it's validated separately above).
+    const promotionMap = await this.promotionsService.getActivePromotionMap(
+      cart.items.map((item) => item.product.id),
+    );
+
     // Group items by seller
     const sellerGroups = new Map();
     for (const item of cart.items) {
@@ -101,7 +113,11 @@ export class OrdersService {
         });
       }
       const group = sellerGroups.get(sellerId);
-      const unitPrice = item.variant?.price ?? item.product.price;
+      const basePrice = item.variant?.price ?? item.product.price;
+      const unitPrice = this.promotionsService.computeEffectivePrice(
+        basePrice,
+        promotionMap.get(item.product.id) ?? null,
+      );
       group.items.push(item);
       group.subtotal += item.quantity * unitPrice;
     }
@@ -312,13 +328,20 @@ export class OrdersService {
         ...deliverySnapshot,
         items: {
           create: group.items.map((item) => {
-            const unitPrice = item.variant?.price ?? item.product.price;
+            const basePrice = item.variant?.price ?? item.product.price;
+            const promo = promotionMap.get(item.productId) ?? null;
+            const unitPrice = this.promotionsService.computeEffectivePrice(basePrice, promo);
             return {
               productId: item.productId,
               variantId: item.variantId ?? null,
               quantity: item.quantity,
               price: unitPrice,
               total: item.quantity * unitPrice,
+              // Immutable snapshot — see OrderItem's schema doc-comment.
+              // Only set when a promotion actually discounted this line;
+              // promotionId is traceability only, never re-read for pricing.
+              originalPrice: promo ? Math.round(basePrice * 100) / 100 : null,
+              promotionId: promo ? promo.id : null,
             };
           }),
         },

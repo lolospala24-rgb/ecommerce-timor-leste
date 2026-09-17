@@ -7,9 +7,10 @@ import { MailModule } from '../../mail/mail.module';
 import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
 import { SettingsModule } from '../settings/settings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule, SettingsModule, NotificationsModule],
+  imports: [PrismaModule, RedisModule, MailModule, CloudinaryModule, SettingsModule, NotificationsModule, PromotionsModule],
   controllers: [SellersController],
   providers: [SellersService],
   exports: [SellersService],

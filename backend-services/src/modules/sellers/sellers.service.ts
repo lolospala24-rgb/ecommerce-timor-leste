@@ -12,6 +12,7 @@ import { MailService } from '../../mail/mail.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { RegisterSellerDto } from './dto/register-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { SellerFilterDto } from './dto/seller-filter.dto';
@@ -29,6 +30,7 @@ export class SellersService {
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
     private notificationsService: NotificationsService,
+    private promotionsService: PromotionsService,
   ) {}
 
   async register(registerSellerDto: RegisterSellerDto) {
@@ -199,7 +201,11 @@ export class SellersService {
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
-      return JSON.parse(cached);
+      // hasActivePromotions is resolved fresh on every read, never cached —
+      // same reasoning as ProductsService.findOne/findBySlug: a 5-minute
+      // cache must never withhold/keep the storefront's "Promo Toko" tab
+      // for up to 5 minutes after a promotion actually starts/ends.
+      return { ...JSON.parse(cached), hasActivePromotions: await this.promotionsService.sellerHasActivePromotion(id) };
     }
 
     const seller = await this.prisma.seller.findUnique({
@@ -268,7 +274,7 @@ export class SellersService {
     // Cache for 5 minutes
     await this.redisService.set(cacheKey, JSON.stringify(sellerWithRating), 300);
 
-    return sellerWithRating;
+    return { ...sellerWithRating, hasActivePromotions: await this.promotionsService.sellerHasActivePromotion(id) };
   }
 
   // Admin-only full detail — everything findOne intentionally omits

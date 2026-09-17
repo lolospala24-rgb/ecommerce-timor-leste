@@ -20,6 +20,7 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { useAuthStore } from '@/stores/authStore';
 import { useProduct } from '@/hooks/useProducts';
 import { useProductVariantSelection } from '@/hooks/useProductVariantSelection';
+import { getProductPricing } from '@/lib/pricing';
 import { Product } from '@/types/product.types';
 import { ShoppingCart, Heart, X, Check, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -54,6 +55,8 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
     isAttributeValueAvailable,
     displayPrice,
     displayComparePrice,
+    displayEffectivePrice,
+    displayPromotion,
     displayStock,
     galleryImages,
   } = useProductVariantSelection(product ?? ({} as Product));
@@ -140,10 +143,13 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
     );
   }
 
-  const discount =
-    displayComparePrice && displayComparePrice > displayPrice
-      ? Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)
-      : 0;
+  const pricing = getProductPricing({
+    price: displayPrice,
+    comparePrice: displayComparePrice,
+    effectivePrice: displayEffectivePrice,
+    promotion: displayPromotion,
+  });
+  const discount = pricing.discountPercent;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -201,11 +207,11 @@ export function QuickViewModal({ open, onOpenChange, productId }: QuickViewModal
 
             <div className="flex items-baseline gap-3">
               <span className="text-2xl font-bold text-primary">
-                ${displayPrice.toFixed(2)}
+                ${pricing.currentPrice.toFixed(2)}
               </span>
-              {displayComparePrice && displayComparePrice > displayPrice && (
+              {pricing.originalPrice != null && (
                 <span className="text-sm text-muted-foreground line-through">
-                  ${displayComparePrice.toFixed(2)}
+                  ${pricing.originalPrice.toFixed(2)}
                 </span>
               )}
             </div>

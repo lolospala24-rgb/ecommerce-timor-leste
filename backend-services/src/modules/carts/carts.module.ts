@@ -6,9 +6,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { ProductsModule } from '../products/products.module';
 import { MailModule } from '../../mail/mail.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, ProductsModule, MailModule],
+  imports: [PrismaModule, RedisModule, ProductsModule, MailModule, PromotionsModule],
   controllers: [CartsController],
   providers: [CartsService, AbandonedCartJob],
   exports: [CartsService],

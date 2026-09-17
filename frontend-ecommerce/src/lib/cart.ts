@@ -1,4 +1,5 @@
 import type { CartItem } from '@/types/cart.types';
+import { getProductPricing } from '@/lib/pricing';
 
 function toNumber(value: unknown, fallback = 0): number {
   const num = Number(value);
@@ -10,6 +11,20 @@ function toNumber(value: unknown, fallback = 0): number {
  * mirrors how the backend prices a cart line (`item.variant?.price ?? item.product.price`). */
 export function productToCartItem(product: any, quantity: number, variant?: any | null): CartItem {
   const variantThumbnail = Array.isArray(variant?.images) ? variant.images[0] ?? null : null;
+  const basePrice = toNumber(variant?.price ?? product.price);
+  const comparePrice =
+    (variant?.comparePrice ?? product.comparePrice) != null
+      ? toNumber(variant?.comparePrice ?? product.comparePrice)
+      : null;
+  // Promotion is product-level, not per-variant — always product.promotion,
+  // but the discount amount comes off whichever price (variant or base) is
+  // actually in effect, via effectivePrice on that same object.
+  const pricing = getProductPricing({
+    price: basePrice,
+    comparePrice,
+    effectivePrice: variant?.effectivePrice ?? product.effectivePrice,
+    promotion: product.promotion ?? null,
+  });
 
   return {
     productId: product.id,
@@ -21,11 +36,10 @@ export function productToCartItem(product: any, quantity: number, variant?: any 
     name: product.name ?? 'Product',
     nameTetum: product.nameTetum ?? null,
     slug: product.slug ?? String(product.id),
-    price: toNumber(variant?.price ?? product.price),
-    comparePrice:
-      (variant?.comparePrice ?? product.comparePrice) != null
-        ? toNumber(variant?.comparePrice ?? product.comparePrice)
-        : null,
+    price: pricing.currentPrice,
+    comparePrice,
+    originalPrice: pricing.originalPrice,
+    promotion: pricing.hasPromotion ? product.promotion ?? null : null,
     thumbnail: variantThumbnail ?? product.thumbnail ?? null,
     quantity: toNumber(quantity, 1),
     stock: toNumber(variant?.stock ?? product.stock),
@@ -41,6 +55,17 @@ export function normalizeCartItem(raw: any): CartItem {
   const variant = raw?.variant ?? null;
   const productId = raw?.productId ?? product?.id ?? 0;
   const variantThumbnail = Array.isArray(variant?.images) ? variant.images[0] ?? null : null;
+  const basePrice = toNumber(variant?.price ?? product.price ?? raw.price);
+  const comparePrice =
+    (variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice) != null
+      ? toNumber(variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice)
+      : null;
+  const pricing = getProductPricing({
+    price: basePrice,
+    comparePrice,
+    effectivePrice: variant?.effectivePrice ?? product.effectivePrice ?? raw.effectivePrice,
+    promotion: product.promotion ?? raw.promotion ?? null,
+  });
 
   return {
     productId,
@@ -52,11 +77,10 @@ export function normalizeCartItem(raw: any): CartItem {
     name: product.name ?? raw.name ?? 'Product',
     nameTetum: product.nameTetum ?? raw.nameTetum ?? null,
     slug: product.slug ?? raw.slug ?? String(productId),
-    price: toNumber(variant?.price ?? product.price ?? raw.price),
-    comparePrice:
-      (variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice) != null
-        ? toNumber(variant?.comparePrice ?? product.comparePrice ?? raw.comparePrice)
-        : null,
+    price: pricing.currentPrice,
+    comparePrice,
+    originalPrice: pricing.originalPrice,
+    promotion: pricing.hasPromotion ? (product.promotion ?? raw.promotion ?? null) : null,
     thumbnail: variantThumbnail ?? product.thumbnail ?? raw.thumbnail ?? null,
     quantity: toNumber(raw.quantity, 1),
     stock: toNumber(variant?.stock ?? product.stock ?? raw.stock),

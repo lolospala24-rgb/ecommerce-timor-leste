@@ -6,9 +6,10 @@ import { RedisModule } from '../../redis/redis.module';
 import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
 import { SettingsModule } from '../settings/settings.module';
 import { StockNotificationsModule } from '../stock-notifications/stock-notifications.module';
+import { PromotionsModule } from '../promotions/promotions.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, CloudinaryModule, SettingsModule, StockNotificationsModule],
+  imports: [PrismaModule, RedisModule, CloudinaryModule, SettingsModule, StockNotificationsModule, PromotionsModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

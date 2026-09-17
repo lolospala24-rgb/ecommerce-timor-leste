@@ -11,6 +11,7 @@ import {
   Wallet,
   BarChart3,
   Store,
+  Megaphone,
   Bell,
   LifeBuoy,
   LogOut,
@@ -50,6 +51,7 @@ export function Sidebar() {
     products: pathname.startsWith('/products'),
     orders: pathname.startsWith('/orders'),
     finance: pathname.startsWith('/finance'),
+    marketing: pathname.startsWith('/marketing'),
     'my-store': pathname.startsWith('/my-store'),
   });
 
@@ -90,6 +92,14 @@ export function Sidebar() {
       ],
     },
     { key: 'analytics', href: '/analytics', label: 'Analytics', icon: BarChart3 },
+    {
+      key: 'marketing',
+      label: 'Marketing',
+      icon: Megaphone,
+      children: [
+        { href: '/marketing/promotions', label: 'Promotions' },
+      ],
+    },
     {
       key: 'my-store',
       label: 'My Store',

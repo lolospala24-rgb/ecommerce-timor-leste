@@ -39,6 +39,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { StockNotificationsModule } from './modules/stock-notifications/stock-notifications.module';
 import { WebsiteHealthModule } from './modules/website-health/website-health.module';
 import { ProductTypeRequestsModule } from './modules/product-type-requests/product-type-requests.module';
+import { PromotionsModule } from './modules/promotions/promotions.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -97,6 +98,7 @@ import { AppService } from './app.service';
     StockNotificationsModule,
     WebsiteHealthModule,
     ProductTypeRequestsModule,
+    PromotionsModule,
   ],
   controllers: [AppController],
   providers: [

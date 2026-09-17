@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { ProductsService } from '../products/products.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 
@@ -16,41 +17,20 @@ export class CartsService {
     private prisma: PrismaService,
     private redisService: RedisService,
     private productsService: ProductsService,
+    private promotionsService: PromotionsService,
   ) {}
 
   async getCart(userId: number) {
     const cacheKey = `cart:user:${userId}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
+    let cart;
     if (cached) {
-      return JSON.parse(cached);
-    }
-
-    // Get or create cart
-    let cart = await this.prisma.cart.findUnique({
-      where: { userId },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                seller: {
-                  select: {
-                    id: true,
-                    storeName: true,
-                  },
-                },
-              },
-            },
-            variant: true,
-          },
-        },
-      },
-    });
-
-    if (!cart) {
-      cart = await this.prisma.cart.create({
-        data: { userId },
+      cart = JSON.parse(cached);
+    } else {
+      // Get or create cart
+      cart = await this.prisma.cart.findUnique({
+        where: { userId },
         include: {
           items: {
             include: {
@@ -69,20 +49,65 @@ export class CartsService {
           },
         },
       });
+
+      if (!cart) {
+        cart = await this.prisma.cart.create({
+          data: { userId },
+          include: {
+            items: {
+              include: {
+                product: {
+                  include: {
+                    seller: {
+                      select: {
+                        id: true,
+                        storeName: true,
+                      },
+                    },
+                  },
+                },
+                variant: true,
+              },
+            },
+          },
+        });
+      }
+
+      // Cache the raw cart for 5 minutes. Deliberately NOT caching the
+      // summary below — it depends on which promotions are active right
+      // now, and baking that into a 5-minute cache would keep showing a
+      // promo price for up to 5 minutes after it expired (or withhold a
+      // newly-started one), unlike the raw product/quantity data which
+      // genuinely is safe to cache for that long.
+      await this.redisService.set(cacheKey, JSON.stringify(cart), 300);
     }
 
-    // Calculate cart summary
-    const summary = this.calculateCartSummary(cart.items);
+    // One batch lookup, reused for both the enriched raw items (what the
+    // frontend's cart store actually reads — see normalizeCartItem in
+    // frontend-ecommerce/src/lib/cart.ts) and the summary below. Resolved
+    // fresh every call, never cached (see above).
+    const promotionMap = await this.promotionsService.getActivePromotionMap(
+      cart.items.map((item: any) => item.product.id),
+    );
 
-    const cartWithSummary = {
+    const enrichedItems = cart.items.map((item: any) => {
+      const promo = promotionMap.get(item.product.id) ?? null;
+      return {
+        ...item,
+        product: { ...item.product, effectivePrice: this.promotionsService.computeEffectivePrice(item.product.price, promo), promotion: promo },
+        variant: item.variant
+          ? { ...item.variant, effectivePrice: this.promotionsService.computeEffectivePrice(item.variant.price, promo) }
+          : item.variant,
+      };
+    });
+
+    const summary = this.calculateCartSummary(enrichedItems, promotionMap);
+
+    return {
       ...cart,
+      items: enrichedItems,
       summary,
     };
-
-    // Cache for 5 minutes
-    await this.redisService.set(cacheKey, JSON.stringify(cartWithSummary), 300);
-
-    return cartWithSummary;
   }
 
   async getCartCount(userId: number): Promise<number> {
@@ -365,13 +390,17 @@ export class CartsService {
     return this.getCart(userId);
   }
 
-  private calculateCartSummary(items: any[]) {
+  // promotionMap is computed once by the caller (getCart) and reused here
+  // — never fetched per item, and never fetched twice for the same request.
+  private calculateCartSummary(items: any[], promotionMap: Map<number, any>) {
     let subtotal = 0;
     let totalItems = 0;
     const sellerItems = new Map();
 
     for (const item of items) {
-      const unitPrice = item.variant?.price ?? item.product.price;
+      const basePrice = item.variant?.price ?? item.product.price;
+      const promo = promotionMap.get(item.product.id) ?? null;
+      const unitPrice = this.promotionsService.computeEffectivePrice(basePrice, promo);
       const itemTotal = item.quantity * unitPrice;
       subtotal += itemTotal;
       totalItems += item.quantity;
@@ -385,7 +414,7 @@ export class CartsService {
           subtotal: 0,
         });
       }
-      
+
       const sellerGroup = sellerItems.get(sellerId);
       sellerGroup.items.push({
         productId: item.product.id,
@@ -394,6 +423,10 @@ export class CartsService {
         nameTetum: item.product.nameTetum,
         quantity: item.quantity,
         price: unitPrice,
+        // Only set when a promotion is actually discounting this line —
+        // the crossed-out "was" price the cart page shows next to `price`.
+        originalPrice: promo ? Math.round(basePrice * 100) / 100 : null,
+        promotion: promo,
         total: itemTotal,
         thumbnail: item.product.thumbnail,
       });

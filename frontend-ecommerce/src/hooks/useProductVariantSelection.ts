@@ -191,6 +191,13 @@ export function useProductVariantSelection(product: Product) {
     : product.comparePrice;
   const displayStock = hasActiveVariantSelection ? selectedVariant!.stock : product.stock;
   const displaySku = hasActiveVariantSelection ? selectedVariant!.sku : product.sku;
+  // Promotion is product-level (never per-variant in v1), but the discount
+  // amount is computed off each variant's own price — always defer to the
+  // server-computed effectivePrice rather than re-deriving it here.
+  const displayEffectivePrice = hasActiveVariantSelection
+    ? selectedVariant!.effectivePrice ?? selectedVariant!.price
+    : product.effectivePrice ?? product.price;
+  const displayPromotion = product.promotion ?? null;
 
   const galleryImages =
     hasActiveVariantSelection && selectedVariant?.images?.length
@@ -231,6 +238,8 @@ export function useProductVariantSelection(product: Product) {
     isAttributeValueAvailable,
     displayPrice,
     displayComparePrice,
+    displayEffectivePrice,
+    displayPromotion,
     displayStock,
     displaySku,
     baseProductImages,

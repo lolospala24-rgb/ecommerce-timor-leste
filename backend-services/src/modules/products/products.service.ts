@@ -24,6 +24,7 @@ import { StockNotificationsService } from '../stock-notifications/stock-notifica
 import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { resolveProductOrigin } from '../../common/utils/product-origin.util';
 import { HOMEPAGE_CACHE_KEY } from '../homepage/homepage.service';
+import { PromotionsService } from '../promotions/promotions.service';
 
 @Injectable()
 export class ProductsService {
@@ -33,6 +34,7 @@ export class ProductsService {
     private cloudinaryService: CloudinaryService,
     private settingsService: SettingsService,
     private stockNotificationsService: StockNotificationsService,
+    private promotionsService: PromotionsService,
   ) {}
 
   async create(
@@ -63,7 +65,6 @@ export class ProductsService {
         throw new NotFoundException('Product type not found');
       }
     }
-
     // Generate slug. An explicit slug from the admin form must be exactly
     // what they typed (just sanitized) or rejected if taken — silently
     // rewriting a deliberate choice would be confusing. An auto-generated
@@ -424,7 +425,8 @@ export class ProductsService {
 
       const filteredTotal = productsWithRating.length;
       const paginatedProducts = productsWithRating.slice(skip, skip + limit);
-      return ResponseUtil.paginate(paginatedProducts, filteredTotal, page, limit);
+      const withPricing = await this.promotionsService.attachPricing(paginatedProducts);
+      return ResponseUtil.paginate(withPricing, filteredTotal, page, limit);
     }
 
     if (where.stock !== undefined) {
@@ -439,7 +441,8 @@ export class ProductsService {
         productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
       }
       const filteredTotal = minRating ? productsWithRating.length : total;
-      return ResponseUtil.paginate(productsWithRating, filteredTotal, page, limit);
+      const withPricing = await this.promotionsService.attachPricing(productsWithRating);
+      return ResponseUtil.paginate(withPricing, filteredTotal, page, limit);
     }
 
     // Default listing: out-of-stock products stay visible (so links,
@@ -494,7 +497,8 @@ export class ProductsService {
       productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
     }
     const filteredTotal = minRating ? productsWithRating.length : total;
-    return ResponseUtil.paginate(productsWithRating, filteredTotal, page, limit);
+    const withPricing = await this.promotionsService.attachPricing(productsWithRating);
+    return ResponseUtil.paginate(withPricing, filteredTotal, page, limit);
   }
 
   // Stable partition: keeps whatever relative order the list already has
@@ -543,9 +547,13 @@ export class ProductsService {
   async findOne(id: number) {
     const cacheKey = `product:${id}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
-      return JSON.parse(cached);
+      // Promotion pricing is resolved fresh on every read, never cached —
+      // the 5-minute product cache would otherwise keep showing a
+      // promotion price for up to 5 minutes after it actually expired (or
+      // withhold a newly-started one for up to 5 minutes).
+      return this.promotionsService.attachPricingToOne(JSON.parse(cached));
     }
 
     const product = await this.prisma.product.findUnique({
@@ -649,15 +657,17 @@ export class ProductsService {
     // Cache for 5 minutes
     await this.redisService.set(cacheKey, JSON.stringify(productWithStats), 300);
 
-    return productWithStats;
+    return this.promotionsService.attachPricingToOne(productWithStats);
   }
 
   async findBySlug(slug: string) {
     const cacheKey = `product:slug:${slug}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
-      return JSON.parse(cached);
+      // See findOne's identical comment: pricing is always resolved fresh,
+      // never baked into the cached payload.
+      return this.promotionsService.attachPricingToOne(JSON.parse(cached));
     }
 
     const product = await this.prisma.product.findUnique({
@@ -749,7 +759,7 @@ export class ProductsService {
     };
 
     await this.redisService.set(cacheKey, JSON.stringify(productWithStats), 300);
-    return productWithStats;
+    return this.promotionsService.attachPricingToOne(productWithStats);
   }
 
   async update(id: number, updateProductDto: UpdateProductDto, userId: number) {
@@ -1177,9 +1187,9 @@ export class ProductsService {
 
   async getSellerProducts(
     userId: number,
-    pagination: { page: number; limit: number; status?: string },
+    pagination: { page: number; limit: number; status?: string; search?: string },
   ) {
-    const { page, limit, status } = pagination;
+    const { page, limit, status, search } = pagination;
     const skip = (page - 1) * limit;
 
     const seller = await this.prisma.seller.findUnique({
@@ -1199,6 +1209,10 @@ export class ProductsService {
     } else if (status === 'out-of-stock') {
       where.stock = 0;
       where.isActive = true;
+    }
+
+    if (search) {
+      where.OR = [{ name: { contains: search } }, { nameTetum: { contains: search } }];
     }
 
     const [products, total] = await Promise.all([
@@ -1656,9 +1670,9 @@ export class ProductsService {
 
   async getProductsBySeller(
     sellerId: number,
-    pagination: { page: number; limit: number },
+    pagination: { page: number; limit: number; hasActivePromotion?: boolean },
   ) {
-    const { page, limit } = pagination;
+    const { page, limit, hasActivePromotion } = pagination;
     const skip = (page - 1) * limit;
 
     const seller = await this.prisma.seller.findUnique({
@@ -1669,12 +1683,24 @@ export class ProductsService {
       throw new NotFoundException(`Seller with ID ${sellerId} not found`);
     }
 
+    const where: any = { sellerId, isActive: true };
+    // Powers the storefront's "Promo Toko" tab — restrict to products
+    // currently covered by one of this seller's active promotions, decided
+    // by the same PromotionItem+time-window logic PromotionsService uses
+    // everywhere else, not a separate ad-hoc check.
+    if (hasActivePromotion) {
+      const now = new Date();
+      const activeItems = await this.prisma.promotionItem.findMany({
+        where: { promotion: { sellerId, isActive: true, startAt: { lte: now }, endAt: { gte: now } } },
+        select: { productId: true },
+      });
+      const promotedIds = [...new Set(activeItems.map((i) => i.productId))];
+      where.id = { in: promotedIds.length > 0 ? promotedIds : [-1] };
+    }
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
-        where: {
-          sellerId,
-          isActive: true,
-        },
+        where,
         skip,
         take: limit,
         include: {
@@ -1693,19 +1719,14 @@ export class ProductsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.product.count({
-        where: {
-          sellerId,
-          isActive: true,
-        },
-      }),
+      this.prisma.product.count({ where }),
     ]);
 
     const productsWithRating = products.map(product => {
       const avgRating = product.reviews.length > 0
         ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
         : 0;
-      
+
       const { reviews, ...productWithoutReviews } = product;
       return {
         ...productWithoutReviews,
@@ -1714,7 +1735,8 @@ export class ProductsService {
       };
     });
 
-    return ResponseUtil.paginate(productsWithRating, total, page, limit);
+    const withPricing = await this.promotionsService.attachPricing(productsWithRating);
+    return ResponseUtil.paginate(withPricing, total, page, limit);
   }
 
   async getProductReviews(
