@@ -101,6 +101,11 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.wishlist': 'Lista Deseju',
     'nav.settings': 'Configurasaun',
     'nav.logout': 'Sai',
+    'nav.bottom.home': 'Uma',
+    'nav.bottom.categories': 'Kategoria',
+    'nav.bottom.cart': 'Karinhu',
+    'nav.bottom.wishlist': 'Deseju',
+    'nav.bottom.account': 'Konta',
 
     // Notifications dropdown
     'notif.title': 'Notifikasaun',
@@ -285,6 +290,11 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.wishlist': 'Wishlist',
     'nav.settings': 'Settings',
     'nav.logout': 'Logout',
+    'nav.bottom.home': 'Home',
+    'nav.bottom.categories': 'Categories',
+    'nav.bottom.cart': 'Cart',
+    'nav.bottom.wishlist': 'Wishlist',
+    'nav.bottom.account': 'Account',
 
     'notif.title': 'Notifications',
     'notif.allCaughtUp': 'All caught up',
@@ -461,6 +471,11 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.wishlist': 'Daftar Keinginan',
     'nav.settings': 'Pengaturan',
     'nav.logout': 'Keluar',
+    'nav.bottom.home': 'Beranda',
+    'nav.bottom.categories': 'Kategori',
+    'nav.bottom.cart': 'Keranjang',
+    'nav.bottom.wishlist': 'Wishlist',
+    'nav.bottom.account': 'Akun',
 
     'notif.title': 'Notifikasi',
     'notif.allCaughtUp': 'Semua sudah dibaca',
@@ -637,6 +652,11 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.wishlist': 'Lista de Desejos',
     'nav.settings': 'Configurações',
     'nav.logout': 'Sair',
+    'nav.bottom.home': 'Início',
+    'nav.bottom.categories': 'Categorias',
+    'nav.bottom.cart': 'Carrinho',
+    'nav.bottom.wishlist': 'Desejos',
+    'nav.bottom.account': 'Conta',
 
     'notif.title': 'Notificações',
     'notif.allCaughtUp': 'Tudo em dia',

@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { BottomNav } from './BottomNav';
 import { SupportChatWidget } from '@/components/shared/SupportChatWidget';
 
 // The video-shopping feed (/videos) keeps the real site header — logo,
@@ -26,6 +27,13 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
   // surface — the cart/search/footer link list have no place there, and
   // it renders its own minimal shell (see (driver)/layout.tsx) instead.
   const isDriverPortal = pathname?.startsWith('/driver');
+  // These two pages already own the bottom of a mobile screen with their
+  // own sticky action bar (Add to Cart / Buy Now, order total + Place
+  // Order) — stacking the global tab bar underneath would either hide it
+  // or force an awkward double-bar layout. Every other shopping page gets
+  // the persistent tab bar.
+  const hasOwnBottomBar = pathname?.startsWith('/products/') || pathname?.startsWith('/checkout');
+  const showBottomNav = !isVideoShopping && !isAuthPage && !isDriverPortal && !hasOwnBottomBar;
 
   if (isVideoShopping) {
     return (
@@ -46,6 +54,11 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
       <main className="flex-1">{children}</main>
       <Footer />
       <SupportChatWidget />
+      {/* Reserves the tab bar's own height at the true bottom of the
+          scrollable page (not just under Footer) so its fixed overlay
+          never covers the last bit of content. */}
+      {showBottomNav && <div className="h-16 md:hidden" />}
+      {showBottomNav && <BottomNav />}
     </div>
   );
 }

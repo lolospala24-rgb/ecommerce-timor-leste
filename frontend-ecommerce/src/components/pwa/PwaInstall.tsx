@@ -51,8 +51,11 @@ export function PwaInstall() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-50 border-t bg-background p-3 shadow-lg sm:bottom-4 sm:left-auto sm:right-4 sm:w-96 sm:rounded-lg sm:border"
-      style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      // bottom-16 (not bottom-0) on mobile — BottomNav.tsx occupies the
+      // true bottom of the screen on most pages; this sits just above it
+      // instead of overlapping. Desktop has no bottom tab bar, so it docks
+      // to the corner as before.
+      className="fixed inset-x-0 bottom-16 z-40 border-t bg-background p-3 shadow-lg sm:bottom-4 sm:left-auto sm:right-4 sm:w-96 sm:rounded-lg sm:border"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
