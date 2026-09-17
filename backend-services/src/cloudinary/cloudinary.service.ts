@@ -50,7 +50,13 @@ export class CloudinaryService {
     // Inspect the actual file bytes rather than trusting the client-supplied
     // extension/Content-Type — a renamed non-image file would otherwise
     // sail through multer's filename/mimetype check untouched.
-    const { fileTypeFromBuffer } = await import('file-type');
+    // file-type v22 ships ESM-only with an export map our CommonJS project's
+    // moduleResolution can't type-check against — the dynamic import itself
+    // works fine at runtime regardless, so it's cast loosely here rather
+    // than widening moduleResolution project-wide for one dependency.
+    const { fileTypeFromBuffer } = (await import('file-type')) as {
+      fileTypeFromBuffer: (buffer: Buffer) => Promise<{ mime: string } | undefined>;
+    };
     const detected = await fileTypeFromBuffer(file.buffer);
     if (!detected || !ALLOWED_UPLOAD_MIME_TYPES.has(detected.mime)) {
       throw new BadRequestException(
