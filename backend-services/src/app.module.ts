@@ -40,6 +40,7 @@ import { StockNotificationsModule } from './modules/stock-notifications/stock-no
 import { WebsiteHealthModule } from './modules/website-health/website-health.module';
 import { ProductTypeRequestsModule } from './modules/product-type-requests/product-type-requests.module';
 import { PromotionsModule } from './modules/promotions/promotions.module';
+import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -99,6 +100,7 @@ import { AppService } from './app.service';
     WebsiteHealthModule,
     ProductTypeRequestsModule,
     PromotionsModule,
+    PushNotificationsModule,
   ],
   controllers: [AppController],
   providers: [

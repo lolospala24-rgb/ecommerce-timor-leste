@@ -3,13 +3,17 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, Lock, Globe, Moon, Sun, Shield, Mail, Package } from 'lucide-react';
+import { Bell, Lock, Globe, Moon, Sun, Shield, Mail, Package, BellRing } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { ChangePasswordDialog } from '@/components/account/ChangePasswordDialog';
+import { Switch } from '@/components/ui/switch';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { status: pushStatus, loading: pushLoading, subscribe: subscribePush, unsubscribe: unsubscribePush } =
+    usePushNotifications();
 
   return (
     <div className="space-y-6">
@@ -85,6 +89,26 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+          {pushStatus !== 'unsupported' && (
+            <div className="flex items-start gap-3">
+              <BellRing className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Push notifications</p>
+                  <Switch
+                    checked={pushStatus === 'subscribed'}
+                    disabled={pushLoading || pushStatus === 'denied'}
+                    onCheckedChange={(checked) => (checked ? subscribePush() : unsubscribePush())}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {pushStatus === 'denied'
+                    ? 'Blocked in your browser settings — enable notifications for this site to turn this on.'
+                    : "Get notified on this device for order updates and new promotions, even when Lolospala isn't open."}
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

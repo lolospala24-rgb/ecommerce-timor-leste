@@ -39,3 +39,47 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Web Push — separate from Serwist's own precache/runtime-cache event
+// listeners above; a service worker can have any number of listeners per
+// event type, so this coexists with serwist.addEventListeners() without
+// conflict. Payload shape is PushNotificationsService.PushPayload on the
+// backend: { title, body, url?, icon? }.
+self.addEventListener('push', (event: PushEvent) => {
+  if (!event.data) return;
+  let payload: { title?: string; body?: string; url?: string; icon?: string };
+  try {
+    payload = event.data.json();
+  } catch {
+    return;
+  }
+  const title = payload.title || 'Lolospala';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body,
+      icon: payload.icon || '/favicon.ico',
+      badge: '/favicon.ico',
+      data: { url: payload.url || '/' },
+    }),
+  );
+});
+
+// Focuses an already-open tab on the target URL instead of always opening a
+// new one — most customers already have the storefront open in a tab when
+// a push arrives.
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data as { url?: string } | undefined)?.url || '/';
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const existing = allClients.find((c) => 'focus' in c) as WindowClient | undefined;
+      if (existing) {
+        await existing.navigate(targetUrl);
+        await existing.focus();
+        return;
+      }
+      await self.clients.openWindow(targetUrl);
+    })(),
+  );
+});

@@ -134,6 +134,7 @@ model User {
   couponUsages    CouponUsage[]
   stockNotifications StockNotification[]
   assignedDeliveries Order[] @relation("OrderAssignedDriver")
+  pushSubscriptions  PushSubscription[]
 
   @@map("users")
 }
@@ -1548,6 +1549,27 @@ model Notification {
   @@index([category])
   @@index([entityType, entityId])
   @@map("notifications")
+}
+
+// One row per subscribed browser/device (Web Push API — PushSubscription
+// object from `registration.pushManager.subscribe()`), not per user — the
+// same account can have several (phone + desktop). Every Notification
+// created via NotificationsService.sendNotification also best-effort sends
+// a push to all of a user's rows here (see PushNotificationsService); this
+// table is purely delivery plumbing, never read/shown directly to anyone.
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @unique @db.VarChar(512)
+  p256dh    String   @db.VarChar(255)
+  auth      String   @db.VarChar(255)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 // ============================================================================

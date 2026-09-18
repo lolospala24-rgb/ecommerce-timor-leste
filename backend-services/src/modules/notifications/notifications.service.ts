@@ -12,6 +12,7 @@ import { MailService } from '../../mail/mail.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { NotificationsGateway } from './notifications.gateway';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 import { NotificationEvent, NOTIFICATION_DEFAULTS } from './notifications.constants';
 import { NotificationCategory, NotificationPriority } from '@prisma/client';
 
@@ -36,6 +37,7 @@ export class NotificationsService implements OnModuleInit {
     private redisService: RedisService,
     private moduleRef: ModuleRef,
     private notificationsGateway: NotificationsGateway,
+    private pushNotificationsService: PushNotificationsService,
   ) {}
 
   onModuleInit() {
@@ -96,6 +98,13 @@ export class NotificationsService implements OnModuleInit {
       notification,
       unreadCount: await this.getUnreadCount(userId),
     });
+
+    // Best-effort — a push failure (expired subscription, VAPID unset,
+    // network blip) must never fail the notification itself, which is
+    // already safely persisted + emitted above by this point.
+    this.pushNotificationsService
+      .sendToUser(userId, { title, body: message, url: actionUrl })
+      .catch((err) => console.error('Failed to send push notification:', err));
 
     return notification;
   }
