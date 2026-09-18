@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 
 const PLACEHOLDER_IMAGE = '/images/placeholder.png';
 
@@ -357,6 +358,27 @@ export default function CheckoutPage() {
   const tax = discountedSubtotal * (taxRate / 100);
   const grandTotal = discountedSubtotal + shippingCost + tax + serviceFee;
 
+  // Fires once per checkout visit, not on every recompute triggered by
+  // shipping/coupon changes — those are the same checkout session, not a
+  // new one.
+  const hasTrackedBeginCheckout = useRef(false);
+  useEffect(() => {
+    if (hasTrackedBeginCheckout.current || safeItems.length === 0) return;
+    hasTrackedBeginCheckout.current = true;
+    trackBeginCheckout(
+      safeItems.map((item) => ({
+        item_id: item.productId,
+        item_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+      subtotal,
+    );
+    // Deliberately only depends on safeItems becoming available — subtotal
+    // is derived from the same data at the same instant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeItems]);
+
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       toast.error('Please select a delivery address before placing your order.');
@@ -412,6 +434,22 @@ export default function CheckoutPage() {
         deliveryReference: pinReference.trim() || undefined,
       });
 
+      // Captured from safeItems/grandTotal before clearCart() wipes the
+      // cart — the order response itself doesn't echo back line items.
+      const orders = Array.isArray(order) ? order : [order];
+      trackPurchase(
+        orders.map((o) => o?.id).filter(Boolean).join(','),
+        safeItems.map((item) => ({
+          item_id: item.productId,
+          item_name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        grandTotal,
+        shippingCost,
+        tax,
+      );
+
       await clearCart();
       clearCoupon();
       setPinLocation(null);
@@ -419,7 +457,7 @@ export default function CheckoutPage() {
       // Multi-seller checkouts create one order per seller — the backend
       // returns an array in that case. Land on the first order; the
       // customer can see the rest under "My Orders".
-      const firstOrder = Array.isArray(order) ? order[0] : order;
+      const firstOrder = orders[0];
       router.push(`/orders/success?orderId=${firstOrder?.id}`);
     } catch {
       // The hook already shows the error toast.

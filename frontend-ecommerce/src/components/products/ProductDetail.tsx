@@ -24,6 +24,7 @@ import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
 import { getProductPricing } from '@/lib/pricing';
+import { trackViewItem } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
@@ -82,6 +83,9 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
   useEffect(() => {
     if (product.id) recordRecentlyViewed(product.id);
+    if (product.id) {
+      trackViewItem({ item_id: product.id, item_name: product.name, price: product.price });
+    }
     // Only re-run when the viewed product actually changes, not on every
     // recordRecentlyViewed identity change (it's stable via useCallback,
     // but this makes the intent explicit either way).

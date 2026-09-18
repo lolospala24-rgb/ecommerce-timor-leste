@@ -7,6 +7,7 @@ import {
 } from '@/lib/cart';
 import type { CartItem } from '@/types/cart.types';
 import toast from 'react-hot-toast';
+import { trackAddToCart } from '@/lib/analytics';
 
 interface CartState {
   items: CartItem[];
@@ -85,6 +86,7 @@ export const useCartStore = create<CartState>()(
           await get().fetchCart();
           set({ isLoading: false });
           toast.success(`${product.name || 'Product'} added to cart!`);
+          trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: qty });
         } catch (error: any) {
           console.error('Add to cart error:', error);
           set({ items: previousItems });
