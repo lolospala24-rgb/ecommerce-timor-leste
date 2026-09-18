@@ -102,27 +102,58 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Same cached fetch generateMetadata() already made this request — Next.js
+  // dedupes identical fetches within one render pass, so this isn't a
+  // second network round trip.
+  const settings = await getPublicSettings();
+  const siteName = settings?.siteName || DEFAULT_SITE_NAME;
+
+  // Organization (not just WebSite) is what actually feeds Google's
+  // Knowledge Panel / sitelinks search box eligibility — a WebSite entry
+  // alone only tells Google "this URL exists," not "this is a real
+  // business with a name/logo/contact." @graph combines both entities in
+  // one script tag rather than two separate ones.
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: DEFAULT_SITE_NAME,
-    url: 'https://lolospala.com',
-    author: {
-      '@type': 'Person',
-      name: DEVELOPER.name,
-      jobTitle: DEVELOPER.role,
-      url: DEVELOPER.url,
-      email: DEVELOPER.email,
-    },
-    creator: {
-      '@type': 'Person',
-      name: DEVELOPER.name,
-    },
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        name: siteName,
+        url: 'https://lolospala.com',
+        author: {
+          '@type': 'Person',
+          name: DEVELOPER.name,
+          jobTitle: DEVELOPER.role,
+          url: DEVELOPER.url,
+          email: DEVELOPER.email,
+        },
+        creator: {
+          '@type': 'Person',
+          name: DEVELOPER.name,
+        },
+      },
+      {
+        '@type': 'Organization',
+        name: siteName,
+        url: 'https://lolospala.com',
+        logo: settings?.logoUrl || undefined,
+        email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || undefined,
+        telephone: process.env.NEXT_PUBLIC_CONTACT_PHONE || undefined,
+        address: process.env.NEXT_PUBLIC_CONTACT_ADDRESS
+          ? { '@type': 'PostalAddress', addressLocality: process.env.NEXT_PUBLIC_CONTACT_ADDRESS, addressCountry: 'TL' }
+          : undefined,
+        sameAs: [
+          process.env.NEXT_PUBLIC_FACEBOOK_URL,
+          process.env.NEXT_PUBLIC_INSTAGRAM_URL,
+          process.env.NEXT_PUBLIC_YOUTUBE_URL,
+        ].filter(Boolean),
+      },
+    ],
   };
 
   return (
