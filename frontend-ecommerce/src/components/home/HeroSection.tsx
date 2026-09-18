@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Grid3x3, Truck, Wallet, Sparkles } from 'lucide-react';
 
 import { useHeroBanners, type HeroBanner } from '@/hooks/useHeroBanners';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,23 +12,48 @@ import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 const AUTOPLAY_INTERVAL_MS = 5000;
 
+// Splits off the last word of a title so it can be rendered in the accent
+// color (e.g. "...online iha Timor-Leste" -> "Timor-Leste" highlighted) — a
+// common hero pattern that adds visual focus without any per-banner admin
+// field. Titles are free-text, so this degrades gracefully: a one-word
+// title just highlights that whole word, never breaks or misrenders.
+function splitLastWord(title: string): [string, string] {
+  const lastSpace = title.trim().lastIndexOf(' ');
+  if (lastSpace === -1) return ['', title.trim()];
+  return [title.slice(0, lastSpace + 1), title.slice(lastSpace + 1)];
+}
+
 // One slide = one admin-managed banner: badge/headline/subtitle/CTA on one
 // side, a decorative image on the other. Unlike the old pure-image banner,
 // content here is real data (see HeroBanner) rendered by this component,
 // not baked into the image itself — that's what lets admins edit copy
 // without re-exporting a graphic.
-function HeroSlide({ banner, priority = false, shopNowLabel }: {
+function HeroSlide({ banner, priority = false }: {
   banner: HeroBanner;
   priority?: boolean;
-  shopNowLabel: string;
 }) {
+  const { t } = useTranslation();
   const href = banner.buttonUrl || '/products';
   const mobileImage = banner.mobileImage || banner.desktopImage;
+  const [titleLead, titleAccent] = splitLastWord(banner.title);
+
+  const trustItems = [
+    { icon: Truck, label: t('hero.trustDelivery') },
+    { icon: Wallet, label: t('hero.trustCod') },
+    { icon: Sparkles, label: t('hero.trustLocal') },
+  ];
 
   return (
     <div className="min-w-0 flex-[0_0_100%] px-1">
       <div className="relative overflow-hidden rounded-xl border bg-card">
-        <div className="grid gap-6 p-5 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
+        {/* Soft brand-colored glow behind the image side — adds depth
+            without a generic gradient wash across the whole banner. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-24 hidden h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl md:block"
+        />
+
+        <div className="relative grid gap-6 p-5 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
           <div className="text-center md:text-left">
             {banner.badge && (
               <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary">
@@ -36,20 +61,43 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
               </span>
             )}
             <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
-              {banner.title}
+              {titleLead}
+              <span className="text-primary">{titleAccent}</span>
             </h1>
             {banner.subtitle && (
               <p className="mt-3 text-sm text-muted-foreground sm:text-base">
                 {banner.subtitle}
               </p>
             )}
-            <Link
-              href={href}
-              className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              {banner.buttonText || shopNowLabel}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
+
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <Link
+                href={href}
+                className="group inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {banner.buttonText || t('hero.shopNow')}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <Link
+                href="/categories"
+                className="inline-flex items-center gap-2 rounded-lg border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <Grid3x3 className="h-4 w-4" />
+                {t('hero.browseCategories')}
+              </Link>
+            </div>
+
+            {/* Trust signals — surfaced right under the CTAs, not buried in
+                the footer, since trust (not product discovery) is the main
+                adoption barrier for first-time online shoppers locally. */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 md:justify-start">
+              {trustItems.map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5 text-primary" />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="relative aspect-[4/3] w-full sm:aspect-square md:aspect-[4/3]">
@@ -77,7 +125,6 @@ function HeroSlide({ banner, priority = false, shopNowLabel }: {
 }
 
 function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
-  const { t } = useTranslation();
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start' });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const autoplayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -121,7 +168,6 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
                 key={banner.id}
                 banner={banner}
                 priority={index === 0}
-                shopNowLabel={t('hero.shopNow')}
               />
             ))}
           </div>

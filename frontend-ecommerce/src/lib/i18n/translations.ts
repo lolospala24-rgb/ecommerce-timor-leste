@@ -150,6 +150,10 @@ export const translations: Record<Locale, Dictionary> = {
 
     // Hero
     'hero.shopNow': 'Sosa Agora',
+    'hero.browseCategories': 'Haree Kategoria',
+    'hero.trustDelivery': 'Entrega Dili & Munisípiu',
+    'hero.trustCod': 'COD Disponivel',
+    'hero.trustLocal': 'Produtu Lokál Kualidade',
 
     // Quick menu (homepage)
     'home.quickMenu.title': 'Menu Rápidu',
@@ -336,6 +340,10 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Shop Now',
+    'hero.browseCategories': 'Browse Categories',
+    'hero.trustDelivery': 'Delivery to Dili & Municipalities',
+    'hero.trustCod': 'Cash on Delivery Available',
+    'hero.trustLocal': 'Quality Local Products',
 
     'home.quickMenu.title': 'Quick Menu',
     'home.quickMenu.allProducts': 'All Products',
@@ -517,6 +525,10 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Belanja Sekarang',
+    'hero.browseCategories': 'Lihat Kategori',
+    'hero.trustDelivery': 'Pengiriman ke Dili & Munisipalitas',
+    'hero.trustCod': 'COD Tersedia',
+    'hero.trustLocal': 'Produk Lokal Berkualitas',
 
     'home.quickMenu.title': 'Menu Cepat',
     'home.quickMenu.allProducts': 'Semua Produk',
@@ -698,6 +710,10 @@ export const translations: Record<Locale, Dictionary> = {
     'footer.social.tiktok': 'TikTok',
 
     'hero.shopNow': 'Comprar Agora',
+    'hero.browseCategories': 'Ver Categorias',
+    'hero.trustDelivery': 'Entrega para Dili e Municípios',
+    'hero.trustCod': 'Pagamento na Entrega Disponível',
+    'hero.trustLocal': 'Produtos Locais de Qualidade',
 
     'home.quickMenu.title': 'Menu Rápido',
     'home.quickMenu.allProducts': 'Todos os Produtos',
