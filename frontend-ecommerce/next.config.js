@@ -38,7 +38,14 @@ const contentSecurityPolicy = [
   // Sentry ingest is only reachable (and only added to the policy) once
   // NEXT_PUBLIC_SENTRY_DSN is actually set at build time — no DSN means no
   // outbound Sentry traffic at all, so there's nothing to allow.
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
+  // https://apis.google.com: script-src already allows loading this as a
+  // <script>, but Firebase's Google Sign-In loader (gapi's api.js) also
+  // makes its own fetch/XHR calls back to this origin for the iframe/
+  // postMessage handshake — connect-src governs those separately, and
+  // without it here the sign-in flow fails silently (CSP-blocked fetch,
+  // surfaced through the service worker's fetch interception as a
+  // "no-response" console error, not an obvious auth error).
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
   "worker-src 'self' blob:",
   `frame-src 'self' https://www.google.com/recaptcha/${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
