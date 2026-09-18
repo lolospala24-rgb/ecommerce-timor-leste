@@ -11,6 +11,7 @@ import {
   HttpStatus,
   HttpCode,
   ParseIntPipe,
+  NotFoundException,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -102,10 +103,15 @@ export class CategoriesController {
     return { data: category };
   }
 
+  // Deactivated categories must 404 at this public boundary — the storefront's
+  // SEO page (and Google) should never treat a hidden category as a live page.
   @Public()
   @Get('slug/:slug')
   async findBySlug(@Param('slug') slug: string) {
     const category = await this.categoriesService.findBySlug(slug);
+    if (!category?.isActive) {
+      throw new NotFoundException(`Category with slug ${slug} not found`);
+    }
     return { data: category };
   }
 

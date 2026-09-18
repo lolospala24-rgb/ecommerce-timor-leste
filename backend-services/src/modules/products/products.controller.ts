@@ -15,6 +15,7 @@
   UploadedFiles,
   UseInterceptors,
   BadRequestException,
+  NotFoundException,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -194,10 +195,19 @@ export class ProductsController {
     return result;
   }
 
+  // Public product-detail lookup — used directly by the storefront's SEO
+  // page and potentially indexed by Google, so a deactivated/removed
+  // product must 404 here even though the underlying service method (also
+  // called internally, e.g. by CartsService, where inactive products still
+  // need to be readable) doesn't filter on isActive itself.
   @Public()
   @Get('slug/:slug')
   async findBySlug(@Param('slug') slug: string) {
-    return await this.productsService.findBySlug(slug);
+    const product = await this.productsService.findBySlug(slug);
+    if (!product?.isActive) {
+      throw new NotFoundException(`Product with slug ${slug} not found`);
+    }
+    return product;
   }
 
   @Patch(':id')
@@ -407,10 +417,16 @@ export class ProductsController {
     return { data: type };
   }
 
+  // Same isActive guard as findBySlug above — findOne() itself stays
+  // unfiltered since CartsService relies on reading inactive products too.
   @Public()
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
-    return await this.productsService.findOne(id);
+    const product = await this.productsService.findOne(id);
+    if (!product?.isActive) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+    return product;
   }
 
   @Patch('types/:id')
