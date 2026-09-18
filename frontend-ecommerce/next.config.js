@@ -45,7 +45,15 @@ const contentSecurityPolicy = [
   // without it here the sign-in flow fails silently (CSP-blocked fetch,
   // surfaced through the service worker's fetch interception as a
   // "no-response" console error, not an obvious auth error).
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com/recaptcha/${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com' : ''}`,
+  // https://www.google.com (no /recaptcha/ path restriction): gtag.js's
+  // GA4 "Enhanced Measurement" auto-tracking (scroll, outbound click, etc.)
+  // posts to www.google.com/g/collect as a fallback/redundant collect
+  // endpoint alongside google-analytics.com, in addition to recaptcha's
+  // own calls under the same host — a path-scoped source can't cover both.
+  // analytics.google.com + stats.g.doubleclick.net: the other two hosts
+  // Google's own gtag.js CSP guidance lists as required alongside
+  // google-analytics.com, or GA4 silently drops a portion of events.
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net' : ''}`,
   "worker-src 'self' blob:",
   `frame-src 'self' https://www.google.com/recaptcha/${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
