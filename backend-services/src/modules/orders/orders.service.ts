@@ -16,6 +16,7 @@ import { SettingsService } from '../settings/settings.service';
 import { FinanceService } from '../finance/finance.service';
 import { RefundsService } from '../finance/refunds.service';
 import { CouponsService } from '../coupons/coupons.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { PromotionsService } from '../promotions/promotions.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { LOW_STOCK_THRESHOLD, NotificationEvent } from '../notifications/notifications.constants';
@@ -48,6 +49,7 @@ export class OrdersService {
     private notificationsGateway: NotificationsGateway,
     private couponsService: CouponsService,
     private promotionsService: PromotionsService,
+    private referralsService: ReferralsService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, userId: number) {
@@ -350,6 +352,53 @@ export class OrdersService {
       preparedGroups.push({ group, orderCreateData, total });
     }
 
+    // Wallet credit — applied AFTER tax/shipping/service fee, as a straight
+    // reduction of each group's already-computed total, not folded into
+    // discountAmount. It's a cash-equivalent earned balance (like a gift
+    // card), not a merchandise discount, so unlike the coupon above it
+    // never affects the taxable subtotal. useWalletCredit is a toggle for
+    // "apply my full available balance" — the client never supplies a
+    // dollar amount (see CreateOrderDto's doc-comment).
+    let walletCreditToApply = 0;
+    if (createOrderDto.useWalletCredit) {
+      const walletUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { walletCredit: true } });
+      const preWalletGrandTotal = preparedGroups.reduce((sum, g) => sum + g.total, 0);
+      walletCreditToApply = Math.round(Math.min(Math.max(walletUser?.walletCredit ?? 0, 0), preWalletGrandTotal) * 100) / 100;
+    }
+
+    if (walletCreditToApply > 0) {
+      let distributedWalletCredit = 0;
+      const preWalletGrandTotal = preparedGroups.reduce((sum, g) => sum + g.total, 0);
+      for (let groupIndex = 0; groupIndex < preparedGroups.length; groupIndex++) {
+        const isLastGroup = groupIndex === preparedGroups.length - 1;
+        const share = isLastGroup
+          ? Math.round((walletCreditToApply - distributedWalletCredit) * 100) / 100
+          : Math.round(((walletCreditToApply * preparedGroups[groupIndex].total) / preWalletGrandTotal) * 100) / 100;
+        distributedWalletCredit += share;
+
+        preparedGroups[groupIndex].orderCreateData.walletCreditUsed = share;
+        preparedGroups[groupIndex].total = Math.round((preparedGroups[groupIndex].total - share) * 100) / 100;
+        preparedGroups[groupIndex].orderCreateData.total = preparedGroups[groupIndex].total;
+      }
+
+      // Re-check COD bounds against the POST-wallet-credit total — the
+      // earlier check above ran before wallet credit existed, against the
+      // pre-wallet total, which is not the amount actually collected via
+      // COD.
+      if (createOrderDto.paymentMethod === PaymentMethod.COD) {
+        const minCOD = Number(settings.minCODOrderAmount ?? 0);
+        const maxCOD = Number(settings.maxCODOrderAmount ?? 0);
+        for (const { total: postWalletTotal } of preparedGroups) {
+          if (minCOD > 0 && postWalletTotal < minCOD) {
+            throw new BadRequestException(`Cash on Delivery requires a minimum order of $${minCOD.toFixed(2)}`);
+          }
+          if (maxCOD > 0 && postWalletTotal > maxCOD) {
+            throw new BadRequestException(`Cash on Delivery is not available for orders over $${maxCOD.toFixed(2)}`);
+          }
+        }
+      }
+    }
+
     // ---- Phase 2: one atomic transaction for every write in this checkout ----
     // Coupon redemption and every seller's order (+ stock reservation, + COD
     // payment record) commit or roll back together. Before this fix, the
@@ -374,6 +423,10 @@ export class OrdersService {
             validatedCoupon.discountAmount,
           );
           couponUsageId = usage.id;
+        }
+
+        if (walletCreditToApply > 0) {
+          await this.referralsService.debitWalletForCheckout(tx, userId, walletCreditToApply);
         }
 
         const createdOrders = [];
@@ -1010,6 +1063,7 @@ export class OrdersService {
     // pending -> available earnings) to succeed or fail together, so it
     // gets its own transaction rather than the plain single-table update
     // every other status transition uses.
+    let referralReward: { referrerId: number; rewardAmount: number } | null = null;
     const updatedOrder =
       targetStatus === OrderStatus.DELIVERED
         ? await this.prisma.$transaction(async (tx) => {
@@ -1028,6 +1082,10 @@ export class OrdersService {
             });
 
             await this.financeService.releaseEarningsOnDelivery(tx, order.id);
+            referralReward = await this.referralsService.rewardReferrerIfEligible(tx, {
+              id: order.id,
+              customerId: order.customerId,
+            });
 
             return result;
           })
@@ -1070,6 +1128,20 @@ export class OrdersService {
       },
       sendEmail: false,
     });
+
+    if (referralReward) {
+      try {
+        await this.notificationsService.sendNotification({
+          userId: referralReward.referrerId,
+          title: 'You earned a referral reward!',
+          message: `Your referred friend's first order was delivered — $${referralReward.rewardAmount.toFixed(2)} wallet credit has been added to your account.`,
+          type: NotificationEvent.REFERRAL_REWARD_EARNED,
+          sendEmail: false,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to send referral reward notification: ${err}`);
+      }
+    }
 
     // Send status update email — fire-and-forget so the admin's
     // status-change request doesn't wait on MailService's retry loop (up to
@@ -1272,6 +1344,7 @@ export class OrdersService {
   // (system-triggered, see DeliveryAutoConfirmJob) — both end at the exact
   // same financial transition, just reached by a different trigger.
   private async completeDelivery(id: number, paymentMethod: PaymentMethod | null) {
+    let referralReward: { referrerId: number; rewardAmount: number } | null = null;
     const confirmedOrder = await this.prisma.$transaction(async (tx) => {
       if (paymentMethod === PaymentMethod.COD) {
         await tx.payment.update({
@@ -1290,11 +1363,34 @@ export class OrdersService {
       });
 
       await this.financeService.releaseEarningsOnDelivery(tx, id);
+      referralReward = await this.referralsService.rewardReferrerIfEligible(tx, {
+        id: result.id,
+        customerId: result.customerId,
+      });
 
       return result;
     });
 
     await this.clearOrderCache(id);
+
+    // Shared by both DELIVERED entry points that funnel through this
+    // method (confirmDelivery, autoConfirmDelivery) — one notification
+    // site covers both, no duplication needed. Best-effort: never allow a
+    // notification hiccup to fail an otherwise-successful delivery
+    // confirmation.
+    if (referralReward) {
+      try {
+        await this.notificationsService.sendNotification({
+          userId: referralReward.referrerId,
+          title: 'You earned a referral reward!',
+          message: `Your referred friend's first order was delivered — $${referralReward.rewardAmount.toFixed(2)} wallet credit has been added to your account.`,
+          type: NotificationEvent.REFERRAL_REWARD_EARNED,
+          sendEmail: false,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to send referral reward notification: ${err}`);
+      }
+    }
 
     return confirmedOrder;
   }

@@ -114,6 +114,20 @@ model User {
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
+  // Referral program — every user gets a code (generated at registration,
+  // including Google sign-up), even one who never refers anyone.
+  // referredById is set once, at registration, and never changes after —
+  // see ReferralsService/AuthService.register's doc-comments for why a
+  // dedicated "self-referral" check isn't needed here (structurally
+  // impossible: the new user's id doesn't exist yet when the code is
+  // looked up). walletCredit is the single source of truth for spendable
+  // balance; every change to it MUST be paired with a WalletTransaction
+  // row (see that model's doc-comment) — never mutate this field directly
+  // outside ReferralsService.
+  referralCode String  @unique
+  referredById Int?
+  walletCredit Float   @default(0)
+
   // Relations
   seller          Seller?
   customerAddress Address[]
@@ -135,7 +149,13 @@ model User {
   stockNotifications StockNotification[]
   assignedDeliveries Order[] @relation("OrderAssignedDriver")
   pushSubscriptions  PushSubscription[]
+  referredBy         User?               @relation("UserReferrals", fields: [referredById], references: [id])
+  referredUsers      User[]              @relation("UserReferrals")
+  referralsGiven     Referral[]          @relation("ReferralReferrer")
+  referralReceived   Referral?           @relation("ReferralReferredUser")
+  walletTransactions WalletTransaction[]
 
+  @@index([referredById])
   @@map("users")
 }
 
@@ -529,6 +549,12 @@ model Order {
   // of the cart subtotal, since each seller gets its own Order row.
   discountAmount        Float          @default(0)
   couponUsageId         Int?
+  // Referral wallet credit applied to THIS order (post-tax, post-coupon —
+  // see ReferralsService.debitWalletForCheckout's doc-comment for why
+  // it's subtracted last rather than folded into discountAmount). Split
+  // proportionally across a multi-seller checkout's Order rows the same
+  // way discountAmount already is.
+  walletCreditUsed      Float          @default(0)
   // Commission snapshot — written once, by FinanceService, at the moment
   // this order's Payment is confirmed PAID. Deliberately NOT computed live
   // from SystemSettings.defaultCommissionRate: if the admin changes the
@@ -606,6 +632,7 @@ model Order {
   platformLedgerEntries PlatformLedgerEntry[]
   couponUsage   CouponUsage?  @relation(fields: [couponUsageId], references: [id])
   assignedDriver User?        @relation("OrderAssignedDriver", fields: [assignedDriverId], references: [id])
+  referralQualifications Referral[]
 
   @@index([customerId])
   @@index([sellerId])
@@ -706,6 +733,80 @@ model CouponUsage {
 
   @@index([couponId, userId])
   @@map("coupon_usages")
+}
+
+enum ReferralStatus {
+  PENDING
+  REWARDED
+}
+
+// One row per successful referral capture at registration — never created
+// any other way, and `referredUserId` is unique, so a user can be referred
+// at most once, ever. `status` is the idempotency gate for the referrer's
+// reward: ReferralsService.rewardReferrerIfEligible flips it PENDING ->
+// REWARDED exactly once via an atomic updateMany (same race-safe idiom
+// CouponsService.recordUsage uses for usedCount), triggered by whichever
+// of the referred user's orders reaches DELIVERED first — every later
+// DELIVERED order for that same customer is then a no-op since status is
+// no longer PENDING, so there's no separate "is this their first order"
+// query anywhere.
+model Referral {
+  id             Int            @id @default(autoincrement())
+  referrerId     Int
+  referredUserId Int            @unique
+  // Snapshot of the code as typed at signup, not a live read of the
+  // referrer's current code (which could theoretically change later).
+  referralCodeUsed String
+  status            ReferralStatus @default(PENDING)
+  // Snapshots of SystemSettings.referralWelcomeCredit/referralRewardAmount
+  // at the moment each was actually granted — admin changing those later
+  // must never rewrite what a past referral already paid out.
+  welcomeCreditAmount Float
+  rewardAmount        Float?
+  qualifyingOrderId   Int?
+  rewardedAt          DateTime?
+  createdAt           DateTime  @default(now())
+
+  referrer        User   @relation("ReferralReferrer", fields: [referrerId], references: [id])
+  referredUser    User   @relation("ReferralReferredUser", fields: [referredUserId], references: [id])
+  qualifyingOrder Order? @relation(fields: [qualifyingOrderId], references: [id])
+
+  @@index([referrerId])
+  @@index([status])
+  @@map("referrals")
+}
+
+enum WalletTransactionType {
+  REFERRAL_WELCOME
+  REFERRAL_REWARD
+  CHECKOUT_REDEMPTION
+  ADMIN_ADJUSTMENT
+}
+
+// Append-only audit ledger — the only thing that's ever supposed to write
+// User.walletCredit is ReferralsService, and every single write it makes
+// is paired with one of these rows in the same transaction, so "why does
+// this user have this balance" is always answerable without guessing.
+// referralId/orderId are plain informational ints (not required relations)
+// so a referral/order being referenced doesn't force this table into
+// their delete/cascade semantics — same "traceability only" reasoning as
+// OrderItem.promotionId elsewhere in this schema.
+model WalletTransaction {
+  id           Int                   @id @default(autoincrement())
+  userId       Int
+  type         WalletTransactionType
+  // Positive = credit, negative = debit.
+  amount       Float
+  balanceAfter Float
+  referralId   Int?
+  orderId      Int?
+  note         String?
+  createdAt    DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("wallet_transactions")
 }
 
 enum PromotionDiscountType {
@@ -1421,6 +1522,15 @@ model SystemSettings {
   minCODOrderAmount        Float   @default(0)
   maxCODOrderAmount        Float   @default(1000)
   autoConfirmBankTransfer  Boolean @default(false)
+
+  // Referral program. rewardAmount changes here only affect referrals
+  // created AFTER the change — each Referral snapshots the amount it
+  // actually paid out at the time (welcomeCreditAmount/rewardAmount on
+  // that model), same reasoning as Order.commissionRate above.
+  referralProgramEnabled Boolean @default(true)
+  referralWelcomeCredit  Float   @default(3)
+  referralRewardAmount   Float   @default(5)
+
   bankName                 String?
   bankAccountName          String?
   bankAccountNumber        String?

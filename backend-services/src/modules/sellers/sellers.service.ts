@@ -17,6 +17,7 @@ import { RegisterSellerDto } from './dto/register-seller.dto';
 import { UpdateSellerDto } from './dto/update-seller.dto';
 import { SellerFilterDto } from './dto/seller-filter.dto';
 import { hashPassword } from '../../common/utils/bcrypt.util';
+import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import { Role } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { SAFE_USER_SELECT } from '../../common/utils/safe-select.util';
@@ -59,6 +60,12 @@ export class SellersService {
 
     // Hash password
     const hashedPassword = await hashPassword(registerSellerDto.password);
+    // Every user gets a referral code, including one created via direct
+    // seller registration (not just the customer /auth/register flow).
+    const referralCode = await generateUniqueReferralCode(async (candidate) => {
+      const existing = await this.prisma.user.findUnique({ where: { referralCode: candidate }, select: { id: true } });
+      return !!existing;
+    });
 
     // Create user and seller in transaction
     const result = await this.prisma.$transaction(async (prisma) => {
@@ -71,6 +78,7 @@ export class SellersService {
           phone: registerSellerDto.phone,
           role: Role.SELLER,
           emailVerified: false, // Will need to verify email
+          referralCode,
         },
       });
 

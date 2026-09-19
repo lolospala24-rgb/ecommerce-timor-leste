@@ -10,6 +10,7 @@ export class OrderEntity implements Order {
   taxAmount: number;
   serviceFee: number;
   discountAmount: number;
+  walletCreditUsed: number;
   couponUsageId: number | null;
   commissionRate: number | null;
   commissionAmount: number | null;

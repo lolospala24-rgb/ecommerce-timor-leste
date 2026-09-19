@@ -117,6 +117,21 @@ export class SystemSettingsDto {
   @IsOptional()
   autoConfirmBankTransfer?: boolean;
 
+  // Referral program
+  @IsBoolean()
+  @IsOptional()
+  referralProgramEnabled?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  referralWelcomeCredit?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  referralRewardAmount?: number;
+
   @IsString()
   @IsOptional()
   bankName?: string;

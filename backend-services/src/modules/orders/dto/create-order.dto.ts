@@ -5,6 +5,7 @@ import {
   IsString,
   IsOptional,
   IsNotEmpty,
+  IsBoolean,
   Min,
   Max,
   IsNumber,
@@ -76,6 +77,16 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   couponCode?: string;
+
+  // A toggle, never a client-supplied dollar amount — the actual amount
+  // applied is always computed server-side from the customer's real
+  // walletCredit balance (see OrdersService.create / ReferralsService.
+  // debitWalletForCheckout), same "never trust the client" reasoning as
+  // couponCode above.
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  useWalletCredit?: boolean;
 
   // Checkout-only "pin exact location" override — see OrdersService.create's
   // delivery snapshot. Deliberately separate from Address.latitude/longitude:

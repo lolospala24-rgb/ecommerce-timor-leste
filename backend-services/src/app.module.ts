@@ -35,6 +35,7 @@ import { VideosModule } from './modules/videos/videos.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
 import { HeroModule } from './modules/hero/hero.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
+import { ReferralsModule } from './modules/referrals/referrals.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { StockNotificationsModule } from './modules/stock-notifications/stock-notifications.module';
 import { WebsiteHealthModule } from './modules/website-health/website-health.module';
@@ -95,6 +96,7 @@ import { AppService } from './app.service';
     HomepageModule,
     HeroModule,
     CouponsModule,
+    ReferralsModule,
     FinanceModule,
     StockNotificationsModule,
     WebsiteHealthModule,

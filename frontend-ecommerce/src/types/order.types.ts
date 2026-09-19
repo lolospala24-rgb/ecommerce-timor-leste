@@ -13,6 +13,7 @@ export interface Order {
   taxAmount?: number;
   serviceFee?: number;
   discountAmount?: number;
+  walletCreditUsed?: number;
   total: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;

@@ -60,7 +60,7 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; courierId?: number; courierServiceId?: number; shippingZoneId?: number; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string; couponCode?: string; deliveryLatitude?: number; deliveryLongitude?: number; deliveryReference?: string }) => {
+    mutationFn: async (data: { addressId: number; paymentMethod: string; shippingMethod?: string; courierId?: number; courierServiceId?: number; shippingZoneId?: number; shippingFee?: number; taxAmount?: number; serviceFee?: number; notes?: string; couponCode?: string; useWalletCredit?: boolean; deliveryLatitude?: number; deliveryLongitude?: number; deliveryReference?: string }) => {
       // Client-side validation: ensure cart has valid items before sending to backend
       const cartResp = await api.get('/carts');
       const cartData = cartResp?.data?.data ?? cartResp?.data ?? {};
@@ -90,6 +90,9 @@ export const useCreateOrder = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      // Wallet balance may have changed (credit spent, or a fresh referral
+      // welcome credit that hadn't been reflected yet).
+      queryClient.invalidateQueries({ queryKey: ['referral-summary'] });
       toast.success('Order placed successfully!');
     },
     onError: (error: any) => {

@@ -12,6 +12,8 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MailModule } from '../../mail/mail.module';
 import { SettingsModule } from '../settings/settings.module';
+import { ReferralsModule } from '../referrals/referrals.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { SettingsModule } from '../settings/settings.module';
     RedisModule,
     MailModule,
     SettingsModule,
+    ReferralsModule,
+    NotificationsModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),

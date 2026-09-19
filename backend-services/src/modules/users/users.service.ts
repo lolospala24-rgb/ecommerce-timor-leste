@@ -12,6 +12,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashPassword } from '../../common/utils/bcrypt.util';
+import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import { Role, OrderStatus, ShippingStatus } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 
@@ -34,6 +35,12 @@ export class UsersService {
 
     // Hash password
     const hashedPassword = await hashPassword(createUserDto.password);
+    // Every user gets a referral code, including one created directly by
+    // an admin (not just the customer /auth/register flow).
+    const referralCode = await generateUniqueReferralCode(async (candidate) => {
+      const existing = await this.prisma.user.findUnique({ where: { referralCode: candidate }, select: { id: true } });
+      return !!existing;
+    });
 
     // Create user
     const user = await this.prisma.user.create({
@@ -44,6 +51,7 @@ export class UsersService {
         phone: createUserDto.phone,
         role: createUserDto.role || 'CUSTOMER',
         emailVerified: createUserDto.emailVerified || false,
+        referralCode,
       },
       select: {
         id: true,

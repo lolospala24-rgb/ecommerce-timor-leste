@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,7 +21,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GoogleSignInButton } from '@/components/shared/GoogleSignInButton';
 import { isFirebaseConfigured } from '@/lib/firebase';
-import { Loader2, Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { Loader2, Eye, EyeOff, Mail, Lock, User, Phone, Gift } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -58,8 +59,19 @@ const registerSchema = z
 type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<Card className="rounded-xl border shadow-sm"><CardContent className="py-10" /></Card>}>
+      <RegisterPageContent />
+    </Suspense>
+  );
+}
+
+function RegisterPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get('ref');
   const { isAuthenticated } = useAuthStore();
+  const { data: publicSettings } = usePublicSettings();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -94,7 +106,10 @@ export default function RegisterPage() {
       if (!registerData.phone) {
         delete registerData.phone;
       }
-      await api.post('/auth/register', registerData);
+      await api.post('/auth/register', {
+        ...registerData,
+        referralCode: referralCode || undefined,
+      });
       toast.success('Registration successful! Please verify your email.');
       router.push('/login');
     } catch (err: any) {
@@ -114,6 +129,18 @@ export default function RegisterPage() {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
+          {referralCode && (
+            <div className="flex items-start gap-2.5 rounded-lg bg-primary/10 p-3 text-sm">
+              <Gift className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p className="text-foreground">
+                You&apos;ve been invited to Lolospala — join and receive a
+                {publicSettings?.referralWelcomeCredit
+                  ? ` $${publicSettings.referralWelcomeCredit.toFixed(2)} welcome wallet credit.`
+                  : ' welcome wallet reward.'}
+              </p>
+            </div>
+          )}
+
           {error && (
             <Alert variant="destructive" className="animate-in">
               <AlertDescription>{error}</AlertDescription>

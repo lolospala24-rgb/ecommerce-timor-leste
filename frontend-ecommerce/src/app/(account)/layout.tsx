@@ -16,6 +16,8 @@ import {
   Star,
   Settings,
   LogOut,
+  Wallet,
+  Gift,
 } from 'lucide-react';
 
 const menuItems = [
@@ -25,6 +27,8 @@ const menuItems = [
   { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/recently-viewed', label: 'Recently Viewed', icon: History },
   { href: '/reviews', label: 'My Reviews', icon: Star },
+  { href: '/wallet', label: 'Wallet', icon: Wallet },
+  { href: '/referrals', label: 'Referrals', icon: Gift },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

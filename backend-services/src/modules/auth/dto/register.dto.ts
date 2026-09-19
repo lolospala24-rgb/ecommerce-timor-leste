@@ -32,4 +32,12 @@ export class RegisterDto {
     message: 'Please provide a valid phone number',
   })
   phone?: string;
+
+  // Captured from ?ref=CODE on the registration page. An invalid/unknown
+  // code is never an error — AuthService.register() just registers the
+  // user without a referral relationship, see its own comment.
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  referralCode?: string;
 }

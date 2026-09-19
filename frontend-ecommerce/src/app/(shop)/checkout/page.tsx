@@ -27,11 +27,13 @@ import { useAddresses } from '@/hooks/useAddresses';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useCouponStore } from '@/stores/couponStore';
+import { useReferralSummary } from '@/hooks/useReferral';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -95,8 +97,10 @@ export default function CheckoutPage() {
   const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { mutateAsync: createOrder, isPending: isPlacingOrder } = useCreateOrder();
   const { appliedCoupon, clearCoupon } = useCouponStore();
+  const { data: referralSummary } = useReferralSummary();
 
   const [enableLocalPickup, setEnableLocalPickup] = useState(false);
+  const [useWalletCredit, setUseWalletCredit] = useState(false);
   const [addressShippingOptions, setAddressShippingOptions] = useState<any[]>([]);
   const [isShippingOptionsLoading, setIsShippingOptionsLoading] = useState(true);
   const [shippingOptionsError, setShippingOptionsError] = useState<string | null>(null);
@@ -356,7 +360,14 @@ export default function CheckoutPage() {
   // Tax on the post-discount subtotal — matches the backend, which taxes
   // what the customer actually paid for the goods, not the pre-coupon price.
   const tax = discountedSubtotal * (taxRate / 100);
-  const grandTotal = discountedSubtotal + shippingCost + tax + serviceFee;
+  const preWalletGrandTotal = discountedSubtotal + shippingCost + tax + serviceFee;
+  // Wallet credit is a cash-equivalent earned balance (like a gift card),
+  // not a merchandise discount — applied AFTER tax/shipping/service fee as
+  // a straight reduction of the total, never folded into discountAmount
+  // (matches OrdersService.create's identical reasoning server-side).
+  const walletBalance = referralSummary?.walletCredit ?? 0;
+  const walletCreditApplied = useWalletCredit ? Math.min(walletBalance, preWalletGrandTotal) : 0;
+  const grandTotal = preWalletGrandTotal - walletCreditApplied;
 
   // Fires once per checkout visit, not on every recompute triggered by
   // shipping/coupon changes — those are the same checkout session, not a
@@ -429,6 +440,7 @@ export default function CheckoutPage() {
         serviceFee,
         notes,
         couponCode: appliedCoupon?.code,
+        useWalletCredit: walletCreditApplied > 0,
         deliveryLatitude: pinLocation?.lat,
         deliveryLongitude: pinLocation?.lng,
         deliveryReference: pinReference.trim() || undefined,
@@ -973,6 +985,23 @@ export default function CheckoutPage() {
                   className="mt-3"
                 />
               </Card>
+
+              {walletBalance > 0 && (
+                <Card className="p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Wallet className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-semibold">Wallet Credit</p>
+                        <p className="text-xs text-muted-foreground">
+                          Available: ${walletBalance.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch checked={useWalletCredit} onCheckedChange={setUseWalletCredit} />
+                  </div>
+                </Card>
+              )}
             </div>
           </Card>
         </section>
@@ -1030,6 +1059,15 @@ export default function CheckoutPage() {
                 <span>Service fee{sellerCount > 1 ? ` (${sellerCount} sellers)` : ''}</span>
                 <span>${serviceFee.toFixed(2)}</span>
               </div>
+              {walletCreditApplied > 0 && (
+                <div className="flex items-center justify-between text-success">
+                  <span className="flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5" />
+                    Wallet credit
+                  </span>
+                  <span>-${walletCreditApplied.toFixed(2)}</span>
+                </div>
+              )}
             </div>
 
             <div className="mt-5 rounded-xl bg-muted/40 p-4">

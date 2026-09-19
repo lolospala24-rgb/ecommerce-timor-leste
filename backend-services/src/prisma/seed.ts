@@ -42,6 +42,7 @@ async function main() {
       role: Role.ADMIN,
       emailVerified: true,
       isActive: true,
+      referralCode: 'SEEDADMIN',
     },
   });
   console.log(`✅ Admin created: ${admin.email}`);
@@ -99,6 +100,7 @@ async function main() {
       role: Role.CUSTOMER,
       emailVerified: true,
       isActive: true,
+      referralCode: 'SEEDCUST1',
     },
   });
   console.log(`✅ Customer created: ${customer.email}`);
@@ -120,6 +122,7 @@ async function main() {
       role: Role.SELLER,
       emailVerified: true,
       isActive: true,
+      referralCode: 'SEEDSELR1',
     },
   });
 

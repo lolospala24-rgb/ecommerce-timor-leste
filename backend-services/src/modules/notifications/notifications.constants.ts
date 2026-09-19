@@ -32,6 +32,8 @@ export enum NotificationEvent {
   DRIVER_ASSIGNED = 'DRIVER_ASSIGNED',
   PRODUCT_TYPE_REQUEST_APPROVED = 'PRODUCT_TYPE_REQUEST_APPROVED',
   PRODUCT_TYPE_REQUEST_REJECTED = 'PRODUCT_TYPE_REQUEST_REJECTED',
+  REFERRAL_WELCOME_CREDIT = 'REFERRAL_WELCOME_CREDIT',
+  REFERRAL_REWARD_EARNED = 'REFERRAL_REWARD_EARNED',
 }
 
 // Default category + priority per event — call sites can still override
@@ -61,4 +63,6 @@ export const NOTIFICATION_DEFAULTS: Record<
   [NotificationEvent.DRIVER_ASSIGNED]: { category: 'SHIPPING', priority: 'INFO' },
   [NotificationEvent.PRODUCT_TYPE_REQUEST_APPROVED]: { category: 'PRODUCT', priority: 'SUCCESS' },
   [NotificationEvent.PRODUCT_TYPE_REQUEST_REJECTED]: { category: 'PRODUCT', priority: 'WARNING' },
+  [NotificationEvent.REFERRAL_WELCOME_CREDIT]: { category: 'CUSTOMER', priority: 'SUCCESS' },
+  [NotificationEvent.REFERRAL_REWARD_EARNED]: { category: 'CUSTOMER', priority: 'SUCCESS' },
 };

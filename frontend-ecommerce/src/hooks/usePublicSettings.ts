@@ -28,6 +28,9 @@ export interface PublicSettings {
   bankIBAN: string | null;
   bankSWIFT: string | null;
   bankTransferInstructions: string | null;
+  referralProgramEnabled: boolean;
+  referralWelcomeCredit: number;
+  referralRewardAmount: number;
 }
 
 // Store-wide config set by the admin (contact info, payment method

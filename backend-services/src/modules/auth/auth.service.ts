@@ -14,6 +14,9 @@ import { RedisService } from '../../redis/redis.service';
 import { MailService } from '../../mail/mail.service';
 import { SettingsService } from '../settings/settings.service';
 import { FirebaseService } from './firebase.service';
+import { ReferralsService } from '../referrals/referrals.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEvent } from '../notifications/notifications.constants';
 import { hashPassword, comparePassword } from '../../common/utils/bcrypt.util';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -21,6 +24,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -29,6 +34,8 @@ export class AuthService {
     private mailService: MailService,
     private settingsService: SettingsService,
     private firebaseService: FirebaseService,
+    private referralsService: ReferralsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -54,25 +61,53 @@ export class AuthService {
     const emailVerificationExpiry = new Date();
     emailVerificationExpiry.setHours(emailVerificationExpiry.getHours() + 24);
 
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email: registerDto.email,
-        password: hashedPassword,
-        name: registerDto.name,
-        phone: registerDto.phone,
-        role: 'CUSTOMER',
-        emailVerificationToken,
-        emailVerificationExpiry,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-      },
+    // Every user gets their own shareable code, whether or not they were
+    // referred by anyone.
+    const referralCode = await this.referralsService.generateCodeForNewUser();
+
+    // A not-found/invalid code is never an error — a mistyped or
+    // expired-looking ?ref= link must not be able to block someone from
+    // creating an account. Looked up BEFORE the new user exists, so
+    // self-referral is structurally impossible here (there's no id yet to
+    // match against) rather than something needing an explicit check.
+    const referrer = registerDto.referralCode
+      ? await this.referralsService.findReferrerByCode(registerDto.referralCode)
+      : null;
+
+    const { user, welcomeCredit } = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: registerDto.email,
+          password: hashedPassword,
+          name: registerDto.name,
+          phone: registerDto.phone,
+          role: 'CUSTOMER',
+          emailVerificationToken,
+          emailVerificationExpiry,
+          referralCode,
+          referredById: referrer?.id ?? null,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+
+      let welcomeCredit = 0;
+      if (referrer) {
+        welcomeCredit = await this.referralsService.createReferralForNewUser(
+          tx,
+          referrer.id,
+          createdUser.id,
+          registerDto.referralCode!,
+        );
+      }
+
+      return { user: createdUser, welcomeCredit };
     });
 
     // Send verification email
@@ -82,6 +117,21 @@ export class AuthService {
       emailVerificationToken,
     );
     await this.mailService.sendWelcomeEmail(user.email, user.name);
+
+    // Best-effort — a notification hiccup must never fail an otherwise
+    // successful signup.
+    if (welcomeCredit > 0) {
+      try {
+        await this.notificationsService.sendNotification({
+          userId: user.id,
+          title: 'Welcome to Lolospala!',
+          message: `You've received $${welcomeCredit.toFixed(2)} wallet credit.`,
+          type: NotificationEvent.REFERRAL_WELCOME_CREDIT,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to send referral welcome notification: ${err}`);
+      }
+    }
 
     return user;
   }
@@ -165,6 +215,12 @@ export class AuthService {
         throw new BadRequestException('New registrations are currently closed');
       }
 
+      // Every user gets a code, including Google sign-ups — but an
+      // incoming ?ref= code is NOT captured on this path (the shared
+      // Google button doesn't carry page context through to this
+      // endpoint). Documented v1 gap, not a silent claim of full support.
+      const referralCode = await this.referralsService.generateCodeForNewUser();
+
       user = await this.prisma.user.create({
         data: {
           email: identity.email,
@@ -175,6 +231,7 @@ export class AuthService {
           avatar: identity.picture,
           emailVerified: true,
           role: 'CUSTOMER',
+          referralCode,
         },
         include: { seller: true },
       });

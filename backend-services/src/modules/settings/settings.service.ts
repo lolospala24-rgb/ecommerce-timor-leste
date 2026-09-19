@@ -97,6 +97,9 @@ export class SettingsService {
       bankIBAN: settings.bankIBAN,
       bankSWIFT: settings.bankSWIFT,
       bankTransferInstructions: settings.bankTransferInstructions,
+      referralProgramEnabled: settings.referralProgramEnabled,
+      referralWelcomeCredit: settings.referralWelcomeCredit,
+      referralRewardAmount: settings.referralRewardAmount,
     };
   }
 
