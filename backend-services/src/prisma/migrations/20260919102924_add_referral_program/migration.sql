@@ -1,12 +1,24 @@
 -- AlterTable: referralCode added NULLable first — existing users have no
 -- code yet and MySQL strict mode rejects a NOT NULL column with no default
--- on a non-empty table. A one-off backfill script assigns every existing
--- user a unique code immediately after this migration runs, then a
--- follow-up migration promotes the column to NOT NULL + UNIQUE.
+-- on a non-empty table. Backfilled immediately below (this migration file
+-- runs unattended via docker-entrypoint.sh's automatic `prisma migrate
+-- deploy` on every deploy, so the backfill has to be part of the SQL
+-- itself, not a separate manual script), then a follow-up migration
+-- promotes the column to NOT NULL + UNIQUE.
 ALTER TABLE `users`
   ADD COLUMN `referralCode` VARCHAR(191) NULL,
   ADD COLUMN `referredById` INTEGER NULL,
   ADD COLUMN `walletCredit` DOUBLE NOT NULL DEFAULT 0;
+
+-- Backfill for every pre-existing user. Derived from MD5(id, email, RAND())
+-- rather than the app's own charset-restricted generator (referral-code.util.ts)
+-- since this has to run as plain SQL with no Node/Prisma runtime available —
+-- collision odds across any realistic user base are astronomically low, and
+-- every NEW code from here on is generated (and uniqueness-checked) by the
+-- real application code, not this one-off backfill.
+UPDATE `users`
+SET `referralCode` = UPPER(SUBSTRING(MD5(CONCAT(id, email, RAND())), 1, 8))
+WHERE `referralCode` IS NULL;
 
 -- AlterTable
 ALTER TABLE `orders` ADD COLUMN `walletCreditUsed` DOUBLE NOT NULL DEFAULT 0;
