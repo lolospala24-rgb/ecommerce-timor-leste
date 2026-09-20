@@ -53,3 +53,31 @@ export function trackPurchase(
     items,
   });
 }
+
+// Referral program — not part of GA4's standard ecommerce event set, so
+// these are custom events (still routed through the same gtag() call).
+// `method` matches the channel button actually used, so the funnel can be
+// broken down by channel (WhatsApp vs Facebook vs copy-link, etc).
+export function trackShareReferral(method: string): void {
+  sendGAEvent('share_referral', { method });
+}
+
+// Fired client-side on the referred user's own successful registration —
+// there's no server-side GA4 wiring in this app, so this is the only point
+// that can attribute a signup to a referral at all.
+export function trackReferralSignup(): void {
+  sendGAEvent('referral_signup', {});
+}
+
+// Fired from the referrer's own dashboard once it notices a newly-REWARDED
+// referral (see useReferralRewardTracking) — reward-granting itself happens
+// server-side on delivery, often while the referrer isn't even online, so
+// "the referrer's browser learning about it" is the earliest client-side
+// moment this can be reported.
+export function trackReferralRewardEarned(amount: number, referralId: number): void {
+  sendGAEvent('referral_reward_earned', {
+    currency: 'USD',
+    value: amount,
+    referral_id: referralId,
+  });
+}

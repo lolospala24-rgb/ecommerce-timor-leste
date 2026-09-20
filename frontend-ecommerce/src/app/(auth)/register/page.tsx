@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GoogleSignInButton } from '@/components/shared/GoogleSignInButton';
 import { isFirebaseConfigured } from '@/lib/firebase';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { trackReferralSignup } from '@/lib/analytics';
 import { Loader2, Eye, EyeOff, Mail, Lock, User, Phone, Gift } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -111,6 +112,7 @@ function RegisterPageContent() {
         referralCode: referralCode || undefined,
       });
       toast.success('Registration successful! Please verify your email.');
+      if (referralCode) trackReferralSignup();
       router.push('/login');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');

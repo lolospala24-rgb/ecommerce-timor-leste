@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useReferralSummary, useReferralHistory } from '@/hooks/useReferral';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,14 +10,45 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Pagination } from '@/components/shared/Pagination';
 import { ReferralShareModal } from '@/components/account/ReferralShareModal';
 import { copyToClipboard } from '@/lib/utils';
+import { trackReferralRewardEarned } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 import { Gift, Copy, Share2, Users, CheckCircle2, Clock, Wallet } from 'lucide-react';
+
+// Reward-granting happens server-side on delivery, often while the
+// referrer isn't even online — this page noticing a REWARDED referral it
+// hasn't reported yet is the earliest client-side moment GA4 can learn
+// about it. Tracked IDs are remembered in localStorage so revisiting this
+// page (or the query refetching) never double-counts the same reward.
+const TRACKED_REWARDS_KEY = 'lolospala_tracked_referral_rewards';
+
+function trackNewlyRewarded(items: { id: number; status: string; rewardAmount: number | null }[]) {
+  if (typeof window === 'undefined') return;
+  let tracked: number[] = [];
+  try {
+    tracked = JSON.parse(window.localStorage.getItem(TRACKED_REWARDS_KEY) ?? '[]');
+  } catch {
+    tracked = [];
+  }
+  const trackedSet = new Set(tracked);
+  const newlyRewarded = items.filter((item) => item.status === 'REWARDED' && !trackedSet.has(item.id));
+  if (newlyRewarded.length === 0) return;
+
+  for (const item of newlyRewarded) {
+    trackReferralRewardEarned(item.rewardAmount ?? 0, item.id);
+    trackedSet.add(item.id);
+  }
+  window.localStorage.setItem(TRACKED_REWARDS_KEY, JSON.stringify(Array.from(trackedSet)));
+}
 
 export default function ReferralsPage() {
   const [page, setPage] = useState(1);
   const [shareOpen, setShareOpen] = useState(false);
   const { data: summary, isLoading: isSummaryLoading } = useReferralSummary();
   const { data: history, isLoading: isHistoryLoading } = useReferralHistory(page, 10);
+
+  useEffect(() => {
+    if (history?.items) trackNewlyRewarded(history.items);
+  }, [history]);
 
   const handleCopyCode = async () => {
     if (!summary?.referralCode) return;

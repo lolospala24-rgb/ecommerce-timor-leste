@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { copyToClipboard } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { MessageCircle, Mail, Link2, Share2 } from 'lucide-react';
+import { trackShareReferral } from '@/lib/analytics';
 
 // lucide-react has no brand icons — same minimal-SVG pattern already used
 // for WhatsApp/Telegram in ProductDetail.tsx.
@@ -42,41 +43,48 @@ export function ReferralShareModal({ open, onOpenChange, referralCode, referralL
   const handleCopy = async () => {
     const ok = await copyToClipboard(referralLink);
     toast[ok ? 'success' : 'error'](ok ? 'Referral link copied!' : 'Could not copy link');
+    if (ok) trackShareReferral('copy_link');
   };
 
   const handleNativeShare = async () => {
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Join Lolospala', text: shareText, url: referralLink });
+        trackShareReferral('native_share');
       } else {
         await handleCopy();
       }
     } catch {
-      // User cancelled the native share sheet — not an error.
+      // User cancelled the native share sheet — not an error, and not
+      // counted as a completed share.
     }
   };
 
   const shareTargets = [
     {
       label: 'WhatsApp',
+      method: 'whatsapp',
       icon: MessageCircle,
       className: 'bg-[#25D366] text-white hover:bg-[#1fbd5a]',
       href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${referralLink}`)}`,
     },
     {
       label: 'Facebook',
+      method: 'facebook',
       icon: FacebookIcon,
       className: 'bg-[#1877F2] text-white hover:bg-[#1466d2]',
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`,
     },
     {
       label: 'Messenger',
+      method: 'messenger',
       icon: MessengerIcon,
       className: 'bg-[#00B2FF] text-white hover:bg-[#009ee0]',
       href: `https://www.facebook.com/dialog/send?link=${encodeURIComponent(referralLink)}&app_id=0&redirect_uri=${encodeURIComponent(referralLink)}`,
     },
     {
       label: 'Email',
+      method: 'email',
       icon: Mail,
       className: 'bg-muted text-foreground hover:bg-muted/70',
       href: `mailto:?subject=${encodeURIComponent('Join Lolospala')}&body=${encodeURIComponent(`${shareText} ${referralLink}`)}`,
@@ -107,6 +115,7 @@ export function ReferralShareModal({ open, onOpenChange, referralCode, referralL
                 href={target.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackShareReferral(target.method)}
                 className="flex flex-col items-center gap-1.5"
               >
                 <span className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${target.className}`}>
