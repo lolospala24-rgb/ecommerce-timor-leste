@@ -12,6 +12,8 @@ import {
   BarChart3,
   Store,
   Megaphone,
+  Star,
+  Gift,
   Bell,
   LifeBuoy,
   LogOut,
@@ -64,6 +66,7 @@ export function Sidebar() {
       children: [
         { href: '/products', label: 'All Products' },
         { href: '/products/new', label: 'Add Product' },
+        { href: '/products/bulk-import', label: 'Bulk Import' },
         { href: '/products/low-stock', label: 'Low Stock', badge: dashboard?.overview.products.lowStock },
         { href: '/products/out-of-stock', label: 'Out of Stock', badge: dashboard?.overview.products.outOfStock },
       ],
@@ -92,12 +95,14 @@ export function Sidebar() {
       ],
     },
     { key: 'analytics', href: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { key: 'reviews', href: '/reviews', label: 'Reviews', icon: Star },
     {
       key: 'marketing',
       label: 'Marketing',
       icon: Megaphone,
       children: [
         { href: '/marketing/promotions', label: 'Promotions' },
+        { href: '/marketing/referrals', label: 'Referrals' },
       ],
     },
     {

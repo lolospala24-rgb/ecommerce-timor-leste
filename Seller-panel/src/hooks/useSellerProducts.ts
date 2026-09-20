@@ -136,3 +136,41 @@ export function useUpdateStock() {
     },
   });
 }
+
+export interface BulkImportRowResult {
+  row: number;
+  success: boolean;
+  productId?: number;
+  productName?: string;
+  error?: string;
+}
+
+export interface BulkImportResult {
+  successCount: number;
+  errorCount: number;
+  results: BulkImportRowResult[];
+}
+
+export function useBulkImportProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/products/bulk-import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+      });
+      return unwrapApiData<BulkImportResult>(res);
+    },
+    onSuccess: (result) => {
+      if (result.successCount > 0) {
+        qc.invalidateQueries({ queryKey: ['seller-products'] });
+        qc.invalidateQueries({ queryKey: ['seller-dashboard'] });
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Failed to import products');
+    },
+  });
+}

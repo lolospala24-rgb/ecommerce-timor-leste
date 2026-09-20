@@ -34,6 +34,33 @@ export const multerConfig: MulterOptions = {
   },
 };
 
+const ALLOWED_SPREADSHEET_EXTENSIONS = /\.(csv|xlsx)$/i;
+const ALLOWED_SPREADSHEET_MIME_TYPES = new Set([
+  'text/csv',
+  'application/vnd.ms-excel', // some browsers send this for .csv
+  'application/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+]);
+
+// Bulk product import (CSV/Excel) — same memory-storage rationale as
+// multerConfig above, since import.util.ts's exceljs parser reads directly
+// from file.buffer.
+export const spreadsheetMulterConfig: MulterOptions = {
+  fileFilter: (_req, file, callback) => {
+    if (
+      !ALLOWED_SPREADSHEET_EXTENSIONS.test(file.originalname) ||
+      !ALLOWED_SPREADSHEET_MIME_TYPES.has(file.mimetype)
+    ) {
+      callback(new BadRequestException('Only CSV and XLSX files are allowed'), false);
+      return;
+    }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB — plenty for thousands of product rows
+  },
+};
+
 const ALLOWED_VIDEO_EXTENSIONS = /\.(mp4|webm|mov)$/i;
 const ALLOWED_VIDEO_MIME_TYPES = new Set([
   'video/mp4',

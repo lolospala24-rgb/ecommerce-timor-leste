@@ -13,13 +13,14 @@
   ParseIntPipe,
   DefaultValuePipe,
   UploadedFiles,
+  UploadedFile,
   UseInterceptors,
   BadRequestException,
   NotFoundException,
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -35,7 +36,8 @@ import { Role } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { clampLimit } from '../../common/utils/pagination.util';
-import { multerConfig } from '../../common/config/multer.config';
+import { multerConfig, spreadsheetMulterConfig } from '../../common/config/multer.config';
+import { parseSpreadsheetRows } from '../../common/utils/import.util';
 
 @Controller('products')
 export class ProductsController {
@@ -69,6 +71,26 @@ export class ProductsController {
       files || [],
     );
     return { message: 'Product created successfully', data: product };
+  }
+
+  @Post('bulk-import')
+  @Roles(Role.SELLER, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file', spreadsheetMulterConfig))
+  async bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('id') userId: number,
+  ) {
+    if (!file) {
+      throw new BadRequestException('A CSV or XLSX file is required');
+    }
+
+    const rows = await parseSpreadsheetRows(file.buffer, file.originalname);
+    if (rows.length === 0) {
+      throw new BadRequestException('The file has no data rows');
+    }
+
+    const result = await this.productsService.bulkImportProducts(rows, userId);
+    return { message: 'Bulk import processed', data: result };
   }
 
   @Public()

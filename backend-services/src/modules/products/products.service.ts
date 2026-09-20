@@ -25,6 +25,22 @@ import { rowsToCsv, ExportColumn } from '../../common/utils/export.util';
 import { resolveProductOrigin } from '../../common/utils/product-origin.util';
 import { HOMEPAGE_CACHE_KEY } from '../homepage/homepage.service';
 import { PromotionsService } from '../promotions/promotions.service';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+
+export interface BulkImportRowResult {
+  row: number;
+  success: boolean;
+  productId?: number;
+  productName?: string;
+  error?: string;
+}
+
+export interface BulkImportResult {
+  successCount: number;
+  errorCount: number;
+  results: BulkImportRowResult[];
+}
 
 @Injectable()
 export class ProductsService {
@@ -196,6 +212,136 @@ export class ProductsService {
     await this.clearProductCache();
 
     return product;
+  }
+
+  // Best-effort, per-row bulk creation from a parsed CSV/XLSX (see
+  // import.util.ts) — one malformed row must never block the others, so
+  // each row runs its own try/catch and reports into `results` rather than
+  // the whole import running inside a single transaction. Image upload is
+  // out of scope for v1: rows are created via the same create() used by the
+  // single-product form, with files=[]; sellers add images afterward via
+  // the existing edit flow.
+  async bulkImportProducts(
+    rows: Record<string, string>[],
+    userId: number,
+  ): Promise<BulkImportResult> {
+    const categories = await this.prisma.category.findMany({
+      select: { id: true, name: true, slug: true },
+    });
+    const categoryByKey = new Map<string, number>();
+    for (const category of categories) {
+      categoryByKey.set(category.name.trim().toLowerCase(), category.id);
+      categoryByKey.set(category.slug.trim().toLowerCase(), category.id);
+    }
+
+    const results: BulkImportRowResult[] = [];
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowNumber = i + 2; // +1 for 0-index, +1 for the header row
+      const get = this.rowValueGetter(rows[i]);
+
+      try {
+        const categoryRaw = get('category');
+        const categoryId = categoryRaw
+          ? categoryByKey.get(categoryRaw.trim().toLowerCase())
+          : undefined;
+        if (categoryRaw && !categoryId) {
+          throw new Error(`Category "${categoryRaw}" not found`);
+        }
+        if (!categoryRaw) {
+          throw new Error('Missing "category"');
+        }
+
+        const plain: Record<string, unknown> = {
+          name: get('name'),
+          nameTetum: get('nameTetum') || undefined,
+          description: get('description'),
+          descriptionTetum: get('descriptionTetum') || undefined,
+          price: this.toRequiredNumber(get('price'), 'price'),
+          comparePrice: this.toOptionalNumber(get('comparePrice')),
+          cost: this.toOptionalNumber(get('cost')),
+          stock: this.toRequiredNumber(get('stock'), 'stock'),
+          sku: get('sku') || undefined,
+          barcode: get('barcode') || undefined,
+          weight: this.toOptionalNumber(get('weight')),
+          brand: get('brand') || undefined,
+          categoryId,
+          isActive: this.toOptionalBoolean(get('isActive')),
+          isFeatured: this.toOptionalBoolean(get('isFeatured')),
+          tags: this.toOptionalStringArray(get('tags')),
+        };
+
+        const dto = plainToInstance(CreateProductDto, plain);
+        const validationErrors = await validate(dto);
+        if (validationErrors.length > 0) {
+          const messages = validationErrors.map((error) =>
+            Object.values(error.constraints || {}).join(', '),
+          );
+          throw new Error(messages.join('; '));
+        }
+
+        const product = await this.create(dto, userId, []);
+        results.push({
+          row: rowNumber,
+          success: true,
+          productId: product!.id,
+          productName: product!.name,
+        });
+        successCount++;
+      } catch (error) {
+        results.push({
+          row: rowNumber,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        errorCount++;
+      }
+    }
+
+    return { successCount, errorCount, results };
+  }
+
+  // Spreadsheet header matching is case/whitespace-insensitive — sellers
+  // filling in a template by hand shouldn't get rejected over "Price" vs
+  // "price".
+  private rowValueGetter(row: Record<string, string>): (key: string) => string | undefined {
+    const normalized = new Map<string, string>();
+    for (const [key, value] of Object.entries(row)) {
+      normalized.set(key.trim().toLowerCase(), value);
+    }
+    return (key: string) => {
+      const value = normalized.get(key.toLowerCase());
+      return value === undefined || value === '' ? undefined : value;
+    };
+  }
+
+  private toRequiredNumber(value: string | undefined, field: string): number {
+    const num = Number(value);
+    if (value === undefined || Number.isNaN(num)) {
+      throw new Error(`Missing or invalid "${field}"`);
+    }
+    return num;
+  }
+
+  private toOptionalNumber(value: string | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    const num = Number(value);
+    return Number.isNaN(num) ? undefined : num;
+  }
+
+  private toOptionalBoolean(value: string | undefined): boolean | undefined {
+    if (value === undefined) return undefined;
+    return ['true', '1', 'yes', 'y'].includes(value.trim().toLowerCase());
+  }
+
+  private toOptionalStringArray(value: string | undefined): string[] | undefined {
+    if (value === undefined) return undefined;
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
   private static readonly EXPORT_COLUMNS: ExportColumn[] = [
