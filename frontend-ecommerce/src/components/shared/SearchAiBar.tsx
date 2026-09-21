@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Loader2, Search, Sparkles, Clock, TrendingUp, Layers, Store, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -55,7 +56,6 @@ interface SearchAiBarProps {
   onNavigate?: () => void;
 }
 
-const PLACEHOLDER = 'Laptop ida ba programming, RAM 16GB, budget $700';
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 
@@ -65,6 +65,7 @@ function unwrap<T>(response: any, fallback: T): T {
 
 export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const [value, setValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -246,7 +247,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onFocus={handleFocus}
-            placeholder={PLACEHOLDER}
+            placeholder={t('search.placeholder')}
             autoFocus={autoFocus}
             disabled={isSearching}
             autoComplete="off"

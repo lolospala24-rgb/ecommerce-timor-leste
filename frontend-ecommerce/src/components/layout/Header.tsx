@@ -193,10 +193,11 @@ export function Header() {
              
             </nav>
 
-            {/* Search — inline in the header row at every width, not a
-                separate row underneath. min-w-0 lets it actually shrink in
-                a flex row instead of overflowing on a narrow phone. */}
-            <div className="min-w-0 flex-1 md:max-w-md">
+            {/* Search Bar - Desktop (mobile gets its own full-width row
+                below — see right after this header's main flex row. Cramming
+                it into this same row alongside the logo and action icons
+                left no real room for it on a narrow phone.) */}
+            <div className="hidden md:block flex-1 max-w-md">
               <SearchAiBar className="w-full" />
             </div>
 
@@ -405,6 +406,17 @@ export function Header() {
                 <Menu className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Mobile-only search row — the real, typeable SearchAiBar at full
+              row width (not a fake button opening a separate overlay dialog
+              — that extra tap-through was more friction than it was worth
+              now that the bar fits comfortably on its own row). Still part
+              of the same header surface as the row above: no border, same
+              background, just its own line since a phone has no room to
+              share a row with the logo and action icons too. */}
+          <div className="pb-3 md:hidden">
+            <SearchAiBar className="w-full" />
           </div>
 
           {/* Mobile-only second row: All Categories — a homepage-only browse
