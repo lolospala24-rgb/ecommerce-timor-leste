@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Loader2, Search, Sparkles, Clock, TrendingUp, Layers, Store } from 'lucide-react';
+import { Loader2, Search, Sparkles, Clock, TrendingUp, Layers, Store, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 interface AiSearchFilters {
   keywords: string;
@@ -209,6 +210,14 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
     void runAiSearch();
   };
 
+  // No image-search backend exists yet (no embedding model / vector index
+  // to match against) — this stays a visible, honest "not built yet" tap
+  // rather than silently doing nothing or pretending to search.
+  const handleCameraClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    toast('Buka husi imajen sei disponível lalais 📷', { id: 'image-search-soon' });
+  };
+
   const handleClearRecent = async (event: React.MouseEvent) => {
     event.stopPropagation();
     setRecentSearches([]);
@@ -243,6 +252,14 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             autoComplete="off"
             className="h-10 w-full flex-1 truncate bg-transparent pl-9 pr-2 text-sm outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
           />
+          <button
+            type="button"
+            onClick={handleCameraClick}
+            aria-label="Search by image"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+          >
+            <Camera className="h-4 w-4" />
+          </button>
           <button
             type="submit"
             disabled={isSearching || !trimmedValue}

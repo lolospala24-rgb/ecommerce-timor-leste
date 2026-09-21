@@ -30,7 +30,6 @@ import { TopHeader } from './TopHeader';
 import { CartDrawer } from './CartDrawer';
 import { MobileNav } from './MobileNav';
 import {
-  Search,
   ShoppingCart,
   User,
   LogOut,
@@ -40,7 +39,6 @@ import {
   Moon,
   Sun,
   Monitor,
-  X,
   Bell,
   CheckCheck,
   Trash2,
@@ -78,7 +76,6 @@ export function Header() {
     state.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
   );
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useOrderNotifications();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { cartOpen, setCartOpen } = useUIStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -196,18 +193,15 @@ export function Header() {
              
             </nav>
 
-            <div className="hidden md:block flex-1 max-w-md">
+            {/* Search — inline in the header row at every width, not a
+                separate row underneath. min-w-0 lets it actually shrink in
+                a flex row instead of overflowing on a narrow phone. */}
+            <div className="min-w-0 flex-1 md:max-w-md">
               <SearchAiBar className="w-full" />
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-1">
-              {/* Mobile search moved to its own full-width row below —
-                  see the row right after this header's main flex row. An
-                  icon-only trigger here read as an afterthought; a real
-                  search-bar shape is what a phone-native header actually
-                  looks like. */}
-
               {/* Theme Toggle removed from here - moved to TopHeader */}
 
               {/* Wishlist — hidden on mobile, already reachable via the
@@ -413,22 +407,6 @@ export function Header() {
             </div>
           </div>
 
-          {/* Mobile-only search row — a real search-bar shape (not an icon
-              in the action row above) is what makes a mobile header feel
-              native rather than a shrunk desktop bar. Tapping it opens the
-              same search overlay the desktop search box + icon both use. */}
-          <div className="pb-3 md:hidden">
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              aria-label={t('search.placeholder')}
-              className="flex w-full items-center gap-2.5 rounded-full border bg-muted/50 px-4 py-2.5 text-left text-sm text-muted-foreground"
-            >
-              <Search className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t('search.placeholder')}</span>
-            </button>
-          </div>
-
           {/* Mobile-only second row: All Categories — a homepage-only browse
               shortcut. Opening the desktop mega menu's 880px panel on a
               phone screen isn't an option, so this is its own row on the
@@ -456,22 +434,6 @@ export function Header() {
       </header>
 
       <CategoryDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} />
-
-      {/* Mobile Search Dialog */}
-      {searchOpen && (
-        <div className="fixed inset-0 z-50 bg-background md:hidden">
-          <div className="flex items-center gap-2 border-b p-4">
-            <SearchAiBar
-              className="flex-1"
-              autoFocus
-              onNavigate={() => setSearchOpen(false)}
-            />
-            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(false)} aria-label="Close search">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
