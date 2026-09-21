@@ -63,13 +63,6 @@ interface ProductDetailProps {
   onAddToCart?: () => void;
 }
 
-// wa.me links need digits only (no "+", spaces, or dashes) — storePhone is
-// admin-entered free text (e.g. "+670 8765 4321"), so it isn't safe to use
-// as-is.
-function sanitizePhoneForWhatsApp(phone: string): string {
-  return phone.replace(/\D/g, '');
-}
-
 export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
@@ -689,29 +682,9 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               <p className="text-xs text-muted-foreground">
                 {product.seller.isVerified ? 'Verified seller' : 'Seller'}
               </p>
-              {product.seller.storeAddress && (
-                <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{product.seller.storeAddress}</span>
-                </div>
-              )}
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            {product.seller.storePhone && (
-              <Button size="sm" className="bg-[#25D366] text-white hover:bg-[#1fbd5a]" asChild>
-                <a
-                  href={`https://wa.me/${sanitizePhoneForWhatsApp(product.seller.storePhone)}?text=${encodeURIComponent(
-                    `Hi, I'm interested in "${product.name}" (${typeof window !== 'undefined' ? window.location.href : ''})`,
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <WhatsAppIcon className="mr-1.5 h-4 w-4" />
-                  Contact Seller
-                </a>
-              </Button>
-            )}
             <Button variant="outline" size="sm" asChild>
               <Link href={`/sellers/${product.seller.id}`}>
                 Visit Store
