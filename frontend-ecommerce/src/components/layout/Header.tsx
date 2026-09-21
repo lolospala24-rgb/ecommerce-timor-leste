@@ -56,6 +56,16 @@ export function Header() {
   // and crowds the header on pages where vertical space actually matters
   // (e.g. a product detail page fighting for room above the fold).
   const isMobileBrowseRowVisible = pathname === '/';
+  // Single-item detail pages (a specific product, a specific seller) —
+  // someone already there has already searched their way in, so a search
+  // row is unlikely to be their next tap, and the page needs the vertical
+  // space more than a listing page does. Mirrors (shop)/layout.tsx's own
+  // hasOwnBreadcrumb() check for the same class of page. Listing pages
+  // (home, /products, /categories, /cart, etc.) keep the search row.
+  const isDetailPage =
+    (pathname?.startsWith('/products/') && pathname !== '/products/') ||
+    (pathname?.startsWith('/sellers/') && pathname !== '/sellers/');
+  const isMobileSearchRowVisible = !isDetailPage;
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
@@ -414,10 +424,13 @@ export function Header() {
               now that the bar fits comfortably on its own row). Still part
               of the same header surface as the row above: no border, same
               background, just its own line since a phone has no room to
-              share a row with the logo and action icons too. */}
-          <div className="pb-3 md:hidden">
-            <SearchAiBar className="w-full" />
-          </div>
+              share a row with the logo and action icons too. Hidden on
+              product/seller detail pages — see isDetailPage above. */}
+          {isMobileSearchRowVisible && (
+            <div className="pb-3 md:hidden">
+              <SearchAiBar className="w-full" />
+            </div>
+          )}
 
           {/* Mobile-only second row: All Categories — a homepage-only browse
               shortcut. Opening the desktop mega menu's 880px panel on a
