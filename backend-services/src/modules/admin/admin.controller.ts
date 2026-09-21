@@ -153,6 +153,16 @@ export class AdminController {
     return { message: 'User unblocked successfully', data: user };
   }
 
+  @Post('users/:id/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetUserPassword(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') adminId: number,
+  ) {
+    const result = await this.adminService.resetUserPassword(id, adminId);
+    return { message: 'Password reset successfully', data: result };
+  }
+
   @Patch('users/:id/role')
   async changeUserRole(
     @Param('id', ParseIntPipe) id: number,

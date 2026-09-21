@@ -16,6 +16,7 @@ import { AdminStatsQueryDto } from './dto/admin-stats.dto';
 import { Role } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 import { SAFE_USER_SELECT } from '../../common/utils/safe-select.util';
+import { hashPassword, generateRandomPassword } from '../../common/utils/bcrypt.util';
 
 @Injectable()
 export class AdminService {
@@ -733,6 +734,54 @@ export class AdminService {
 
     const { password, ...result } = updatedUser;
     return result;
+  }
+
+  // Admin-initiated password reset — for support cases where a user (most
+  // often a seller) is locked out and can't complete the normal
+  // forgot-password email flow. Generates a fresh random password and
+  // returns it once in the response; it's never written to adminLog or any
+  // other persisted record, since that table is readable by every admin.
+  async resetUserPassword(id: number, adminId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    if (user.id === adminId) {
+      throw new ForbiddenException(
+        'Use your account settings to change your own password',
+      );
+    }
+
+    const temporaryPassword = generateRandomPassword();
+    const hashed = await hashPassword(temporaryPassword);
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.user.update({
+        where: { id },
+        data: { password: hashed },
+      });
+
+      await prisma.adminLog.create({
+        data: {
+          adminId,
+          action: 'RESET_PASSWORD',
+          targetType: 'USER',
+          targetId: id,
+          details: {
+            email: user.email,
+          },
+        },
+      });
+    });
+
+    // Force re-login everywhere the old password was trusted.
+    await this.redisService.del(`refresh_token:${id}`);
+
+    return { email: user.email, temporaryPassword };
   }
 
   async changeUserRole(id: number, role: Role, adminId: number) {
