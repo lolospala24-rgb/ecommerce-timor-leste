@@ -398,7 +398,11 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Link href="/login">
+                // Hidden on mobile — BottomNav's Account tab already routes
+                // guests to /login, so this button just duplicated it right
+                // next to the hamburger. Desktop has no bottom nav, so it
+                // stays there as the only sign-in entry point.
+                <Link href="/login" className="hidden md:block">
                   <Button variant="default" size="sm" className="h-9">
                     {t('nav.signIn')}
                   </Button>
