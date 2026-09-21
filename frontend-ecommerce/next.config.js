@@ -24,7 +24,10 @@ const contentSecurityPolicy = [
   // Next.js dev-mode Fast Refresh/HMR (react-refresh-utils runtime) uses
   // eval() internally, so 'unsafe-eval' is needed in dev only; production
   // builds don't use eval-based HMR, so it stays out of the prod CSP.
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://maps.googleapis.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.googletagmanager.com' : ''}`,
+  // https://accounts.google.com/gsi/client: Google Identity Services (One
+  // Tap) — a separate script from apis.google.com's gapi loader above;
+  // GIS is its own client library with its own origin.
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''} https://apis.google.com https://accounts.google.com/gsi/client https://maps.googleapis.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.googletagmanager.com' : ''}`,
   // No nonce equivalent exists for inline style *attributes* (only <style>
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
@@ -53,9 +56,13 @@ const contentSecurityPolicy = [
   // analytics.google.com + stats.g.doubleclick.net: the other two hosts
   // Google's own gtag.js CSP guidance lists as required alongside
   // google-analytics.com, or GA4 silently drops a portion of events.
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net' : ''}`,
+  // https://accounts.google.com: Google Identity Services' own credential
+  // exchange calls (One Tap) — distinct from apis.google.com above.
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://accounts.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net' : ''}`,
   "worker-src 'self' blob:",
-  `frame-src 'self' https://www.google.com/recaptcha/${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
+  // https://accounts.google.com: the One Tap prompt itself renders inside
+  // an iframe from this origin.
+  `frame-src 'self' https://www.google.com/recaptcha/ https://accounts.google.com${firebaseAuthDomain ? ` https://${firebaseAuthDomain}` : ''}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

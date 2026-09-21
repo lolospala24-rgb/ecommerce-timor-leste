@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome';
 import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
 import { PwaInstall } from '@/components/pwa/PwaInstall';
+import { GoogleOneTap } from '@/components/shared/GoogleOneTap';
 
 export const viewport: Viewport = {
   themeColor: '#ffffff',
@@ -199,6 +200,7 @@ export default async function RootLayout({
             }}
           />
           <PwaInstall />
+          <GoogleOneTap />
         </Providers>
       </body>
     </html>

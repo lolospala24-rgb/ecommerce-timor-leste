@@ -14,7 +14,7 @@ import { SupportChatWidget } from '@/components/shared/SupportChatWidget';
 // scrolling page shell: the feed manages its own internal scroll (one
 // snapped video at a time), so letting the outer page scroll too would
 // fight that and let the layout grow past the viewport.
-const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
+export const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export function ConditionalChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();

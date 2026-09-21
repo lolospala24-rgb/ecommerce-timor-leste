@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseOptions } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential } from 'firebase/auth';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -28,4 +28,18 @@ export async function signInWithGoogle(): Promise<string> {
   const provider = new GoogleAuthProvider();
   const credential = await signInWithPopup(auth, provider);
   return credential.user.getIdToken();
+}
+
+/**
+ * Bridges a Google Identity Services credential (the raw Google ID token
+ * from One Tap) into a Firebase session — exchanges it via Firebase's own
+ * GoogleAuthProvider.credential() instead of the popup flow above, then
+ * returns the resulting Firebase ID token, so the caller can send it to
+ * POST /auth/google exactly like signInWithGoogle()'s result.
+ */
+export async function signInWithGoogleCredential(googleIdToken: string): Promise<string> {
+  const auth = getAuth(getFirebaseApp());
+  const credential = GoogleAuthProvider.credential(googleIdToken);
+  const result = await signInWithCredential(auth, credential);
+  return result.user.getIdToken();
 }
