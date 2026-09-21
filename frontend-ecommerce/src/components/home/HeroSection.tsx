@@ -28,6 +28,13 @@ function splitLastWord(title: string): [string, string] {
 // content here is real data (see HeroBanner) rendered by this component,
 // not baked into the image itself — that's what lets admins edit copy
 // without re-exporting a graphic.
+//
+// Mobile gets a compact card: image bleeds in from the edge behind a short
+// text column with one CTA — the old stacked layout (badge, two-line title,
+// subtitle, two buttons, three trust rows, then a separate image block)
+// pushed the rest of the homepage a full extra scroll below the fold on a
+// phone. Trust signals and the secondary "browse categories" CTA still get
+// their room back from `sm:` up, where there's actual space for them.
 function HeroSlide({ banner, priority = false }: {
   banner: HeroBanner;
   priority?: boolean;
@@ -45,7 +52,7 @@ function HeroSlide({ banner, priority = false }: {
 
   return (
     <div className="min-w-0 flex-[0_0_100%] px-1">
-      <div className="relative overflow-hidden rounded-xl border bg-card">
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card">
         {/* Soft brand-colored glow behind the image side — adds depth
             without a generic gradient wash across the whole banner. */}
         <div
@@ -53,34 +60,34 @@ function HeroSlide({ banner, priority = false }: {
           className="pointer-events-none absolute -right-24 -top-24 hidden h-[28rem] w-[28rem] rounded-full bg-primary/10 blur-3xl md:block"
         />
 
-        <div className="relative grid gap-6 p-5 sm:p-8 md:grid-cols-2 md:items-center md:gap-8 md:p-10">
-          <div className="text-center md:text-left">
+        <div className="relative flex min-h-[220px] items-center sm:min-h-0 sm:grid sm:grid-cols-2 sm:gap-8 sm:p-8 md:gap-10 md:p-10">
+          <div className="relative z-10 w-[58%] p-4 xs:w-1/2 sm:w-auto sm:p-0 sm:text-left">
             {banner.badge && (
-              <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wide text-primary">
+              <span className="mb-2 inline-block rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary sm:mb-3 sm:px-3 sm:text-xs">
                 {banner.badge}
               </span>
             )}
-            <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
+            <h1 className="text-lg font-bold leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
               {titleLead}
               <span className="text-primary">{titleAccent}</span>
             </h1>
             {banner.subtitle && (
-              <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground sm:mt-3 sm:line-clamp-none sm:text-base">
                 {banner.subtitle}
               </p>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+            <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-5">
               <Link
                 href={href}
-                className="group inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                className="group inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:gap-2 sm:px-6 sm:py-3 sm:text-sm"
               >
                 {banner.buttonText || t('hero.shopNow')}
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1 sm:h-4 sm:w-4" />
               </Link>
               <Link
                 href="/categories"
-                className="inline-flex items-center gap-2 rounded-lg border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                className="hidden items-center gap-2 rounded-lg border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted sm:inline-flex"
               >
                 <Grid3x3 className="h-4 w-4" />
                 {t('hero.browseCategories')}
@@ -89,8 +96,10 @@ function HeroSlide({ banner, priority = false }: {
 
             {/* Trust signals — surfaced right under the CTAs, not buried in
                 the footer, since trust (not product discovery) is the main
-                adoption barrier for first-time online shoppers locally. */}
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 md:justify-start">
+                adoption barrier for first-time online shoppers locally.
+                Hidden on mobile, where the compact card has no room for a
+                third row of content without pushing back past one screen. */}
+            <div className="mt-5 hidden flex-wrap items-center gap-x-5 gap-y-2 sm:flex">
               {trustItems.map(({ icon: Icon, label }) => (
                 <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Icon className="h-3.5 w-3.5 text-primary" />
@@ -100,21 +109,28 @@ function HeroSlide({ banner, priority = false }: {
             </div>
           </div>
 
-          <div className="relative aspect-[4/3] w-full sm:aspect-square md:aspect-[4/3]">
+          {/* Image bleeds in from the trailing edge on mobile (bottom-anchored,
+              partially cropped by the card) instead of sitting in its own
+              full-width block below the text — that single change is most of
+              what makes the card feel like one compact banner instead of two
+              stacked sections. From sm: up it goes back to a normal contained
+              box beside the text, where the extra width means it doesn't need
+              to overlap anything. */}
+          <div className="absolute inset-y-0 right-0 w-[46%] xs:w-1/2 sm:relative sm:inset-auto sm:aspect-[4/3] sm:w-full">
             <Image
               src={banner.desktopImage}
               alt={banner.title}
               fill
-              className="hidden object-contain md:block"
-              sizes="(min-width: 768px) 40vw, 0px"
+              className="hidden object-contain object-bottom sm:block sm:object-center"
+              sizes="(min-width: 640px) 40vw, 0px"
               priority={priority}
             />
             <Image
               src={mobileImage}
               alt={banner.title}
               fill
-              className="object-contain md:hidden"
-              sizes="(max-width: 767px) 80vw, 0px"
+              className="object-contain object-bottom sm:hidden"
+              sizes="(max-width: 639px) 45vw, 0px"
               priority={priority}
             />
           </div>

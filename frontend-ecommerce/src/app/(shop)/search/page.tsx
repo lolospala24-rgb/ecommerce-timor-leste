@@ -406,7 +406,7 @@ function SearchPageContent() {
 
       {/* Results Tabs */}
       <Tabs defaultValue="products" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto scrollbar-hide">
           <TabsTrigger value="products" className="flex shrink-0 items-center gap-2">
             <Package className="h-4 w-4" />
             {t('search.tabs.products')}
