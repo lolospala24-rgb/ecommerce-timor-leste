@@ -20,12 +20,9 @@ import {
   Package,
   ShoppingBag,
   MapPin,
-  Phone,
-  Mail,
   ChevronLeft,
   CheckCircle,
   XCircle,
-  MessageCircle,
   Tag,
 } from 'lucide-react';
 
@@ -110,8 +107,11 @@ export default function SellerDetailPage() {
         Back to Sellers
       </Button>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-        <div className="relative h-64 sm:h-72 lg:h-80 bg-muted">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        {/* Banner — a short strip rather than a near-full-screen hero; on a
+            phone the old h-64+ banner pushed the store's actual name and
+            stats below the fold before a shopper saw anything real. */}
+        <div className="relative h-20 bg-muted sm:h-32">
           {seller.storeBanner ? (
             <Image
               src={seller.storeBanner}
@@ -120,103 +120,91 @@ export default function SellerDetailPage() {
               className="object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-primary/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-primary/5" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          <div className="absolute bottom-4 left-4 right-4 sm:left-8 sm:right-8">
-            <div className="flex flex-col gap-3 rounded-xl bg-background p-4 shadow-md sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm">
-                  {seller.storeLogo ? (
-                    <Image
-                      src={seller.storeLogo}
-                      alt={`${storeName} logo`}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <span className="text-2xl font-bold text-primary">
-                        {getInitials(seller.storeName)}
-                      </span>
-                    </div>
-                  )}
+        </div>
+
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="-mt-8 flex items-end justify-between gap-3 sm:-mt-10">
+            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-4 border-card bg-muted shadow-sm sm:h-20 sm:w-20">
+              {seller.storeLogo ? (
+                <Image
+                  src={seller.storeLogo}
+                  alt={`${storeName} logo`}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center">
+                  <span className="text-lg font-bold text-primary sm:text-2xl">
+                    {getInitials(seller.storeName)}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                      {storeName}
-                    </h1>
-                    {seller.isVerified ? (
-                      <Badge className="bg-green-600 text-white gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Verified
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="gap-1">
-                        <XCircle className="h-3 w-3" />
-                        Pending
-                      </Badge>
-                    )}
-                    {isOwner && (
-                      <Badge variant="outline" className="gap-1">
-                        Your Store
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                      <span className="font-medium text-foreground">
-                        {seller.rating?.toFixed(1) || '0'}
-                      </span>
-                      <span>({seller.totalReviews || 0} reviews)</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <Package className="h-4 w-4" />
-                      <span>{seller._count?.products || 0} products</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
-                      <ShoppingBag className="h-4 w-4" />
-                      <span>{seller._count?.orders || 0} orders</span>
-                    </div>
-                  </div>
-                  {seller.storeAddress && (
-                    <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>{seller.storeAddress}</span>
-                    </div>
-                  )}
-                </div>
+              )}
+            </div>
+            {isOwner && (
+              <Button size="sm" asChild>
+                <Link href="/profile/store">
+                  <Store className="mr-2 h-4 w-4" />
+                  Manage Store
+                </Link>
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-2xl">
+                {storeName}
+              </h1>
+              {seller.isVerified ? (
+                <Badge className="gap-1 bg-green-600 text-white">
+                  <CheckCircle className="h-3 w-3" />
+                  Verified
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="gap-1">
+                  <XCircle className="h-3 w-3" />
+                  Pending
+                </Badge>
+              )}
+              {isOwner && (
+                <Badge variant="outline">Your Store</Badge>
+              )}
+            </div>
+            {seller.storeAddress && (
+              <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{seller.storeAddress}</span>
               </div>
-              <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
-                {seller.storeEmail && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`mailto:${seller.storeEmail}`}>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Email
-                    </a>
-                  </Button>
-                )}
-                {seller.storePhone && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`tel:${seller.storePhone}`}>
-                      <Phone className="mr-2 h-4 w-4" />
-                      Call
-                    </a>
-                  </Button>
-                )}
-                {isOwner && (
-                  <Button size="sm" asChild>
-                    <Link href="/profile/store">
-                      <Store className="mr-2 h-4 w-4" />
-                      Manage Store
-                    </Link>
-                  </Button>
-                )}
-              </div>
+            )}
+          </div>
+
+          {/* Stats — real fields only (rating/products/orders), no
+              response-time or unlabeled trust badges: that data isn't
+              tracked per-seller, and inventing it would misrepresent the
+              store. */}
+          <div className="mt-4 grid grid-cols-3 divide-x divide-border rounded-lg border">
+            <div className="flex flex-col items-center gap-0.5 py-2.5">
+              <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
+                <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                {seller.rating?.toFixed(1) || '0.0'}
+              </span>
+              <span className="text-[11px] text-muted-foreground">{seller.totalReviews || 0} reviews</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 py-2.5">
+              <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
+                <Package className="h-3.5 w-3.5 text-primary" />
+                {seller._count?.products || 0}
+              </span>
+              <span className="text-[11px] text-muted-foreground">Products</span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 py-2.5">
+              <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
+                <ShoppingBag className="h-3.5 w-3.5 text-primary" />
+                {seller._count?.orders || 0}
+              </span>
+              <span className="text-[11px] text-muted-foreground">Orders</span>
             </div>
           </div>
         </div>
@@ -333,22 +321,6 @@ export default function SellerDetailPage() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Trust Badges */}
-      <div className="grid gap-4 sm:grid-cols-3 pt-4 border-t">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <span>{seller.isVerified ? 'Verified Seller' : 'Verification Pending'}</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Package className="h-5 w-5 text-primary" />
-          <span>{seller._count?.products || 0} Products Available</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <ShoppingBag className="h-5 w-5 text-primary" />
-          <span>{seller._count?.orders || 0} Orders Completed</span>
-        </div>
-      </div>
     </div>
   );
 }
