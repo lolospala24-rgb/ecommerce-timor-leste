@@ -20,9 +20,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { MoreHorizontal, Eye, Shield, Ban, UserCheck, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MoreHorizontal, Eye, Shield, Ban, UserCheck, Trash2, Pencil, KeyRound, Copy } from 'lucide-react';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { EditUserModal } from './EditUserModal';
 import api from '@/lib/api';
+import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 interface UsersTableProps {
@@ -44,6 +47,13 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [editingUser, setEditingUser] = useState<any>(null);
+
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<any>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState<{ email: string; temporaryPassword: string } | null>(null);
 
   const getInitials = (name: string) => {
     return name
@@ -108,6 +118,31 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
       setRoleDialogOpen(false);
       setRoleChangeUser(null);
       setPendingRole('');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser?.id) return;
+    setIsResettingPassword(true);
+    try {
+      const response = await api.post(`/admin/users/${resetPasswordUser.id}/reset-password`);
+      const result = unwrapApiData<{ email: string; temporaryPassword: string }>((response as any).data);
+      setResetPasswordDialogOpen(false);
+      setResetPasswordResult(result);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const copyTemporaryPassword = async () => {
+    if (!resetPasswordResult) return;
+    try {
+      await navigator.clipboard.writeText(resetPasswordResult.temporaryPassword);
+      toast.success('Password copied');
+    } catch {
+      toast.error('Could not copy — select and copy manually');
     }
   };
 
@@ -195,6 +230,19 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
                       <DropdownMenuItem onClick={() => onViewUser(user.id)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit User
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setResetPasswordUser(user);
+                          setResetPasswordDialogOpen(true);
+                        }}
+                      >
+                        <KeyRound className="mr-2 h-4 w-4" />
+                        Reset Password
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -299,6 +347,45 @@ export function UsersTable({ users, onViewUser, onRefresh }: UsersTableProps) {
         onConfirm={confirmDeleteUser}
         isLoading={isDeleting}
       />
+
+      <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />
+
+      <ConfirmDialog
+        open={resetPasswordDialogOpen}
+        onOpenChange={setResetPasswordDialogOpen}
+        title="Reset Login Password"
+        description={`This generates a new temporary password for ${resetPasswordUser?.name || 'this user'} (${resetPasswordUser?.email || 'no email'}) and immediately signs them out everywhere. Their current password stops working right away — you'll need to share the new one with them yourself.`}
+        confirmText="Reset Password"
+        onConfirm={handleResetPassword}
+        isLoading={isResettingPassword}
+      />
+
+      <Dialog open={!!resetPasswordResult} onOpenChange={(open) => !open && setResetPasswordResult(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset</DialogTitle>
+            <DialogDescription>
+              This is shown once — copy it now and share it with {resetPasswordResult?.email} through a secure
+              channel. It won&apos;t be shown again.
+            </DialogDescription>
+          </DialogHeader>
+          {resetPasswordResult && (
+            <div className="flex items-center gap-2 rounded-md border bg-muted p-3">
+              <code className="flex-1 select-all break-all font-mono text-sm">
+                {resetPasswordResult.temporaryPassword}
+              </code>
+              <Button type="button" variant="outline" size="icon" onClick={copyTemporaryPassword}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => setResetPasswordResult(null)}>
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
