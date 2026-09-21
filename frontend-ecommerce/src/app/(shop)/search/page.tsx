@@ -8,21 +8,13 @@ import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useSellers } from '@/hooks/useSellers';
 import { ProductGrid } from '@/components/products/ProductGrid';
-import { ProductFilters } from '@/components/products/ProductFilters';
 import { ProductSort } from '@/components/products/ProductSort';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Search, Package, Store, FolderTree, X, Filter, Sparkles } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Search, Package, Store, FolderTree, X, Sparkles } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 export default function SearchPage() {
@@ -76,7 +68,6 @@ function SearchPageContent() {
     sortBy: 'relevance' as string,
   });
   const [activeTab, setActiveTab] = useState('products');
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const { data: productsData, isLoading: productsLoading } = useProducts(filters);
   const { data: categoriesData } = useCategories({ limit: 100 });
@@ -101,18 +92,6 @@ function SearchPageContent() {
       page: 1,
     }));
   }, [searchParams]);
-
-  // Handle filter changes
-  const handleFilterChange = (newFilters: any) => {
-    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
-    
-    // Update URL
-    const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (newFilters.categoryId) params.set('category', newFilters.categoryId.toString());
-    if (newFilters.sellerId) params.set('seller', newFilters.sellerId.toString());
-    router.push(`/search?${params.toString()}`);
-  };
 
   const handlePageChange = (page: number) => {
     setFilters(prev => ({ ...prev, page }));
@@ -307,66 +286,11 @@ function SearchPageContent() {
 
   return (
     <div className="space-y-6">
-      {/* Search Header — no re-search box here: the header's own search
-          bar (present on every page) already covers that, so this page
-          only needs to show what's being filtered and how to filter it
-          further. */}
+      {/* Search Header — no re-search box, title, filter trigger, or
+          "showing results for" summary here: the header's own search bar
+          (present on every page) already covers searching, and the tabs
+          right below already make clear what's being shown. */}
       <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-bold">{t('search.title')}</h1>
-        <div className="flex justify-end">
-          <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" className="lg:hidden">
-                <Filter className="mr-2 h-4 w-4" />
-                {t('search.filters')}
-                {hasActiveFilters && (
-                  <span className="ml-2 h-5 w-5 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center">
-                    !
-                  </span>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-full max-w-sm overflow-y-auto" data-lenis-prevent>
-              <SheetHeader>
-                <SheetTitle>{t('search.filters')}</SheetTitle>
-              </SheetHeader>
-              <div className="mt-4">
-                <ProductFilters
-                  filters={filters}
-                  onFilterChange={(newFilters) => {
-                    handleFilterChange(newFilters);
-                    setMobileFiltersOpen(false);
-                  }}
-                  categories={categoriesData?.data || []}
-                />
-                {hasActiveFilters && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-4"
-                    onClick={() => {
-                      clearFilters();
-                      setMobileFiltersOpen(false);
-                    }}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    {t('search.clearAllFilters')}
-                  </Button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-        {query && (
-          <p className="text-sm text-muted-foreground">
-            {t('search.showingResultsFor')} <span className="font-medium">"{query}"</span>
-            {productsData?.pagination && (
-              <span className="ml-2">
-                ({productsData.pagination.total} {t('search.resultsCount')})
-              </span>
-            )}
-          </p>
-        )}
         {aiQuery && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
