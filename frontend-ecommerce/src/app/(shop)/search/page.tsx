@@ -406,8 +406,8 @@ function SearchPageContent() {
 
       {/* Results Tabs */}
       <Tabs defaultValue="products" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="products" className="flex items-center gap-2">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto">
+          <TabsTrigger value="products" className="flex shrink-0 items-center gap-2">
             <Package className="h-4 w-4" />
             {t('search.tabs.products')}
             {productsData?.pagination && (
@@ -416,11 +416,11 @@ function SearchPageContent() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="categories" className="flex items-center gap-2">
+          <TabsTrigger value="categories" className="flex shrink-0 items-center gap-2">
             <FolderTree className="h-4 w-4" />
             {t('search.tabs.categories')}
           </TabsTrigger>
-          <TabsTrigger value="sellers" className="flex items-center gap-2">
+          <TabsTrigger value="sellers" className="flex shrink-0 items-center gap-2">
             <Store className="h-4 w-4" />
             {t('search.tabs.sellers')}
           </TabsTrigger>

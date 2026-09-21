@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
@@ -51,6 +51,13 @@ import { Play } from 'lucide-react';
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  // The mobile categories/video-shop row is a homepage browse shortcut —
+  // once a shopper has drilled into a product/category/cart/etc, it just
+  // duplicates what the hamburger menu and CategoryDrawer already offer,
+  // and crowds the header on pages where vertical space actually matters
+  // (e.g. a product detail page fighting for room above the fold).
+  const isMobileBrowseRowVisible = pathname === '/';
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
@@ -422,33 +429,37 @@ export function Header() {
             </button>
           </div>
 
-          {/* Mobile-only second row: All Categories + Video Shop. Opening
-              the desktop mega menu's 880px panel on a phone screen isn't an
-              option, and cramming a categories button into the row above
-              overflowed the viewport, so this is its own row — matches the
-              app-like two-row header pattern most mobile marketplace apps
-              use, and gives All Categories its own dedicated, separate
-              trigger from the hamburger (⌘) menu (see CategoryDrawer). */}
-          <div className="flex items-center gap-3 border-t py-2 md:hidden">
-            <button
-              type="button"
-              onClick={() => setCategoryDrawerOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={categoryDrawerOpen}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors active:bg-primary/10"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              {t('nav.allCategories')}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-            <Link
-              href="/videos"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <Play className="h-4 w-4" />
-              {t('nav.videoShop')}
-            </Link>
-          </div>
+          {/* Mobile-only second row: All Categories + Video Shop — a
+              homepage-only browse shortcut. Opening the desktop mega menu's
+              880px panel on a phone screen isn't an option, and cramming a
+              categories button into the row above overflowed the viewport,
+              so this is its own row on the homepage. Everywhere else
+              (product/category/cart/etc pages) it's just dead weight
+              crowding a header that already competes with page content for
+              space, with the hamburger menu and CategoryDrawer still one
+              tap away regardless. */}
+          {isMobileBrowseRowVisible && (
+            <div className="flex items-center gap-3 border-t py-2 md:hidden">
+              <button
+                type="button"
+                onClick={() => setCategoryDrawerOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={categoryDrawerOpen}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors active:bg-primary/10"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {t('nav.allCategories')}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              <Link
+                href="/videos"
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <Play className="h-4 w-4" />
+                {t('nav.videoShop')}
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 
