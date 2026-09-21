@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutGrid, ShoppingCart, Heart, User } from 'lucide-react';
+import { Home, Play, ShoppingCart, Heart, User } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -30,7 +30,7 @@ export function BottomNav() {
 
   const tabs = [
     { href: '/', label: t('nav.bottom.home'), icon: Home },
-    { href: '/categories', label: t('nav.bottom.categories'), icon: LayoutGrid },
+    { href: '/videos', label: t('nav.videoShop'), icon: Play },
     { href: '/cart', label: t('nav.bottom.cart'), icon: ShoppingCart, badge: cartCount },
     { href: '/account/wishlist', label: t('nav.bottom.wishlist'), icon: Heart, badge: wishlistCount },
     {

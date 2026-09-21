@@ -429,17 +429,16 @@ export function Header() {
             </button>
           </div>
 
-          {/* Mobile-only second row: All Categories + Video Shop — a
-              homepage-only browse shortcut. Opening the desktop mega menu's
-              880px panel on a phone screen isn't an option, and cramming a
-              categories button into the row above overflowed the viewport,
-              so this is its own row on the homepage. Everywhere else
-              (product/category/cart/etc pages) it's just dead weight
-              crowding a header that already competes with page content for
-              space, with the hamburger menu and CategoryDrawer still one
-              tap away regardless. */}
+          {/* Mobile-only second row: All Categories — a homepage-only browse
+              shortcut. Opening the desktop mega menu's 880px panel on a
+              phone screen isn't an option, so this is its own row on the
+              homepage. Everywhere else (product/category/cart/etc pages)
+              it's just dead weight crowding a header that already competes
+              with page content for space, with the hamburger menu and
+              CategoryDrawer still one tap away regardless. Video Shop moved
+              to BottomNav's persistent tab bar — no need for it here too. */}
           {isMobileBrowseRowVisible && (
-            <div className="flex items-center gap-3 border-t py-2 md:hidden">
+            <div className="border-t py-2 md:hidden">
               <button
                 type="button"
                 onClick={() => setCategoryDrawerOpen(true)}
@@ -451,13 +450,6 @@ export function Header() {
                 {t('nav.allCategories')}
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-              <Link
-                href="/videos"
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <Play className="h-4 w-4" />
-                {t('nav.videoShop')}
-              </Link>
             </div>
           )}
         </div>
