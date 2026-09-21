@@ -10,7 +10,6 @@ import { useSellers } from '@/hooks/useSellers';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { ProductSort } from '@/components/products/ProductSort';
-import { SearchInput } from '@/components/shared/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -102,15 +101,6 @@ function SearchPageContent() {
       page: 1,
     }));
   }, [searchParams]);
-
-  // Handle search submission
-  const handleSearch = (value: string) => {
-    const params = new URLSearchParams();
-    if (value) params.set('q', value);
-    if (filters.categoryId) params.set('category', filters.categoryId.toString());
-    if (filters.sellerId) params.set('seller', filters.sellerId.toString());
-    router.push(`/search?${params.toString()}`);
-  };
 
   // Handle filter changes
   const handleFilterChange = (newFilters: any) => {
@@ -317,19 +307,13 @@ function SearchPageContent() {
 
   return (
     <div className="space-y-6">
-      {/* Search Header */}
+      {/* Search Header — no re-search box here: the header's own search
+          bar (present on every page) already covers that, so this page
+          only needs to show what's being filtered and how to filter it
+          further. */}
       <div className="flex flex-col gap-4">
         <h1 className="text-3xl font-bold">{t('search.title')}</h1>
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <SearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              onSearch={handleSearch}
-              placeholder={t('search.placeholder')}
-              autoFocus
-            />
-          </div>
+        <div className="flex justify-end">
           <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" className="lg:hidden">
