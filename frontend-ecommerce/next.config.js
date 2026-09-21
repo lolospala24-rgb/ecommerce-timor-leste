@@ -31,7 +31,10 @@ const contentSecurityPolicy = [
   // No nonce equivalent exists for inline style *attributes* (only <style>
   // blocks) — Radix UI (positioning) and Framer Motion (animations) both
   // set styles via the DOM style attribute at runtime.
-  "style-src 'self' 'unsafe-inline'",
+  // https://accounts.google.com: Google Identity Services loads its own
+  // stylesheet (gsi/style) for the One Tap card — without this it's
+  // silently CSP-blocked and the prompt never renders.
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   // https://*.googleusercontent.com: Google Sign-In profile photos
   // (lh3.googleusercontent.com etc. — Google load-balances across several
   // lh1-lh6 subdomains, so this is a wildcard rather than one hardcoded host).
