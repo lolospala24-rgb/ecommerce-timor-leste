@@ -1,25 +1,21 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useState } from 'react';
-import Image from 'next/image';
-import toast from 'react-hot-toast';
+import { FormEvent, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, UploadCloud, Film, ImageIcon, X } from 'lucide-react';
+import { Loader2, UploadCloud } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useCreateVideo, VideoStatus } from '@/hooks/useVideos';
+import { VideoFileDropzone } from './VideoFileDropzone';
 
 interface VideoFormProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
-
-const MAX_VIDEO_SIZE_MB = 100;
-const MAX_THUMBNAIL_SIZE_MB = 5;
 
 // Upload-only — editing an existing video's status/visibility/toggles/etc
 // happens in VideoDetailPanel (the slide-in panel opened from a table row),
@@ -32,6 +28,7 @@ export function VideoForm({ onSuccess, onCancel }: VideoFormProps) {
   const [status, setStatus] = useState<VideoStatus>('PUBLISHED');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const debouncedSearch = useDebounce(productSearch, 300);
   const { data: productsData, isLoading: isLoadingProducts } = useProducts({ search: debouncedSearch, limit: 20 });
@@ -44,57 +41,28 @@ export function VideoForm({ onSuccess, onCancel }: VideoFormProps) {
     event.preventDefault();
     if (!videoFile) return;
 
+    setUploadProgress(0);
     await createVideo.mutateAsync({
-      title,
-      description,
-      productId,
-      status,
-      visibility: 'PUBLIC',
-      allowComments: true,
-      allowLikes: true,
-      allowSharing: true,
-      allowSave: true,
-      enableShopping: true,
-      publishedAt: '',
-      videoFile,
-      thumbnailFile,
+      values: {
+        title,
+        description,
+        productId,
+        status,
+        visibility: 'PUBLIC',
+        allowComments: true,
+        allowLikes: true,
+        allowSharing: true,
+        allowSave: true,
+        enableShopping: true,
+        publishedAt: '',
+        videoFile,
+        thumbnailFile,
+      },
+      onUploadProgress: setUploadProgress,
     });
 
     onSuccess();
   };
-
-  const handleVideoFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    if (file && !file.type.startsWith('video/')) {
-      toast.error('Please select a video file.');
-      event.target.value = '';
-      return;
-    }
-    if (file && file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
-      toast.error(`Video must be ${MAX_VIDEO_SIZE_MB}MB or smaller.`);
-      event.target.value = '';
-      return;
-    }
-    setVideoFile(file);
-  };
-
-  const handleThumbnailFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    if (file && !file.type.startsWith('image/')) {
-      toast.error('Please select an image file.');
-      event.target.value = '';
-      return;
-    }
-    if (file && file.size > MAX_THUMBNAIL_SIZE_MB * 1024 * 1024) {
-      toast.error(`Thumbnail must be ${MAX_THUMBNAIL_SIZE_MB}MB or smaller.`);
-      event.target.value = '';
-      return;
-    }
-    setThumbnailFile(file);
-  };
-
-  const videoPreviewUrl = videoFile ? URL.createObjectURL(videoFile) : undefined;
-  const thumbnailPreviewUrl = thumbnailFile ? URL.createObjectURL(thumbnailFile) : undefined;
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
@@ -156,49 +124,20 @@ export function VideoForm({ onSuccess, onCancel }: VideoFormProps) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="video-file">Video file</Label>
-          {videoPreviewUrl ? (
-            <div className="relative overflow-hidden rounded-lg border bg-black">
-              <video src={videoPreviewUrl} controls className="max-h-48 w-full object-contain" />
-              <button
-                type="button"
-                onClick={() => setVideoFile(null)}
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
-                aria-label="Remove selected video"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-              <Film className="mr-2 h-5 w-5" /> No video selected
-            </div>
-          )}
-          <Input id="video-file" type="file" accept="video/*" onChange={handleVideoFileChange} required />
-          <p className="text-xs text-muted-foreground">Max {MAX_VIDEO_SIZE_MB}MB.</p>
+          <Label>Video file</Label>
+          <VideoFileDropzone
+            kind="video"
+            file={videoFile}
+            onFileChange={setVideoFile}
+            uploadProgress={uploadProgress}
+            isUploading={isSaving}
+            required
+          />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="thumbnail-file">Thumbnail</Label>
-          {thumbnailPreviewUrl ? (
-            <div className="relative h-32 w-full overflow-hidden rounded-lg border bg-muted">
-              <Image src={thumbnailPreviewUrl} alt="Thumbnail preview" fill className="object-cover" unoptimized />
-              <button
-                type="button"
-                onClick={() => setThumbnailFile(null)}
-                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-neutral-700 hover:bg-white"
-                aria-label="Remove selected thumbnail"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex h-32 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-              <ImageIcon className="mr-2 h-5 w-5" /> No thumbnail selected
-            </div>
-          )}
-          <Input id="thumbnail-file" type="file" accept="image/*" onChange={handleThumbnailFileChange} />
-          <p className="text-xs text-muted-foreground">Max {MAX_THUMBNAIL_SIZE_MB}MB.</p>
+          <Label>Thumbnail</Label>
+          <VideoFileDropzone kind="thumbnail" file={thumbnailFile} onFileChange={setThumbnailFile} />
         </div>
       </div>
 

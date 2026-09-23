@@ -20,6 +20,7 @@ import {
   useUpdateVideoStatus,
 } from '@/hooks/useVideos';
 import { formatCurrency } from '@/lib/formatters';
+import { VideoFileDropzone } from './VideoFileDropzone';
 
 interface VideoDetailPanelProps {
   video: AdminVideo | null;
@@ -51,6 +52,9 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
   const [allowSave, setAllowSave] = useState(true);
   const [enableShopping, setEnableShopping] = useState(true);
   const [scheduledFor, setScheduledFor] = useState('');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     if (!video) return;
@@ -64,6 +68,11 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
     setAllowSave(video.allowSave);
     setEnableShopping(video.enableShopping);
     setScheduledFor(video.status === 'SCHEDULED' ? toDatetimeLocalValue(video.publishedAt) : '');
+    // A save just completed (or a different row was opened) — either way,
+    // any file staged for replacement is now stale and shouldn't linger.
+    setVideoFile(null);
+    setThumbnailFile(null);
+    setUploadProgress(0);
   }, [video]);
 
   if (!video) return null;
@@ -71,6 +80,7 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
   const isSaving = updateVideo.isPending;
 
   const handleSave = async () => {
+    setUploadProgress(0);
     await updateVideo.mutateAsync({
       id: video.id,
       values: {
@@ -84,7 +94,10 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
         allowSave,
         enableShopping,
         publishedAt: status === 'SCHEDULED' ? scheduledFor : undefined,
+        videoFile: videoFile ?? undefined,
+        thumbnailFile: thumbnailFile ?? undefined,
       },
+      onUploadProgress: setUploadProgress,
     });
   };
 
@@ -128,6 +141,29 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
                   <Play className="h-8 w-8 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
               </button>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Video file</Label>
+                  <VideoFileDropzone
+                    kind="video"
+                    file={videoFile}
+                    onFileChange={setVideoFile}
+                    existingUrl={video.videoUrl}
+                    uploadProgress={uploadProgress}
+                    isUploading={isSaving && !!videoFile}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Thumbnail</Label>
+                  <VideoFileDropzone
+                    kind="thumbnail"
+                    file={thumbnailFile}
+                    onFileChange={setThumbnailFile}
+                    existingUrl={video.thumbnailUrl}
+                  />
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label>Title</Label>
