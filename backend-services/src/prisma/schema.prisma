@@ -1178,6 +1178,20 @@ model Video {
   description  String?         @db.Text
   videoUrl     String
   thumbnailUrl String?
+  // Cloudinary's own identifiers/metadata from the upload response —
+  // previously discarded, keeping only secure_url. videoPublicId (and
+  // thumbnailPublicId) are what let us actually delete the old asset from
+  // Cloudinary when a video is replaced or removed, instead of leaking an
+  // orphaned file on every re-upload; duration/width/height/format support
+  // future delivery-URL optimization and player UI (e.g. showing runtime).
+  // Nullable: rows created before this field existed have none of this,
+  // and that's fine — every read path already treats these as optional.
+  videoPublicId     String?
+  thumbnailPublicId String?
+  duration          Float?
+  width             Int?
+  height            Int?
+  format            String?
   // The admin content pipeline: PENDING (uploaded, awaiting an explicit
   // publish decision), PUBLISHED (live in the customer feed), SCHEDULED
   // (will auto-publish at publishedAt — see VideoScheduleJob), REJECTED

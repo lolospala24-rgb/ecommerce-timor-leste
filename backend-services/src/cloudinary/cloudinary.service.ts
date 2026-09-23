@@ -92,9 +92,14 @@ export class CloudinaryService {
     });
   }
 
-  async deleteFile(publicId: string): Promise<any> {
+  // resourceType defaults to 'image' (Cloudinary's own default when
+  // unspecified) — every pre-existing caller deletes an image and stays
+  // unaffected; video deletion (videos.service.ts) passes 'video'
+  // explicitly, since Cloudinary looks in the wrong resource namespace
+  // otherwise and silently fails to find/delete the asset.
+  async deleteFile(publicId: string, resourceType: 'image' | 'video' = 'image'): Promise<any> {
     return new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(publicId, (error, result) => {
+      cloudinary.uploader.destroy(publicId, { resource_type: resourceType }, (error, result) => {
         if (error) {
           this.logger.error(`Cloudinary delete error: ${error.message}`);
           reject(new BadRequestException(`Failed to delete image: ${error.message}`));

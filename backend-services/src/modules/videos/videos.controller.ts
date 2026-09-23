@@ -7,13 +7,16 @@ import {
   Delete,
   Patch,
   Query,
+  Req,
   ParseIntPipe,
   UploadedFiles,
   UseInterceptors,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { videoWithThumbnailMulterConfig } from '../../common/config/multer.config';
 import { VideosService } from './videos.service';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -120,10 +123,13 @@ export class VideosController {
   @Roles(Role.ADMIN)
   @Post()
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'video', maxCount: 1 },
-      { name: 'thumbnail', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'video', maxCount: 1 },
+        { name: 'thumbnail', maxCount: 1 },
+      ],
+      videoWithThumbnailMulterConfig,
+    ),
   )
   async create(
     @UploadedFiles()
@@ -147,10 +153,13 @@ export class VideosController {
   @Roles(Role.ADMIN)
   @Patch(':id')
   @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'video', maxCount: 1 },
-      { name: 'thumbnail', maxCount: 1 },
-    ]),
+    FileFieldsInterceptor(
+      [
+        { name: 'video', maxCount: 1 },
+        { name: 'thumbnail', maxCount: 1 },
+      ],
+      videoWithThumbnailMulterConfig,
+    ),
   )
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -177,9 +186,21 @@ export class VideosController {
   // ==================== Analytics ====================
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Post(':id/view')
-  async view(@Param('id', ParseIntPipe) id: number) {
-    await this.service.incrementAnalytics(id, 'views');
+  async view(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request,
+    @CurrentUser('id') userId?: number,
+  ) {
+    // Logged-in viewer -> their user id; anonymous -> their IP (nginx sets
+    // X-Real-IP/X-Forwarded-For — see nginx.conf — req.ip alone would just
+    // be the reverse proxy's address behind it). Whichever identifies
+    // "who" is watching, so recordView can dedup repeat calls.
+    const viewerKey = userId
+      ? `user:${userId}`
+      : `ip:${req.headers['x-real-ip'] || req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip}`;
+    await this.service.recordView(id, viewerKey);
     return { success: true };
   }
 

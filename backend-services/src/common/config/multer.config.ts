@@ -88,3 +88,44 @@ export const videoMulterConfig: MulterOptions = {
     fileSize: 100 * 1024 * 1024, // 100MB
   },
 };
+
+// FileFieldsInterceptor (video-shop's POST/PATCH /videos — one request
+// carrying both a 'video' field and a 'thumbnail' field) applies a single
+// MulterOptions to every field in the call, so it can't just reuse
+// multerConfig or videoMulterConfig alone — the fileFilter below branches
+// on fieldname to apply the right extension/mimetype check to each, and
+// the shared 100MB ceiling is sized for the video field (the thumbnail is
+// a small image in practice; the video is what actually needs the limit).
+export const videoWithThumbnailMulterConfig: MulterOptions = {
+  fileFilter: (_req, file, callback) => {
+    if (file.fieldname === 'thumbnail') {
+      if (
+        !ALLOWED_IMAGE_EXTENSIONS.test(file.originalname) ||
+        !ALLOWED_IMAGE_MIME_TYPES.has(file.mimetype)
+      ) {
+        callback(
+          new BadRequestException('Thumbnail must be a JPG, PNG, GIF, or WEBP image file'),
+          false,
+        );
+        return;
+      }
+      callback(null, true);
+      return;
+    }
+
+    if (
+      !ALLOWED_VIDEO_EXTENSIONS.test(file.originalname) ||
+      !ALLOWED_VIDEO_MIME_TYPES.has(file.mimetype)
+    ) {
+      callback(
+        new BadRequestException('Only MP4, WebM, and MOV video files are allowed'),
+        false,
+      );
+      return;
+    }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB
+  },
+};

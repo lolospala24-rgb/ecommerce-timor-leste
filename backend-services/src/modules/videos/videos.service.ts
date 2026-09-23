@@ -4,13 +4,21 @@ import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { RedisService } from '../../redis/redis.service';
 import { Role } from '@prisma/client';
+
+// Same viewer counted repeatedly within this window doesn't inflate the
+// view counter again — long enough that a genuine rewatch a few scrolls
+// later still counts as one view of interest, short enough that a real
+// return visit tomorrow counts fresh.
+const VIEW_DEDUP_WINDOW_SECONDS = 30 * 60;
 
 @Injectable()
 export class VideosService {
   constructor(
     private repo: VideosRepository,
     private cloudinaryService: CloudinaryService,
+    private redisService: RedisService,
   ) {}
 
   // publishedAt is derived from status, not trusted verbatim from the DTO:
@@ -61,6 +69,12 @@ export class VideosService {
   ) {
     let videoUrl = dto.videoUrl;
     let thumbnailUrl = dto.thumbnailUrl;
+    let videoPublicId: string | undefined;
+    let thumbnailPublicId: string | undefined;
+    let duration: number | undefined;
+    let width: number | undefined;
+    let height: number | undefined;
+    let format: string | undefined;
 
     if (videoFile) {
       const uploadResult = await this.cloudinaryService.uploadFile(videoFile, {
@@ -70,6 +84,11 @@ export class VideosService {
         quality: 'auto:best',
       });
       videoUrl = uploadResult.secure_url;
+      videoPublicId = uploadResult.public_id;
+      duration = uploadResult.duration;
+      width = uploadResult.width;
+      height = uploadResult.height;
+      format = uploadResult.format;
     }
 
     if (thumbnailFile) {
@@ -79,6 +98,7 @@ export class VideosService {
         quality: 'auto:good',
       });
       thumbnailUrl = uploadResult.secure_url;
+      thumbnailPublicId = uploadResult.public_id;
     }
 
     if (!videoUrl) {
@@ -91,6 +111,12 @@ export class VideosService {
       description: dto.description,
       videoUrl,
       thumbnailUrl,
+      videoPublicId,
+      thumbnailPublicId,
+      duration,
+      width,
+      height,
+      format,
       productId: dto.productId ?? null,
       status,
       visibility: dto.visibility,
@@ -112,7 +138,7 @@ export class VideosService {
     videoFile?: Express.Multer.File,
     thumbnailFile?: Express.Multer.File,
   ) {
-    await this.findById(id);
+    const existing = await this.findById(id);
 
     const data: any = { ...dto };
     // Only recompute publishedAt when this update actually changes status —
@@ -130,6 +156,11 @@ export class VideosService {
         quality: 'auto:best',
       });
       data.videoUrl = uploadResult.secure_url;
+      data.videoPublicId = uploadResult.public_id;
+      data.duration = uploadResult.duration;
+      data.width = uploadResult.width;
+      data.height = uploadResult.height;
+      data.format = uploadResult.format;
     }
 
     if (thumbnailFile) {
@@ -139,9 +170,26 @@ export class VideosService {
         quality: 'auto:good',
       });
       data.thumbnailUrl = uploadResult.secure_url;
+      data.thumbnailPublicId = uploadResult.public_id;
     }
 
     const updated = await this.repo.update(id, data);
+
+    // Only after the DB row is safely updated to the new asset — deleting
+    // the old one first and having the DB write fail would leave the video
+    // pointing at nothing. Best-effort: a failed cleanup here must never
+    // fail the edit itself (the admin already has their new video saved).
+    if (videoFile && (existing as any).videoPublicId) {
+      this.cloudinaryService
+        .deleteFile((existing as any).videoPublicId, 'video')
+        .catch(() => undefined);
+    }
+    if (thumbnailFile && (existing as any).thumbnailPublicId) {
+      this.cloudinaryService
+        .deleteFile((existing as any).thumbnailPublicId, 'image')
+        .catch(() => undefined);
+    }
+
     return updated;
   }
 
@@ -159,8 +207,24 @@ export class VideosService {
   }
 
   async remove(id: number) {
-    await this.findById(id);
-    return this.repo.delete(id);
+    const existing = await this.findById(id);
+    const deleted = await this.repo.delete(id);
+
+    // Best-effort cleanup after the DB row is gone — same reasoning as
+    // updateWithUpload: never let a Cloudinary hiccup block the delete
+    // the admin actually asked for.
+    if ((existing as any).videoPublicId) {
+      this.cloudinaryService
+        .deleteFile((existing as any).videoPublicId, 'video')
+        .catch(() => undefined);
+    }
+    if ((existing as any).thumbnailPublicId) {
+      this.cloudinaryService
+        .deleteFile((existing as any).thumbnailPublicId, 'image')
+        .catch(() => undefined);
+    }
+
+    return deleted;
   }
 
   async feed(query: any, viewerId?: number | null) {
@@ -185,6 +249,23 @@ export class VideosService {
       throw new ForbiddenException('Sharing is disabled for this video');
     }
     return this.repo.incrementField(id, action);
+  }
+
+  // viewerKey identifies "who" for dedup purposes — a logged-in user's id,
+  // or an anonymous visitor's IP, whichever the controller could resolve.
+  // Repeat calls within the window are silently no-ops (still 200, never
+  // surfaced as an error to the player) rather than genuinely incrementing
+  // every time the endpoint is hit, since this route is @Public() and
+  // otherwise trivially spammable by refreshing/re-calling it.
+  async recordView(id: number, viewerKey: string) {
+    const dedupKey = `video:view:${id}:${viewerKey}`;
+    const alreadyCounted = await this.redisService.get(dedupKey);
+    if (alreadyCounted) return { counted: false };
+
+    await this.findById(id);
+    await this.redisService.set(dedupKey, '1', VIEW_DEDUP_WINDOW_SECONDS);
+    await this.repo.incrementField(id, 'views');
+    return { counted: true };
   }
 
   async getVideoProducts(id: number) {

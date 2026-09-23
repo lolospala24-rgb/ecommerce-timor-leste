@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Volume2, VolumeX, Play, Loader2, Heart } from 'lucide-react';
 import { Video } from '@/types/video';
+import { getOptimizedVideoUrl } from '@/lib/video';
 
 interface VideoPlayerProps {
   video: Video;
@@ -93,7 +94,7 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
     <div className="relative h-full w-full overflow-hidden rounded-2xl bg-neutral-100">
       <video
         ref={videoRef}
-        src={video.videoUrl}
+        src={getOptimizedVideoUrl(video.videoUrl) ?? video.videoUrl}
         poster={video.thumbnailUrl ?? undefined}
         className="h-full w-full object-cover"
         loop
