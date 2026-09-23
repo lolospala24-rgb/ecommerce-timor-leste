@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Volume2, VolumeX, Play, Loader2, Heart } from 'lucide-react';
 import { Video } from '@/types/video';
 import { getOptimizedVideoUrl } from '@/lib/video';
+import { trackVideoStart, trackVideoProgress, trackVideoMuteToggle } from '@/lib/analytics';
 
 interface VideoPlayerProps {
   video: Video;
@@ -29,6 +30,16 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
   const [progress, setProgress] = useState(0);
   const [heartBurstKey, setHeartBurstKey] = useState(0);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
+  // Meaningful-milestone tracking (never a per-tick event stream) — reset
+  // whenever this player instance is handed a different video, so a
+  // scrolled-past-and-back video can report a fresh start/progress funnel.
+  const trackedMilestonesRef = useRef<Set<number>>(new Set());
+  const hasTrackedStartRef = useRef(false);
+
+  useEffect(() => {
+    trackedMilestonesRef.current = new Set();
+    hasTrackedStartRef.current = false;
+  }, [video.id]);
 
   useEffect(() => {
     const el = videoRef.current;
@@ -88,6 +99,7 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
     if (!el) return;
     el.muted = !el.muted;
     setIsMuted(el.muted);
+    trackVideoMuteToggle(video.id, el.muted);
   };
 
   return (
@@ -105,9 +117,29 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
         onWaiting={() => setIsLoading(true)}
         onCanPlay={() => setIsLoading(false)}
         onLoadedData={() => setIsLoading(false)}
+        onPlaying={() => {
+          if (hasTrackedStartRef.current) return;
+          hasTrackedStartRef.current = true;
+          trackVideoStart(video.id);
+        }}
         onTimeUpdate={(e) => {
           const el = e.currentTarget;
-          if (el.duration > 0) setProgress(el.currentTime / el.duration);
+          if (el.duration <= 0) return;
+          const fraction = el.currentTime / el.duration;
+          setProgress(fraction);
+
+          const milestones: Array<[number, 25 | 50 | 75 | 100]> = [
+            [0.25, 25],
+            [0.5, 50],
+            [0.75, 75],
+            [0.999, 100],
+          ];
+          for (const [threshold, milestone] of milestones) {
+            if (fraction >= threshold && !trackedMilestonesRef.current.has(milestone)) {
+              trackedMilestonesRef.current.add(milestone);
+              trackVideoProgress(video.id, milestone);
+            }
+          }
         }}
         onError={() => {
           setIsLoading(false);

@@ -1213,8 +1213,14 @@ model Video {
   views       Int       @default(0)
   likes       Int       @default(0)
   shares      Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  // Precomputed by TrendingScoreJob (a Reddit/HN-style gravity formula —
+  // weighted engagement decayed by age) so the trending feed stays a cheap
+  // single-column `orderBy`, never a live aggregate query. 0 until the next
+  // cron tick recomputes it, so a brand-new video briefly reads as
+  // "not trending" rather than needing a synchronous score-on-create.
+  trendingScore Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -1224,6 +1230,7 @@ model Video {
 
   @@index([productId])
   @@index([status])
+  @@index([trendingScore])
   @@map("videos")
 }
 

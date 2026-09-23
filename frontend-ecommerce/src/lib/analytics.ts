@@ -81,3 +81,30 @@ export function trackReferralRewardEarned(amount: number, referralId: number): v
     referral_id: referralId,
   });
 }
+
+// Video Shopping feed — meaningful milestones only (never a per-second
+// timeupdate stream), so a funnel like start -> 50% -> complete -> product
+// click -> add to cart is actually readable in GA4 without being drowned
+// in noise. add_to_cart from a video's shopping card reuses the existing
+// trackAddToCart() below unchanged — same standard GA4 ecommerce event
+// whether the click came from a video or a product page.
+export function trackVideoStart(videoId: number): void {
+  sendGAEvent('video_start', { video_id: videoId });
+}
+
+export function trackVideoProgress(videoId: number, milestone: 25 | 50 | 75 | 100): void {
+  sendGAEvent(milestone === 100 ? 'video_complete' : `video_${milestone}`, { video_id: videoId });
+}
+
+export function trackVideoMuteToggle(videoId: number, muted: boolean): void {
+  sendGAEvent(muted ? 'video_mute' : 'video_unmute', { video_id: videoId });
+}
+
+export function trackVideoProductClick(videoId: number, item: AnalyticsItem): void {
+  sendGAEvent('video_product_click', {
+    video_id: videoId,
+    currency: 'USD',
+    value: item.price ?? 0,
+    items: [item],
+  });
+}

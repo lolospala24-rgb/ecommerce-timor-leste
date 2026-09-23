@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Video } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
 import { formatCurrency, formatCompactNumber } from '@/lib/formatters';
+import { trackVideoProductClick, trackAddToCart } from '@/lib/analytics';
 import { FollowButton } from './FollowButton';
 import { VideoCommentsPanel } from './VideoCommentsPanel';
 import { VideoUpNext } from './VideoUpNext';
@@ -34,6 +35,7 @@ export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPan
   const handleAddToCart = async () => {
     if (!product || product.stock <= 0) return;
     await addToCart(product, 1);
+    trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
     toast.success('Product added to cart');
   };
 
@@ -48,6 +50,9 @@ export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPan
 
           <Link
             href={`/products/${product.slug}`}
+            onClick={() =>
+              trackVideoProductClick(video.id, { item_id: product.id, item_name: product.name, price: product.price })
+            }
             className="mt-3 flex items-center gap-3 rounded-xl p-1.5 transition hover:bg-neutral-50"
           >
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">

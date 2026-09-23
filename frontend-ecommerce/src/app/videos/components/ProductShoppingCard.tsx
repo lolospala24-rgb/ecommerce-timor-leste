@@ -7,8 +7,9 @@ import toast from 'react-hot-toast';
 import { VideoProduct } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
 import { formatCurrency as formatPrice } from '@/lib/formatters';
+import { trackVideoProductClick, trackAddToCart } from '@/lib/analytics';
 
-export function ProductShoppingCard({ product }: { product: VideoProduct }) {
+export function ProductShoppingCard({ product, videoId }: { product: VideoProduct; videoId: number }) {
   const { addToCart } = useCart();
   const hasDiscount = product.comparePrice != null && product.comparePrice > product.price;
   const outOfStock = product.stock <= 0;
@@ -17,12 +18,16 @@ export function ProductShoppingCard({ product }: { product: VideoProduct }) {
     e.preventDefault();
     if (outOfStock) return;
     await addToCart(product, 1);
+    trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
     toast.success('Product added to cart');
   };
 
   return (
     <Link
       href={`/products/${product.slug}`}
+      onClick={() =>
+        trackVideoProductClick(videoId, { item_id: product.id, item_name: product.name, price: product.price })
+      }
       className="pointer-events-auto flex min-w-0 items-center gap-3 rounded-2xl bg-white/95 p-2.5 pr-3 shadow-lg backdrop-blur transition hover:bg-white"
     >
       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">

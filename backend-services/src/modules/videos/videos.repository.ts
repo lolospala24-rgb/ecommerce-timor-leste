@@ -113,7 +113,10 @@ export class VideosRepository {
     let orderBy: any = { createdAt: 'desc' };
 
     if (filter === 'popular') orderBy = { views: 'desc' };
-    if (filter === 'trending') orderBy = { likes: 'desc' };
+    // Precomputed by TrendingScoreJob — a time-decayed weighted-engagement
+    // score, not a raw lifetime counter — so this stays the same cheap
+    // single-column sort at request time either way.
+    if (filter === 'trending') orderBy = { trendingScore: 'desc' };
 
     const [items, total] = await Promise.all([
       this.prisma.video.findMany({
