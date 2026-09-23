@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsUrl, IsInt, IsBoolean, IsIn, IsDateString } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 const VIDEO_STATUSES = ['PENDING', 'PUBLISHED', 'SCHEDULED', 'REJECTED'] as const;
 const VIDEO_VISIBILITIES = ['PUBLIC', 'UNLISTED', 'PRIVATE'] as const;
@@ -31,23 +32,34 @@ export class CreateVideoDto {
   @IsIn(VIDEO_VISIBILITIES)
   visibility?: (typeof VIDEO_VISIBILITIES)[number];
 
+  // These arrive as the literal strings "true"/"false" over multipart form
+  // data (every admin save is multipart, since the video/thumbnail file
+  // fields ride along in the same request) — without this transform, the
+  // global pipe's implicit conversion does a bare Boolean(value), and
+  // Boolean("false") is true. Every toggle would silently force itself
+  // back on on every save.
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value === 'true' : value))
   @IsBoolean()
   allowComments?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value === 'true' : value))
   @IsBoolean()
   allowLikes?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value === 'true' : value))
   @IsBoolean()
   allowSharing?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value === 'true' : value))
   @IsBoolean()
   allowSave?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value === 'true' : value))
   @IsBoolean()
   enableShopping?: boolean;
 

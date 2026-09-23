@@ -26,6 +26,11 @@ interface VideoDetailPanelProps {
   video: AdminVideo | null;
   onClose: () => void;
   onPreview: (video: AdminVideo) => void;
+  // Hands the freshly-saved row back to the parent so the panel keeps
+  // showing it while open — without this, the panel stays on the
+  // pre-save snapshot (stale status/publishedAt/etc) until closed and
+  // reopened against a refetched table row.
+  onSaved: (video: AdminVideo) => void;
 }
 
 // datetime-local wants "YYYY-MM-DDTHH:mm" in local time — toISOString()
@@ -37,7 +42,7 @@ function toDatetimeLocalValue(iso: string | null): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanelProps) {
+export function VideoDetailPanel({ video, onClose, onPreview, onSaved }: VideoDetailPanelProps) {
   const router = useRouter();
   const updateVideo = useUpdateVideo();
   const updateStatus = useUpdateVideoStatus();
@@ -81,7 +86,7 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
 
   const handleSave = async () => {
     setUploadProgress(0);
-    await updateVideo.mutateAsync({
+    const updated = await updateVideo.mutateAsync({
       id: video.id,
       values: {
         title,
@@ -99,13 +104,15 @@ export function VideoDetailPanel({ video, onClose, onPreview }: VideoDetailPanel
       },
       onUploadProgress: setUploadProgress,
     });
+    onSaved(updated);
   };
 
   const handleTogglePublish = async () => {
-    await updateStatus.mutateAsync({
+    const updated = await updateStatus.mutateAsync({
       id: video.id,
       status: video.status === 'PUBLISHED' ? 'PENDING' : 'PUBLISHED',
     });
+    onSaved(updated);
   };
 
   const seller = video.product?.seller;

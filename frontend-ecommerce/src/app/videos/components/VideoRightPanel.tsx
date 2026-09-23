@@ -6,6 +6,7 @@ import { BadgeCheck, ShoppingCart, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Video } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
+import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency, formatCompactNumber } from '@/lib/formatters';
 import { trackVideoProductClick, trackAddToCart } from '@/lib/analytics';
 import { FollowButton } from './FollowButton';
@@ -29,14 +30,20 @@ interface VideoRightPanelProps {
 // numbers).
 export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPanelProps) {
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuthStore();
   const product = video.product;
   const creator = product?.seller;
 
   const handleAddToCart = async () => {
     if (!product || product.stock <= 0) return;
     await addToCart(product, 1);
-    trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
-    toast.success('Product added to cart');
+    // See ProductShoppingCard's identical guard — cartStore.addItem
+    // already toasts/tracks for signed-in users; only guests (a separate
+    // localStorage branch inside addToCart) need it done here.
+    if (!isAuthenticated) {
+      trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
+      toast.success('Product added to cart');
+    }
   };
 
   return (

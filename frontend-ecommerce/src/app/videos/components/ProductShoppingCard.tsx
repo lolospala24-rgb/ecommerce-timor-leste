@@ -6,11 +6,13 @@ import { ArrowRight, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { VideoProduct } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
+import { useAuthStore } from '@/stores/authStore';
 import { formatCurrency as formatPrice } from '@/lib/formatters';
 import { trackVideoProductClick, trackAddToCart } from '@/lib/analytics';
 
 export function ProductShoppingCard({ product, videoId }: { product: VideoProduct; videoId: number }) {
   const { addToCart } = useCart();
+  const { isAuthenticated } = useAuthStore();
   const hasDiscount = product.comparePrice != null && product.comparePrice > product.price;
   const outOfStock = product.stock <= 0;
 
@@ -18,8 +20,14 @@ export function ProductShoppingCard({ product, videoId }: { product: VideoProduc
     e.preventDefault();
     if (outOfStock) return;
     await addToCart(product, 1);
-    trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
-    toast.success('Product added to cart');
+    // Signed-in path: cartStore.addItem (which useCart.addToCart delegates
+    // to) already toasts and tracks add_to_cart itself — firing again here
+    // would double both. Guests take a different branch inside addToCart
+    // (saved to localStorage) that does neither, so they still need this.
+    if (!isAuthenticated) {
+      trackAddToCart({ item_id: product.id, item_name: product.name, price: product.price, quantity: 1 });
+      toast.success('Product added to cart');
+    }
   };
 
   return (

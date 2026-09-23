@@ -221,6 +221,7 @@ export default function VideoManagementPage() {
           video={detailVideo}
           onClose={() => setDetailVideo(null)}
           onPreview={setPreviewVideo}
+          onSaved={setDetailVideo}
         />
       )}
 

@@ -39,6 +39,14 @@ export interface AdminVideo {
   description: string | null;
   videoUrl: string;
   thumbnailUrl: string | null;
+  // Cloudinary upload metadata — null on rows created before this was
+  // captured (see backend migration add_video_cloudinary_metadata).
+  videoPublicId: string | null;
+  thumbnailPublicId: string | null;
+  duration: number | null;
+  width: number | null;
+  height: number | null;
+  format: string | null;
   status: VideoStatus;
   visibility: VideoVisibility;
   allowComments: boolean;
@@ -50,6 +58,9 @@ export interface AdminVideo {
   views: number;
   likes: number;
   shares: number;
+  // Precomputed periodically (TrendingScoreJob) — not a live ranking, see
+  // the backend job's own doc-comment for the formula.
+  trendingScore: number;
   createdAt: string;
   updatedAt: string;
   product: AdminVideoProduct | null;

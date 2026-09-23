@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -64,7 +64,20 @@ export function VideoFileDropzone({
     disabled: isUploading,
   });
 
-  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Object URLs live until explicitly revoked — without this, every
+  // replace/remove cycle in one editing session leaks the previous blob.
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
   const displayUrl = previewUrl ?? existingUrl ?? null;
 
   if (isUploading) {
