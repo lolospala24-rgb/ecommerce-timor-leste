@@ -21,6 +21,13 @@ export class VideosService {
     private redisService: RedisService,
   ) {}
 
+  // CreateVideoDto/UpdateVideoDto type these as strings, not booleans — see
+  // the DTO's own doc-comment for why. undefined stays undefined (an
+  // update that doesn't mention a toggle must leave it alone).
+  private parseBooleanString(value?: string): boolean | undefined {
+    return value === undefined ? undefined : value === 'true';
+  }
+
   // publishedAt is derived from status, not trusted verbatim from the DTO:
   // PUBLISHED always means "now" (an admin can't backdate/postdate a live
   // video by hand-editing this), SCHEDULED must carry the admin's chosen
@@ -50,11 +57,11 @@ export class VideosService {
       productId: dto.productId ?? null,
       status,
       visibility: dto.visibility,
-      allowComments: dto.allowComments,
-      allowLikes: dto.allowLikes,
-      allowSharing: dto.allowSharing,
-      allowSave: dto.allowSave,
-      enableShopping: dto.enableShopping,
+      allowComments: this.parseBooleanString(dto.allowComments),
+      allowLikes: this.parseBooleanString(dto.allowLikes),
+      allowSharing: this.parseBooleanString(dto.allowSharing),
+      allowSave: this.parseBooleanString(dto.allowSave),
+      enableShopping: this.parseBooleanString(dto.enableShopping),
       publishedAt: this.resolvePublishedAt(status, dto.publishedAt),
     };
 
@@ -120,11 +127,11 @@ export class VideosService {
       productId: dto.productId ?? null,
       status,
       visibility: dto.visibility,
-      allowComments: dto.allowComments,
-      allowLikes: dto.allowLikes,
-      allowSharing: dto.allowSharing,
-      allowSave: dto.allowSave,
-      enableShopping: dto.enableShopping,
+      allowComments: this.parseBooleanString(dto.allowComments),
+      allowLikes: this.parseBooleanString(dto.allowLikes),
+      allowSharing: this.parseBooleanString(dto.allowSharing),
+      allowSave: this.parseBooleanString(dto.allowSave),
+      enableShopping: this.parseBooleanString(dto.enableShopping),
       publishedAt: this.resolvePublishedAt(status, dto.publishedAt),
     };
 
@@ -141,6 +148,16 @@ export class VideosService {
     const existing = await this.findById(id);
 
     const data: any = { ...dto };
+    // DTO carries these as strings (see CreateVideoDto's doc-comment) — the
+    // spread above copies the raw strings verbatim, so each one that was
+    // actually provided needs converting before this reaches Prisma.
+    // undefined (not provided) is left alone rather than overwritten with
+    // `undefined` again — harmless either way, but explicit about intent.
+    if (dto.allowComments !== undefined) data.allowComments = this.parseBooleanString(dto.allowComments);
+    if (dto.allowLikes !== undefined) data.allowLikes = this.parseBooleanString(dto.allowLikes);
+    if (dto.allowSharing !== undefined) data.allowSharing = this.parseBooleanString(dto.allowSharing);
+    if (dto.allowSave !== undefined) data.allowSave = this.parseBooleanString(dto.allowSave);
+    if (dto.enableShopping !== undefined) data.enableShopping = this.parseBooleanString(dto.enableShopping);
     // Only recompute publishedAt when this update actually changes status —
     // an edit that doesn't touch status (e.g. just the title) must leave
     // the existing publish/schedule time alone.
@@ -202,6 +219,11 @@ export class VideosService {
   async update(id: number, dto: UpdateVideoDto) {
     await this.findById(id);
     const data: any = { ...dto };
+    if (dto.allowComments !== undefined) data.allowComments = this.parseBooleanString(dto.allowComments);
+    if (dto.allowLikes !== undefined) data.allowLikes = this.parseBooleanString(dto.allowLikes);
+    if (dto.allowSharing !== undefined) data.allowSharing = this.parseBooleanString(dto.allowSharing);
+    if (dto.allowSave !== undefined) data.allowSave = this.parseBooleanString(dto.allowSave);
+    if (dto.enableShopping !== undefined) data.enableShopping = this.parseBooleanString(dto.enableShopping);
     const updated = await this.repo.update(id, data);
     return updated;
   }
