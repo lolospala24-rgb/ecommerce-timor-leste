@@ -196,26 +196,26 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
       </div>
 
       <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
-        <CardContent className="flex flex-1 flex-col p-3.5 pb-3">
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+        <CardContent className="flex flex-1 flex-col p-2.5 pb-2">
+          <h3 className="line-clamp-2 min-h-[2rem] text-xs font-medium leading-tight text-foreground transition-colors group-hover:text-primary">
             {product.name}
           </h3>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-            <span className="inline-flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          <div className="mt-1.5 flex flex-nowrap items-center gap-x-1.5 overflow-hidden text-[11px]">
+            <span className="inline-flex shrink-0 items-center gap-0.5">
+              <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
               <span className="font-medium text-foreground">{(product.rating || 0).toFixed(1)}</span>
               <span className="text-muted-foreground">({product.totalReviews ?? 0})</span>
             </span>
-            <span className="text-border">|</span>
-            <span className={cn('inline-flex items-center gap-1 font-medium', stockStatus.className)}>
-              <Truck className="h-3.5 w-3.5" />
-              {stockStatus.label}
+            <span className="shrink-0 text-border">|</span>
+            <span className={cn('inline-flex min-w-0 items-center gap-0.5 truncate font-medium', stockStatus.className)}>
+              <Truck className="h-3 w-3 shrink-0" />
+              <span className="truncate">{stockStatus.label}</span>
             </span>
           </div>
 
           {isLocal && product.resolvedOrigin && (
-            <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
               <MapPin className="h-3 w-3 shrink-0" />
               <span className="line-clamp-1">
                 {[product.resolvedOrigin.suco, product.resolvedOrigin.municipality]
@@ -226,12 +226,12 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             </p>
           )}
 
-          <div className="mt-auto flex flex-wrap items-baseline gap-2 pt-3">
-            <span className="text-lg font-bold text-primary">
+          <div className="mt-auto flex flex-nowrap items-baseline gap-1.5 pt-2">
+            <span className="text-base font-bold text-primary">
               ${pricing.currentPrice.toFixed(2)}
             </span>
             {pricing.originalPrice != null && (
-              <span className="text-xs text-muted-foreground line-through">
+              <span className="text-[11px] text-muted-foreground line-through">
                 ${pricing.originalPrice.toFixed(2)}
               </span>
             )}
