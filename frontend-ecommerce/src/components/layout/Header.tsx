@@ -44,6 +44,7 @@ import {
   Trash2,
   ChevronDown,
   LayoutGrid,
+  Truck,
 } from 'lucide-react';
 import { Play } from 'lucide-react';
 
@@ -147,35 +148,49 @@ export function Header() {
       {/* Top Header with menu items */}
       <TopHeader />
 
-      {/* Main Header — brand blue gradient block, full-bleed edge-to-edge.
+      {/* Main Header — brand green→blue gradient block, full-bleed edge-to-edge.
           The gradient/safe-area padding lives on this inner wrapper (not
-          the outer <header>) so the status-bar area is blue too, while the
+          the outer <header>) so the status-bar area is tinted too, while the
           homepage-only categories row below stays outside it on the plain
           page background — see isMobileBrowseRowVisible block further down. */}
       <header className="sticky top-0 z-40 bg-background">
         <div
-          className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-600 shadow-md shadow-blue-900/20"
+          className="relative overflow-hidden bg-[linear-gradient(120deg,#16A34A_0%,#0EA5A8_42%,#2563EB_100%)] shadow-md shadow-blue-900/10"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          <div className="container-custom">
+          {/* Very subtle decorative glows — not a busy pattern, just soft
+              depth so the gradient doesn't read as a flat color fill. */}
+          <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+          <div aria-hidden className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+
+          <div className="container-custom relative">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo — the site name/logo are admin-editable (Settings → General),
-                so this reads real data instead of a hardcoded brand. */}
-            <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+                so this reads real data instead of a hardcoded brand. min-w-0
+                (+ truncate below) lets long site names shrink gracefully on
+                narrow phones instead of overflowing, now that the wordmark
+                and tagline are shown at every breakpoint, not just sm:+. */}
+            <Link href="/" className="flex min-w-0 items-center gap-2.5 sm:flex-shrink-0">
               {publicSettings?.logoUrl ? (
-                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/30">
-                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="36px" className="object-contain" />
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/30">
+                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="40px" className="object-contain" />
                 </div>
               ) : (
-                <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                  <span className="text-blue-700 font-bold text-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
+                  <span className="text-[#16A34A] font-bold text-sm">
                     {(publicSettings?.siteName || 'E').charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
-              <span className="font-bold text-lg hidden text-white sm:block">
-                {publicSettings?.siteName || 'E-Commerce'}
-              </span>
+              <div className="min-w-0">
+                <span className="block truncate text-lg font-extrabold leading-tight text-white sm:text-xl">
+                  {publicSettings?.siteName || 'E-Commerce'}
+                </span>
+                <span className="block truncate text-[11px] font-medium leading-tight text-white/95 sm:text-xs">
+                  {t('header.tagline')}
+                </span>
+                <span aria-hidden className="mt-1 block h-0.5 w-8 rounded-full bg-[#4ADE80]" />
+              </div>
             </Link>
 
             {/* All-categories mega menu — a shortcut to browse by category
@@ -185,11 +200,11 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="hidden shrink-0 items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 md:flex"
+                  className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-white px-3.5 py-1.5 text-sm font-semibold text-[#15803D] shadow-sm transition-colors hover:bg-[#F0FDF4] md:flex"
                 >
-                  <LayoutGrid className="h-4 w-4 text-white/80" />
+                  <LayoutGrid className="h-4 w-4 text-[#16A34A]" />
                   {t('nav.allCategories')}
-                  <ChevronDown className="h-3.5 w-3.5 text-white/80" />
+                  <ChevronDown className="h-3.5 w-3.5 text-[#16A34A]" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="p-0">
@@ -217,13 +232,14 @@ export function Header() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               {/* Theme Toggle removed from here - moved to TopHeader */}
 
-              {/* Wishlist — hidden on mobile, already reachable via the
-                  hamburger menu (MobileNav); keeping it here too just
-                  crowded the narrow action row alongside search/cart/user. */}
-              <Link href="/account/wishlist" className="hidden md:block">
+              {/* Wishlist — now shown at every breakpoint per the approved
+                  reference design (Notification/Wishlist/Menu is the
+                  mobile action set); still also reachable via bottom nav's
+                  "Deseju" tab and the hamburger menu, same as before. */}
+              <Link href="/account/wishlist">
                 <Button variant="ghost" size="icon" className="h-9 w-9 text-white hover:bg-white/15 hover:text-white" aria-label="Wishlist">
                   <Heart className="h-4 w-4" />
                 </Button>
@@ -340,11 +356,14 @@ export function Header() {
                 </DropdownMenu>
               )}
 
-              {/* Cart */}
+              {/* Cart — desktop-only now (mobile action set is
+                  Notification/Wishlist/Menu per the approved reference);
+                  still fully reachable on mobile via bottom nav's "Karinhu"
+                  tab, same cart state/functionality either way. */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 relative text-white hover:bg-white/15 hover:text-white"
+                className="hidden h-9 w-9 relative text-white hover:bg-white/15 hover:text-white md:inline-flex"
                 onClick={() => setCartOpen(true)}
                 aria-label="Cart"
               >
@@ -356,7 +375,9 @@ export function Header() {
                 )}
               </Button>
 
-              {/* User Menu */}
+              {/* User Menu — desktop-only, same reasoning as Cart above;
+                  mobile reaches account via bottom nav's "Konta" tab. */}
+              <div className="hidden md:block">
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -403,16 +424,17 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                // Hidden on mobile — BottomNav's Account tab already routes
-                // guests to /login, so this button just duplicated it right
-                // next to the hamburger. Desktop has no bottom nav, so it
-                // stays there as the only sign-in entry point.
-                <Link href="/login" className="hidden md:block">
+                // BottomNav's Account tab already routes guests to /login on
+                // mobile — the wrapping "hidden md:block" div above already
+                // keeps this desktop-only, so no duplicate visibility class
+                // needed here too.
+                <Link href="/login">
                   <Button variant="ghost" size="sm" className="h-9 bg-white text-blue-700 hover:bg-white/90 hover:text-blue-800">
                     {t('nav.signIn')}
                   </Button>
                 </Link>
               )}
+              </div>
 
               {/* Mobile Menu Button */}
               <Button
@@ -444,32 +466,43 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mobile-only second row: All Categories — a homepage-only browse
-            shortcut. Deliberately outside the blue gradient block (plain
-            page background) so it reads as page content sitting just below
-            the header, not another header row — and so its primary-tinted
-            pill keeps normal contrast instead of blue-on-blue. Opening the
-            desktop mega menu's 880px panel on a phone screen isn't an
-            option, so this is its own row on the homepage. Everywhere else
-            (product/category/cart/etc pages) it's just dead weight crowding
-            a header that already competes with page content for space, with
-            the hamburger menu and CategoryDrawer still one tap away
-            regardless. Video Shop moved to BottomNav's persistent tab bar —
-            no need for it here too. */}
+        {/* Mobile-only second row: All Categories + delivery trust info — a
+            homepage-only browse shortcut. Deliberately outside the gradient
+            block (plain page background) so its white/green pill keeps
+            normal contrast instead of sitting on the colored header.
+            Opening the desktop mega menu's 880px panel on a phone screen
+            isn't an option, so this is its own row on the homepage.
+            Everywhere else (product/category/cart/etc pages) it's just dead
+            weight crowding a header that already competes with page content
+            for space, with the hamburger menu and CategoryDrawer still one
+            tap away regardless. Video Shop moved to BottomNav's persistent
+            tab bar — no need for it here too. */}
         {isMobileBrowseRowVisible && (
           <div className="container-custom">
-            <div className="py-2 md:hidden">
+            <div className="flex items-center justify-between gap-3 py-3 md:hidden">
               <button
                 type="button"
                 onClick={() => setCategoryDrawerOpen(true)}
                 aria-haspopup="dialog"
                 aria-expanded={categoryDrawerOpen}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors active:bg-primary/10"
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-white px-3.5 py-2 text-sm font-semibold text-[#15803D] shadow-sm transition-colors active:bg-[#F0FDF4]"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <LayoutGrid className="h-4 w-4 text-[#16A34A]" />
                 {t('nav.allCategories')}
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3.5 w-3.5 text-[#16A34A]" />
               </button>
+
+              <div aria-hidden className="h-8 w-px shrink-0 bg-[#CBD5E1]" />
+
+              {/* Delivery trust signal — static copy, no admin/API backing,
+                  purely a visual trust cue matching the approved reference. */}
+              <div className="flex min-w-0 items-center gap-2">
+                <Truck className="h-5 w-5 shrink-0 text-[#2563EB]" strokeWidth={2} />
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-xs font-bold text-[#0F172A]">{t('header.delivery.title')}</p>
+                  <p className="truncate text-[11px] font-medium text-[#64748B]">{t('header.delivery.subtitle')}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}

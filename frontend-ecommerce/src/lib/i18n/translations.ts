@@ -29,6 +29,9 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.login': 'Tama',
 
     // Main nav / header
+    'header.tagline': 'Tuan Tik iha Nia Merkadu',
+    'header.delivery.title': 'Entrega Segura',
+    'header.delivery.subtitle': 'iha Timor-Leste',
     'nav.videoShop': 'Loja Vídeo',
     'nav.allCategories': 'Todas Kategoria',
     'nav.megaMenu.browse': 'Buka Kategoria',
@@ -223,6 +226,9 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.becomeSeller': 'Become a Seller',
     'topbar.login': 'Login',
 
+    'header.tagline': 'Your Trusted Marketplace',
+    'header.delivery.title': 'Secure Delivery',
+    'header.delivery.subtitle': 'across Timor-Leste',
     'nav.videoShop': 'Video Shop',
     'nav.allCategories': 'All Categories',
     'nav.megaMenu.browse': 'Browse Categories',
@@ -409,6 +415,9 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.becomeSeller': 'Jadi Penjual',
     'topbar.login': 'Masuk',
 
+    'header.tagline': 'Pasar Terpercaya Anda',
+    'header.delivery.title': 'Pengiriman Aman',
+    'header.delivery.subtitle': 'di seluruh Timor-Leste',
     'nav.videoShop': 'Video Shop',
     'nav.allCategories': 'Semua Kategori',
     'nav.megaMenu.browse': 'Jelajahi Kategori',
@@ -595,6 +604,9 @@ export const translations: Record<Locale, Dictionary> = {
     'topbar.becomeSeller': 'Tornar-se Vendedor',
     'topbar.login': 'Entrar',
 
+    'header.tagline': 'O Seu Mercado de Confiança',
+    'header.delivery.title': 'Entrega Segura',
+    'header.delivery.subtitle': 'em todo Timor-Leste',
     'nav.videoShop': 'Loja em Vídeo',
     'nav.allCategories': 'Todas as Categorias',
     'nav.megaMenu.browse': 'Explorar Categorias',

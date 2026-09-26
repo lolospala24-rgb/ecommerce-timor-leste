@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Loader2, Search, Sparkles, Clock, TrendingUp, Layers, Store, Camera } from 'lucide-react';
+import { Loader2, Search, Clock, TrendingUp, Layers, Store, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
@@ -241,11 +241,11 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
     <div ref={wrapperRef} className={cn('relative', className)}>
       <form onSubmit={handleSubmit} className="relative flex items-center">
         {/* Fixed white/slate colors here (not theme tokens) — this pill
-            always sits on Header's fixed brand-blue gradient regardless of
+            always sits on Header's fixed brand gradient regardless of
             light/dark theme, so it needs to stay legible against that one
             background rather than following the page theme. */}
-        <div className="relative flex w-full items-center rounded-full border border-transparent bg-white pr-1 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/30">
-          <Sparkles className="pointer-events-none absolute left-3.5 h-4 w-4 shrink-0 text-slate-400" />
+        <div className="relative flex w-full items-center rounded-full border border-white/75 bg-white p-1.5 shadow-[0_6px_20px_rgba(15,23,42,0.08)] transition-shadow focus-within:shadow-[0_8px_24px_rgba(15,23,42,0.12)] focus-within:ring-1 focus-within:ring-[#16A34A]/30">
+          <Search className="pointer-events-none absolute left-4 h-[18px] w-[18px] shrink-0 text-[#16A34A]" />
           <input
             type="text"
             value={value}
@@ -255,27 +255,28 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             autoFocus={autoFocus}
             disabled={isSearching}
             autoComplete="off"
-            className="h-10 w-full flex-1 truncate bg-transparent pl-9 pr-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60"
+            className="h-11 w-full flex-1 truncate bg-transparent pl-11 pr-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 sm:h-12"
           />
           <button
             type="button"
             onClick={handleCameraClick}
             aria-label="Search by image"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
           >
-            <Camera className="h-4 w-4" />
+            <Camera className="h-[18px] w-[18px]" />
           </button>
+          <div aria-hidden className="mx-1.5 h-6 w-px shrink-0 bg-slate-200" />
           <button
             type="submit"
             disabled={isSearching || !trimmedValue}
-            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
           >
             {isSearching ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Search className="h-3.5 w-3.5" />
+              <Search className="h-4 w-4" />
             )}
-            <span className="hidden sm:inline">Search AI</span>
+            <span className="hidden text-xs font-medium sm:inline">Search AI</span>
           </button>
         </div>
       </form>
