@@ -240,8 +240,12 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
   return (
     <div ref={wrapperRef} className={cn('relative', className)}>
       <form onSubmit={handleSubmit} className="relative flex items-center">
-        <div className="relative flex w-full items-center rounded-full border border-input bg-muted/40 pr-1 transition-colors focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/30">
-          <Sparkles className="pointer-events-none absolute left-3.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        {/* Fixed white/slate colors here (not theme tokens) — this pill
+            always sits on Header's fixed brand-blue gradient regardless of
+            light/dark theme, so it needs to stay legible against that one
+            background rather than following the page theme. */}
+        <div className="relative flex w-full items-center rounded-full border border-transparent bg-white pr-1 shadow-sm transition-shadow focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/30">
+          <Sparkles className="pointer-events-none absolute left-3.5 h-4 w-4 shrink-0 text-slate-400" />
           <input
             type="text"
             value={value}
@@ -251,13 +255,13 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             autoFocus={autoFocus}
             disabled={isSearching}
             autoComplete="off"
-            className="h-10 w-full flex-1 truncate bg-transparent pl-9 pr-2 text-sm outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
+            className="h-10 w-full flex-1 truncate bg-transparent pl-9 pr-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60"
           />
           <button
             type="button"
             onClick={handleCameraClick}
             aria-label="Search by image"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <Camera className="h-4 w-4" />
           </button>

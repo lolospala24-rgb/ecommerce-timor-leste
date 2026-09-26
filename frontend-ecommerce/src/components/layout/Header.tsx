@@ -147,28 +147,33 @@ export function Header() {
       {/* Top Header with menu items */}
       <TopHeader />
 
-      {/* Main Header */}
-      <header
-        className="sticky top-0 z-40 border-b bg-background"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
-      >
-        <div className="container-custom">
+      {/* Main Header — brand blue gradient block, full-bleed edge-to-edge.
+          The gradient/safe-area padding lives on this inner wrapper (not
+          the outer <header>) so the status-bar area is blue too, while the
+          homepage-only categories row below stays outside it on the plain
+          page background — see isMobileBrowseRowVisible block further down. */}
+      <header className="sticky top-0 z-40 bg-background">
+        <div
+          className="bg-gradient-to-r from-blue-800 via-blue-700 to-blue-600 shadow-md shadow-blue-900/20"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="container-custom">
           <div className="flex h-16 items-center justify-between gap-4">
             {/* Logo — the site name/logo are admin-editable (Settings → General),
                 so this reads real data instead of a hardcoded brand. */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
               {publicSettings?.logoUrl ? (
-                <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg">
-                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="32px" className="object-contain" />
+                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/30">
+                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="36px" className="object-contain" />
                 </div>
               ) : (
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
+                <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <span className="text-blue-700 font-bold text-sm">
                     {(publicSettings?.siteName || 'E').charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
-              <span className="font-bold text-lg hidden sm:block">
+              <span className="font-bold text-lg hidden text-white sm:block">
                 {publicSettings?.siteName || 'E-Commerce'}
               </span>
             </Link>
@@ -180,11 +185,11 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="hidden shrink-0 items-center gap-1.5 rounded-full border bg-background px-3.5 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted md:flex"
+                  className="hidden shrink-0 items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 md:flex"
                 >
-                  <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                  <LayoutGrid className="h-4 w-4 text-white/80" />
                   {t('nav.allCategories')}
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  <ChevronDown className="h-3.5 w-3.5 text-white/80" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="p-0">
@@ -195,12 +200,12 @@ export function Header() {
             {/* Search Bar - Desktop */}
             {/* Main Navigation - Desktop */}
             <nav className="hidden md:flex items-center gap-4 mr-6">
-            
-              <Link href="/videos" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+
+              <Link href="/videos" className="text-sm text-white/85 hover:text-white flex items-center gap-1">
                 <Play className="h-4 w-4" />
                 <span>{t('nav.videoShop')}</span>
               </Link>
-             
+
             </nav>
 
             {/* Search Bar - Desktop (mobile gets its own full-width row
@@ -219,7 +224,7 @@ export function Header() {
                   hamburger menu (MobileNav); keeping it here too just
                   crowded the narrow action row alongside search/cart/user. */}
               <Link href="/account/wishlist" className="hidden md:block">
-                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Wishlist">
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-white hover:bg-white/15 hover:text-white" aria-label="Wishlist">
                   <Heart className="h-4 w-4" />
                 </Button>
               </Link>
@@ -228,7 +233,7 @@ export function Header() {
               {isAuthenticated && (
                 <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
+                    <Button variant="ghost" size="icon" className="relative h-9 w-9 text-white hover:bg-white/15 hover:text-white" aria-label="Notifications">
                       <Bell className="h-4 w-4" />
                       {unreadCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
@@ -339,7 +344,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 relative"
+                className="h-9 w-9 relative text-white hover:bg-white/15 hover:text-white"
                 onClick={() => setCartOpen(true)}
                 aria-label="Cart"
               >
@@ -355,10 +360,10 @@ export function Header() {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
-                      <Avatar className="h-8 w-8">
+                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 hover:bg-white/15">
+                      <Avatar className="h-8 w-8 ring-2 ring-white/50">
                         <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        <AvatarFallback className="bg-white text-blue-700 text-xs">
                           {getInitials(user?.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -403,7 +408,7 @@ export function Header() {
                 // next to the hamburger. Desktop has no bottom nav, so it
                 // stays there as the only sign-in entry point.
                 <Link href="/login" className="hidden md:block">
-                  <Button variant="default" size="sm" className="h-9">
+                  <Button variant="ghost" size="sm" className="h-9 bg-white text-blue-700 hover:bg-white/90 hover:text-blue-800">
                     {t('nav.signIn')}
                   </Button>
                 </Link>
@@ -413,7 +418,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-9 w-9"
+                className="md:hidden h-9 w-9 text-white hover:bg-white/15 hover:text-white"
                 onClick={() => setMobileNavOpen(true)}
                 aria-label="Open menu"
               >
@@ -425,27 +430,35 @@ export function Header() {
           {/* Mobile-only search row — the real, typeable SearchAiBar at full
               row width (not a fake button opening a separate overlay dialog
               — that extra tap-through was more friction than it was worth
-              now that the bar fits comfortably on its own row). Still part
-              of the same header surface as the row above: no border, same
-              background, just its own line since a phone has no room to
-              share a row with the logo and action icons too. Hidden on
+              now that the bar fits comfortably on its own row). Sits at the
+              bottom edge of the blue gradient block: a small negative bottom
+              margin lets its shadowed white pill spill slightly past the
+              gradient's edge into the page below, so the two surfaces read
+              as layered rather than a hard flat seam. Hidden on
               product/seller detail pages — see isDetailPage above. */}
           {isMobileSearchRowVisible && (
-            <div className="pb-3 md:hidden">
+            <div className="relative z-10 pt-1 pb-2 -mb-3 md:hidden">
               <SearchAiBar className="w-full" />
             </div>
           )}
+          </div>
+        </div>
 
-          {/* Mobile-only second row: All Categories — a homepage-only browse
-              shortcut. Opening the desktop mega menu's 880px panel on a
-              phone screen isn't an option, so this is its own row on the
-              homepage. Everywhere else (product/category/cart/etc pages)
-              it's just dead weight crowding a header that already competes
-              with page content for space, with the hamburger menu and
-              CategoryDrawer still one tap away regardless. Video Shop moved
-              to BottomNav's persistent tab bar — no need for it here too. */}
-          {isMobileBrowseRowVisible && (
-            <div className="border-t py-2 md:hidden">
+        {/* Mobile-only second row: All Categories — a homepage-only browse
+            shortcut. Deliberately outside the blue gradient block (plain
+            page background) so it reads as page content sitting just below
+            the header, not another header row — and so its primary-tinted
+            pill keeps normal contrast instead of blue-on-blue. Opening the
+            desktop mega menu's 880px panel on a phone screen isn't an
+            option, so this is its own row on the homepage. Everywhere else
+            (product/category/cart/etc pages) it's just dead weight crowding
+            a header that already competes with page content for space, with
+            the hamburger menu and CategoryDrawer still one tap away
+            regardless. Video Shop moved to BottomNav's persistent tab bar —
+            no need for it here too. */}
+        {isMobileBrowseRowVisible && (
+          <div className="container-custom">
+            <div className="py-2 md:hidden">
               <button
                 type="button"
                 onClick={() => setCategoryDrawerOpen(true)}
@@ -458,8 +471,8 @@ export function Header() {
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       <CategoryDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} />
