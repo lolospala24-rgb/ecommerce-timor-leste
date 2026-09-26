@@ -9,7 +9,15 @@ import { PwaInstall } from '@/components/pwa/PwaInstall';
 import { GoogleOneTap } from '@/components/shared/GoogleOneTap';
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  // viewportFit: 'cover' lets page content draw under the notch/Dynamic
+  // Island and status bar instead of the OS reserving that strip with its
+  // own plain background — required for the header's blue gradient to show
+  // through behind the status bar in standalone/installed PWA mode.
+  viewportFit: 'cover',
+  // Matches the header's brand-blue gradient (blue-700) so Android's
+  // installed-PWA status bar/task-switcher chrome tints blue instead of
+  // white.
+  themeColor: '#1d4ed8',
 };
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-sans' });
@@ -64,7 +72,11 @@ export async function generateMetadata(): Promise<Metadata> {
     // manifest's `display`/`theme_color`, only these Apple-specific tags).
     appleWebApp: {
       capable: true,
-      statusBarStyle: 'default',
+      // 'black-translucent' makes the iOS status bar transparent/overlay
+      // (white icons, page content drawn underneath) instead of an opaque
+      // white bar — required for the header's gradient to show behind the
+      // status bar in standalone/installed mode.
+      statusBarStyle: 'black-translucent',
       title: siteName.length > 12 ? 'Lolospala' : siteName,
     },
     // Renders <meta name="google-site-verification" content="..."> only
@@ -162,8 +174,9 @@ export default async function RootLayout({
       <head>
         {/* Favicon comes from generateMetadata()'s `icons` field above
             (real or default), not a static link here — a second one would
-            just conflict with it. */}
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+            just conflict with it. The viewport meta tag comes from the
+            `viewport` export above (Next's metadata API) — no manual tag
+            here, since a second one would conflict with its viewport-fit. */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}

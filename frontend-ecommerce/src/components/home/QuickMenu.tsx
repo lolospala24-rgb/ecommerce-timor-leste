@@ -4,11 +4,7 @@ import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import {
   Sparkles,
-  TrendingUp,
   Store,
-  Heart,
-  ShoppingCart,
-  ClipboardList,
   Boxes,
   Megaphone,
 } from 'lucide-react';
@@ -25,20 +21,14 @@ interface QuickMenuItem {
 }
 
 // Every entry here points to a page that actually exists and works — no
-// dead links. The three "jump to a homepage section" links this used to
-// have (#local-products, #new-arrivals, #popular-products) never matched
-// anything real: homepage sections are admin-configured and render with no
-// id at all, so those taps silently did nothing. Replaced with routes that
-// always resolve regardless of what's configured on the homepage today.
+// dead links. Trimmed to 4 shortcuts (was 8) to match the brand's approved
+// homepage design — Popular/Wishlist/Cart/My Orders remain one tap away via
+// the header and bottom nav, they just aren't featured in this row too.
 const menus: QuickMenuItem[] = [
   { titleKey: 'home.quickMenu.allProducts', href: '/products', icon: Boxes, color: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
   { titleKey: 'home.quickMenu.becomeSeller', href: '/seller/register', icon: Megaphone, color: 'bg-orange-500/15 text-orange-600 dark:text-orange-400' },
   { titleKey: 'home.quickMenu.localProducts', href: '/categories/local-products', icon: Store, color: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
-  { titleKey: 'home.quickMenu.newArrivals', href: '/products?sortBy=newest', icon: Sparkles, color: 'bg-pink-500/15 text-pink-600 dark:text-pink-400' },
-  { titleKey: 'home.quickMenu.popular', href: '/products?sortBy=best_selling', icon: TrendingUp, color: 'bg-violet-500/15 text-violet-600 dark:text-violet-400' },
-  { titleKey: 'home.quickMenu.wishlist', href: '/account/wishlist', icon: Heart, color: 'bg-red-500/15 text-red-600 dark:text-red-400' },
-  { titleKey: 'home.quickMenu.cart', href: '/cart', icon: ShoppingCart, color: 'bg-green-500/15 text-green-600 dark:text-green-400' },
-  { titleKey: 'home.quickMenu.myOrders', href: '/account/orders', icon: ClipboardList, color: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+  { titleKey: 'home.quickMenu.easyPromo', href: '/deals', icon: Sparkles, color: 'bg-pink-500/15 text-pink-600 dark:text-pink-400' },
 ];
 
 export default function QuickMenu() {
@@ -51,7 +41,7 @@ export default function QuickMenu() {
           {t('home.quickMenu.title')}
         </h2>
 
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-4 md:grid-cols-8">
+        <div className="grid grid-cols-4 gap-2 sm:gap-4">
           {menus.map((menu) => {
             const Icon = menu.icon;
 

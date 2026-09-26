@@ -2,7 +2,10 @@ import type { MetadataRoute } from 'next';
 
 const DEFAULT_NAME = 'Lolospala';
 const DEFAULT_DESCRIPTION = 'Platform kompras online ba Timor-Leste';
-const THEME_COLOR = '#ffffff';
+// Matches the header's brand-blue gradient (blue-700) — used for both the
+// installed-PWA status bar/task-switcher tint and the splash screen shown
+// while the app loads.
+const THEME_COLOR = '#1d4ed8';
 
 // Same server-side settings fetch as layout.tsx's generateMetadata — kept
 // as its own small copy (not imported from there) since manifest.ts is a
