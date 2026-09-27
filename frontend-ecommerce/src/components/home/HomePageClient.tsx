@@ -3,7 +3,6 @@
 import { HeroSection } from '@/components/home/HeroSection';
 import QuickMenu from '@/components/home/QuickMenu';
 import { QuickMenuSkeleton } from '@/components/home/QuickMenuSkeleton';
-import { FeaturedCategories } from '@/components/home/FeaturedCategories';
 import { HomepageSections } from '@/components/home/HomepageSections';
 import { TopSellers } from '@/components/home/TopSellers';
 import { useHomepageSections } from '@/hooks/useHomepageSections';
@@ -16,10 +15,8 @@ import { useHomepageSections } from '@/hooks/useHomepageSections';
 //
 // The "Explora Kategoria" category showcase used to render here too; it now
 // lives as the header's All-Categories dropdown (same category data), so
-// this page doesn't duplicate that. FeaturedCategories below is a distinct,
-// narrower thing — only the categories an admin explicitly curated via
-// isFeatured, not a browse-everything tree — so it doesn't reintroduce that
-// duplication.
+// this page doesn't duplicate that. A FeaturedCategories section (isFeatured
+// showcase) was tried here too but removed at the user's request.
 export function HomePageClient() {
   // Reuses HomepageSections' own query (React Query dedupes identical keys,
   // so this is not a second network request) purely to decide whether
@@ -32,7 +29,6 @@ export function HomePageClient() {
     <div className="flex flex-col min-h-screen">
       <HeroSection />
       {isHomepageSectionsLoading ? <QuickMenuSkeleton /> : <QuickMenu />}
-      <FeaturedCategories />
       <HomepageSections />
       <TopSellers />
     </div>
