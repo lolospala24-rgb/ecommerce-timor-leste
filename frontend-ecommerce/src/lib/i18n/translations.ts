@@ -194,6 +194,13 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Munisípiu',
     'localProducts.filters.allMunicipalities': 'Munisípiu Hotu',
 
+    // Featured categories
+    'home.featuredCategories.badge': 'Kategoria Destaka',
+    'home.featuredCategories.title': 'Sosa Tuir Kategoria',
+    'home.featuredCategories.subtitle': 'Esplora kategoria populár sira',
+    'home.featuredCategories.viewAll': 'Haree Kategoria Hotu',
+    'home.featuredCategories.products': 'produtu',
+
     // Top sellers
     'home.topSellers.badge': 'Vendedór Konfiável',
     'home.topSellers.title': 'Vendedór Sira Di\'ak Liu',
@@ -385,6 +392,12 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Municipality',
     'localProducts.filters.allMunicipalities': 'All Municipalities',
 
+    'home.featuredCategories.badge': 'Featured Categories',
+    'home.featuredCategories.title': 'Shop by Category',
+    'home.featuredCategories.subtitle': 'Explore our popular categories',
+    'home.featuredCategories.viewAll': 'View All Categories',
+    'home.featuredCategories.products': 'products',
+
     'home.topSellers.badge': 'Trusted Sellers',
     'home.topSellers.title': 'Top Sellers',
     'home.topSellers.subtitle': 'Trusted sellers with the best products',
@@ -574,6 +587,12 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Munisipalitas',
     'localProducts.filters.allMunicipalities': 'Semua Munisipalitas',
 
+    'home.featuredCategories.badge': 'Kategori Unggulan',
+    'home.featuredCategories.title': 'Belanja Berdasarkan Kategori',
+    'home.featuredCategories.subtitle': 'Jelajahi kategori populer',
+    'home.featuredCategories.viewAll': 'Lihat Semua Kategori',
+    'home.featuredCategories.products': 'produk',
+
     'home.topSellers.badge': 'Penjual Terpercaya',
     'home.topSellers.title': 'Penjual Terbaik',
     'home.topSellers.subtitle': 'Penjual terpercaya dengan produk terbaik',
@@ -762,6 +781,12 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.allCategories': 'Todas as Categorias',
     'localProducts.filters.municipality': 'Município',
     'localProducts.filters.allMunicipalities': 'Todos os Municípios',
+
+    'home.featuredCategories.badge': 'Categorias em Destaque',
+    'home.featuredCategories.title': 'Compre por Categoria',
+    'home.featuredCategories.subtitle': 'Explore as categorias populares',
+    'home.featuredCategories.viewAll': 'Ver Todas as Categorias',
+    'home.featuredCategories.products': 'produtos',
 
     'home.topSellers.badge': 'Vendedores Confiáveis',
     'home.topSellers.title': 'Melhores Vendedores',
