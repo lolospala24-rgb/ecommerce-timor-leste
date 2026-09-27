@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCategoryTree } from '@/hooks/useCategories';
 import { getCategoryIcon } from '@/lib/categoryIcons';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
@@ -15,39 +14,48 @@ interface CategoryDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type CategoryNode = Category | CategoryChild;
+
 const isLocalCategory = (name: string) => /local/i.test(name);
 
 // Mobile-only "All Categories" experience — deliberately its own Sheet with
 // its own state, never sharing open/close with MobileNav's hamburger
 // drawer. Tapping a category drills into its subcategories in place (back
-// arrow appears); tapping a subcategory navigates and closes. The Android/
-// browser hardware back button steps back one level at a time instead of
-// leaving the page, via a pushed history entry consumed on popstate.
+// arrow appears); tapping a subcategory navigates and closes — unless that
+// subcategory has children of its own, in which case it drills in again,
+// to any depth the taxonomy actually has. `categoryPath` is the drill-down
+// stack (empty = top level, last entry = the level currently shown). The
+// Android/browser hardware back button steps back one level at a time
+// instead of leaving the page, via a single pushed history entry consumed
+// on popstate (see the history effect below) — this already generalizes
+// cleanly from one level to a whole stack, see its comment.
 export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { data: tree } = useCategoryTree();
   const categories = (tree ?? []) as Category[];
 
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [categoryPath, setCategoryPath] = useState<CategoryNode[]>([]);
   const [search, setSearch] = useState('');
-  const activeCategoryRef = useRef(activeCategory);
+  const categoryPathRef = useRef(categoryPath);
   useEffect(() => {
-    activeCategoryRef.current = activeCategory;
-  }, [activeCategory]);
+    categoryPathRef.current = categoryPath;
+  }, [categoryPath]);
+
+  const current = categoryPath.length > 0 ? categoryPath[categoryPath.length - 1] : null;
+  const currentList: CategoryNode[] = current ? ((current.children ?? []) as CategoryNode[]) : categories;
 
   // Reset drill-down + search back to the top every time the drawer closes,
   // so reopening it never silently resumes mid-subcategory or mid-search.
   useEffect(() => {
     if (!open) {
-      setActiveCategory(null);
+      setCategoryPath([]);
       setSearch('');
     }
   }, [open]);
 
   useEffect(() => {
     setSearch('');
-  }, [activeCategory]);
+  }, [current?.id]);
 
   // --- Android/browser back-button handling ---------------------------------
   // Next.js runs with reactStrictMode on, which double-invokes effects in
@@ -58,6 +66,15 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
   // "is there currently a pushed entry pending" and is only ever mutated by
   // the push/pop sites below, so a duplicate mount from Strict Mode just
   // finds the flag already true and skips pushing again.
+  //
+  // Only ONE history entry is ever pushed per drawer-open, regardless of
+  // how many levels deep categoryPath goes — the UI back-chevron (below)
+  // pops the stack directly without touching history at all, exactly like
+  // the single-level version this generalizes from. So by the time a
+  // hardware back-press actually happens, categoryPathRef reflects
+  // wherever the user manually navigated to, and popstate just needs to
+  // pop one more level (re-pushing a fresh entry to stay "armed" for the
+  // next back-press) or, if already at the top, close the drawer for real.
   const suppressNextPopRef = useRef(false);
   const historyPushedRef = useRef(false);
 
@@ -79,8 +96,8 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
         return;
       }
       historyPushedRef.current = false;
-      if (activeCategoryRef.current) {
-        setActiveCategory(null);
+      if (categoryPathRef.current.length > 0) {
+        setCategoryPath((prev) => prev.slice(0, -1));
         window.history.pushState({ categoryDrawer: true }, '');
         historyPushedRef.current = true;
       } else {
@@ -93,9 +110,9 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
   }, [open, onOpenChange]);
 
   // Every UI-initiated close (X button, overlay click, ESC via Radix,
-  // tapping a subcategory link) routes through here so the pushed history
-  // entry is consumed immediately instead of waiting to be silently eaten
-  // by the user's next unrelated back-press.
+  // tapping a leaf category link) routes through here so the pushed
+  // history entry is consumed immediately instead of waiting to be
+  // silently eaten by the user's next unrelated back-press.
   const close = () => {
     if (historyPushedRef.current) {
       suppressNextPopRef.current = true;
@@ -105,28 +122,20 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
     onOpenChange(false);
   };
 
-  const children = (activeCategory?.children ?? []) as CategoryChild[];
-
-  const filteredCategories = useMemo(() => {
-    if (!search.trim()) return categories;
+  const filteredList = useMemo(() => {
+    if (!search.trim()) return currentList;
     const q = search.trim().toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [categories, search]);
-
-  const filteredChildren = useMemo(() => {
-    if (!search.trim()) return children;
-    const q = search.trim().toLowerCase();
-    return children.filter((c) => c.name.toLowerCase().includes(q));
-  }, [children, search]);
+    return currentList.filter((c) => c.name.toLowerCase().includes(q));
+  }, [currentList, search]);
 
   return (
     <Sheet open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
       <SheetContent side="right" className="flex w-full max-w-sm flex-col p-0">
         <div className="flex items-center gap-2 border-b p-4">
-          {activeCategory ? (
+          {current ? (
             <button
               type="button"
-              onClick={() => setActiveCategory(null)}
+              onClick={() => setCategoryPath((prev) => prev.slice(0, -1))}
               aria-label={t('nav.megaMenu.back')}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-accent"
             >
@@ -134,7 +143,7 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
             </button>
           ) : null}
           <SheetTitle className="flex-1 truncate text-left text-base">
-            {activeCategory ? activeCategory.name : t('nav.allCategories')}
+            {current ? current.name : t('nav.allCategories')}
           </SheetTitle>
           <button
             type="button"
@@ -153,8 +162,8 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={
-                activeCategory
-                  ? `${t('nav.megaMenu.searchIn')} ${activeCategory.name}...`
+                current
+                  ? `${t('nav.megaMenu.searchIn')} ${current.name}...`
                   : t('nav.megaMenu.searchPlaceholder')
               }
               className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
@@ -163,98 +172,87 @@ export function CategoryDrawer({ open, onOpenChange }: CategoryDrawerProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto" data-lenis-prevent>
-          {!activeCategory ? (
-            <>
-              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('nav.megaMenu.browse')}
-              </p>
-              <ul className="pb-2">
-                {filteredCategories.map((category) => {
-                  const Icon = getCategoryIcon(category.name);
-                  const isLocal = isLocalCategory(category.name);
-                  const hasChildren = (category.children ?? []).length > 0;
-                  return (
-                    <li key={category.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (hasChildren) {
-                            setActiveCategory(category);
-                          } else {
-                            close();
-                            router.push(`/categories/${category.slug}`);
-                          }
-                        }}
-                        className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground transition-colors active:bg-accent"
-                      >
-                        <Icon className={`h-5 w-5 shrink-0 ${isLocal ? 'text-secondary' : 'text-muted-foreground'}`} />
-                        <span className="min-w-0 flex-1 truncate">{category.name}</span>
-                        {isLocal && (
-                          <span className="shrink-0 rounded-full bg-secondary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
-                            TL
-                          </span>
-                        )}
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                      </button>
-                    </li>
-                  );
-                })}
-                {filteredCategories.length === 0 && (
-                  <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    {t('nav.megaMenu.noResults')}
-                  </li>
-                )}
-              </ul>
-              <div className="border-t p-2">
-                <Link
-                  href="/categories"
-                  onClick={close}
-                  className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-primary active:bg-accent"
-                >
-                  {t('nav.megaMenu.viewAll')}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <ul className="py-2">
-                {filteredChildren.length > 0 ? (
-                  filteredChildren.map((child) => (
-                    <li key={child.id}>
-                      <Link
-                        href={`/categories/${child.slug}`}
-                        onClick={close}
-                        className="flex min-h-[44px] items-center px-5 py-2.5 text-sm text-foreground active:bg-accent"
-                      >
-                        {child.name}
-                      </Link>
-                    </li>
-                  ))
-                ) : children.length > 0 ? (
-                  <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    {t('nav.megaMenu.noResults')}
-                  </li>
-                ) : (
-                  <li className="px-5 py-2.5 text-sm text-muted-foreground">
-                    {!!activeCategory.productCount && activeCategory.productCount > 0
-                      ? `${activeCategory.productCount} ${t('nav.megaMenu.products')}`
-                      : t('nav.megaMenu.explore')}
-                  </li>
-                )}
-              </ul>
-              <div className="border-t p-2">
-                <Link
-                  href={`/categories/${activeCategory.slug}`}
-                  onClick={close}
-                  className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-primary active:bg-accent"
-                >
-                  {t('nav.megaMenu.viewCategory')} {activeCategory.name}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </>
+          {!current && (
+            <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('nav.megaMenu.browse')}
+            </p>
           )}
+          <ul className={current ? 'py-2' : 'pb-2'}>
+            {filteredList.map((category) => {
+              const hasChildren = (category.children ?? []).length > 0;
+              const isRoot = !current;
+              const Icon = isRoot ? getCategoryIcon(category.name) : null;
+              const isLocal = isRoot && isLocalCategory(category.name);
+              const rowContent = (
+                <>
+                  {Icon && (
+                    <Icon className={`h-5 w-5 shrink-0 ${isLocal ? 'text-secondary' : 'text-muted-foreground'}`} />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                  {isLocal && (
+                    <span className="shrink-0 rounded-full bg-secondary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-secondary">
+                      TL
+                    </span>
+                  )}
+                  {hasChildren && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
+                </>
+              );
+              const rowClassName = `flex min-h-[44px] w-full items-center gap-3 ${
+                isRoot ? 'px-4' : 'px-5'
+              } py-2.5 text-left text-sm text-foreground transition-colors active:bg-accent`;
+
+              return (
+                <li key={category.id}>
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      onClick={() => setCategoryPath((prev) => [...prev, category])}
+                      className={rowClassName}
+                    >
+                      {rowContent}
+                    </button>
+                  ) : (
+                    <Link href={`/categories/${category.slug}`} onClick={close} className={rowClassName}>
+                      {rowContent}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+            {filteredList.length === 0 && currentList.length > 0 && (
+              <li className="px-4 py-6 text-center text-sm text-muted-foreground">
+                {t('nav.megaMenu.noResults')}
+              </li>
+            )}
+            {filteredList.length === 0 && currentList.length === 0 && current && (
+              <li className="px-5 py-2.5 text-sm text-muted-foreground">
+                {!!current.productCount && current.productCount > 0
+                  ? `${current.productCount} ${t('nav.megaMenu.products')}`
+                  : t('nav.megaMenu.explore')}
+              </li>
+            )}
+          </ul>
+          <div className="border-t p-2">
+            {current ? (
+              <Link
+                href={`/categories/${current.slug}`}
+                onClick={close}
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-primary active:bg-accent"
+              >
+                {t('nav.megaMenu.viewCategory')} {current.name}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            ) : (
+              <Link
+                href="/categories"
+                onClick={close}
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-primary active:bg-accent"
+              >
+                {t('nav.megaMenu.viewAll')}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

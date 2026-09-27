@@ -93,6 +93,15 @@ export interface Product {
     id: number;
     name: string;
     slug: string;
+    // Already returned by the product-detail endpoint's `include`, just
+    // unused until the breadcrumb below started reading it — one level up
+    // only (matches the taxonomy's real-world depth today; a 3rd level
+    // would need the backend query to go one level deeper too).
+    parent?: {
+      id: number;
+      name: string;
+      slug: string;
+    } | null;
   };
   rating?: number;
   totalReviews?: number;

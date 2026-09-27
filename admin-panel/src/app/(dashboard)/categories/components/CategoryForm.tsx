@@ -114,17 +114,37 @@ export function CategoryForm({
   // Filter out self and children from parent options
   const getAvailableParents = () => {
     if (!initialData) return categories;
-    
+
     const filterChildren = (categoryId: number): number[] => {
       const children = categories.filter(c => c.parentId === categoryId);
       return children.flatMap(c => [c.id, ...filterChildren(c.id)]);
     };
-    
+
     const excludedIds = [initialData.id, ...filterChildren(initialData.id)];
     return categories.filter(c => !excludedIds.includes(c.id));
   };
 
   const availableParents = getAvailableParents();
+
+  // Full ancestor path (e.g. "Eletrónika › Asesóriu"), not just the bare
+  // name — category names are only unique per-parent now (the same leaf
+  // name can legitimately exist under several different parents), so a
+  // flat list of bare names can no longer tell two entries apart. Built
+  // from the already-loaded flat `categories` list (each has parentId),
+  // no extra API call needed.
+  const categoriesById = new Map(categories.map((c) => [c.id, c]));
+  const getCategoryPath = (category: any): string => {
+    const path = [category.name];
+    let current = category;
+    const seen = new Set([current.id]);
+    while (current.parentId && categoriesById.has(current.parentId)) {
+      if (seen.has(current.parentId)) break; // guard against bad/cyclic data
+      current = categoriesById.get(current.parentId);
+      seen.add(current.id);
+      path.unshift(current.name);
+    }
+    return path.join(' › ');
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -182,8 +202,7 @@ export function CategoryForm({
                 <SelectItem value="none">No Parent (Top Level)</SelectItem>
                 {availableParents.map((category) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
-                    {'— '.repeat(category.level || 0)}
-                    {category.name}
+                    {getCategoryPath(category)}
                   </SelectItem>
                 ))}
               </SelectContent>

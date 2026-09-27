@@ -301,29 +301,55 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const buyDisabled = displayStock === 0 || (hasVariants && !selectedVariant);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-5">
       {/* Breadcrumb */}
-      <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-primary transition-colors">
-          Home
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href="/products" className="hover:text-primary transition-colors">
-          Products
-        </Link>
-        {product.category && (
-          <>
-            <ChevronRight className="h-3.5 w-3.5" />
-            <Link
-              href={`/categories/${product.category.slug}`}
-              className="hover:text-primary transition-colors"
-            >
-              {product.category.name}
+      <nav className="min-w-0 overflow-x-auto text-sm text-muted-foreground" aria-label="Breadcrumb">
+        <ol className="flex min-w-max items-center gap-1.5 whitespace-nowrap">
+          <li>
+            <Link href="/" className="hover:text-primary transition-colors">
+              Home
             </Link>
-          </>
-        )}
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-foreground line-clamp-1">{product.name}</span>
+          </li>
+          <li className="flex items-center gap-1.5">
+            <ChevronRight className="h-3.5 w-3.5" />
+            <Link href="/products" className="hover:text-primary transition-colors">
+              Products
+            </Link>
+          </li>
+          {/* Parent first, then the product's own (sub)category — category
+              names are only unique per-parent now, so skipping straight to
+              the leaf risked two different subcategories (e.g. two
+              different "Aksesóriu" under two different parents) rendering
+              an identical, ambiguous breadcrumb. */}
+          {product.category?.parent && (
+            <li className="flex items-center gap-1.5">
+              <ChevronRight className="h-3.5 w-3.5" />
+              <Link
+                href={`/categories/${product.category.parent.slug}`}
+                className="hover:text-primary transition-colors"
+              >
+                {product.category.parent.name}
+              </Link>
+            </li>
+          )}
+          {product.category && (
+            <li className="flex items-center gap-1.5">
+              <ChevronRight className="h-3.5 w-3.5" />
+              <Link
+                href={`/categories/${product.category.slug}`}
+                className="hover:text-primary transition-colors"
+              >
+                {product.category.name}
+              </Link>
+            </li>
+          )}
+          <li className="flex min-w-0 items-center gap-1.5">
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+            <span className="max-w-[180px] truncate font-medium text-foreground sm:max-w-[280px]">
+              {product.name}
+            </span>
+          </li>
+        </ol>
       </nav>
 
       {/* Main product section: gallery | info + buy, two columns */}

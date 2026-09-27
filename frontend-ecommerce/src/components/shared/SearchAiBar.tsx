@@ -35,6 +35,7 @@ interface CategorySuggestion {
   name: string;
   nameTetum: string | null;
   slug: string;
+  parent?: { name: string } | null;
 }
 
 interface SellerSuggestion {
@@ -395,7 +396,12 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
                       className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                     >
                       <Layers className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{category.name}</span>
+                      <span className="truncate">
+                        {category.name}
+                        {category.parent && (
+                          <span className="text-muted-foreground"> · {category.parent.name}</span>
+                        )}
+                      </span>
                     </button>
                   ))}
                 </div>

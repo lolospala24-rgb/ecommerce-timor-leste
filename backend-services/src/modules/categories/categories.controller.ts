@@ -72,24 +72,28 @@ export class CategoriesController {
     return { data: tree };
   }
 
+  // All three below used to hard-cap at 8/10/12 with no way for a caller to
+  // ask for more — as the number of featured/top-level categories grows
+  // past that, results past the cap just silently vanished. ?limit= now
+  // lets a caller override it; omitting it keeps the exact old default.
   @Public()
   @Get('featured')
-  async getFeaturedCategories() {
-    const categories = await this.categoriesService.getFeaturedCategories();
+  async getFeaturedCategories(@Query('limit') limit?: string) {
+    const categories = await this.categoriesService.getFeaturedCategories(clampLimit(limit, 8));
     return { data: categories };
   }
 
   @Public()
   @Get('with-products')
-  async getCategoriesWithProducts() {
-    const categories = await this.categoriesService.getCategoriesWithProducts();
+  async getCategoriesWithProducts(@Query('limit') limit?: string) {
+    const categories = await this.categoriesService.getCategoriesWithProducts(clampLimit(limit, 10));
     return { data: categories };
   }
 
   @Public()
   @Get('menu')
-  async getMenuCategories() {
-    const categories = await this.categoriesService.getMenuCategories();
+  async getMenuCategories(@Query('limit') limit?: string) {
+    const categories = await this.categoriesService.getMenuCategories(clampLimit(limit, 12));
     return { data: categories };
   }
 

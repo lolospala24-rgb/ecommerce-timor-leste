@@ -69,7 +69,10 @@ async function main() {
     const slug = cat.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     
     await prisma.category.upsert({
-      where: { name: cat.name },
+      // name is no longer globally unique (scoped per-parent now), but
+      // slug still is — a stable upsert key either way for these seed-time
+      // top-level categories.
+      where: { slug },
       update: {},
       create: {
         name: cat.name,

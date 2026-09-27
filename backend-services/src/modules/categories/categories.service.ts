@@ -28,15 +28,19 @@ export class CategoriesService {
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
-    // Check if category with same name exists
+    // Uniqueness is scoped to the parent (matches the @@unique([parentId,
+    // name]) DB constraint) — the same name is allowed to exist under
+    // different parents, e.g. "Accessories" under both Electronics and
+    // Fashion, the way a deep taxonomy needs to work as it grows.
     const existingCategory = await this.prisma.category.findFirst({
       where: {
         name: createCategoryDto.name,
+        parentId: createCategoryDto.parentId ?? null,
       },
     });
 
     if (existingCategory) {
-      throw new ConflictException('Category with this name already exists');
+      throw new ConflictException('Category with this name already exists under this parent');
     }
 
     // An explicit slug is sanitized then rejected if taken; an
@@ -355,19 +359,6 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    // Check name uniqueness if being updated
-    if (updateCategoryDto.name && updateCategoryDto.name !== category.name) {
-      const existingCategory = await this.prisma.category.findFirst({
-        where: {
-          name: updateCategoryDto.name,
-          NOT: { id },
-        },
-      });
-      if (existingCategory) {
-        throw new ConflictException('Category with this name already exists');
-      }
-    }
-
     // Slug only changes if explicitly requested — a name edit alone must
     // never regenerate it, or existing /categories/[slug] links break.
     let nextSlug: string | undefined;
@@ -402,6 +393,26 @@ export class CategoriesService {
       const isDescendant = await this.isDescendantOf(updateCategoryDto.parentId, id);
       if (isDescendant) {
         throw new BadRequestException('Cannot set a descendant as parent');
+      }
+    }
+
+    // Name uniqueness is scoped to the parent (matches the DB constraint),
+    // so this re-checks whenever EITHER the name or the parent changes —
+    // moving a category to a parent that already has a same-named child
+    // is just as much a collision as renaming in place.
+    if (updateCategoryDto.name !== undefined || updateCategoryDto.parentId !== undefined) {
+      const nextName = updateCategoryDto.name ?? category.name;
+      const nextParentId =
+        updateCategoryDto.parentId === undefined ? category.parentId : updateCategoryDto.parentId;
+      const existingCategory = await this.prisma.category.findFirst({
+        where: {
+          name: nextName,
+          parentId: nextParentId ?? null,
+          NOT: { id },
+        },
+      });
+      if (existingCategory) {
+        throw new ConflictException('Category with this name already exists under this parent');
       }
     }
 
@@ -508,10 +519,16 @@ export class CategoriesService {
     return tree;
   }
 
-  async getFeaturedCategories() {
-    const cacheKey = 'categories:featured';
+  // Default matches this endpoint's old hardcoded value exactly — an
+  // existing caller that doesn't pass ?limit= sees no behavior change.
+  // The cap was previously a hard ceiling with no way to see past it as
+  // the catalog's featured-category count grew (a real admin-usability
+  // gap: the admin's own "manage featured" list would silently hide any
+  // featured category past #8). Now the ceiling is just a default.
+  async getFeaturedCategories(limit = 8) {
+    const cacheKey = `categories:featured:${limit}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
       return JSON.parse(cached);
     }
@@ -527,7 +544,7 @@ export class CategoriesService {
         },
       },
       orderBy: { order: 'asc' },
-      take: 8,
+      take: limit,
     });
 
     await this.redisService.set(cacheKey, JSON.stringify(categories), 1800); // 30 minutes
@@ -535,10 +552,10 @@ export class CategoriesService {
     return categories;
   }
 
-  async getCategoriesWithProducts() {
-    const cacheKey = 'categories:with-products';
+  async getCategoriesWithProducts(limit = 10) {
+    const cacheKey = `categories:with-products:${limit}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
       return JSON.parse(cached);
     }
@@ -566,7 +583,7 @@ export class CategoriesService {
         },
       },
       orderBy: { order: 'asc' },
-      take: 10,
+      take: limit,
     });
 
     await this.redisService.set(cacheKey, JSON.stringify(categories), 1800);
@@ -574,10 +591,10 @@ export class CategoriesService {
     return categories;
   }
 
-  async getMenuCategories() {
-    const cacheKey = 'categories:menu';
+  async getMenuCategories(limit = 12) {
+    const cacheKey = `categories:menu:${limit}`;
     const cached = await this.redisService.get(cacheKey);
-    
+
     if (cached) {
       return JSON.parse(cached);
     }
@@ -605,7 +622,7 @@ export class CategoriesService {
         },
       },
       orderBy: { order: 'asc' },
-      take: 12,
+      take: limit,
     });
 
     await this.redisService.set(cacheKey, JSON.stringify(categories), 3600);
@@ -680,6 +697,17 @@ export class CategoriesService {
   }
 
   async getDescendants(id: number) {
+    // Cached — this used to run a fresh BFS (one query per tree level, N+1
+    // style) on every single category-scoped product/filter request via
+    // resolveCategoryScope, for a subtree that only ever changes when an
+    // admin edits the category tree. Same cache-then-clearCategoryCache
+    // pattern as the tree/menu/featured caches above.
+    const cacheKey = `category:descendants:${id}`;
+    const cached = await this.redisService.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
     const category = await this.prisma.category.findUnique({
       where: { id },
     });
@@ -703,12 +731,14 @@ export class CategoriesService {
           parentId: true,
         },
       });
-      
+
       for (const child of children) {
         descendants.push(child);
         queue.push(child.id);
       }
     }
+
+    await this.redisService.set(cacheKey, JSON.stringify(descendants), 1800);
 
     return descendants;
   }
@@ -897,6 +927,24 @@ export class CategoriesService {
     const { orderBy, postSort } = this.mapCategorySort(sortBy);
     const skip = (page - 1) * limit;
 
+    // rating/best_selling/popularity sorting and the minRating filter all
+    // need values computed in JS from related rows (reviews, order items,
+    // wishlist entries) that Prisma can't sort/filter by at the DB level
+    // without denormalized counter columns — so this whole method has
+    // always had to pull the category's matching products into memory
+    // before the final sort+slice below. What it did NOT have was any cap
+    // on that fetch: a category with thousands of matching products would
+    // load literally every one of them, every single request. This bounds
+    // that worst case at a large-but-finite window (ordered by the same
+    // orderBy the DB would already use) instead of leaving it unbounded —
+    // for every category size seen in production today this changes
+    // nothing (all of them are far under the cap). Truly unbounded scale
+    // (tens of thousands+ products in one category) will eventually need
+    // denormalized rating/sales/popularity columns so every sort mode can
+    // be a real DB-level ORDER BY + LIMIT/OFFSET — a bigger follow-up, not
+    // a same-day fix.
+    const MAX_SCAN_LIMIT = 2000;
+
     let products = await this.prisma.product.findMany({
       where,
       include: {
@@ -918,6 +966,7 @@ export class CategoriesService {
           : {}),
       },
       orderBy,
+      take: MAX_SCAN_LIMIT,
     });
 
     let productsWithRating = products.map((product) => {
@@ -1191,9 +1240,15 @@ export class CategoriesService {
       await this.redisService.del(`category:${categoryId}`);
     }
     await this.redisService.del('categories:tree');
-    await this.redisService.del('categories:featured');
-    await this.redisService.del('categories:with-products');
-    await this.redisService.del('categories:menu');
+
+    // Keyed per-limit now (?limit=N callers each get their own cache entry)
+    // — clear every variant rather than one fixed key.
+    for (const prefix of ['categories:featured:', 'categories:with-products:', 'categories:menu:']) {
+      const keys = await this.redisService.keys(`${prefix}*`);
+      for (const key of keys) {
+        await this.redisService.del(key);
+      }
+    }
 
     const slugKeys = await this.redisService.keys('category:slug:*');
     for (const key of slugKeys) {
@@ -1203,7 +1258,16 @@ export class CategoriesService {
     for (const key of filterKeys) {
       await this.redisService.del(key);
     }
-    
+
+    // A move/rename/delete anywhere in the tree can change the descendant
+    // set of any ancestor (old parent chain and new one), not just the
+    // edited category itself — clear all of them rather than try to work
+    // out which ancestors are affected.
+    const descendantKeys = await this.redisService.keys('category:descendants:*');
+    for (const key of descendantKeys) {
+      await this.redisService.del(key);
+    }
+
     // Clear paginated lists
     const keys = await this.redisService.keys('categories:list:*');
     for (const key of keys) {

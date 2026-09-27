@@ -241,7 +241,13 @@ model AdminLog {
 
 model Category {
   id           Int      @id @default(autoincrement())
-  name         String   @unique
+  // Unique per-parent (see @@unique below), not globally — a deep taxonomy
+  // needs to reuse leaf names like "Accessories" or "Other" under many
+  // different parents, the same way Shopee's category tree does. Top-level
+  // categories (parentId NULL) fall outside this DB constraint (MySQL
+  // treats every NULL as distinct for uniqueness), so CategoriesService
+  // still checks that case explicitly in application code.
+  name         String
   nameTetum    String?
   description  String?
   image        String?
@@ -260,6 +266,7 @@ model Category {
   children Category[] @relation("CategoryToCategory")
   products Product[]
 
+  @@unique([parentId, name])
   @@index([parentId])
   @@map("categories")
 }

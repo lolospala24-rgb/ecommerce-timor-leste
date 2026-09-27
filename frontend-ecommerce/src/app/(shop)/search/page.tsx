@@ -209,6 +209,16 @@ function SearchPageContent() {
               <div>
                 <h4 className="font-medium group-hover:text-primary transition-colors">
                   {category.name}
+                  {/* Category names are only unique per-parent now — this
+                      grid mixes top-level and subcategories together, so
+                      two different subcategories sharing a leaf name (e.g.
+                      "Aksesóriu" under two different parents) need the
+                      parent shown to stay distinguishable. */}
+                  {category.parent && (
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                      in {category.parent.name}
+                    </span>
+                  )}
                 </h4>
                 {category.nameTetum && (
                   <p className="text-sm text-muted-foreground">{category.nameTetum}</p>

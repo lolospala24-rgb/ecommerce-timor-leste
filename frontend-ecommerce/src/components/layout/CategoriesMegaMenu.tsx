@@ -127,17 +127,38 @@ export function CategoriesMegaMenu({ onNavigate }: CategoriesMegaMenuProps) {
             {activeCategory.name}
           </p>
           {activeChildren.length > 0 ? (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-              {activeChildren.map((child) => (
-                <Link
-                  key={child.id}
-                  href={`/categories/${child.slug}`}
-                  onClick={onNavigate}
-                  className="truncate rounded-md px-2 py-1.5 text-sm text-foreground/80 transition-colors hover:bg-primary/5 hover:text-primary"
-                >
-                  {child.name}
-                </Link>
-              ))}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {activeChildren.map((child) => {
+                const grandchildren = child.children ?? [];
+                return (
+                  <div key={child.id} className="min-w-0">
+                    <Link
+                      href={`/categories/${child.slug}`}
+                      onClick={onNavigate}
+                      className="block truncate rounded-md px-2 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-primary/5 hover:text-primary"
+                    >
+                      {child.name}
+                    </Link>
+                    {/* A 3rd taxonomy level — surfaced here instead of being
+                        a dead end only reachable by knowing its URL. */}
+                    {grandchildren.length > 0 && (
+                      <ul className="mt-0.5 space-y-0.5 pl-2">
+                        {grandchildren.map((grandchild) => (
+                          <li key={grandchild.id}>
+                            <Link
+                              href={`/categories/${grandchild.slug}`}
+                              onClick={onNavigate}
+                              className="block truncate rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary"
+                            >
+                              {grandchild.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

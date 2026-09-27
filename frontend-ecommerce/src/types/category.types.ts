@@ -23,6 +23,11 @@ export interface CategoryChild {
   slug: string;
   image?: string | null;
   productCount?: number;
+  // Self-referential — /categories/tree already returns unlimited depth
+  // (see backend getCategoryTree()'s recursive buildTree()), this was just
+  // never exposed past one level in the type/UI. Lets a subcategory that
+  // itself has children be drilled into instead of being a dead end.
+  children?: CategoryChild[];
 }
 
 export type CategoryFilterType =

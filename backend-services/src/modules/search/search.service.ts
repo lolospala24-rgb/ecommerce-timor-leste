@@ -527,6 +527,11 @@ export class SearchService {
           name: true,
           nameTetum: true,
           slug: true,
+          // Category names are only unique per-parent now — without this,
+          // two different subcategories sharing a leaf name (e.g.
+          // "Aksesóriu" under two different parents) would render as
+          // identical, indistinguishable autocomplete suggestions.
+          parent: { select: { name: true } },
         },
       }),
       this.prisma.seller.findMany({
