@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useHomepageSections, type HomepageSection } from '@/hooks/useHomepageSections';
 import { ProductCard } from '@/components/products/ProductCard';
+import { ProductGridSkeleton } from '@/components/products/ProductGridSkeleton';
 import { FlashSaleSection } from './FlashSaleSection';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -48,11 +49,7 @@ function SectionSkeleton() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-96 rounded-xl" />
-          ))}
-        </div>
+        <ProductGridSkeleton count={6} />
       </div>
     </section>
   );
