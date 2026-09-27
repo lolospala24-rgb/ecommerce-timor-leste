@@ -175,7 +175,7 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
   }, [emblaApi, startAutoplay, stopAutoplay]);
 
   return (
-    <div className="container-custom py-4 sm:py-8">
+    <div className="container-custom py-3 sm:py-5">
       <div className="relative">
         <div ref={emblaRef} className="overflow-hidden">
           <div className="flex">
@@ -210,7 +210,7 @@ function HeroCarousel({ banners }: { banners: HeroBanner[] }) {
 
 function HeroSkeleton() {
   return (
-    <div className="container-custom py-4 sm:py-8">
+    <div className="container-custom py-3 sm:py-5">
       <Skeleton className="h-[420px] w-full rounded-xl sm:h-[320px]" />
     </div>
   );
