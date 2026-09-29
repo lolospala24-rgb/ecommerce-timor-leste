@@ -72,7 +72,7 @@ export function ProductVariantSelector({
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-3">
                 {attributeOptions[attribute]?.map((value) => {
                   const selected = selectedAttributes[attribute] === value;
                   const available = isAttributeValueAvailable(attribute, value);
@@ -84,6 +84,65 @@ export function ProductVariantSelector({
                   );
                   const showImage = Boolean(optionImage);
 
+                  // Image-backed options (color/pattern swatches) get a
+                  // fixed-size square thumbnail with the label locked to the
+                  // same width below it — a long option name (e.g. "list
+                  // putih") truncates with an ellipsis instead of forcing
+                  // the swatch wider or overflowing its row, and every
+                  // swatch in the group lines up to the same size regardless
+                  // of label length.
+                  if (showImage) {
+                    return (
+                      <button
+                        key={`${attribute}-${value}`}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => onSelectAttribute(attribute, value)}
+                        title={value}
+                        className={cn(
+                          'group/swatch relative flex w-16 flex-col items-center gap-1.5 sm:w-[4.5rem]',
+                          !available && 'cursor-not-allowed opacity-40',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'relative block aspect-square w-full overflow-hidden rounded-lg border-2 bg-muted transition-colors',
+                            selected
+                              ? 'border-primary'
+                              : 'border-transparent group-hover/swatch:border-primary/40',
+                          )}
+                        >
+                          <Image
+                            src={optionImage!}
+                            alt={value}
+                            fill
+                            className="object-cover"
+                            sizes="72px"
+                          />
+                          {selected && (
+                            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+                              <Check className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                          {!available && (
+                            <span className="absolute inset-0 bg-background/60" />
+                          )}
+                        </span>
+                        <span
+                          className={cn(
+                            'w-full truncate text-center text-xs font-medium',
+                            selected ? 'text-primary' : 'text-foreground',
+                            !available && 'line-through',
+                          )}
+                        >
+                          {value}
+                        </span>
+                      </button>
+                    );
+                  }
+
+                  // Text-only options (size, material, ...) — a plain pill,
+                  // uniform height, width determined by its own label.
                   return (
                     <button
                       key={`${attribute}-${value}`}
@@ -91,39 +150,14 @@ export function ProductVariantSelector({
                       disabled={!available}
                       onClick={() => onSelectAttribute(attribute, value)}
                       className={cn(
-                        'relative flex flex-col items-center gap-1.5 rounded-xl border transition-all',
-                        showImage ? 'p-1.5 min-w-[4.5rem]' : 'px-4 py-2.5 min-w-[3rem]',
+                        'relative flex h-10 min-w-[2.75rem] items-center justify-center rounded-lg border px-4 text-sm font-medium transition-colors',
                         selected
-                          ? 'border-primary bg-primary/5 ring-2 ring-primary ring-offset-1'
-                          : 'border-border bg-background hover:border-primary/50 hover:bg-muted/50',
-                        !available && 'cursor-not-allowed opacity-35',
+                          ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary'
+                          : 'border-border bg-background text-foreground hover:border-primary/50 hover:bg-muted/50',
+                        !available && 'cursor-not-allowed border-border/60 text-muted-foreground line-through opacity-60',
                       )}
                     >
-                      {selected && (
-                        <span className="absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                      )}
-                      {showImage && optionImage && (
-                        <div className="relative h-14 w-14 overflow-hidden rounded-lg bg-muted sm:h-16 sm:w-16">
-                          <Image
-                            src={optionImage}
-                            alt={value}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                        </div>
-                      )}
-                      <span
-                        className={cn(
-                          'text-xs font-medium sm:text-sm',
-                          selected ? 'text-primary' : 'text-foreground',
-                          !available && 'line-through',
-                        )}
-                      >
-                        {value}
-                      </span>
+                      {value}
                     </button>
                   );
                 })}

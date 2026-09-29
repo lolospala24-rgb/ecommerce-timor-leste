@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import {
   Table,
   TableBody,
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Grid3x3, Edit, EyeOff, Eye, Trash2 } from 'lucide-react';
+import { Grid3x3, Edit, EyeOff, Eye, Trash2, ImageIcon } from 'lucide-react';
 
 export interface DisplayVariant {
   key: string | number;
@@ -85,9 +86,18 @@ export function VariantTable({
             <TableCell>{variant.stock}</TableCell>
             <TableCell>
               {variant.images.length > 0 ? (
-                <Badge variant="outline">{variant.images.length} images</Badge>
+                <div className="flex items-center gap-2">
+                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border bg-muted">
+                    <Image src={variant.images[0]} alt="" fill className="object-cover" unoptimized />
+                  </div>
+                  {variant.images.length > 1 && (
+                    <Badge variant="outline" className="text-xs">+{variant.images.length - 1}</Badge>
+                  )}
+                </div>
               ) : (
-                <span className="text-muted-foreground text-sm">No images</span>
+                <div className="flex h-9 w-9 items-center justify-center rounded-md border border-dashed text-muted-foreground/40">
+                  <ImageIcon className="h-4 w-4" />
+                </div>
               )}
             </TableCell>
             <TableCell>

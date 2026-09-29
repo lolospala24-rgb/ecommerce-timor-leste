@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ImageIcon } from 'lucide-react';
 import { useQuickMenu, type QuickMenuItem } from '@/hooks/useQuickMenu';
 import { getQuickMenuIconDefinition } from '@/lib/quickMenuIcons';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
@@ -14,7 +16,12 @@ import { cn } from '@/lib/utils';
 // "default" items from the original design now just live as seeded
 // database rows the admin can edit/reorder/add to/remove freely.
 function QuickMenuTile({ item }: { item: QuickMenuItem }) {
-  const isUpload = item.iconType === 'UPLOAD' && item.iconUrl;
+  // A freshly-uploaded Cloudinary asset can occasionally 404/timeout on its
+  // very first fetch from a new edge location (CDN propagation lag) even
+  // though the asset itself uploaded fine — without this, that one bad
+  // first load left the tile permanently blank with no visual explanation.
+  const [imageError, setImageError] = useState(false);
+  const isUpload = item.iconType === 'UPLOAD' && !!item.iconUrl && !imageError;
   const def = getQuickMenuIconDefinition(item.iconKey);
   const Icon = def.icon;
 
@@ -24,11 +31,23 @@ function QuickMenuTile({ item }: { item: QuickMenuItem }) {
         <div
           className={cn(
             'flex h-12 w-12 items-center justify-center rounded-full transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md sm:h-14 sm:w-14',
-            isUpload ? 'bg-muted/60 p-2.5' : def.color,
+            isUpload ? 'bg-muted/60 p-2.5' : item.iconType === 'UPLOAD' ? 'bg-muted/60 text-muted-foreground' : def.color,
           )}
         >
           {isUpload ? (
-            <Image src={item.iconUrl!} alt="" width={28} height={28} className="h-full w-full object-contain" unoptimized />
+            <Image
+              src={item.iconUrl!}
+              alt=""
+              width={28}
+              height={28}
+              className="h-full w-full object-contain"
+              unoptimized
+              onError={() => setImageError(true)}
+            />
+          ) : item.iconType === 'UPLOAD' ? (
+            // Custom icon failed to load — a neutral placeholder beats a
+            // dead blank circle, and still links/works normally.
+            <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
           ) : (
             <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
           )}
