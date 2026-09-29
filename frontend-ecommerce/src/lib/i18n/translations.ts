@@ -159,16 +159,10 @@ export const translations: Record<Locale, Dictionary> = {
     'hero.trustLocal': 'Produtu Lokál Kualidade',
 
     // Quick menu (homepage)
+    // Individual item labels used to live here (allProducts, becomeSeller,
+    // ...) — Quick Menu is admin-managed data now (see QuickMenuItem), so
+    // each item's title/subtitle come from the API, not a translation key.
     'home.quickMenu.title': 'Menu Rápidu',
-    'home.quickMenu.allProducts': 'Produtu Hotu',
-    'home.quickMenu.becomeSeller': 'Sai Vendedór',
-    'home.quickMenu.localProducts': 'Produtu Local',
-    'home.quickMenu.easyPromo': 'Fasil Promosaun',
-    'home.quickMenu.newArrivals': 'Foun Mai',
-    'home.quickMenu.popular': 'Populár',
-    'home.quickMenu.wishlist': 'Lista Deseju',
-    'home.quickMenu.cart': 'Karinhu',
-    'home.quickMenu.myOrders': 'Hau nia Order',
 
     // Categories showcase
     'home.categories.title': 'Explora Kategoria',
@@ -353,15 +347,6 @@ export const translations: Record<Locale, Dictionary> = {
     'hero.trustLocal': 'Quality Local Products',
 
     'home.quickMenu.title': 'Quick Menu',
-    'home.quickMenu.allProducts': 'All Products',
-    'home.quickMenu.becomeSeller': 'Become a Seller',
-    'home.quickMenu.localProducts': 'Local Products',
-    'home.quickMenu.easyPromo': 'Easy Promos',
-    'home.quickMenu.newArrivals': 'New Arrivals',
-    'home.quickMenu.popular': 'Popular',
-    'home.quickMenu.wishlist': 'Wishlist',
-    'home.quickMenu.cart': 'Cart',
-    'home.quickMenu.myOrders': 'My Orders',
 
     'home.categories.title': 'Browse Categories',
     'home.categories.subtitle': 'Discover products by category',
@@ -542,15 +527,6 @@ export const translations: Record<Locale, Dictionary> = {
     'hero.trustLocal': 'Produk Lokal Berkualitas',
 
     'home.quickMenu.title': 'Menu Cepat',
-    'home.quickMenu.allProducts': 'Semua Produk',
-    'home.quickMenu.becomeSeller': 'Jadi Penjual',
-    'home.quickMenu.localProducts': 'Produk Lokal',
-    'home.quickMenu.easyPromo': 'Promo Mudah',
-    'home.quickMenu.newArrivals': 'Produk Baru',
-    'home.quickMenu.popular': 'Populer',
-    'home.quickMenu.wishlist': 'Daftar Keinginan',
-    'home.quickMenu.cart': 'Keranjang',
-    'home.quickMenu.myOrders': 'Pesanan Saya',
 
     'home.categories.title': 'Jelajahi Kategori',
     'home.categories.subtitle': 'Temukan produk berdasarkan kategori',
@@ -731,15 +707,6 @@ export const translations: Record<Locale, Dictionary> = {
     'hero.trustLocal': 'Produtos Locais de Qualidade',
 
     'home.quickMenu.title': 'Menu Rápido',
-    'home.quickMenu.allProducts': 'Todos os Produtos',
-    'home.quickMenu.becomeSeller': 'Tornar-se Vendedor',
-    'home.quickMenu.localProducts': 'Produtos Locais',
-    'home.quickMenu.easyPromo': 'Promoções Fáceis',
-    'home.quickMenu.newArrivals': 'Novidades',
-    'home.quickMenu.popular': 'Popular',
-    'home.quickMenu.wishlist': 'Lista de Desejos',
-    'home.quickMenu.cart': 'Carrinho',
-    'home.quickMenu.myOrders': 'Meus Pedidos',
 
     'home.categories.title': 'Explorar Categorias',
     'home.categories.subtitle': 'Descubra produtos por categoria',

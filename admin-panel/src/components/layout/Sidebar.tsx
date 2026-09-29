@@ -11,6 +11,7 @@ import {
   FolderTree,
   Video,
   LayoutTemplate,
+  LayoutGrid,
   ClipboardList,
   Shapes,
   Banknote,
@@ -99,6 +100,7 @@ const menuSections: MenuSection[] = [
       { href: '/video-shop', label: 'Video Management', icon: Video },
       { href: '/homepage', label: 'Homepage', icon: LayoutTemplate },
       { href: '/hero-banners', label: 'Hero Banners', icon: ImageIcon },
+      { href: '/quick-menu', label: 'Quick Menu', icon: LayoutGrid },
     ],
   },
   {

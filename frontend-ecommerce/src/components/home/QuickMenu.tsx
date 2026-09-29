@@ -1,38 +1,88 @@
 'use client';
 
 import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
-import {
-  Sparkles,
-  Store,
-  Boxes,
-  Megaphone,
-} from 'lucide-react';
+import Image from 'next/image';
+import { useQuickMenu, type QuickMenuItem } from '@/hooks/useQuickMenu';
+import { getQuickMenuIconDefinition } from '@/lib/quickMenuIcons';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
+import { QuickMenuSkeleton } from './QuickMenuSkeleton';
 import { cn } from '@/lib/utils';
 
-interface QuickMenuItem {
-  titleKey: string;
-  href: string;
-  icon: LucideIcon;
-  // Opacity-based (not solid bg-{color}-100) so each tile still reads
-  // correctly in dark mode without a separate dark: override per item.
-  color: string;
-}
+// Data-driven — admin-managed via Admin Dashboard -> Quick Menu (backend:
+// GET /quick-menu, already filtered to isActive + within schedule and
+// ordered by displayOrder). No hardcoded item list here anymore; the 4
+// "default" items from the original design now just live as seeded
+// database rows the admin can edit/reorder/add to/remove freely.
+function QuickMenuTile({ item }: { item: QuickMenuItem }) {
+  const isUpload = item.iconType === 'UPLOAD' && item.iconUrl;
+  const def = getQuickMenuIconDefinition(item.iconKey);
+  const Icon = def.icon;
 
-// Every entry here points to a page that actually exists and works — no
-// dead links. Trimmed to 4 shortcuts (was 8) to match the brand's approved
-// homepage design — Popular/Wishlist/Cart/My Orders remain one tap away via
-// the header and bottom nav, they just aren't featured in this row too.
-const menus: QuickMenuItem[] = [
-  { titleKey: 'home.quickMenu.allProducts', href: '/products', icon: Boxes, color: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
-  { titleKey: 'home.quickMenu.becomeSeller', href: '/seller/register', icon: Megaphone, color: 'bg-orange-500/15 text-orange-600 dark:text-orange-400' },
-  { titleKey: 'home.quickMenu.localProducts', href: '/categories/local-products', icon: Store, color: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
-  { titleKey: 'home.quickMenu.easyPromo', href: '/deals', icon: Sparkles, color: 'bg-pink-500/15 text-pink-600 dark:text-pink-400' },
-];
+  const content = (
+    <>
+      <div className="relative">
+        <div
+          className={cn(
+            'flex h-12 w-12 items-center justify-center rounded-full transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md sm:h-14 sm:w-14',
+            isUpload ? 'bg-muted/60 p-2.5' : def.color,
+          )}
+        >
+          {isUpload ? (
+            <Image src={item.iconUrl!} alt="" width={28} height={28} className="h-full w-full object-contain" unoptimized />
+          ) : (
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
+          )}
+        </div>
+        {item.badge && (
+          <span className="absolute -right-1.5 -top-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
+            {item.badge}
+          </span>
+        )}
+      </div>
+
+      <span className="text-center text-xs font-medium text-foreground/80 group-hover:text-foreground sm:text-sm">
+        {item.title}
+      </span>
+    </>
+  );
+
+  const className = 'group flex flex-col items-center gap-2.5 rounded-lg p-3 transition-colors hover:bg-muted/60';
+
+  if (item.linkType === 'EXTERNAL') {
+    return (
+      <a
+        href={item.link}
+        target={item.openInNewTab ? '_blank' : undefined}
+        rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+        className={className}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={item.link} target={item.openInNewTab ? '_blank' : undefined} className={className}>
+      {content}
+    </Link>
+  );
+}
 
 export default function QuickMenu() {
   const { t } = useTranslation();
+  const { data: items, isLoading, isError } = useQuickMenu();
+
+  if (isLoading) {
+    return <QuickMenuSkeleton />;
+  }
+
+  // No active items (none configured yet, or the request failed) — the
+  // rest of the homepage still renders fine without it, so this section
+  // simply omits itself rather than showing an empty/broken shell. Same
+  // convention HeroSection already uses for its own empty/error case.
+  if (isError || !items || items.length === 0) {
+    return null;
+  }
 
   return (
     <section className="border-b bg-background py-4 md:py-6">
@@ -41,31 +91,10 @@ export default function QuickMenu() {
           {t('home.quickMenu.title')}
         </h2>
 
-        <div className="grid grid-cols-4 gap-2 sm:gap-4">
-          {menus.map((menu) => {
-            const Icon = menu.icon;
-
-            return (
-              <Link
-                key={menu.titleKey}
-                href={menu.href}
-                className="group flex flex-col items-center gap-2.5 rounded-lg p-3 transition-colors hover:bg-muted/60"
-              >
-                <div
-                  className={cn(
-                    'flex h-12 w-12 items-center justify-center rounded-full transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md sm:h-14 sm:w-14',
-                    menu.color,
-                  )}
-                >
-                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
-                </div>
-
-                <span className="text-center text-xs font-medium text-foreground/80 group-hover:text-foreground sm:text-sm">
-                  {t(menu.titleKey)}
-                </span>
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-4 md:grid-cols-8 sm:gap-4">
+          {items.map((item) => (
+            <QuickMenuTile key={item.id} item={item} />
+          ))}
         </div>
       </div>
     </section>

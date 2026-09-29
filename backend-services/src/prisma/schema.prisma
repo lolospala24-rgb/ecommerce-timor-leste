@@ -1803,6 +1803,49 @@ model HeroBanner {
   @@map("hero_banners")
 }
 
+// LIBRARY = iconKey selects one of the fixed set of curated Lolospala icons
+// (see QUICK_MENU_ICON_LIBRARY in quick-menu.constants.ts, mirrored on the
+// frontend) — never arbitrary internet icons. UPLOAD = iconUrl points at an
+// admin-uploaded, sanitized Cloudinary asset instead.
+enum QuickMenuIconType {
+  LIBRARY
+  UPLOAD
+}
+
+enum QuickMenuLinkType {
+  INTERNAL
+  EXTERNAL
+}
+
+// Admin-managed homepage Quick Menu — same shape/lifecycle as HeroBanner
+// above (position/isActive/schedule, position-ordered, admin CRUD), just
+// with an icon instead of an image and a typed destination instead of a
+// free-text button URL.
+model QuickMenuItem {
+  id           Int               @id @default(autoincrement())
+  title        String
+  subtitle     String?
+  iconType     QuickMenuIconType @default(LIBRARY)
+  // Exactly one of iconKey/iconUrl is set, matching iconType — enforced in
+  // QuickMenuService, not at the DB level (Prisma/MySQL has no portable
+  // "exactly one of these columns" constraint).
+  iconKey      String?
+  iconUrl      String?
+  linkType     QuickMenuLinkType @default(INTERNAL)
+  link         String
+  displayOrder Int               @default(0)
+  isActive     Boolean           @default(true)
+  badge        String?
+  openInNewTab Boolean           @default(false)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([isActive, displayOrder])
+  @@map("quick_menu_items")
+}
+
 // ============================================================================
 // Website Health / Audit Dashboard
 // ============================================================================

@@ -92,6 +92,41 @@ export class CloudinaryService {
     });
   }
 
+  // Same upload mechanics as uploadFile() above, deliberately WITHOUT its
+  // magic-byte ALLOWED_UPLOAD_MIME_TYPES gate — for callers that have
+  // already validated the buffer's actual content themselves (e.g.
+  // QuickMenuService sanitizing an SVG's XML before calling this, since
+  // file-type can't sniff SVG at all, it being text rather than a binary
+  // format with a signature). Never wire this to a controller directly;
+  // only call it after your own content validation, the way uploadFile()'s
+  // check exists specifically because multer's fileFilter alone isn't
+  // trustworthy.
+  async uploadRaw(file: Express.Multer.File, options?: UploadApiOptions): Promise<UploadApiResponse> {
+    return new Promise((resolve, reject) => {
+      const uploadOptions: UploadApiOptions = {
+        folder: options?.folder || 'ecommerce-timor',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        ...options,
+      };
+
+      this.logger.log(`Uploading (raw) to Cloudinary: ${file.originalname}`);
+
+      const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+        if (error) {
+          this.logger.error(`Cloudinary upload error: ${error.message}`);
+          reject(new BadRequestException(`Failed to upload icon: ${error.message}`));
+        } else {
+          this.logger.log(`Cloudinary upload success: ${result.secure_url}`);
+          resolve(result);
+        }
+      });
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
   // resourceType defaults to 'image' (Cloudinary's own default when
   // unspecified) — every pre-existing caller deletes an image and stays
   // unaffected; video deletion (videos.service.ts) passes 'video'

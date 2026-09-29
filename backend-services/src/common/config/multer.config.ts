@@ -34,6 +34,36 @@ export const multerConfig: MulterOptions = {
   },
 };
 
+const ALLOWED_ICON_EXTENSIONS = /\.(svg|png|webp)$/i;
+const ALLOWED_ICON_MIME_TYPES = new Set([
+  'image/svg+xml',
+  'image/png',
+  'image/webp',
+]);
+
+// Quick Menu custom icon uploads — the one place in the app that accepts
+// SVG. Content is sanitized (see svg-sanitizer.util.ts) before it's ever
+// uploaded to Cloudinary or served, and this never shares CloudinaryService.
+// uploadFile()'s magic-byte allowlist (file-type can't reliably sniff SVG —
+// it's XML text, not a binary format with a signature — and that shared
+// allowlist intentionally excludes SVG for every OTHER upload path in the
+// app, like product images).
+export const quickMenuIconMulterConfig: MulterOptions = {
+  fileFilter: (_req, file, callback) => {
+    if (
+      !ALLOWED_ICON_EXTENSIONS.test(file.originalname) ||
+      !ALLOWED_ICON_MIME_TYPES.has(file.mimetype)
+    ) {
+      callback(new BadRequestException('Only SVG, PNG, and WEBP icon files are allowed'), false);
+      return;
+    }
+    callback(null, true);
+  },
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB
+  },
+};
+
 const ALLOWED_SPREADSHEET_EXTENSIONS = /\.(csv|xlsx)$/i;
 const ALLOWED_SPREADSHEET_MIME_TYPES = new Set([
   'text/csv',

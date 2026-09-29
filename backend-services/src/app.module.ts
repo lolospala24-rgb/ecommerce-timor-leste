@@ -34,6 +34,7 @@ import { CouriersModule } from './modules/couriers/couriers.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { HomepageModule } from './modules/homepage/homepage.module';
 import { HeroModule } from './modules/hero/hero.module';
+import { QuickMenuModule } from './modules/quick-menu/quick-menu.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -95,6 +96,7 @@ import { AppService } from './app.service';
     VideosModule,
     HomepageModule,
     HeroModule,
+    QuickMenuModule,
     CouponsModule,
     ReferralsModule,
     FinanceModule,
