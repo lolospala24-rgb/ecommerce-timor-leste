@@ -84,13 +84,12 @@ export function ProductVariantSelector({
                   );
                   const showImage = Boolean(optionImage);
 
-                  // Image-backed options (color/pattern swatches) get a
-                  // fixed-size square thumbnail with the label locked to the
-                  // same width below it — a long option name (e.g. "list
-                  // putih") truncates with an ellipsis instead of forcing
-                  // the swatch wider or overflowing its row, and every
-                  // swatch in the group lines up to the same size regardless
-                  // of label length.
+                  // Image-backed options (color/pattern swatches) — a
+                  // horizontal chip with a small square thumbnail beside its
+                  // full label (never truncated; the chip just grows to fit
+                  // a longer name like "sndalrndom 2pcs"), matching the
+                  // reference layout rather than a vertical image-over-label
+                  // tile.
                   if (showImage) {
                     return (
                       <button
@@ -100,43 +99,36 @@ export function ProductVariantSelector({
                         onClick={() => onSelectAttribute(attribute, value)}
                         title={value}
                         className={cn(
-                          'group/swatch relative flex w-16 flex-col items-center gap-1.5 sm:w-[4.5rem]',
+                          'relative flex items-center gap-2 rounded-lg border-2 bg-background py-1.5 pl-1.5 pr-3 transition-colors',
+                          selected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/40',
                           !available && 'cursor-not-allowed opacity-40',
                         )}
                       >
-                        <span
-                          className={cn(
-                            'relative block aspect-square w-full overflow-hidden rounded-lg border-2 bg-muted transition-colors',
-                            selected
-                              ? 'border-primary'
-                              : 'border-transparent group-hover/swatch:border-primary/40',
-                          )}
-                        >
+                        <span className="relative block h-8 w-8 shrink-0 overflow-hidden rounded-md bg-muted">
                           <Image
                             src={optionImage!}
                             alt={value}
                             fill
                             className="object-cover"
-                            sizes="72px"
+                            sizes="32px"
                           />
-                          {selected && (
-                            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                              <Check className="h-2.5 w-2.5" />
-                            </span>
-                          )}
-                          {!available && (
-                            <span className="absolute inset-0 bg-background/60" />
-                          )}
                         </span>
                         <span
                           className={cn(
-                            'w-full truncate text-center text-xs font-medium',
+                            'text-sm font-medium',
                             selected ? 'text-primary' : 'text-foreground',
-                            !available && 'line-through',
+                            !available && 'line-through text-muted-foreground',
                           )}
                         >
                           {value}
                         </span>
+                        {selected && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+                            <Check className="h-2.5 w-2.5" />
+                          </span>
+                        )}
                       </button>
                     );
                   }
