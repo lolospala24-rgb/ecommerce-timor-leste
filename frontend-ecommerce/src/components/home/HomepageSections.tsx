@@ -91,7 +91,7 @@ function ProductSection({ section, isFirstSection = false }: { section: Homepage
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
           {section.products.map((product, index) => (
             <ProductCard
               key={product.id}
