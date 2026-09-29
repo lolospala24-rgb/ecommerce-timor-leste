@@ -234,14 +234,14 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col">
-      <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
-        <CardContent className="flex flex-1 flex-col p-2.5 pb-2">
+      <div className="flex flex-col">
+      <Link href={`/products/${product.slug}`} className="flex flex-col">
+        <CardContent className="flex flex-col p-2.5 pb-0">
           <h3 className="line-clamp-2 min-h-[2rem] text-xs font-medium leading-tight text-foreground transition-colors group-hover:text-primary">
             {product.name}
           </h3>
 
-          <div className="mt-1.5 flex flex-nowrap items-center gap-x-1.5 overflow-hidden text-[11px]">
+          <div className="mt-1 flex flex-nowrap items-center gap-x-1.5 overflow-hidden text-[11px]">
             {/* A product with zero reviews shows no rating at all — never a
                 fake "⭐ 0.0 (0)". Real rating only, only once it exists. */}
             {hasRating && (
@@ -279,8 +279,15 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           behaves inconsistently across browsers, so the cart action is a
           true sibling here instead, with its own stopPropagation guarding
           navigation. Price keeps its own separate Link (still tappable to
-          open the product) since it's not nested inside anything else. */}
-      <div className="mt-auto flex items-end justify-between gap-1.5 px-2.5 pb-2.5">
+          open the product) since it's not nested inside anything else.
+          No flex-1/mt-auto push-to-bottom here on purpose — that forced a
+          large gap above this row whenever the title was short. Every
+          field above (title, rating/stock) already reserves a fixed
+          min-height, so cards in the same grid row end up the same height
+          from content alone; any leftover row-stretch slack now shows as
+          quiet bottom padding on the card instead of splitting the price
+          away from the rest of the content. */}
+      <div className="mt-1.5 flex items-end justify-between gap-1.5 px-2.5 pb-2.5">
         <Link href={`/products/${product.slug}`} className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
           <span className="text-base font-bold text-primary">
             ${pricing.currentPrice.toFixed(2)}
