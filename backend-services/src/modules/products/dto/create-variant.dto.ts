@@ -19,6 +19,11 @@ export class CreateVariantDto {
   @MaxLength(100)
   sku?: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  barcode?: string;
+
   @IsNumber()
   @IsPositive()
   @Type(() => Number)

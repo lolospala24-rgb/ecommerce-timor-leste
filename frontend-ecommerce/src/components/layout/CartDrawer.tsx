@@ -156,6 +156,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                   const slug = item?.slug || '#';
                   const stock = typeof item?.stock === 'number' ? item.stock : 0;
                   const comparePrice = typeof item?.comparePrice === 'number' ? item.comparePrice : null;
+                  const variantLabel: string | null =
+                    item?.variantAttributes && typeof item.variantAttributes === 'object'
+                      ? Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ') || null
+                      : null;
 
                   // Calculate item total
                   const itemTotal = price * quantity;
@@ -205,6 +209,9 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
+                        {variantLabel && (
+                          <p className="text-xs text-muted-foreground">{variantLabel}</p>
+                        )}
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-primary font-semibold">
                             ${price.toFixed(2)}

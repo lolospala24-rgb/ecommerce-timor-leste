@@ -169,9 +169,17 @@ export function useProductVariantSelection(product: Product) {
     setActiveImageUrl(url);
   };
 
+  // "Available" means a customer could actually complete this pick: a real,
+  // active, in-stock variant exists for {this value + every other attribute
+  // already chosen}. Stock is part of the check (not just existence) so a
+  // combination that exists but is sold out — e.g. Size L + Warna Merah at
+  // 0 stock — greys out and disables just like one that was never a real
+  // combination at all, instead of only failing once the customer clicks it
+  // and sees "Out of stock" downstream.
   const isAttributeValueAvailable = (attribute: string, value: string) =>
     variants.some((variant) => {
       if (variant.attributes?.[attribute] !== value) return false;
+      if (!variant.isActive || variant.stock <= 0) return false;
       return Object.entries(selectedAttributes).every(([currentKey, currentValue]) =>
         currentKey === attribute ? true : variant.attributes?.[currentKey] === currentValue,
       );

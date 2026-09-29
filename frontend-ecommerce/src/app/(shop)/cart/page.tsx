@@ -435,6 +435,13 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
   const thumbnail = item?.thumbnail || null;
   const quantity = typeof item?.quantity === 'number' ? item.quantity : 1;
   const stock = typeof item?.stock === 'number' ? item.stock : 0;
+  // Which Size/Warna/etc. combination this line is — without it, two lines
+  // for the same product (different variants) are visually indistinguishable
+  // beyond price/thumbnail.
+  const variantLabel: string | null =
+    item?.variantAttributes && typeof item.variantAttributes === 'object'
+      ? Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ') || null
+      : null;
 
   const discount =
     originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
@@ -474,6 +481,11 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
         </Link>
         {nameTetum && (
           <p className="text-sm text-muted-foreground line-clamp-1">{nameTetum}</p>
+        )}
+        {variantLabel && (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            <span className="rounded bg-muted px-1.5 py-0.5">{variantLabel}</span>
+          </p>
         )}
         <div className="flex items-center gap-2 mt-1">
           <span className="font-semibold text-primary">${price.toFixed(2)}</span>

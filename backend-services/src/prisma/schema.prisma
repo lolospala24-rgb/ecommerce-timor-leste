@@ -414,12 +414,22 @@ model ProductVariant {
   id           Int      @id @default(autoincrement())
   productId    Int
   sku          String   @unique
+  barcode      String?
   price        Float
   comparePrice Float?
   cost         Float?
   stock        Int      @default(0)
   images       Json     @default("[]")
   attributes   Json     @default("{}")
+  // Canonical (sorted, trimmed, lower-cased "key=value|key=value") signature
+  // of `attributes`, written by ProductsService alongside every create/
+  // update — null whenever attributes is empty. Backs a DB-level duplicate-
+  // combination guard as a last line of defense behind the existing
+  // application-layer check (ProductsService.assertNoDuplicateVariantAttributes):
+  // null rather than an empty string so MySQL's unique index (which allows
+  // unlimited NULLs) never restricts a product's flat/no-attribute variants
+  // (e.g. bundles distinguished only by image, not by Size/Warna) to just one.
+  attributesHash String?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -430,6 +440,7 @@ model ProductVariant {
   orderItems OrderItem[]
   promotionItems PromotionItem[]
 
+  @@unique([productId, attributesHash])
   @@index([productId])
   @@map("product_variants")
 }

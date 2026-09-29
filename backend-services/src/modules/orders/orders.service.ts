@@ -410,7 +410,7 @@ export class OrdersService {
     // failure anywhere rolls back everything: no coupon usage, no orders, no
     // stock touched — matching what the customer actually sees (either the
     // whole checkout went through, or none of it did).
-    const allLowStockAlerts: Array<{ productId: number; productName: string; sellerId: number; newStock: number }> = [];
+    const allLowStockAlerts: Array<{ productId: number; productName: string; sellerId: number; newStock: number; variantLabel?: string }> = [];
     let orders: any[];
     try {
       orders = await this.prisma.$transaction(async (tx) => {
@@ -452,12 +452,25 @@ export class OrdersService {
               );
             }
 
-            // Populated (base-product items only — variant-level stock isn't
-            // modeled by the low-stock notification yet) whenever this
-            // order's decrement crosses the low-stock/out-of-stock line, so
-            // it fires exactly once per crossing rather than once per order
-            // that happens to touch an already-low product.
-            if (!item.variantId) {
+            // Populated whenever this order's decrement crosses the low-
+            // stock/out-of-stock line, so it fires exactly once per
+            // crossing rather than once per order that happens to touch an
+            // already-low product/variant.
+            if (item.variantId) {
+              const beforeStock = item.variant?.stock ?? 0;
+              if (beforeStock > LOW_STOCK_THRESHOLD) {
+                const afterStock = beforeStock - item.quantity;
+                if (afterStock <= LOW_STOCK_THRESHOLD) {
+                  allLowStockAlerts.push({
+                    productId: item.productId,
+                    productName: item.product.name,
+                    sellerId: group.sellerId,
+                    newStock: Math.max(afterStock, 0),
+                    variantLabel: this.formatVariantAlertLabel(item.variant?.attributes),
+                  });
+                }
+              }
+            } else {
               const beforeStock = item.product.stock;
               if (beforeStock > LOW_STOCK_THRESHOLD) {
                 const afterStock = beforeStock - item.quantity;
@@ -595,6 +608,7 @@ export class OrdersService {
             alert.productName,
             alert.sellerId,
             alert.newStock,
+            alert.variantLabel,
           );
         }
       } catch (notifyError) {
@@ -1785,6 +1799,18 @@ export class OrdersService {
       default:
         return 'PENDING';
     }
+  }
+
+  // Plain "Size / Warna" join for a low-stock alert's seller-facing text —
+  // deliberately not the frontend's formatVariantLabel (attribute-key-aware,
+  // needs the product's attributeKeys/attributeLabels), since this only
+  // needs to be human-readable, not tied to any particular ordering.
+  private formatVariantAlertLabel(attributes: unknown): string | undefined {
+    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) return undefined;
+    const values = Object.values(attributes as Record<string, unknown>)
+      .map((v) => String(v).trim())
+      .filter(Boolean);
+    return values.length > 0 ? values.join(' / ') : undefined;
   }
 
   private async generateUniqueTrackingNumber(orderNumber: string) {

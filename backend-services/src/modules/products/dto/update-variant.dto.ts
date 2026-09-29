@@ -18,6 +18,11 @@ export class UpdateVariantDto {
   @MaxLength(100)
   sku?: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  barcode?: string;
+
   @IsNumber()
   @IsOptional()
   @IsPositive()

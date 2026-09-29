@@ -619,18 +619,29 @@ export class NotificationsService implements OnModuleInit {
   // ProductsService.decrementStockAndNotify) — notifies both the owning
   // seller and admins, matching Section 5's "Low Stock" / "Out of Stock"
   // event definitions.
-  async sendLowStockAlert(productId: number, productName: string, sellerId: number, currentStock: number) {
+  async sendLowStockAlert(
+    productId: number,
+    productName: string,
+    sellerId: number,
+    currentStock: number,
+    // Set only when the crossing happened on a specific variant's own stock
+    // pool rather than the base product's — appended to the product name so
+    // a seller with several Size/Warna combinations knows which one to
+    // restock instead of just "the product" in general.
+    variantLabel?: string,
+  ) {
     const seller = await this.prisma.seller.findUnique({
       where: { id: sellerId },
       select: { userId: true },
     });
 
+    const displayName = variantLabel ? `${productName} (${variantLabel})` : productName;
     const isOutOfStock = currentStock <= 0;
     const event = isOutOfStock ? NotificationEvent.PRODUCT_OUT_OF_STOCK : NotificationEvent.PRODUCT_LOW_STOCK;
     const title = isOutOfStock ? 'Out of Stock' : 'Low Stock Alert';
     const message = isOutOfStock
-      ? `Product "${productName}" is now out of stock.`
-      : `Product "${productName}" is running low — only ${currentStock} left.`;
+      ? `Product "${displayName}" is now out of stock.`
+      : `Product "${displayName}" is running low — only ${currentStock} left.`;
 
     if (seller) {
       await this.sendNotification({
@@ -640,7 +651,7 @@ export class NotificationsService implements OnModuleInit {
         type: event,
         entityType: 'PRODUCT',
         entityId: productId,
-        data: { productId, productName, currentStock },
+        data: { productId, productName, currentStock, variantLabel },
         sendEmail: true,
       });
     }
@@ -651,7 +662,7 @@ export class NotificationsService implements OnModuleInit {
       type: event,
       entityType: 'PRODUCT',
       entityId: productId,
-      data: { productId, productName, currentStock, sellerId },
+      data: { productId, productName, currentStock, variantLabel, sellerId },
       userFilter: { role: 'ADMIN', isActive: true },
     });
   }

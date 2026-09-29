@@ -20,9 +20,11 @@ import {
 } from '@/components/ui/select';
 import { Plus, Layers } from 'lucide-react';
 import { ProductType, useProductTypes } from '../../../../hooks/useProductTypes';
-import { buildFieldsPayload, fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
+import { buildFieldsPayload, buildVariantFieldsPayload, fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
+import type { VariantFieldRow } from '@/lib/productType';
 import { CreateProductTypeDialog } from './CreateProductTypeDialog';
 import { FieldNameListEditor } from './FieldNameListEditor';
+import { VariantFieldsEditor } from './VariantFieldsEditor';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -37,7 +39,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(currentTypeId ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editFieldNames, setEditFieldNames] = useState<string[]>([]);
+  const [editFieldRows, setEditFieldRows] = useState<VariantFieldRow[]>([]);
   const [editSpecFieldNames, setEditSpecFieldNames] = useState<string[]>([]);
   const [isSavingFields, setIsSavingFields] = useState(false);
 
@@ -53,12 +55,12 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
   const selectedType = productTypes.find((t) => t.id === selectedTypeId);
 
   useEffect(() => {
-    if (selectedType?.fields) {
-      const names = fieldsToNameList(selectedType.fields);
-      setEditFieldNames(names.length > 0 ? names : ['']);
-    } else {
-      setEditFieldNames(['']);
-    }
+    const parsedFields = parseProductTypeFields(selectedType?.fields);
+    setEditFieldRows(
+      parsedFields.length > 0
+        ? parsedFields.map((f) => ({ key: f.key, valuesInput: f.values?.join(', ') ?? '' }))
+        : [{ key: '', valuesInput: '' }],
+    );
     if (selectedType?.specFields) {
       const names = fieldsToNameList(selectedType.specFields);
       setEditSpecFieldNames(names.length > 0 ? names : ['']);
@@ -113,7 +115,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
     setIsSavingFields(true);
     try {
       await api.patch(`/products/types/${selectedType.id}`, {
-        fields: buildFieldsPayload(editFieldNames),
+        fields: buildVariantFieldsPayload(editFieldRows),
         specFields: buildFieldsPayload(editSpecFieldNames),
       });
       toast.success('Product type fields updated');
@@ -211,13 +213,7 @@ export function ProductTypeSelector({ productId, currentTypeId, onUpdate }: Prod
                 </div>
               )}
 
-              <FieldNameListEditor
-                fieldNames={editFieldNames}
-                onChange={setEditFieldNames}
-                label="Variant Fields"
-                description="Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants."
-                placeholder="Field name (e.g., Color)"
-              />
+              <VariantFieldsEditor rows={editFieldRows} onChange={setEditFieldRows} />
 
               <FieldNameListEditor
                 fieldNames={editSpecFieldNames}

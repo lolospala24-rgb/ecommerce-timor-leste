@@ -817,7 +817,13 @@ export default function CheckoutPage() {
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <p className="text-base font-semibold text-foreground">{item.name}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{item.slug}</p>
+                            {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ')}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-sm text-muted-foreground">{item.slug}</p>
+                            )}
                           </div>
                           <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-foreground">Qty {item.quantity}</div>
                         </div>
@@ -1037,7 +1043,13 @@ export default function CheckoutPage() {
                 <div className="space-y-2 rounded-lg bg-muted/40 p-3">
                   {safeItems.map((item) => (
                     <div key={`${item.productId}-${item.variantId ?? 'default'}-summary`} className="flex items-center justify-between gap-3">
-                      <span className="truncate text-foreground">{item.name} × {item.quantity}</span>
+                      <span className="truncate text-foreground">
+                        {item.name}
+                        {item.variantAttributes && Object.keys(item.variantAttributes).length > 0
+                          ? ` (${Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ')})`
+                          : ''}
+                        {' '}× {item.quantity}
+                      </span>
                       <span className="shrink-0">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
                     </div>
                   ))}

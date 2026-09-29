@@ -26,7 +26,7 @@ import { VariantAttributesEditor } from './VariantAttributesEditor';
 import { VariantGeneratorDialog, type GeneratorPreviewItem } from './VariantGeneratorDialog';
 import { VariantTable, type DisplayVariant } from './VariantTable';
 import { Plus, Wand2 } from 'lucide-react';
-import { fieldsToNameList } from '@/lib/productType';
+import { fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
 import {
   canonicalizeAttributes,
   formatAttributesLabel,
@@ -38,6 +38,7 @@ import toast from 'react-hot-toast';
 export interface StagedVariant {
   tempId: string;
   sku?: string;
+  barcode?: string;
   price: number;
   comparePrice?: number | null;
   cost?: number | null;
@@ -76,6 +77,7 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
 
   const [formData, setFormData] = useState({
     sku: '',
+    barcode: '',
     price: 0,
     comparePrice: null as number | null,
     cost: null as number | null,
@@ -91,7 +93,7 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
     typeFieldNames.length > 0 ? typeFieldNames.map((key) => ({ key, value: '' })) : [{ key: '', value: '' }];
 
   const resetForm = () => {
-    setFormData({ sku: '', price: 0, comparePrice: null, cost: null, stock: 0, images: [], isActive: true });
+    setFormData({ sku: '', barcode: '', price: 0, comparePrice: null, cost: null, stock: 0, images: [], isActive: true });
     setAttributes(buildDefaultAttributes());
     setEditingTempId(null);
   };
@@ -101,6 +103,7 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
       setEditingTempId(variant.tempId);
       setFormData({
         sku: variant.sku || '',
+        barcode: variant.barcode || '',
         price: variant.price || 0,
         comparePrice: variant.comparePrice ?? null,
         cost: variant.cost ?? null,
@@ -162,6 +165,7 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
     const entry: StagedVariant = {
       tempId: editingTempId ?? nextTempId(),
       sku: formData.sku.trim() || undefined,
+      barcode: formData.barcode.trim() || undefined,
       price: formData.price,
       comparePrice: formData.comparePrice ?? undefined,
       cost: formData.cost ?? undefined,
@@ -190,8 +194,15 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
   };
 
   const openGenerator = () => {
+    // Pre-fill each row's values from the Product Type's own suggested
+    // values (set via VariantFieldsEditor) when it has any — saves
+    // retyping "S, M, L, XL, XXL" every time a new product of this type
+    // gets its variants generated.
+    const typeFields = parseProductTypeFields(productType?.fields);
     setGeneratorRows(
-      typeFieldNames.length > 0 ? typeFieldNames.map((key) => ({ key, valuesInput: '' })) : [{ key: '', valuesInput: '' }],
+      typeFields.length > 0
+        ? typeFields.map((field) => ({ key: field.key, valuesInput: field.values?.join(', ') ?? '' }))
+        : [{ key: '', valuesInput: '' }],
     );
     setGeneratorBasePrice(0);
     setGeneratorBaseStock(0);
@@ -255,6 +266,7 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
     key: variant.tempId,
     sku: variant.sku,
     skuPlaceholder: '(auto)',
+    barcode: variant.barcode,
     attributes: variant.attributes,
     price: variant.price,
     stock: variant.stock,
@@ -319,6 +331,14 @@ export function StagedVariantManager({ variants, onChange, productType }: Staged
                   placeholder="Auto-generated if empty"
                   value={formData.sku}
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Barcode</Label>
+                <Input
+                  placeholder="Variant barcode (optional)"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                 />
               </div>
               <div className="space-y-2">

@@ -26,7 +26,7 @@ import { VariantAttributesEditor } from './VariantAttributesEditor';
 import { VariantGeneratorDialog, type GeneratorPreviewItem } from './VariantGeneratorDialog';
 import { VariantTable, type DisplayVariant } from './VariantTable';
 import { Plus, Wand2 } from 'lucide-react';
-import { fieldsToNameList } from '@/lib/productType';
+import { fieldsToNameList, parseProductTypeFields } from '@/lib/productType';
 import {
   canonicalizeAttributes,
   formatAttributesLabel,
@@ -74,6 +74,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
   // Form state
   const [formData, setFormData] = useState({
     sku: '',
+    barcode: '',
     price: 0,
     comparePrice: null as number | null,
     cost: null as number | null,
@@ -99,6 +100,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
   const resetForm = () => {
     setFormData({
       sku: '',
+      barcode: '',
       price: 0,
       comparePrice: null,
       cost: null,
@@ -116,6 +118,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
       setEditingVariant(variant);
       setFormData({
         sku: variant.sku || '',
+        barcode: variant.barcode || '',
         price: variant.price || 0,
         comparePrice: variant.comparePrice || null,
         cost: variant.cost || null,
@@ -188,6 +191,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
     try {
       const payload = {
         sku: formData.sku || undefined,
+        barcode: formData.barcode || undefined,
         price: formData.price,
         comparePrice: formData.comparePrice ?? undefined,
         cost: formData.cost ?? undefined,
@@ -243,9 +247,14 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
   };
 
   const openGenerator = () => {
+    // Pre-fill each row's values from the Product Type's own suggested
+    // values (set via VariantFieldsEditor) when it has any — the admin can
+    // still edit/clear them, this just saves retyping "S, M, L, XL, XXL"
+    // every time a new product of this type gets variants generated.
+    const typeFields = parseProductTypeFields(productType?.fields);
     setGeneratorRows(
-      typeFieldNames.length > 0
-        ? typeFieldNames.map((key) => ({ key, valuesInput: '' }))
+      typeFields.length > 0
+        ? typeFields.map((field) => ({ key: field.key, valuesInput: field.values?.join(', ') ?? '' }))
         : [{ key: '', valuesInput: '' }],
     );
     setGeneratorBasePrice(0);
@@ -305,34 +314,31 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
     }
 
     setIsGenerating(true);
-    let succeeded = 0;
-    let failed = 0;
-    for (const item of toCreate) {
-      try {
-        await api.post(`/products/${productId}/variants`, {
+    // One atomic request — the backend creates every combination inside a
+    // single transaction (all-or-nothing), so a mid-batch failure (e.g. a
+    // race with another admin creating the same combination) never leaves
+    // only some of this batch committed. Previously this looped a POST per
+    // combination against the single-variant endpoint, which could partially
+    // succeed.
+    try {
+      const response = await api.post(`/products/${productId}/variants/bulk`, {
+        variants: toCreate.map((item) => ({
           sku: item.sku,
           price: generatorBasePrice,
           stock: generatorBaseStock,
           attributes: item.attributes,
           images: [],
           isActive: true,
-        });
-        succeeded += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-    setIsGenerating(false);
-
-    if (succeeded > 0) {
-      toast.success(`Created ${succeeded} variant${succeeded === 1 ? '' : 's'}.`);
+        })),
+      });
+      const created = (response as any)?.data?.data ?? (response as any)?.data ?? [];
+      toast.success(`Created ${created.length} variant${created.length === 1 ? '' : 's'}.`);
       onUpdate();
-    }
-    if (failed > 0) {
-      toast.error(`${failed} combination${failed === 1 ? '' : 's'} could not be created — they may already exist.`);
-    }
-    if (succeeded > 0 && failed === 0) {
       closeGenerator();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to create variants — no combinations were saved.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -340,6 +346,7 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
     key: variant.id,
     sku: variant.sku,
     skuPlaceholder: '-',
+    barcode: variant.barcode,
     attributes: variant.attributes || {},
     price: variant.price,
     stock: variant.stock,
@@ -410,6 +417,14 @@ export function VariantManager({ productId, variants, productType, onUpdate }: V
                   placeholder="Variant SKU"
                   value={formData.sku}
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Barcode</Label>
+                <Input
+                  placeholder="Variant barcode (optional)"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                 />
               </div>
               <div className="space-y-2">

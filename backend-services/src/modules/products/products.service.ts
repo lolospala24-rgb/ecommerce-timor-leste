@@ -2031,6 +2031,57 @@ export class ProductsService {
     return variant;
   }
 
+  // Atomic counterpart to createVariant — every combination in `dtos` is
+  // created inside ONE transaction (all-or-nothing), for the admin's
+  // "Generate Variants" bulk flow. Without this, generating e.g. 9 Size x
+  // Warna combinations meant POSTing each one individually to createVariant
+  // above; a failure partway through left the earlier combinations already
+  // committed instead of rolling back the whole batch.
+  async bulkCreateVariants(
+    productId: number,
+    dtos: CreateVariantDto[],
+    userId: number,
+  ) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      include: { seller: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
+    }
+
+    await this.assertCanManageProduct(product, userId, 'You do not have permission to add variants to this product');
+
+    const explicitSkus = dtos.map((v) => v.sku?.trim()).filter((sku): sku is string => !!sku);
+    if (new Set(explicitSkus.map((s) => s.toLowerCase())).size !== explicitSkus.length) {
+      throw new ConflictException('Duplicate SKU across variants in this request');
+    }
+    this.assertNoDuplicateAttributesWithinBatch(dtos.map((v) => v.attributes));
+    for (const dto of dtos) {
+      await this.assertVariantImageLimit(dto.images);
+    }
+
+    const variants = await this.prisma.$transaction(async (tx) => {
+      const created = [];
+      for (const dto of dtos) {
+        await this.assertNoDuplicateVariantAttributes(tx, productId, dto.attributes);
+        created.push(await this.createVariantRecord(tx, productId, dto));
+      }
+      return created;
+    });
+
+    if (!product.hasVariants) {
+      await this.prisma.product.update({
+        where: { id: productId },
+        data: { hasVariants: true },
+      });
+    }
+
+    await this.clearProductCache(productId);
+    return variants;
+  }
+
   // ProductVariant.sku is a required, unique column, but CreateVariantDto
   // allows omitting it (matching Product.sku, which is optional) — generate
   // one rather than let Prisma reject the insert with a raw constraint
@@ -2050,19 +2101,46 @@ export class ProductsService {
     dto: CreateVariantDto,
   ) {
     const sku = dto.sku?.trim() || this.generateVariantSku(productId);
-    return tx.productVariant.create({
-      data: {
-        productId,
-        sku,
-        price: dto.price,
-        comparePrice: dto.comparePrice,
-        cost: dto.cost,
-        stock: dto.stock,
-        images: dto.images ?? [],
-        attributes: dto.attributes ?? {},
-        isActive: dto.isActive ?? true,
-      },
-    });
+    try {
+      return await tx.productVariant.create({
+        data: {
+          productId,
+          sku,
+          barcode: dto.barcode?.trim() || null,
+          price: dto.price,
+          comparePrice: dto.comparePrice,
+          cost: dto.cost,
+          stock: dto.stock,
+          images: dto.images ?? [],
+          attributes: dto.attributes ?? {},
+          attributesHash: this.computeAttributesHash(dto.attributes),
+          isActive: dto.isActive ?? true,
+        },
+      });
+    } catch (error) {
+      throw this.translateVariantUniqueConstraintError(error);
+    }
+  }
+
+  // The application-layer assertNoDuplicateVariantAttributes check already
+  // catches this in the overwhelming majority of cases with a friendly
+  // message before a write is even attempted — this only fires if that
+  // check and a concurrent request raced each other, so the DB constraint
+  // (see schema.prisma's attributesHash doc-comment) is the one that
+  // actually caught it. Same friendly wording either way; the customer/
+  // admin never sees a raw Prisma P2002 error.
+  private translateVariantUniqueConstraintError(error: unknown): unknown {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      Array.isArray((error.meta as any)?.target) &&
+      (error.meta as any).target.includes('attributesHash')
+    ) {
+      return new ConflictException(
+        'A variant with this exact combination of options already exists for this product.',
+      );
+    }
+    return error;
   }
 
   async getVariants(productId: number, userId?: number) {
@@ -2144,19 +2222,29 @@ export class ProductsService {
       await this.assertVariantImageLimit(updateVariantDto.images);
     }
 
-    const updatedVariant = await this.prisma.productVariant.update({
-      where: { id: variantId },
-      data: {
-        sku: updateVariantDto.sku,
-        price: updateVariantDto.price,
-        comparePrice: updateVariantDto.comparePrice,
-        cost: updateVariantDto.cost,
-        stock: updateVariantDto.stock,
-        images: updateVariantDto.images,
-        attributes: updateVariantDto.attributes,
-        isActive: updateVariantDto.isActive,
-      },
-    });
+    let updatedVariant;
+    try {
+      updatedVariant = await this.prisma.productVariant.update({
+        where: { id: variantId },
+        data: {
+          sku: updateVariantDto.sku,
+          barcode: updateVariantDto.barcode !== undefined ? (updateVariantDto.barcode?.trim() || null) : undefined,
+          price: updateVariantDto.price,
+          comparePrice: updateVariantDto.comparePrice,
+          cost: updateVariantDto.cost,
+          stock: updateVariantDto.stock,
+          images: updateVariantDto.images,
+          attributes: updateVariantDto.attributes,
+          attributesHash:
+            updateVariantDto.attributes !== undefined
+              ? this.computeAttributesHash(updateVariantDto.attributes)
+              : undefined,
+          isActive: updateVariantDto.isActive,
+        },
+      });
+    } catch (error) {
+      throw this.translateVariantUniqueConstraintError(error);
+    }
 
     await this.clearProductCache(productId);
     return updatedVariant;
@@ -2432,6 +2520,20 @@ export class ProductsService {
       .sort()
       .map((key) => `${key.trim().toLowerCase()}=${String(record[key]).trim().toLowerCase()}`)
       .join('|');
+  }
+
+  // Same canonical string as canonicalizeVariantAttributes above, persisted
+  // to ProductVariant.attributesHash so the DB's
+  // product_variants_productId_attributesHash_key unique index can catch a
+  // duplicate combination even in the (unrealistic for this low-concurrency
+  // admin-only write path, but theoretically possible) race the application-
+  // layer assertNoDuplicateVariantAttributes check can't fully close on its
+  // own. Null — not an empty string — for "no attributes", so MySQL's
+  // unique index (which allows unlimited NULLs) never restricts a product's
+  // flat/no-attribute variants to just one row.
+  private computeAttributesHash(attributes: unknown): string | null {
+    const canonical = this.canonicalizeVariantAttributes(attributes);
+    return canonical || null;
   }
 
   // Batch-internal duplicate check — compares a set of not-yet-persisted

@@ -19,6 +19,7 @@ export interface DisplayVariant {
   /** '-' for a saved variant with no SKU yet, '(auto)' for a staged one
    *  that will get one at product-creation time. */
   skuPlaceholder: string;
+  barcode?: string | null;
   attributes: Record<string, string>;
   price: number;
   stock: number;
@@ -72,7 +73,12 @@ export function VariantTable({
       <TableBody>
         {variants.map((variant) => (
           <TableRow key={variant.key}>
-            <TableCell className="font-mono text-sm">{variant.sku || variant.skuPlaceholder}</TableCell>
+            <TableCell className="font-mono text-sm">
+              {variant.sku || variant.skuPlaceholder}
+              {variant.barcode && (
+                <div className="mt-0.5 text-xs font-normal text-muted-foreground">{variant.barcode}</div>
+              )}
+            </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(variant.attributes).map(([key, value]) => (

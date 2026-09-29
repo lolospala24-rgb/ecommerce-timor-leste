@@ -27,6 +27,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { FilterProductDto } from './dto/filter-product.dto';
 import { CreateVariantDto } from './dto/create-variant.dto';
 import { UpdateVariantDto } from './dto/update-variant.dto';
+import { BulkCreateVariantDto } from './dto/bulk-create-variant.dto';
 import { CreateProductTypeDto } from './dto/create-product-type.dto';
 import { UpdateProductTypeDto } from './dto/update-product-type.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -357,6 +358,21 @@ export class ProductsController {
   ) {
     const variant = await this.productsService.createVariant(id, createVariantDto, userId);
     return { message: 'Variant created successfully', data: variant };
+  }
+
+  // Literal 'bulk' segment must stay declared before any ':variantId'-style
+  // route on the same path shape, or Express/Nest would try to parse "bulk"
+  // as an id param — mirrors the existing 'reorder'-before-':id' convention
+  // elsewhere in this codebase (see QuickMenuController).
+  @Post(':id/variants/bulk')
+  @Roles(Role.SELLER, Role.ADMIN)
+  async bulkCreateVariants(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() bulkCreateVariantDto: BulkCreateVariantDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    const variants = await this.productsService.bulkCreateVariants(id, bulkCreateVariantDto.variants, userId);
+    return { message: `${variants.length} variant(s) created successfully`, data: variants };
   }
 
   @Public()

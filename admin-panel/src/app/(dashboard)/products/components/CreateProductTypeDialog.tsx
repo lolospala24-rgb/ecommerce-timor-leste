@@ -14,8 +14,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ProductType } from '@/hooks/useProductTypes';
-import { buildFieldsPayload } from '@/lib/productType';
+import { buildFieldsPayload, buildVariantFieldsPayload } from '@/lib/productType';
+import type { VariantFieldRow } from '@/lib/productType';
 import { FieldNameListEditor } from './FieldNameListEditor';
+import { VariantFieldsEditor } from './VariantFieldsEditor';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -28,14 +30,14 @@ interface CreateProductTypeDialogProps {
 export function CreateProductTypeDialog({ open, onOpenChange, onCreated }: CreateProductTypeDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [fields, setFields] = useState<string[]>(['']);
+  const [fields, setFields] = useState<VariantFieldRow[]>([{ key: '', valuesInput: '' }]);
   const [specFields, setSpecFields] = useState<string[]>(['']);
   const [isCreating, setIsCreating] = useState(false);
 
   const reset = () => {
     setName('');
     setDescription('');
-    setFields(['']);
+    setFields([{ key: '', valuesInput: '' }]);
     setSpecFields(['']);
   };
 
@@ -50,7 +52,7 @@ export function CreateProductTypeDialog({ open, onOpenChange, onCreated }: Creat
       const response = await api.post<{ message: string; data: ProductType }>('/products/types', {
         name: name.trim(),
         description: description.trim() || undefined,
-        fields: buildFieldsPayload(fields),
+        fields: buildVariantFieldsPayload(fields),
         specFields: buildFieldsPayload(specFields),
       });
 
@@ -91,13 +93,7 @@ export function CreateProductTypeDialog({ open, onOpenChange, onCreated }: Creat
               rows={3}
             />
           </div>
-          <FieldNameListEditor
-            fieldNames={fields}
-            onChange={setFields}
-            label="Variant Fields"
-            description="Define attribute names (e.g. Color, Size). These appear on the storefront when creating variants."
-            placeholder="Field name (e.g., Color)"
-          />
+          <VariantFieldsEditor rows={fields} onChange={setFields} />
           <FieldNameListEditor
             fieldNames={specFields}
             onChange={setSpecFields}
