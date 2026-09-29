@@ -31,10 +31,32 @@ export function PwaInstall() {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return;
+
+    // A brand-new visitor's very first page load is always fetched before
+    // any service worker exists, so the platform correctly treats that
+    // load as "uncontrolled" even once registration finishes — confirmed
+    // live: Chrome's own "Add to Home Screen" reports "This application
+    // cannot be installed" right up until the page is reloaded once. A
+    // returning visitor never sees this (their next visit is controlled
+    // from the start), so this only needs to run when there's no
+    // controller yet — one silent reload the moment the freshly-registered
+    // worker activates, so Install becomes available on the first visit
+    // too instead of only from the second one onward. Guarded to fire at
+    // most once: if a controller already exists, this is a later SW
+    // *update* taking over mid-session (e.g. after a redeploy), which
+    // must NOT force-reload a customer who might be mid-checkout.
+    const hadControllerAlready = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // Non-fatal — the site works identically without the service worker,
       // it just loses install/offline capability for this visit.
     });
+    if (!hadControllerAlready) {
+      const onControllerChange = () => {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    }
   }, []);
 
   useEffect(() => {
