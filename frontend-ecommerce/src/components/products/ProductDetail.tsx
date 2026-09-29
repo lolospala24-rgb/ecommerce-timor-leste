@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
+import type { ReactElement } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -68,6 +69,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const { addItem } = useCartStore();
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
@@ -436,26 +438,38 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <RatingStars rating={product.rating || 0} size="sm" />
-                <span>({product.totalReviews || 0} reviews)</span>
-              </span>
-              {!!product.salesCount && (
-                <>
-                  <span className="text-border">•</span>
-                  <span>
+              {/* Each stat is its own list entry, separated by a "•" placed
+                  only BETWEEN two entries that actually rendered — building
+                  each separator into its own item (the previous approach)
+                  left an orphaned leading "•" whenever the item before it
+                  was hidden, e.g. a product with 0 reviews but a real sales
+                  count. A product with zero reviews shows no rating stat at
+                  all here — never a fake "★ 0.0 (0 reviews)". */}
+              {[
+                (product.totalReviews ?? 0) > 0 && (
+                  <span key="rating" className="inline-flex items-center gap-1.5">
+                    <RatingStars rating={product.rating || 0} size="sm" />
+                    <span>({product.totalReviews} reviews)</span>
+                  </span>
+                ),
+                !!product.salesCount && (
+                  <span key="sold">
                     <span className="font-semibold text-primary">{product.salesCount}</span> sold
                   </span>
-                </>
-              )}
-              {displaySku && (
-                <>
-                  <span className="text-border">•</span>
-                  <span>
+                ),
+                displaySku && (
+                  <span key="sku">
                     SKU: <span className="font-mono text-foreground">{displaySku}</span>
                   </span>
-                </>
-              )}
+                ),
+              ]
+                .filter((item): item is ReactElement => !!item)
+                .map((item, index) => (
+                  <Fragment key={item.key}>
+                    {index > 0 && <span className="text-border">•</span>}
+                    {item}
+                  </Fragment>
+                ))}
             </div>
 
             {(product.isLocallyMade || product.type) && (
@@ -785,7 +799,26 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
         <TabsContent value="description" className="mt-6">
           <div className="prose prose-sm max-w-none">
-            <p className="leading-relaxed text-foreground">{product.description}</p>
+            <p
+              className={cn(
+                'leading-relaxed text-foreground',
+                !isDescriptionExpanded && 'line-clamp-4',
+              )}
+            >
+              {product.description}
+            </p>
+            {/* Only offered when the description is actually long enough to
+                need it — a short one just shows in full with no dead
+                "Read more" button that expands nothing new. */}
+            {product.description && product.description.length > 220 && (
+              <button
+                type="button"
+                onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+                className="not-prose mt-1 text-sm font-semibold text-primary hover:underline"
+              >
+                {isDescriptionExpanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
             {product.descriptionTetum && (
               <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-5 not-prose">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -920,40 +953,40 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Trust row */}
-      <div className="grid gap-4 border-t pt-6 sm:grid-cols-3">
-        <div className="flex items-start gap-3">
-          <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground">
-              {product.seller?.storeAddress
-                ? `Ships from ${product.seller.storeAddress}`
-                : 'Shipping'}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Cost and delivery estimate calculated at checkout.
-              {settings?.enableCOD && ' Cash on Delivery available.'}
-            </p>
+      {/* Trust row — compact icon cards, 2-up on mobile so it never reads
+          as one long scroll of plain rows. Same real copy as before (plus
+          the payment-security line already used next to the buy button,
+          reused here rather than inventing new claims) — just regrouped
+          into cards. */}
+      <div className="grid grid-cols-2 gap-3 border-t pt-6 sm:grid-cols-4">
+        {[
+          {
+            icon: ShieldCheck,
+            title: 'Secure payment',
+            subtitle: 'Your payment info is safe',
+          },
+          {
+            icon: Truck,
+            title: product.seller?.storeAddress ? `Ships from ${product.seller.storeAddress}` : 'Fast shipping',
+            subtitle: settings?.enableCOD ? 'Cost at checkout · COD available' : 'Cost calculated at checkout',
+          },
+          {
+            icon: Shield,
+            title: '100% authentic',
+            subtitle: 'All products guaranteed original',
+          },
+          {
+            icon: RotateCcw,
+            title: '7-day returns',
+            subtitle: 'Not satisfied? Return it',
+          },
+        ].map(({ icon: Icon, title, subtitle }) => (
+          <div key={title} className="rounded-xl border bg-card p-3">
+            <Icon className="h-5 w-5 text-primary" />
+            <p className="mt-2 line-clamp-1 text-sm font-medium text-foreground">{title}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{subtitle}</p>
           </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <Shield className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground">100% authentic products</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              We guarantee all products are original.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <RotateCcw className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-          <div className="min-w-0 text-sm">
-            <p className="font-medium text-foreground">7-day return policy</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Not satisfied? Return within 7 days.
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Reviews */}

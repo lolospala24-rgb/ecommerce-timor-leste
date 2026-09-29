@@ -44,9 +44,19 @@ export function RelatedProducts({ currentProductId, limit = 4 }: RelatedProducts
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+      {/* Horizontal scroll on mobile (each card a fixed fraction of the
+          viewport, snapping into place) — a 2-column grid here would
+          force tiny cards for what's meant to be a quick, swipeable
+          "you might also like" strip. Reverts to a normal grid from sm:
+          up, where there's room for full-size cards side by side. */}
+      <div
+        className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4"
+        data-lenis-prevent
+      >
         {products.map((product: any) => (
-          <ProductCard key={product.id} product={product} />
+          <div key={product.id} className="w-[42vw] shrink-0 snap-start xs:w-[38vw] sm:w-auto">
+            <ProductCard product={product} />
+          </div>
         ))}
       </div>
     </div>
