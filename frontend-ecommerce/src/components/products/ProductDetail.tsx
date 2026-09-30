@@ -307,7 +307,11 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       {/* Breadcrumb — sits right under the header with minimal padding
           (py-1.5 ≈ 6px) and a smaller 12px label size, closer to a compact
           utility strip than a full text row. */}
-      <nav className="min-w-0 overflow-x-auto py-1.5 text-xs text-muted-foreground" aria-label="Breadcrumb">
+      <nav
+        className="min-w-0 overflow-x-auto py-1.5 text-xs text-muted-foreground"
+        aria-label="Breadcrumb"
+        data-lenis-prevent
+      >
         <ol className="flex min-w-max items-center gap-1.5 whitespace-nowrap">
           <li>
             <Link href="/" className="hover:text-primary transition-colors">
