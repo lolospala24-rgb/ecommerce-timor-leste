@@ -194,12 +194,18 @@ export function ProductImages({
           </div>
         )}
 
-        {/* Main image with hover zoom */}
-        <div className="order-1 min-w-0 flex-1 lg:order-2">
+        {/* Main image with hover zoom — bleeds edge-to-edge on mobile
+            (negative margin cancels container-custom's own px-4) so the
+            product image is the page's dominant hero element instead of a
+            card floating inset with visible margin on both sides; reverts
+            to a normal inset, rounded card from sm: up once there's room
+            for it to sit beside other content without needing the full
+            viewport width. */}
+        <div className="order-1 -mx-4 min-w-0 flex-1 sm:mx-0 lg:order-2">
           <div
             ref={mainRef}
             className={cn(
-              'group relative overflow-hidden rounded-xl border bg-muted/20',
+              'group relative overflow-hidden bg-muted/20 sm:rounded-xl sm:border',
               activeVideoUrl ? 'aspect-video cursor-default bg-black' : 'aspect-square cursor-zoom-in',
             )}
             onMouseEnter={() => setIsHovering(true)}
@@ -241,7 +247,7 @@ export function ProductImages({
                 alt={name}
                 fill
                 className={cn(
-                  'object-contain p-4 transition-transform duration-200 ease-out',
+                  'object-contain p-0 transition-transform duration-200 ease-out sm:p-4',
                   isHovering && 'scale-[2]',
                 )}
                 style={
