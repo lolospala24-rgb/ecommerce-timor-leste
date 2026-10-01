@@ -4,6 +4,7 @@ export interface CartItem {
   id?: number;
   productId: number;
   sellerId?: number | null;
+  sellerName?: string | null;
   variantId?: number | null;
   variantSku?: string | null;
   variantAttributes?: Record<string, string> | null;

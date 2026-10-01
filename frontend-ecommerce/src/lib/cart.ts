@@ -29,6 +29,7 @@ export function productToCartItem(product: any, quantity: number, variant?: any 
   return {
     productId: product.id,
     sellerId: product.sellerId ?? product.seller?.id ?? null,
+    sellerName: product.seller?.storeName ?? null,
     variantId: variant?.id ?? null,
     variantSku: variant?.sku ?? null,
     variantAttributes: variant?.attributes ?? null,
@@ -70,6 +71,7 @@ export function normalizeCartItem(raw: any): CartItem {
   return {
     productId,
     sellerId: product.sellerId ?? product.seller?.id ?? raw.sellerId ?? null,
+    sellerName: product.seller?.storeName ?? raw.sellerName ?? null,
     variantId: raw?.variantId ?? variant?.id ?? null,
     variantSku: variant?.sku ?? null,
     variantAttributes: variant?.attributes ?? null,

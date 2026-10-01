@@ -14,11 +14,12 @@ import {
   MapPin,
   Plus,
   Lock,
-  ChevronRight,
   ChevronDown,
   Loader2,
   LucideIcon,
   TicketPercent,
+  Store,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateOrder } from '@/hooks/useOrders';
@@ -34,12 +35,14 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import type { CartItem } from '@/types/cart.types';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 
 const PLACEHOLDER_IMAGE = '/images/placeholder.png';
+const NOTES_MAX_LENGTH = 300;
 
 // Hoisted to module scope: calling dynamic() inside the component body would
 // create a brand-new lazy component reference on every render, forcing React
@@ -84,11 +87,18 @@ const mapApiShippingOptions = (apiOptions: any[] = []): ShippingOption[] =>
   }));
 
 const paymentMethods = [
-  { id: 'COD', name: 'Cash on Delivery', icon: Wallet },
-  { id: 'BANK_TRANSFER', name: 'Bank Transfer', icon: CreditCard },
+  { id: 'COD', name: 'Cash on Delivery', description: 'Pay when you receive your order', icon: Wallet },
+  { id: 'BANK_TRANSFER', name: 'Bank Transfer', description: 'Transfer via bank, confirm after ordering', icon: CreditCard },
 ];
 
-const trustBadges = ['Secure Checkout', 'SSL Encryption', 'Original Products', 'Buyer Protection', 'Safe Payment'];
+// Capped at 3 — real, system-backed guarantees only (no SSL/encryption
+// claim, since that's a given for any HTTPS site and not something this
+// checkout specifically verifies).
+const trustIndicators = [
+  { icon: Lock, label: 'Secure Payment' },
+  { icon: ShieldCheck, label: 'Buyer Protection' },
+  { icon: BadgeCheck, label: 'Original Products' },
+];
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -112,6 +122,7 @@ export default function CheckoutPage() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [isProductsRowExpanded, setIsProductsRowExpanded] = useState(false);
   const [isAddressListOpen, setIsAddressListOpen] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [checkoutSettings, setCheckoutSettings] = useState<{
     taxRate?: number;
     serviceFee?: number;
@@ -349,6 +360,23 @@ export default function CheckoutPage() {
     const ids = new Set(safeItems.map((item) => item.sellerId ?? 'unknown'));
     return Math.max(ids.size, 1);
   }, [safeItems]);
+
+  // Grouped by real seller (sellerId/sellerName already come straight off
+  // the backend's cart response, see lib/cart.ts) — only used for display
+  // once there's actually more than one seller in the cart; a single-seller
+  // cart just renders the flat item list below, same as before.
+  const itemsBySeller = useMemo(() => {
+    if (sellerCount <= 1) return null;
+    const groups = new Map<string, { sellerId: string; sellerName: string; items: typeof safeItems }>();
+    for (const item of safeItems) {
+      const key = String(item.sellerId ?? 'unknown');
+      if (!groups.has(key)) {
+        groups.set(key, { sellerId: key, sellerName: item.sellerName || 'Seller', items: [] });
+      }
+      groups.get(key)!.items.push(item);
+    }
+    return Array.from(groups.values());
+  }, [safeItems, sellerCount]);
   const taxRate = Number(checkoutSettings.taxRate ?? 0);
   const serviceFee = subtotal > 0 ? Number(checkoutSettings.serviceFee ?? 0) * sellerCount : 0;
   // Capped defensively in case the cart changed since the coupon was
@@ -398,6 +426,11 @@ export default function CheckoutPage() {
 
     if (!selectedShipping) {
       toast.error('Please select a shipping method before placing your order.');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      toast.error('Please agree to the Terms & Conditions and Privacy Policy to continue.');
       return;
     }
 
@@ -564,25 +597,26 @@ export default function CheckoutPage() {
 
   return (
     <>
+      {/* No breadcrumb here — (shop)/layout.tsx already renders the
+          site-wide <Breadcrumb /> above every page that doesn't opt out
+          (see hasOwnBreadcrumb()), and it already resolves "/checkout" to
+          "Home > Checkout". A second one here would just duplicate it. */}
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <section className="w-full xl:w-[70%]">
           <Card className="p-6 sm:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/cart"
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Link>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Checkout</p>
-                  <h1 className="text-2xl font-semibold tracking-tight">Complete your order</h1>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-full border border-success/20 bg-success/10 px-3 py-2 text-sm font-medium text-success">
-                <ShieldCheck className="h-4 w-4" />
-                Secure Checkout
+            <div className="flex items-center gap-3 border-b border-border pb-6">
+              <Link
+                href="/cart"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted"
+                aria-label="Back to cart"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">Complete your order</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Review your information and complete your purchase.
+                </p>
               </div>
             </div>
 
@@ -801,56 +835,37 @@ export default function CheckoutPage() {
                   </p>
                 )}
 
-                <div className="mt-4 space-y-4">
-                  {safeItems.map((item) => (
-                    <div
-                      key={`${item.productId}-${item.variantId ?? 'default'}`}
-                      className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center"
-                    >
-                      <CheckoutThumb
-                        src={item.thumbnail}
-                        alt={item.name}
-                        className="h-28 w-full sm:h-24 sm:w-24"
-                        sizes="(max-width: 640px) 100vw, 96px"
-                      />
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-base font-semibold text-foreground">{item.name}</p>
-                            {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ')}
-                              </p>
-                            ) : (
-                              <p className="mt-1 text-sm text-muted-foreground">{item.slug}</p>
-                            )}
-                          </div>
-                          <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-foreground">Qty {item.quantity}</div>
+                {itemsBySeller ? (
+                  <div className="mt-4 space-y-5">
+                    {itemsBySeller.map((group) => (
+                      <div key={group.sellerId}>
+                        <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Store className="h-4 w-4 text-primary" />
+                          {group.sellerName}
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-                          <div>
-                            <p className="font-medium text-foreground">Unit price</p>
-                            <p>${(item.price || 0).toFixed(2)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-foreground">Product total</p>
-                            <p className="font-semibold text-foreground">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
-                          </div>
+                        <div className="space-y-4">
+                          {group.items.map((item) => (
+                            <ProductLineItem key={`${item.productId}-${item.variantId ?? 'default'}`} item={item} />
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {safeItems.map((item) => (
+                      <ProductLineItem key={`${item.productId}-${item.variantId ?? 'default'}`} item={item} />
+                    ))}
+                  </div>
+                )}
               </Card>
 
               <Card className="p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <StepNumber n={3} />
-                    <h2 className="text-lg font-semibold">Shipping method</h2>
-                  </div>
-                  <span className="text-sm text-muted-foreground">Live from admin settings</span>
+                <div className="flex items-center gap-2.5">
+                  <StepNumber n={3} />
+                  <h2 className="text-lg font-semibold">Shipping method</h2>
                 </div>
+                <p className="mt-1 pl-8 text-sm text-muted-foreground">Choose how you want your order delivered.</p>
 
                 {!selectedAddress ? (
                   <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
@@ -859,7 +874,7 @@ export default function CheckoutPage() {
                 ) : isShippingOptionsLoading ? (
                   <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading live shipping options...
+                    Loading shipping options...
                   </div>
                 ) : shippingOptionsError ? (
                   <div className="mt-4 rounded-xl border border-dashed border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
@@ -883,14 +898,20 @@ export default function CheckoutPage() {
                               shippingZoneId: option.shippingZoneId,
                             });
                           }}
+                          aria-pressed={selected}
                           className={cn(
-                            'rounded-xl border p-4 text-left transition',
+                            'relative rounded-xl border p-4 text-left transition',
                             selected
                               ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
                           )}
                         >
-                          <div className="flex items-center gap-2">
+                          {selected && (
+                            <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check className="h-3 w-3" />
+                            </span>
+                          )}
+                          <div className="flex items-center gap-2 pr-6">
                             <div className={cn('rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
                               <Icon className="h-4 w-4" />
                             </div>
@@ -931,21 +952,27 @@ export default function CheckoutPage() {
                         <button
                           key={method.id}
                           type="button"
+                          aria-pressed={selected}
                           onClick={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
                           className={cn(
-                            'flex items-center justify-between rounded-xl border p-4 text-left transition',
+                            'relative flex items-start gap-3 rounded-xl border p-4 text-left transition',
                             selected
                               ? 'border-primary bg-primary/5 shadow-sm'
                               : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
                           )}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={cn('rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <span className="font-medium text-foreground">{method.name}</span>
+                          {selected && (
+                            <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check className="h-3 w-3" />
+                            </span>
+                          )}
+                          <div className={cn('shrink-0 rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                            <Icon className="h-4 w-4" />
                           </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <div className="min-w-0 pr-6">
+                            <p className="font-medium text-foreground">{method.name}</p>
+                            <p className="mt-0.5 text-sm text-muted-foreground">{method.description}</p>
+                          </div>
                         </button>
                       );
                     })}
@@ -978,17 +1005,29 @@ export default function CheckoutPage() {
               </Card>
 
               <Card className="p-5">
-                <div className="flex items-center gap-2.5">
-                  <StepNumber n={5} />
-                  <h2 className="text-lg font-semibold">Order notes</h2>
-                  <span className="text-sm font-normal text-muted-foreground">(optional)</span>
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <StepNumber n={5} />
+                    <h2 className="text-lg font-semibold">Delivery notes</h2>
+                    <span className="text-sm font-normal text-muted-foreground">Optional</span>
+                  </div>
+                  <span
+                    className={cn(
+                      'text-xs',
+                      notes.length > NOTES_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground',
+                    )}
+                  >
+                    {notes.length}/{NOTES_MAX_LENGTH}
+                  </span>
                 </div>
                 <Textarea
                   rows={4}
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Add delivery instructions..."
+                  placeholder='Example: "Please call when arriving."'
+                  maxLength={NOTES_MAX_LENGTH}
                   className="mt-3"
+                  aria-label="Delivery notes"
                 />
               </Card>
 
@@ -1020,10 +1059,7 @@ export default function CheckoutPage() {
                 row instead doubles as the subtotal line and an optional,
                 text-only expand for a quick double-check without scrolling
                 back up or seeing every photo again. */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Order summary</h2>
-              <Badge variant="outline" className="border-info/20 bg-info/10 text-info">Live</Badge>
-            </div>
+            <h2 className="text-lg font-semibold">Order summary</h2>
 
             <div className="mt-5 space-y-3 border-t border-border pt-5 text-sm text-muted-foreground">
               <button
@@ -1065,12 +1101,19 @@ export default function CheckoutPage() {
                   <span>-${discountAmount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between"><span>Shipping fee</span><span>${shippingCost.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between">
-                <span>Service fee{sellerCount > 1 ? ` (${sellerCount} sellers)` : ''}</span>
-                <span>${serviceFee.toFixed(2)}</span>
-              </div>
+              <div className="flex items-center justify-between"><span>Shipping</span><span>${shippingCost.toFixed(2)}</span></div>
+              {/* Tax and service fee are only ever real line items when the
+                  store actually charges them — a "$0.00" row for a fee that
+                  never applies is noise, not information. */}
+              {tax > 0 && (
+                <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
+              )}
+              {serviceFee > 0 && (
+                <div className="flex items-center justify-between">
+                  <span>Service fee{sellerCount > 1 ? ` (${sellerCount} sellers)` : ''}</span>
+                  <span>${serviceFee.toFixed(2)}</span>
+                </div>
+              )}
               {walletCreditApplied > 0 && (
                 <div className="flex items-center justify-between text-success">
                   <span className="flex items-center gap-1.5">
@@ -1089,14 +1132,44 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2">
-              {trustBadges.map((badge) => (
-                <div key={badge} className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
-                  <BadgeCheck className="h-4 w-4 text-success" />
-                  {badge}
-                </div>
+            {/* Capped at 3, compact, inline — not five stacked full-width
+                pills repeating the same "you can trust us" message. */}
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+              {trustIndicators.map(({ icon: Icon, label }) => (
+                <span key={label} className="flex items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 text-success" />
+                  {label}
+                </span>
               ))}
             </div>
+
+            <label className="mt-5 flex cursor-pointer items-start gap-2.5">
+              <Checkbox
+                checked={agreedToTerms}
+                onCheckedChange={setAgreedToTerms}
+                className="mt-0.5"
+                aria-label="I agree to the Terms & Conditions and Privacy Policy"
+              />
+              <span className="text-sm text-muted-foreground">
+                I agree to the{' '}
+                <Link
+                  href="/terms"
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-foreground underline hover:text-primary"
+                >
+                  Terms & Conditions
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/privacy"
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-foreground underline hover:text-primary"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </span>
+            </label>
 
             {/* Hidden below xl: — the mobile sticky bar further down covers
                 the same action there, in the thumb zone, instead of
@@ -1104,9 +1177,9 @@ export default function CheckoutPage() {
             <Button
               type="button"
               size="lg"
-              disabled={!selectedAddressId || !selectedShipping || isSubmittingOrder || isPlacingOrder}
+              disabled={!selectedAddressId || !selectedShipping || !agreedToTerms || isSubmittingOrder || isPlacingOrder}
               onClick={handlePlaceOrder}
-              className="mt-6 hidden w-full xl:flex"
+              className="mt-4 hidden w-full xl:flex"
             >
               {isSubmittingOrder || isPlacingOrder ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1115,18 +1188,6 @@ export default function CheckoutPage() {
               )}
               Place Order
             </Button>
-
-            <p className="mt-4 hidden text-center text-sm text-muted-foreground xl:block">
-              I agree to the{' '}
-              <Link href="/terms" className="font-medium text-foreground underline hover:text-primary">
-                Terms & Conditions
-              </Link>{' '}
-              and{' '}
-              <Link href="/privacy" className="font-medium text-foreground underline hover:text-primary">
-                Privacy Policy
-              </Link>
-              .
-            </p>
           </Card>
         </aside>
       </div>
@@ -1152,7 +1213,7 @@ export default function CheckoutPage() {
           <Button
             type="button"
             size="lg"
-            disabled={!selectedAddressId || !selectedShipping || isSubmittingOrder || isPlacingOrder}
+            disabled={!selectedAddressId || !selectedShipping || !agreedToTerms || isSubmittingOrder || isPlacingOrder}
             onClick={handlePlaceOrder}
             className="h-11 shrink-0 px-6 font-semibold"
           >
@@ -1179,6 +1240,47 @@ function StepNumber({ n }: { n: number }) {
     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
       {n}
     </span>
+  );
+}
+
+// One product row in the "Your products" card — factored out so the
+// flat-list path and the grouped-by-seller path (itemsBySeller) render
+// identical cards instead of maintaining the same JSX twice.
+function ProductLineItem({ item }: { item: CartItem }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border border-border p-4 sm:flex-row sm:items-center">
+      <CheckoutThumb
+        src={item.thumbnail}
+        alt={item.name}
+        className="h-28 w-full sm:h-24 sm:w-24"
+        sizes="(max-width: 640px) 100vw, 96px"
+      />
+      <div className="flex-1">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold text-foreground">{item.name}</p>
+            {item.variantAttributes && Object.keys(item.variantAttributes).length > 0 ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ')}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">{item.slug}</p>
+            )}
+          </div>
+          <div className="rounded-full bg-muted px-3 py-1 text-sm font-medium text-foreground">Qty {item.quantity}</div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <div>
+            <p className="font-medium text-foreground">Unit price</p>
+            <p>${(item.price || 0).toFixed(2)}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-medium text-foreground">Product total</p>
+            <p className="font-semibold text-foreground">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

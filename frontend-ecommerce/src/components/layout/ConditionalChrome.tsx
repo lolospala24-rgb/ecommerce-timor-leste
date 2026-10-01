@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { CompactFooter } from './CompactFooter';
 import { BottomNav } from './BottomNav';
 import { SupportChatWidget } from '@/components/shared/SupportChatWidget';
 
@@ -37,6 +38,10 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
   const hasOwnBottomBar =
     pathname?.startsWith('/products/') || pathname?.startsWith('/checkout') || pathname?.startsWith('/cart');
   const showBottomNav = !isVideoShopping && !isAuthPage && !isDriverPortal && !hasOwnBottomBar;
+  // Checkout's only job is getting the shopper to Place Order — the full
+  // footer (brand column, social links, sitemap) is pure distraction here,
+  // so it's swapped for a single compact attribution + legal-links line.
+  const isCheckout = pathname?.startsWith('/checkout');
 
   if (isVideoShopping) {
     return (
@@ -55,7 +60,7 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">{children}</main>
-      <Footer />
+      {isCheckout ? <CompactFooter /> : <Footer />}
       <SupportChatWidget />
       {/* Reserves the tab bar's own height at the true bottom of the
           scrollable page (not just under Footer) so its fixed overlay
