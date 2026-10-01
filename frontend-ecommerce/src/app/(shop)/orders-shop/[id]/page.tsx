@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User, TicketPercent } from 'lucide-react';
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User, TicketPercent, ReceiptText } from 'lucide-react';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 import { RefundRequestPanel } from '@/components/orders/RefundRequestPanel';
 
@@ -96,9 +96,17 @@ export default function OrderDetailPage() {
             </p>
           </div>
         </div>
-        <Badge className={`${statusColors[order.status]} text-white px-4 py-2`}>
-          {statusLabels[order.status]}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/orders/${order.id}/invoice`}>
+              <ReceiptText className="mr-2 h-4 w-4" />
+              Invoice
+            </Link>
+          </Button>
+          <Badge className={`${statusColors[order.status]} text-white px-4 py-2`}>
+            {statusLabels[order.status]}
+          </Badge>
+        </div>
       </div>
 
       {/* Courier marked this delivered but the customer hasn't confirmed

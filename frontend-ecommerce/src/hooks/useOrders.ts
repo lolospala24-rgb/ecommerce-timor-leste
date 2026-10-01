@@ -56,6 +56,73 @@ export const useOrder = (id?: number | null) => {
   });
 };
 
+export interface InvoiceData {
+  id: number;
+  orderNumber: string;
+  status: string;
+  subtotal: number;
+  shippingCost: number;
+  taxAmount: number;
+  serviceFee: number;
+  discountAmount: number;
+  couponUsage: { coupon: { code: string } } | null;
+  total: number | null;
+  paymentMethod: string | null;
+  trackingNumber: string | null;
+  notes: string | null;
+  createdAt: string;
+  customer: { name: string; email: string; phone: string | null };
+  seller: { storeName: string; storePhone: string; storeEmail: string | null; storeAddress: string };
+  items: Array<{
+    id: number;
+    quantity: number;
+    price: number;
+    total: number;
+    product: { id: number; name: string; price: number; sku: string | null; thumbnail: string | null };
+    variant: { sku: string; attributes: Record<string, string> } | null;
+  }>;
+  address: {
+    street: string | null;
+    village: string | null;
+    suco: string;
+    postoAdmin: string | null;
+    municipality: string | null;
+    reference: string | null;
+    recipientName: string | null;
+    phone: string | null;
+  };
+  deliveryRecipientName?: string | null;
+  deliveryPhone?: string | null;
+  deliveryMunicipality?: string | null;
+  deliveryPostoAdmin?: string | null;
+  deliverySuco?: string | null;
+  deliveryVillage?: string | null;
+  deliveryStreet?: string | null;
+  deliveryReference?: string | null;
+  payment: {
+    method: string;
+    status: string;
+    amount: number;
+    paidAt: string | null;
+    transactionId: string | null;
+  } | null;
+}
+
+// GET /orders/invoice/:id — OrderOwnerGuard allows the owning customer
+// (not just admin/seller), so this is safe to call from the storefront.
+export const useInvoice = (id?: number | null) => {
+  return useQuery({
+    queryKey: ['orders', id, 'invoice'],
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await api.get(`/orders/invoice/${id}`);
+      const data = response.data?.data || response.data || response;
+      return data as InvoiceData;
+    },
+    enabled: !!id,
+  });
+};
+
 export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   

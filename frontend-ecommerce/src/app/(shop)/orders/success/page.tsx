@@ -137,10 +137,15 @@ function OrderSuccessContent() {
             <Home className="h-4 w-4" />
             Continue Shopping
           </Link>
-          <button type="button" className="inline-flex items-center gap-2 rounded-lg border px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
-            <ReceiptText className="h-4 w-4" />
-            Download Invoice
-          </button>
+          {orderId && (
+            <Link
+              href={`/orders/${orderId}/invoice`}
+              className="inline-flex items-center gap-2 rounded-lg border px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              <ReceiptText className="h-4 w-4" />
+              View Invoice
+            </Link>
+          )}
         </div>
       </div>
     </div>
