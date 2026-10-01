@@ -18,6 +18,7 @@ import { ProductVariantSelector } from './ProductVariantSelector';
 import { ProductImages } from './ProductImages';
 import { RatingStars } from '@/components/shared/RatingStars';
 import { ProductReviews } from './ProductReviews';
+import { SellerProducts } from './SellerProducts';
 import { RelatedProducts } from './RelatedProducts';
 import { RecentlyViewedSection } from './RecentlyViewedSection';
 import { ShippingEstimator } from './ShippingEstimator';
@@ -1004,6 +1005,14 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           ratingDistribution={product.ratingDistribution}
         />
       </div>
+
+      {product.seller && (
+        <SellerProducts
+          sellerId={product.seller.id}
+          sellerName={product.seller.storeName}
+          currentProductId={product.id}
+        />
+      )}
 
       <RelatedProducts currentProductId={product.id} />
 

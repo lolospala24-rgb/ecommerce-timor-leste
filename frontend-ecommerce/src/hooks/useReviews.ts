@@ -7,12 +7,18 @@ import toast from 'react-hot-toast'
 interface ReviewFilters {
   page?: number
   limit?: number
+  /** Server-side filter — only reviews left at this star rating. */
+  rating?: number
+  /** Server-side filter — only reviews that have at least one photo. */
+  withImages?: boolean
 }
 
 interface CreateReviewPayload {
   productId: number
   rating: number
   comment: string
+  /** Up to 5 — enforced server-side (FileFieldsInterceptor maxCount: 5). */
+  images?: File[]
 }
 
 export const useProductReviews = (productId: number, filters?: ReviewFilters) => {
@@ -22,6 +28,8 @@ export const useProductReviews = (productId: number, filters?: ReviewFilters) =>
       const params = new URLSearchParams()
       if (filters?.page) params.append('page', filters.page.toString())
       if (filters?.limit) params.append('limit', filters.limit.toString())
+      if (filters?.rating) params.append('rating', filters.rating.toString())
+      if (filters?.withImages) params.append('withImages', 'true')
 
       const response = await api.get(
         `/reviews/product/${productId}${params.toString() ? `?${params.toString()}` : ''}`
@@ -72,7 +80,18 @@ export const useCreateReview = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (payload: CreateReviewPayload) => {
+    mutationFn: async ({ images, ...payload }: CreateReviewPayload) => {
+      // Only switch to multipart when photos are actually attached — the
+      // common case (text-only review) stays a plain JSON POST.
+      if (images && images.length > 0) {
+        const formData = new FormData()
+        formData.append('productId', String(payload.productId))
+        formData.append('rating', String(payload.rating))
+        formData.append('comment', payload.comment)
+        images.forEach((file) => formData.append('images', file))
+        const response = await api.post('/reviews', formData)
+        return response.data.data
+      }
       const response = await api.post('/reviews', payload)
       return response.data.data
     },
@@ -110,6 +129,27 @@ export const useUpdateReview = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update review')
+    },
+  })
+}
+
+// POST /reviews/:id/helpful — the backend just increments Review.helpfulCount
+// (no per-user "already voted" guard today), so this invalidates the
+// product's review list to pick up the new count rather than trying to
+// track local vote state.
+export const useMarkReviewHelpful = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ reviewId }: { reviewId: number; productId: number }) => {
+      const response = await api.post(`/reviews/${reviewId}/helpful`)
+      return response.data.data
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'product', variables.productId] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to mark review as helpful')
     },
   })
 }

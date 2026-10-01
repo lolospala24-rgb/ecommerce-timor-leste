@@ -1,18 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { useProductReviews, useCreateReview, useReviewEligibility } from '@/hooks/useReviews';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import Image from 'next/image';
+import {
+  useProductReviews,
+  useCreateReview,
+  useReviewEligibility,
+  useMarkReviewHelpful,
+} from '@/hooks/useReviews';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { RatingStars, StaticRatingStars } from '@/components/shared/RatingStars';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Star, MessageSquare, ShieldCheck, Info, Loader2, CheckCircle2 } from 'lucide-react';
+import {
+  Star,
+  MessageSquare,
+  ShieldCheck,
+  Info,
+  Loader2,
+  CheckCircle2,
+  ImagePlus,
+  X,
+  ThumbsUp,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+
+const MAX_REVIEW_IMAGES = 5;
+type ReviewFilter = 'all' | 'photos' | 1 | 2 | 3 | 4 | 5;
 
 interface ProductReviewsProps {
   productId: number;
@@ -31,17 +51,57 @@ export function ProductReviews({
   ratingDistribution,
 }: ProductReviewsProps) {
   const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<ReviewFilter>('all');
   const [ratingInput, setRatingInput] = useState(0);
   const [comment, setComment] = useState('');
+  const [reviewImages, setReviewImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
-  const { data, isLoading } = useProductReviews(productId, { page, limit: 10 });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const starCounts = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const d of ratingDistribution ?? []) counts[d.rating] = d.count;
+    return counts;
+  }, [ratingDistribution]);
+  // Recomputed only when the file list itself changes, and revoked on the
+  // way out — createObjectURL inside render would mint (and leak) a new
+  // blob URL on every re-render instead of one per selected file.
+  const reviewImagePreviews = useMemo(
+    () => reviewImages.map((file) => URL.createObjectURL(file)),
+    [reviewImages],
+  );
+  useEffect(() => {
+    return () => {
+      reviewImagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [reviewImagePreviews]);
+  const { data, isLoading } = useProductReviews(productId, {
+    page,
+    limit: 10,
+    rating: typeof filter === 'number' ? filter : undefined,
+    withImages: filter === 'photos',
+  });
   const { mutateAsync: createReview } = useCreateReview();
   const { isAuthenticated } = useAuthStore();
   const { data: eligibility, isLoading: eligibilityLoading } = useReviewEligibility(
     productId,
     isAuthenticated,
   );
+
+  const handleFilterChange = (next: ReviewFilter) => {
+    setFilter(next);
+    setPage(1);
+  };
+
+  const handleAddImages = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setReviewImages((prev) => [...prev, ...Array.from(files)].slice(0, MAX_REVIEW_IMAGES));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReviewImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +120,11 @@ export function ProductReviews({
         productId,
         rating: ratingInput,
         comment: comment.trim(),
+        images: reviewImages.length > 0 ? reviewImages : undefined,
       });
       setRatingInput(0);
       setComment('');
+      setReviewImages([]);
       setJustSubmitted(true);
     } catch {
       // useCreateReview's onError already shows a toast with the specific
@@ -174,6 +236,55 @@ export function ProductReviews({
                     rows={4}
                   />
                 </div>
+                <div>
+                  <Label className="mb-2 block">
+                    Photos <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {reviewImages.map((file, index) => (
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted"
+                      >
+                        {/* Local blob preview — plain <img>, not next/image
+                            (its remote-image optimizer doesn't handle
+                            blob: URLs). */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={reviewImagePreviews[index]}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          aria-label="Remove photo"
+                          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {reviewImages.length < MAX_REVIEW_IMAGES && (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                      >
+                        <ImagePlus className="h-5 w-5" />
+                        <span className="text-[10px]">Add</span>
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleAddImages(e.target.files)}
+                    />
+                  </div>
+                </div>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
@@ -198,6 +309,40 @@ export function ProductReviews({
         </Card>
       )}
 
+      {/* Filters — star options only appear once there's at least one
+          review at that rating, so there's never a filter guaranteed to
+          return nothing. "With Photos" has no such count available
+          up-front, so it's shown whenever there are any reviews at all;
+          an empty result under it is a normal, honest filtered-empty
+          state, not broken functionality. */}
+      {totalReviews > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { key: 'all' as const, label: 'All' },
+              { key: 'photos' as const, label: 'With Photos' },
+              ...[5, 4, 3, 2, 1]
+                .filter((star) => (starCounts[star] ?? 0) > 0)
+                .map((star) => ({ key: star as ReviewFilter, label: `${star} Star` })),
+            ]
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleFilterChange(key)}
+              className={cn(
+                'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                filter === key
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Reviews List */}
       <div className="space-y-4">
         {isLoading ? (
@@ -205,17 +350,21 @@ export function ProductReviews({
             <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-pulse" />
             <p className="text-muted-foreground">Loading reviews...</p>
           </div>
-        ) : data?.data?.length === 0 ? (
+        ) : !data?.data || data.data.length === 0 ? (
           <div className="text-center py-8 border rounded-lg">
             <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No reviews yet</p>
+            <p className="text-muted-foreground">
+              {filter === 'all' ? 'No reviews yet' : 'No reviews match this filter'}
+            </p>
             <p className="text-sm text-muted-foreground">
-              Be the first to review this product
+              {filter === 'all'
+                ? 'Be the first to review this product'
+                : 'Try a different filter to see more reviews'}
             </p>
           </div>
         ) : (
-          data?.data.map((review: any) => (
-            <ReviewCard key={review.id} review={review} />
+          data.data.map((review: any) => (
+            <ReviewCard key={review.id} review={review} productId={productId} />
           ))
         )}
       </div>
@@ -303,7 +452,20 @@ function ReviewSummary({
   );
 }
 
-function ReviewCard({ review }: { review: any }) {
+function ReviewCard({ review, productId }: { review: any; productId: number }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const { mutate: markHelpful, isPending: isMarkingHelpful } = useMarkReviewHelpful();
+  const { isAuthenticated } = useAuthStore();
+  const images: string[] = Array.isArray(review.images) ? review.images : [];
+
+  const handleMarkHelpful = () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to mark this review as helpful');
+      return;
+    }
+    markHelpful({ reviewId: review.id, productId });
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -342,6 +504,22 @@ function ReviewCard({ review }: { review: any }) {
               </span>
             </div>
             <p className="mt-2">{review.comment}</p>
+
+            {images.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {images.map((url, index) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setLightboxIndex(index)}
+                    className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted transition-opacity hover:opacity-90"
+                  >
+                    <Image src={url} alt={`${review.user?.name || 'Reviewer'} photo ${index + 1}`} fill className="object-cover" sizes="64px" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {review.sellerReply && (
               <div className="mt-3 pl-4 border-l-2 border-primary">
                 <p className="text-sm font-medium text-primary">Seller Response</p>
@@ -351,9 +529,39 @@ function ReviewCard({ review }: { review: any }) {
                 </p>
               </div>
             )}
+
+            <button
+              type="button"
+              onClick={handleMarkHelpful}
+              disabled={isMarkingHelpful}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary disabled:opacity-60"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+              Helpful{review.helpfulCount > 0 ? ` (${review.helpfulCount})` : ''}
+            </button>
           </div>
         </div>
       </CardContent>
+
+      {/* Photo lightbox */}
+      <Dialog open={lightboxIndex !== null} onOpenChange={(open) => !open && setLightboxIndex(null)}>
+        <DialogContent className="max-w-[95vw] border-0 bg-black/95 p-0 sm:max-w-3xl">
+          <DialogTitle className="sr-only">
+            {review.user?.name || 'Reviewer'}&apos;s photo
+          </DialogTitle>
+          {lightboxIndex !== null && (
+            <div className="relative min-h-[50vh] w-full sm:min-h-[60vh]">
+              <Image
+                src={images[lightboxIndex]}
+                alt={`${review.user?.name || 'Reviewer'} photo ${lightboxIndex + 1}`}
+                fill
+                className="object-contain p-4"
+                sizes="95vw"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

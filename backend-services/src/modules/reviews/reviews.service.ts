@@ -197,7 +197,11 @@ export class ReviewsService {
     }
 
     if (withImages) {
-      where.images = { isEmpty: false };
+      // `images` is a Json column (default "[]"), not a native scalar list —
+      // Prisma's `isEmpty` filter only applies to real list columns and
+      // throws a validation error (400) here. Json filters compare by
+      // value instead, so "has at least one photo" is "not equal to []".
+      where.images = { not: [] };
     }
 
     const [reviews, total] = await Promise.all([
