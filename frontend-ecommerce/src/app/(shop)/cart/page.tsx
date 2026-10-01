@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2, AlertCircle } from 'lucide-react';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
+import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2, AlertCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { getCartItemKey } from '@/lib/cart';
@@ -29,6 +30,8 @@ export default function CartPage() {
   const validateCoupon = useValidateCoupon();
   const [isUpdating, setIsUpdating] = useState(false);
   const [couponInput, setCouponInput] = useState('');
+  const [isClearCartDialogOpen, setIsClearCartDialogOpen] = useState(false);
+  const [isClearingCart, setIsClearingCart] = useState(false);
 
   // Fetch cart when component mounts
   useEffect(() => {
@@ -78,10 +81,13 @@ export default function CartPage() {
   };
 
   const handleClearCart = async () => {
-    if (items.length === 0) return;
-    if (confirm('Are you sure you want to clear your cart?')) {
+    setIsClearingCart(true);
+    try {
       await clearCart();
       toast.success('Cart cleared');
+      setIsClearCartDialogOpen(false);
+    } finally {
+      setIsClearingCart(false);
     }
   };
 
@@ -182,7 +188,7 @@ export default function CartPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Shopping Cart</h1>
-        <Button variant="ghost" size="sm" onClick={handleClearCart}>
+        <Button variant="ghost" size="sm" onClick={() => setIsClearCartDialogOpen(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           Clear Cart
         </Button>
@@ -334,6 +340,44 @@ export default function CartPage() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={isClearCartDialogOpen}
+        onOpenChange={setIsClearCartDialogOpen}
+        title="Clear cart"
+        description="Remove all items from your cart? This cannot be undone."
+        confirmText="Clear cart"
+        onConfirm={handleClearCart}
+        isLoading={isClearingCart}
+      />
+
+      {/* Mobile sticky checkout bar — the Order Summary's "Proceed to
+          Checkout" button otherwise sits below every cart item (the sidebar
+          column only appears after the items column once the grid stacks
+          on mobile), so a shopper with several items has no visible way to
+          check out without scrolling all the way down first. Matches the
+          same pattern already used on the product detail and checkout
+          pages. */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">
+              {safeItems.length} item{safeItems.length === 1 ? '' : 's'}
+            </p>
+            <p className="truncate text-lg font-bold text-primary">
+              ${(safeSubtotal - (appliedCoupon?.discountAmount || 0)).toFixed(2)}
+            </p>
+          </div>
+          <Button size="lg" className="h-11 shrink-0 px-6 font-semibold" onClick={handleCheckout}>
+            <Lock className="mr-2 h-4 w-4" />
+            Checkout
+          </Button>
+        </div>
+      </div>
+      <div className="h-[68px] lg:hidden" aria-hidden="true" />
     </div>
   );
 }
@@ -422,6 +466,12 @@ function AvailableCouponsList({
   );
 }
 
+// Below this many units left, the stock line switches from green "In
+// stock" to an amber "Only N left" warning — same threshold/convention
+// ProductCard uses, so stock urgency reads consistently everywhere it's
+// shown across the storefront.
+const CART_LOW_STOCK_THRESHOLD = 5;
+
 // Cart Item Component with safe data access
 function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
   // Safe access with defaults
@@ -447,98 +497,105 @@ function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
     originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const itemTotal = price * quantity;
 
-  return (
-    <div className="flex gap-4 rounded-lg border p-4 transition-all hover:shadow-sm">
-      {/* Product Image */}
-      <Link
-        href={`/products/${slug}`}
-        className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md bg-muted"
-      >
-        {thumbnail ? (
-          <Image
-            src={thumbnail}
-            alt={name}
-            fill
-            className="object-cover"
-            sizes="96px"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <ShoppingCart className="h-8 w-8" />
-          </div>
-        )}
-        {discount > 0 && (
-          <span className="absolute top-1 left-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-            -{discount}%
-          </span>
-        )}
-      </Link>
+  const stockStatus =
+    stock === 0
+      ? { label: 'Out of stock', textClassName: 'text-destructive', dotClassName: 'bg-destructive' }
+      : stock <= CART_LOW_STOCK_THRESHOLD
+        ? { label: `Only ${stock} left`, textClassName: 'text-amber-700 dark:text-amber-400', dotClassName: 'bg-amber-500' }
+        : { label: 'In stock', textClassName: 'text-green-700 dark:text-green-400', dotClassName: 'bg-green-600' };
 
-      {/* Product Details */}
-      <div className="flex-1 min-w-0">
-        <Link href={`/products/${slug}`} className="hover:text-primary">
-          <h3 className="font-medium line-clamp-1">{name}</h3>
-        </Link>
-        {nameTetum && (
-          <p className="text-sm text-muted-foreground line-clamp-1">{nameTetum}</p>
-        )}
-        {variantLabel && (
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            <span className="rounded bg-muted px-1.5 py-0.5">{variantLabel}</span>
-          </p>
-        )}
-        <div className="flex items-center gap-2 mt-1">
-          <span className="font-semibold text-primary">${price.toFixed(2)}</span>
-          {originalPrice != null && (
-            <span className="text-sm text-muted-foreground line-through">
-              ${originalPrice.toFixed(2)}
+  return (
+    <div className="rounded-lg border p-3 transition-shadow hover:shadow-sm sm:p-4">
+      {/* Top row: image + title/variant/price, remove button pinned to the
+          corner — two columns of content never have to fight a third
+          (quantity stepper) for width on a narrow phone, unlike before
+          when image+text+stepper+total+remove all shared one row. */}
+      <div className="flex gap-3">
+        <Link
+          href={`/products/${slug}`}
+          className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted sm:h-24 sm:w-24"
+        >
+          {thumbnail ? (
+            <Image src={thumbnail} alt={name} fill className="object-cover" sizes="96px" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+              <ShoppingCart className="h-8 w-8" />
+            </div>
+          )}
+          {discount > 0 && (
+            <span className="absolute top-1 left-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              -{discount}%
             </span>
           )}
+        </Link>
+
+        <div className="min-w-0 flex-1">
+          <Link href={`/products/${slug}`} className="hover:text-primary">
+            <h3 className="line-clamp-2 text-sm font-medium leading-snug sm:text-base">{name}</h3>
+          </Link>
+          {nameTetum && (
+            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{nameTetum}</p>
+          )}
+          {variantLabel && (
+            <p className="mt-1">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{variantLabel}</span>
+            </p>
+          )}
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="font-semibold text-primary">${price.toFixed(2)}</span>
+            {originalPrice != null && (
+              <span className="text-xs text-muted-foreground line-through sm:text-sm">
+                ${originalPrice.toFixed(2)}
+              </span>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Stock: {stock} units available
-        </p>
+
+        <button
+          type="button"
+          onClick={() => onRemove(productId, variantId)}
+          disabled={isUpdating}
+          aria-label="Remove item"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      {/* Quantity & Actions */}
-      <div className="flex flex-col items-end gap-2">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onQuantityChange(productId, quantity - 1, variantId)}
-            disabled={quantity <= 1 || isUpdating}
-            aria-label="Decrease quantity"
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => onQuantityChange(productId, quantity + 1, variantId)}
-            disabled={quantity >= stock || isUpdating}
-            aria-label="Increase quantity"
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">
-            ${itemTotal.toFixed(2)}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => onRemove(productId, variantId)}
-            disabled={isUpdating}
-            aria-label="Remove item"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      {/* Bottom row: stock status + quantity stepper + line total — its own
+          full-width row instead of a cramped third column, with plenty of
+          room for the stepper's touch targets. */}
+      <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
+        <span className={cn('inline-flex min-w-0 items-center gap-1.5 truncate text-xs font-medium', stockStatus.textClassName)}>
+          <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0 rounded-full', stockStatus.dotClassName)} />
+          {stockStatus.label}
+        </span>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onQuantityChange(productId, quantity - 1, variantId)}
+              disabled={quantity <= 1 || isUpdating}
+              aria-label="Decrease quantity"
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+            <span className="w-7 text-center text-sm font-medium">{quantity}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onQuantityChange(productId, quantity + 1, variantId)}
+              disabled={quantity >= stock || isUpdating}
+              aria-label="Increase quantity"
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+          <span className="text-sm font-semibold text-foreground">${itemTotal.toFixed(2)}</span>
         </div>
       </div>
     </div>

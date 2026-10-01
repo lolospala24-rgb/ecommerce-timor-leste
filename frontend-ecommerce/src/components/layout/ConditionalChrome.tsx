@@ -27,12 +27,15 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
   // surface — the cart/search/footer link list have no place there, and
   // it renders its own minimal shell (see (driver)/layout.tsx) instead.
   const isDriverPortal = pathname?.startsWith('/driver');
-  // These two pages already own the bottom of a mobile screen with their
-  // own sticky action bar (Add to Cart / Buy Now, order total + Place
-  // Order) — stacking the global tab bar underneath would either hide it
-  // or force an awkward double-bar layout. Every other shopping page gets
-  // the persistent tab bar.
-  const hasOwnBottomBar = pathname?.startsWith('/products/') || pathname?.startsWith('/checkout');
+  // These pages already own the bottom of a mobile screen with their own
+  // sticky action bar (Add to Cart / Buy Now, Proceed to Checkout, order
+  // total + Place Order) — stacking the global tab bar underneath would
+  // either hide it or force an awkward double-bar layout (confirmed live:
+  // both bars are `fixed bottom-0`, so without this exclusion the tab bar
+  // painted directly over /cart's checkout bar, hiding it completely).
+  // Every other shopping page gets the persistent tab bar.
+  const hasOwnBottomBar =
+    pathname?.startsWith('/products/') || pathname?.startsWith('/checkout') || pathname?.startsWith('/cart');
   const showBottomNav = !isVideoShopping && !isAuthPage && !isDriverPortal && !hasOwnBottomBar;
 
   if (isVideoShopping) {
