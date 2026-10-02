@@ -242,10 +242,14 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
     <div ref={wrapperRef} className={cn('relative', className)}>
       <form onSubmit={handleSubmit} className="relative flex items-center">
         {/* Fixed white/slate colors here (not theme tokens) — this pill
-            always sits on Header's fixed brand gradient regardless of
+            always sits on Header's light brand surface regardless of
             light/dark theme, so it needs to stay legible against that one
-            background rather than following the page theme. */}
-        <div className="relative flex w-full items-center rounded-full border border-white/75 bg-white p-2 shadow-[0_6px_20px_rgba(15,23,42,0.08)] transition-shadow focus-within:shadow-[0_8px_24px_rgba(15,23,42,0.12)] focus-within:ring-1 focus-within:ring-[#16A34A]/30">
+            background rather than following the page theme. A visible (if
+            subtle) border matters now more than it used to: on the old
+            colored gradient a near-invisible white/75 border was enough
+            contrast on its own; on today's near-white header the pill needs
+            its own definition to read as a distinct control. */}
+        <div className="relative flex w-full items-center rounded-full border border-slate-200 bg-white p-2 shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-shadow focus-within:shadow-[0_4px_16px_rgba(15,23,42,0.1)] focus-within:ring-1 focus-within:ring-[#16A34A]/30">
           <Search className="pointer-events-none absolute left-4 h-5 w-5 shrink-0 text-[#16A34A]" />
           <input
             type="text"

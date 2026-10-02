@@ -148,20 +148,18 @@ export function Header() {
       {/* Top Header with menu items */}
       <TopHeader />
 
-      {/* Main Header — brand green→blue gradient block, full-bleed edge-to-edge.
-          The gradient/safe-area padding lives on this inner wrapper (not
-          the outer <header>) so the status-bar area is tinted too, while the
+      {/* Main Header — light premium surface (not the old strong green→blue
+          gradient block): near-white with only a whisper of brand tint, so
+          the header reads as calm/trustworthy rather than a loud color
+          block. The safe-area padding lives on this inner wrapper (not the
+          outer <header>) so the status-bar area is covered too, while the
           homepage-only categories row below stays outside it on the plain
           page background — see isMobileBrowseRowVisible block further down. */}
       <header className="sticky top-0 z-40 bg-background">
         <div
-          className="relative overflow-hidden bg-[linear-gradient(120deg,#16A34A_0%,#0EA5A8_42%,#2563EB_100%)] shadow-md shadow-blue-900/10"
+          className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-[#F0FDF4] via-white to-[#EFF6FF] shadow-sm"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          {/* Very subtle decorative glows — not a busy pattern, just soft
-              depth so the gradient doesn't read as a flat color fill. */}
-          <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div aria-hidden className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
 
           <div className="container-custom relative">
           <div className="flex items-center justify-between gap-4 py-3 sm:py-4">
@@ -170,26 +168,26 @@ export function Header() {
                 (+ truncate below) lets long site names shrink gracefully on
                 narrow phones instead of overflowing, now that the wordmark
                 and tagline are shown at every breakpoint, not just sm:+.
-                Sized to be the header's dominant element (not a small
-                favicon-sized chip) — brand name/logo are the first thing a
-                shopper should register here. */}
-            <Link href="/" className="flex min-w-0 items-center gap-3 sm:flex-shrink-0">
+                Light surface now, so the logo chip needs its own border/ring
+                to read clearly instead of relying on contrast against a
+                colored background. */}
+            <Link href="/" className="flex min-w-0 items-center gap-2.5 sm:flex-shrink-0">
               {publicSettings?.logoUrl ? (
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/30">
-                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="56px" className="object-contain" />
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
+                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="48px" className="object-contain" />
                 </div>
               ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                  <span className="text-xl font-bold text-[#16A34A]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+                  <span className="text-lg font-bold text-[#16A34A]">
                     {(publicSettings?.siteName || 'E').charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
               <div className="min-w-0">
-                <span className="block truncate text-xl font-extrabold leading-tight text-white sm:text-2xl">
+                <span className="block truncate text-lg font-extrabold leading-tight text-slate-900 sm:text-xl">
                   {publicSettings?.siteName || 'E-Commerce'}
                 </span>
-                <span className="block truncate text-xs font-medium leading-tight text-white/95 sm:text-sm">
+                <span className="block truncate text-[11px] font-medium leading-tight text-slate-500 sm:text-xs">
                   {t('header.tagline')}
                 </span>
               </div>
@@ -218,7 +216,7 @@ export function Header() {
             {/* Main Navigation - Desktop */}
             <nav className="hidden md:flex items-center gap-4 mr-6">
 
-              <Link href="/videos" className="text-sm text-white/85 hover:text-white flex items-center gap-1">
+              <Link href="/videos" className="text-sm text-slate-600 hover:text-slate-900 flex items-center gap-1">
                 <Play className="h-4 w-4" />
                 <span>{t('nav.videoShop')}</span>
               </Link>
@@ -242,7 +240,7 @@ export function Header() {
                   mobile action set); still also reachable via bottom nav's
                   "Deseju" tab and the hamburger menu, same as before. */}
               <Link href="/account/wishlist">
-                <Button variant="ghost" size="icon" className="h-11 w-11 text-white hover:bg-white/15 hover:text-white" aria-label="Wishlist">
+                <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-700 hover:bg-slate-100 hover:text-slate-900" aria-label="Wishlist">
                   <Heart className="h-5 w-5" />
                 </Button>
               </Link>
@@ -251,7 +249,7 @@ export function Header() {
               {isAuthenticated && (
                 <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative h-11 w-11 text-white hover:bg-white/15 hover:text-white" aria-label="Notifications">
+                    <Button variant="ghost" size="icon" className="relative h-11 w-11 text-slate-700 hover:bg-slate-100 hover:text-slate-900" aria-label="Notifications">
                       <Bell className="h-5 w-5" />
                       {unreadCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
@@ -365,7 +363,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden h-9 w-9 relative text-white hover:bg-white/15 hover:text-white md:inline-flex"
+                className="hidden h-9 w-9 relative text-slate-700 hover:bg-slate-100 hover:text-slate-900 md:inline-flex"
                 onClick={() => setCartOpen(true)}
                 aria-label="Cart"
               >
@@ -383,8 +381,8 @@ export function Header() {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 hover:bg-white/15">
-                      <Avatar className="h-8 w-8 ring-2 ring-white/50">
+                    <Button variant="ghost" className="h-9 w-9 rounded-full p-0 hover:bg-slate-100">
+                      <Avatar className="h-8 w-8 ring-2 ring-slate-200">
                         <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
                         <AvatarFallback className="bg-white text-blue-700 text-xs">
                           {getInitials(user?.name)}
@@ -431,7 +429,7 @@ export function Header() {
                 // keeps this desktop-only, so no duplicate visibility class
                 // needed here too.
                 <Link href="/login">
-                  <Button variant="ghost" size="sm" className="h-9 bg-white text-blue-700 hover:bg-white/90 hover:text-blue-800">
+                  <Button size="sm" className="h-9 bg-[#16A34A] text-white hover:bg-[#15803D]">
                     {t('nav.signIn')}
                   </Button>
                 </Link>
@@ -442,7 +440,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-11 w-11 text-white hover:bg-white/15 hover:text-white"
+                className="md:hidden h-11 w-11 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                 onClick={() => setMobileNavOpen(true)}
                 aria-label="Open menu"
               >
@@ -454,14 +452,14 @@ export function Header() {
           {/* Mobile-only search row — the real, typeable SearchAiBar at full
               row width (not a fake button opening a separate overlay dialog
               — that extra tap-through was more friction than it was worth
-              now that the bar fits comfortably on its own row). Sits at the
-              bottom edge of the blue gradient block: a small negative bottom
-              margin lets its shadowed white pill spill slightly past the
-              gradient's edge into the page below, so the two surfaces read
-              as layered rather than a hard flat seam. Hidden on
+              now that the bar fits comfortably on its own row). Comfortable
+              breathing room above AND below — it used to sit flush against
+              the gradient's bottom edge (even pulled past it via a negative
+              margin), which read as the bar being stuck to the next section
+              rather than contained inside the header. Hidden on
               product/seller detail pages — see isDetailPage above. */}
           {isMobileSearchRowVisible && (
-            <div className="relative z-10 pt-1 pb-2 -mb-3 md:hidden">
+            <div className="relative z-10 pt-2 pb-5 md:hidden">
               <SearchAiBar className="w-full" />
             </div>
           )}
