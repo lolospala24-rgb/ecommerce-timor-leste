@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Flame } from 'lucide-react';
-import { ProductCard } from '@/components/products/ProductCard';
+import { FlashSaleProductCard } from './FlashSaleProductCard';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import type { HomepageSection } from '@/hooks/useHomepageSections';
@@ -99,10 +99,9 @@ export function FlashSaleSection({ section, isFirstSection = false }: { section:
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4 xl:grid-cols-6">
           {section.products.map((product, index) => (
-            <ProductCard
+            <FlashSaleProductCard
               key={product.id}
               product={product}
-              isLocal={product.isLocallyMade}
               priority={isFirstSection && index < 4}
             />
           ))}
