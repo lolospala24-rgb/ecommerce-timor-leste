@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { resolveProductOrigin } from '../../common/utils/product-origin.util';
 import { PromotionsService } from '../promotions/promotions.service';
+import { PRODUCT_CARD_INCLUDE } from '../products/product-card.include';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 import { ReorderSectionsDto } from './dto/reorder-sections.dto';
@@ -24,20 +25,6 @@ const DEFAULT_LIMITED_STOCK_THRESHOLD = 5;
 // faking those rules would silently show meaningless product lists. They
 // become available the moment that underlying data/engine exists, by
 // adding one more case to the switch below — not a new page or component.
-const PRODUCT_CARD_INCLUDE = {
-  seller: {
-    select: {
-      id: true,
-      storeName: true,
-      originMunicipality: true,
-      originPostoAdmin: true,
-      originSuco: true,
-      originAldeia: true,
-    },
-  },
-  category: { select: { id: true, name: true, slug: true } },
-  reviews: { where: { isApproved: true }, select: { rating: true } },
-} satisfies Prisma.ProductInclude;
 
 @Injectable()
 export class HomepageService {

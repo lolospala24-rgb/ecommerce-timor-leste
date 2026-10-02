@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Heart, Flame, TicketPercent } from 'lucide-react';
+import { Heart, Flame, TicketPercent, Hourglass } from 'lucide-react';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
@@ -18,6 +18,11 @@ const LOW_STOCK_THRESHOLD = 5;
 interface FlashSaleProductCardProps {
   product: Product;
   priority?: boolean;
+  /** Set only for the /flash-sale page's "Akan Datang" tab — the campaign's
+   *  real startAt. Swaps the stock/sold block for a "Starts <date>" chip and
+   *  skips the out-of-stock treatment (not purchasable yet regardless of
+   *  stock, so that distinction doesn't apply before launch). */
+  upcomingStartAt?: string | null;
 }
 
 // Flash sale gets its own compact card (not the generic ProductCard) because
@@ -29,15 +34,16 @@ interface FlashSaleProductCardProps {
 // backend-services schema.prisma — Promotion has no stock-limit field). It
 // shows actual low-stock (same threshold ProductCard already uses) or a real
 // sales count, full-filled pills either way, never a fraction we can't back.
-export function FlashSaleProductCard({ product, priority = false }: FlashSaleProductCardProps) {
+export function FlashSaleProductCard({ product, priority = false, upcomingStartAt = null }: FlashSaleProductCardProps) {
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
 
+  const isUpcoming = !!upcomingStartAt;
   const isWishlisted = isInWishlist(product.id);
-  const isOutOfStock = product.stock === 0;
-  const isLowStock = !isOutOfStock && product.stock <= LOW_STOCK_THRESHOLD;
+  const isOutOfStock = !isUpcoming && product.stock === 0;
+  const isLowStock = !isUpcoming && !isOutOfStock && product.stock <= LOW_STOCK_THRESHOLD;
   const soldCount = product.salesCount ?? 0;
 
   const pricing = getProductPricing(product);
@@ -130,25 +136,40 @@ export function FlashSaleProductCard({ product, priority = false }: FlashSalePro
             still true, not hidden to fake momentum. "Terbatas" is a
             separate, independently-real signal (actual stock <= 5) — never
             implied by the bar itself. */}
-        {!isOutOfStock && soldCount > 0 && (
-          <div className="mt-2">
-            <div className="flex items-center gap-1 text-[10px] font-medium text-orange-700">
-              <Flame className="h-2.5 w-2.5 shrink-0" />
-              {soldCount} Terjual
-            </div>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500"
-                style={{ width: `${Math.min(Math.max((soldCount / (soldCount + product.stock)) * 100, 6), 95)}%` }}
-              />
-            </div>
+        {isUpcoming ? (
+          <div className="mt-2 flex items-center gap-1 text-[10px] font-medium text-blue-700">
+            <Hourglass className="h-2.5 w-2.5 shrink-0" />
+            Mulai{' '}
+            {new Date(upcomingStartAt!).toLocaleString(undefined, {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </div>
-        )}
+        ) : (
+          <>
+            {!isOutOfStock && soldCount > 0 && (
+              <div className="mt-2">
+                <div className="flex items-center gap-1 text-[10px] font-medium text-orange-700">
+                  <Flame className="h-2.5 w-2.5 shrink-0" />
+                  {soldCount} Terjual
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500"
+                    style={{ width: `${Math.min(Math.max((soldCount / (soldCount + product.stock)) * 100, 6), 95)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
-        {isLowStock && (
-          <span className="mt-1.5 inline-block rounded-sm bg-red-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-600">
-            Terbatas
-          </span>
+            {isLowStock && (
+              <span className="mt-1.5 inline-block rounded-sm bg-red-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-600">
+                Terbatas
+              </span>
+            )}
+          </>
         )}
       </Link>
     </div>

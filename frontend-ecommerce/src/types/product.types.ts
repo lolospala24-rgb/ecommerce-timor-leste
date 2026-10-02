@@ -8,6 +8,10 @@ export interface ActivePromotion {
   discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
   discountValue: number;
   endAt: string;
+  // Optional — only populated by the /flash-sale page's endpoints (needed
+  // there to show "Starts <date>" on upcoming-campaign cards). Every other
+  // existing consumer of ActivePromotion never reads it.
+  startAt?: string;
 }
 
 export interface ProductVariant {

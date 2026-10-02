@@ -10,6 +10,7 @@ import { ResponseUtil } from '../../common/utils/response.util';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { PromotionDiscountType } from '@prisma/client';
+import { PRODUCT_CARD_INCLUDE } from '../products/product-card.include';
 
 export type PromotionStatus = 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'DEACTIVATED';
 
@@ -445,5 +446,146 @@ export class PromotionsService {
       where: { sellerId, isActive: true, startAt: { lte: now }, endAt: { gte: now } },
     });
     return count > 0;
+  }
+
+  // ==========================================================================
+  // Public Flash Sale listing — /flash-sale page's data source.
+  //
+  // There is no distinct "Flash Sale" entity in this schema: a flash sale IS
+  // an active (or upcoming) seller Promotion, same as everywhere else in the
+  // app (homepage's FLASH_SALE section, "Promo Toko" on a seller's store
+  // page). Promotion also has no quota/allocation field — "remaining stock"
+  // below is the product's real Product.stock (same number checkout/cart
+  // already use), not a separate flash-sale-specific pool, because that
+  // pool doesn't exist anywhere in the data model and inventing one would
+  // need real seller-facing UI to set it, which is out of scope here.
+  // "Terjual" is real, though: units actually sold while THIS promotion was
+  // live, via OrderItem.promotionId — counting only DELIVERED lines, the
+  // same "a completed sale, not just a placed order" standard
+  // ProductsService.findBySlug already uses for a product's own salesCount.
+  // ==========================================================================
+
+  async getFlashSaleProducts(params: {
+    page: number;
+    limit: number;
+    categorySlug?: string;
+    upcoming: boolean;
+  }) {
+    const now = new Date();
+    const promotionWhere = params.upcoming
+      ? { isActive: true, startAt: { gt: now } }
+      : { isActive: true, startAt: { lte: now }, endAt: { gte: now } };
+    // Upcoming items aren't filtered by stock — a product scheduled for a
+    // future campaign may well be restocked before it starts; an active
+    // campaign item with 0 stock right now is just not purchasable, so it's
+    // excluded the same way the homepage's own flash-sale shelf already does.
+    const productBaseWhere: any = params.upcoming ? { isActive: true } : { isActive: true, stock: { gt: 0 } };
+
+    // Category facets — derived from the FULL matching set (every category
+    // actually represented in this tab), never the hardcoded marketplace
+    // category list and never filtered by whichever category is currently
+    // selected, so the pill row doesn't shrink/reshuffle as the customer
+    // clicks around.
+    const facetItems = await this.prisma.promotionItem.findMany({
+      where: { promotion: promotionWhere, product: productBaseWhere },
+      select: { product: { select: { category: { select: { id: true, name: true, slug: true } } } } },
+      distinct: ['productId'],
+    });
+    const categoryMap = new Map<string, { id: number; name: string; slug: string }>();
+    for (const item of facetItems) {
+      const c = item.product.category;
+      if (c && !categoryMap.has(c.slug)) categoryMap.set(c.slug, c);
+    }
+    const categories = Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+    const where: any = {
+      promotion: promotionWhere,
+      product: {
+        ...productBaseWhere,
+        ...(params.categorySlug ? { category: { slug: params.categorySlug } } : {}),
+      },
+    };
+
+    const [total, items] = await Promise.all([
+      this.prisma.promotionItem.count({ where }),
+      this.prisma.promotionItem.findMany({
+        where,
+        include: {
+          product: { include: PRODUCT_CARD_INCLUDE },
+          promotion: {
+            select: { id: true, name: true, discountType: true, discountValue: true, startAt: true, endAt: true },
+          },
+        },
+        // Soonest-ending first when active (urgency), soonest-starting
+        // first when upcoming — same ordering idea as the homepage shelf.
+        orderBy: { promotion: params.upcoming ? { startAt: 'asc' } : { endAt: 'asc' } },
+        skip: (params.page - 1) * params.limit,
+        take: params.limit,
+      }),
+    ]);
+
+    const promotionIds = [...new Set(items.map((item) => item.promotion.id))];
+    const soldCounts = params.upcoming
+      ? new Map<number, number>()
+      : await this.getSoldCountsByPromotion(promotionIds);
+
+    const products = items.map((item) => {
+      const { reviews, ...productRest } = item.product as typeof item.product & {
+        reviews: { rating: number }[];
+      };
+      const avgRating =
+        reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+      return {
+        ...productRest,
+        rating: avgRating,
+        totalReviews: reviews.length,
+        promotion: item.promotion,
+        effectivePrice: this.computeEffectivePrice(productRest.price, item.promotion),
+        salesCount: soldCounts.get(item.promotion.id) ?? 0,
+      };
+    });
+
+    // Soonest-relevant edge across the WHOLE matching set (not just this
+    // page) — what the page-level countdown actually needs.
+    const edgeAgg = params.upcoming
+      ? await this.prisma.promotion.aggregate({ where: promotionWhere, _min: { startAt: true } })
+      : await this.prisma.promotion.aggregate({ where: promotionWhere, _min: { endAt: true } });
+
+    return {
+      data: products,
+      pagination: {
+        page: params.page,
+        limit: params.limit,
+        total,
+        totalPages: Math.max(Math.ceil(total / params.limit), 1),
+      },
+      categories,
+      endsAt: params.upcoming ? null : (edgeAgg._min as any).endAt ?? null,
+      startsAt: params.upcoming ? (edgeAgg._min as any).startAt ?? null : null,
+    };
+  }
+
+  // Scoped to one promotion — Product Detail's flash-sale info block uses
+  // this directly rather than the batch version above.
+  async getPromotionSoldCount(promotionId: number): Promise<number> {
+    const result = await this.prisma.orderItem.aggregate({
+      where: { promotionId, order: { status: 'DELIVERED' } },
+      _sum: { quantity: true },
+    });
+    return result._sum.quantity ?? 0;
+  }
+
+  private async getSoldCountsByPromotion(promotionIds: number[]): Promise<Map<number, number>> {
+    const map = new Map<number, number>();
+    if (promotionIds.length === 0) return map;
+    const results = await this.prisma.orderItem.groupBy({
+      by: ['promotionId'],
+      where: { promotionId: { in: promotionIds }, order: { status: 'DELIVERED' } },
+      _sum: { quantity: true },
+    });
+    for (const r of results) {
+      if (r.promotionId != null) map.set(r.promotionId, r._sum.quantity ?? 0);
+    }
+    return map;
   }
 }

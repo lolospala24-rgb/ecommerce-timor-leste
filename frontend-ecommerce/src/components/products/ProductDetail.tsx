@@ -10,6 +10,8 @@ import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductVariantSelection } from '@/hooks/useProductVariantSelection';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { usePromotionSoldCount } from '@/hooks/useFlashSale';
+import { useCountdown } from '@/hooks/useCountdown';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -52,6 +54,7 @@ import {
   Sprout,
   User,
   Phone,
+  Flame,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -153,6 +156,21 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   });
   const discount = pricing.discountPercent;
   const savings = pricing.savings;
+
+  // Flash Sale info block — only rendered when this product actually has
+  // an active Promotion (the same ActivePromotion the price band above
+  // already discounts against). Real sold count via the promotion-scoped
+  // endpoint (DELIVERED order lines for THIS promotion specifically, never
+  // the product's lifetime salesCount), real countdown to the promotion's
+  // own endAt, and the same honest sold/stock ratio FlashSaleProductCard
+  // uses — no fabricated quota since none exists in the data model.
+  const isFlashSale = !!displayPromotion;
+  const { data: flashSaleSoldCount = 0 } = usePromotionSoldCount(displayPromotion?.id);
+  const flashSaleCountdown = useCountdown(isFlashSale ? displayPromotion!.endAt : null);
+  const flashSaleProgress =
+    flashSaleSoldCount > 0
+      ? Math.min(Math.max((flashSaleSoldCount / (flashSaleSoldCount + displayStock)) * 100, 6), 95)
+      : 0;
 
   // Wholesale/packaging pricing is reference information entered by the
   // seller — it is not purchasable through Add to Cart/Buy Now at these
@@ -565,6 +583,41 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </div>
             )}
           </div>
+
+          {/* Flash Sale info — countdown to the promotion's real endAt,
+              real units sold through THIS promotion, and the same honest
+              sold/stock progress ratio used on the Flash Sale page's cards. */}
+          {isFlashSale && (
+            <div className="space-y-2.5 rounded-lg border border-red-200 bg-red-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-red-700">
+                  <Flame className="h-4 w-4" />
+                  Flash Sale
+                </div>
+                {flashSaleCountdown && !flashSaleCountdown.expired && (
+                  <div className="flex items-center gap-1 font-mono text-sm font-semibold tabular-nums text-red-700">
+                    <span>{String(flashSaleCountdown.hours).padStart(2, '0')}</span>:
+                    <span>{String(flashSaleCountdown.minutes).padStart(2, '0')}</span>:
+                    <span>{String(flashSaleCountdown.seconds).padStart(2, '0')}</span>
+                  </div>
+                )}
+              </div>
+              {flashSaleSoldCount > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-xs font-medium text-orange-700">
+                    <span>{flashSaleSoldCount} Terjual</span>
+                    {displayStock > 0 && displayStock <= 5 && <span>Sisa {displayStock} unit</span>}
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500"
+                      style={{ width: `${flashSaleProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Wholesale / packaging — informational reference pricing only;
               Add to Cart / Buy Now always charge displayPrice regardless of

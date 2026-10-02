@@ -35,6 +35,7 @@ export function Breadcrumb() {
     settings: 'Settings',
     search: 'Search',
     about: 'About',
+    'flash-sale': 'Flash Sale',
   };
 
   return (

@@ -15,6 +15,7 @@ import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { Role } from '@prisma/client';
 
 @Controller('promotions')
@@ -46,6 +47,49 @@ export class PromotionsController {
   async deactivateForAdmin(@Param('id', ParseIntPipe) id: number) {
     const data = await this.promotionsService.deactivateForAdmin(id);
     return { message: 'Promotion deactivated', data };
+  }
+
+  // ---- Public (/flash-sale page) ----
+  // Declared before ':id'-style seller routes so 'flash-sale' is never
+  // parsed as an :id — same route-ordering convention as 'admin' above.
+
+  @Public()
+  @Get('flash-sale')
+  async getFlashSale(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('category') category?: string,
+  ) {
+    const data = await this.promotionsService.getFlashSaleProducts({
+      page,
+      limit,
+      categorySlug: category,
+      upcoming: false,
+    });
+    return { data };
+  }
+
+  @Public()
+  @Get('flash-sale/upcoming')
+  async getFlashSaleUpcoming(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('category') category?: string,
+  ) {
+    const data = await this.promotionsService.getFlashSaleProducts({
+      page,
+      limit,
+      categorySlug: category,
+      upcoming: true,
+    });
+    return { data };
+  }
+
+  @Public()
+  @Get(':id/sold-count')
+  async getSoldCount(@Param('id', ParseIntPipe) id: number) {
+    const soldCount = await this.promotionsService.getPromotionSoldCount(id);
+    return { data: { soldCount } };
   }
 
   // ---- Seller ----

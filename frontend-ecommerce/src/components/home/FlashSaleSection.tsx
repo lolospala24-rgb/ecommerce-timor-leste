@@ -1,37 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Flame } from 'lucide-react';
 import { FlashSaleProductCard } from './FlashSaleProductCard';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
+import { useCountdown } from '@/hooks/useCountdown';
 import type { HomepageSection } from '@/hooks/useHomepageSections';
-
-function useCountdown(target: string | null | undefined) {
-  const [remainingMs, setRemainingMs] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!target) {
-      setRemainingMs(null);
-      return;
-    }
-    const targetMs = new Date(target).getTime();
-    const tick = () => setRemainingMs(Math.max(targetMs - Date.now(), 0));
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [target]);
-
-  if (remainingMs == null) return null;
-  const totalSeconds = Math.floor(remainingMs / 1000);
-  return {
-    hours: Math.floor(totalSeconds / 3600),
-    minutes: Math.floor((totalSeconds % 3600) / 60),
-    seconds: totalSeconds % 60,
-    expired: remainingMs <= 0,
-  };
-}
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -87,8 +62,12 @@ export function FlashSaleSection({ section, isFirstSection = false }: { section:
                   <CountdownBox value={countdown.seconds} label="S" />
                 </div>
               )}
-              <Button variant="secondary" size="sm" className="hidden gap-1 group sm:flex" asChild>
-                <Link href="/products">
+              {/* Visible at every breakpoint now that there's a real
+                  destination — previously hidden on mobile (sm:flex), which
+                  left no way to reach the full Flash Sale page from this
+                  teaser on a phone at all. */}
+              <Button variant="secondary" size="sm" className="flex shrink-0 gap-1 group" asChild>
+                <Link href="/flash-sale">
                   {t('home.section.viewAll')}
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
