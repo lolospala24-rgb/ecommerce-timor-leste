@@ -84,9 +84,9 @@ export function SupportChatWidget() {
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-label={t('support.title')}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
       >
-        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
       </button>
     </div>
   );

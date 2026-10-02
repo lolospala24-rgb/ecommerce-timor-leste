@@ -1,9 +1,8 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Boxes,
   Store,
-  Sparkles,
-  Megaphone,
+  Sprout,
+  Tag,
   LayoutGrid,
   Zap,
   Clock,
@@ -31,10 +30,15 @@ export interface QuickMenuIconDefinition {
 }
 
 export const QUICK_MENU_ICON_LIBRARY: QuickMenuIconDefinition[] = [
-  { key: 'all-products', label: 'All Products', icon: Boxes, color: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
-  { key: 'local-products', label: 'Local Products', icon: Store, color: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
-  { key: 'promotions', label: 'Promotions', icon: Sparkles, color: 'bg-pink-500/15 text-pink-600 dark:text-pink-400' },
-  { key: 'become-seller', label: 'Become a Seller', icon: Megaphone, color: 'bg-orange-500/15 text-orange-600 dark:text-orange-400' },
+  // All Products / Local Products / Promotions / Become a Seller are the
+  // four seeded "default" items — their colors deliberately match the
+  // brand's category convention used elsewhere (Sprout = local Timor-Leste
+  // produce, same icon as ProductDetail's origin section): blue for the
+  // general catalog, green for local, pink for deals, orange for selling.
+  { key: 'all-products', label: 'All Products', icon: ShoppingBag, color: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
+  { key: 'local-products', label: 'Local Products', icon: Sprout, color: 'bg-green-500/15 text-green-600 dark:text-green-400' },
+  { key: 'promotions', label: 'Promotions', icon: Tag, color: 'bg-pink-500/15 text-pink-600 dark:text-pink-400' },
+  { key: 'become-seller', label: 'Become a Seller', icon: Store, color: 'bg-orange-500/15 text-orange-600 dark:text-orange-400' },
   { key: 'categories', label: 'Categories', icon: LayoutGrid, color: 'bg-violet-500/15 text-violet-600 dark:text-violet-400' },
   { key: 'flash-sale', label: 'Flash Sale', icon: Zap, color: 'bg-red-500/15 text-red-600 dark:text-red-400' },
   { key: 'new-arrivals', label: 'New Arrivals', icon: Clock, color: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400' },

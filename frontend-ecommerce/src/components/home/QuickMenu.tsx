@@ -104,11 +104,12 @@ export default function QuickMenu() {
   }
 
   return (
-    <section className="border-b bg-background py-4 md:py-6">
+    <section className="border-b bg-background py-3 md:py-5">
       <div className="container-custom">
-        <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('home.quickMenu.title')}
-        </h2>
+        {/* Visually hidden — a clean icon row (no section label) reads as
+            the primary, confident marketplace-shortcut style; the heading
+            stays in the DOM for screen readers rather than disappearing. */}
+        <h2 className="sr-only">{t('home.quickMenu.title')}</h2>
 
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-4 md:grid-cols-8 sm:gap-4">
           {items.map((item) => (

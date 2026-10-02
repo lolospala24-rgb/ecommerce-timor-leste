@@ -84,7 +84,7 @@ function ProductSection({ section, isFirstSection = false }: { section: Homepage
               </Link>
             ) : (
               <Link href="/products">
-                {t('home.section.viewAll', { title: section.title })}
+                {t('home.section.viewAll')}
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             )}

@@ -89,7 +89,7 @@ export function FlashSaleSection({ section, isFirstSection = false }: { section:
               )}
               <Button variant="secondary" size="sm" className="hidden gap-1 group sm:flex" asChild>
                 <Link href="/products">
-                  {t('home.section.viewAll', { title: section.title })}
+                  {t('home.section.viewAll')}
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>

@@ -175,7 +175,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.products': 'Produtu',
 
     // Product section (Featured/New/Popular/Local...)
-    'home.section.viewAll': 'Haree {title} Hotu',
+    'home.section.viewAll': 'Haree Hotu',
     'home.section.discoverLocal': 'Descobre Produtu Lokál',
 
     // Local Products page (/local-products)
@@ -357,7 +357,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Product',
     'home.categories.products': 'Products',
 
-    'home.section.viewAll': 'View All {title}',
+    'home.section.viewAll': 'View All',
     'home.section.discoverLocal': 'Discover Local Products',
 
     // Local Products page (/local-products)
@@ -537,7 +537,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Produk',
     'home.categories.products': 'Produk',
 
-    'home.section.viewAll': 'Lihat Semua {title}',
+    'home.section.viewAll': 'Lihat Semua',
     'home.section.discoverLocal': 'Jelajahi Produk Lokal',
 
     // Local Products page (/local-products)
@@ -717,7 +717,7 @@ export const translations: Record<Locale, Dictionary> = {
     'home.categories.product': 'Produto',
     'home.categories.products': 'Produtos',
 
-    'home.section.viewAll': 'Ver Tudo: {title}',
+    'home.section.viewAll': 'Ver Tudo',
     'home.section.discoverLocal': 'Descobre Produtos Locais',
 
     // Local Products page (/local-products)
