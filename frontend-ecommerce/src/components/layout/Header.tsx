@@ -235,15 +235,28 @@ export function Header() {
             <div className="flex shrink-0 items-center gap-1">
               {/* Theme Toggle removed from here - moved to TopHeader */}
 
-              {/* Wishlist — now shown at every breakpoint per the approved
-                  reference design (Notification/Wishlist/Menu is the
-                  mobile action set); still also reachable via bottom nav's
-                  "Deseju" tab and the hamburger menu, same as before. */}
-              <Link href="/account/wishlist">
-                <Button variant="ghost" size="icon" className="h-11 w-11 text-slate-700 hover:bg-slate-100 hover:text-slate-900" aria-label="Wishlist">
-                  <Heart className="h-5 w-5" />
-                </Button>
-              </Link>
+              {/* Cart — mobile's action-row equivalent of the desktop-only
+                  cart icon further down (md:inline-flex); md:hidden here so
+                  the two never render side by side. Opens the same
+                  CartDrawer/cart state either way — one cart entry point's
+                  worth of behavior, not a second one. Wishlist moved out of
+                  the header's mobile icon row (still reachable via bottom
+                  nav's "Deseju" tab and the hamburger menu) in favor of
+                  cart, which a shopper reaches for far more often. */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-11 w-11 text-slate-700 hover:bg-slate-100 hover:text-slate-900 md:hidden"
+                onClick={() => setCartOpen(true)}
+                aria-label="Cart"
+              >
+                <ShoppingCart className="h-5 w-5" strokeWidth={2} />
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
+                    {totalItems > 9 ? '9+' : totalItems}
+                  </Badge>
+                )}
+              </Button>
 
               {/* Notifications */}
               {isAuthenticated && (
