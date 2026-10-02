@@ -240,7 +240,7 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
 
   return (
     <div ref={wrapperRef} className={cn('relative', className)}>
-      <form onSubmit={handleSubmit} className="relative flex items-center">
+      <form onSubmit={handleSubmit} className="relative flex w-full items-center">
         {/* Fixed white/slate colors here (not theme tokens) — this pill
             always sits on Header's light brand surface regardless of
             light/dark theme, so it needs to stay legible against that one
@@ -252,44 +252,58 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             most browsers), so this is the standard two-layer trick — an
             outer pill filled with the gradient, padded by exactly the
             border thickness (1.5px), with the real white pill sitting
-            inside it. The inner layer is what actually clips content to
-            the rounded shape and carries the shadow/focus ring. */}
-        <div className="rounded-full bg-gradient-to-r from-[#16A34A] to-[#2563EB] p-[1.5px] shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-shadow focus-within:shadow-[0_4px_16px_rgba(15,23,42,0.1)]">
-        <div className="relative flex w-full items-center rounded-full bg-white p-2 focus-within:ring-1 focus-within:ring-[#16A34A]/30">
-          <Search className="pointer-events-none absolute left-4 h-5 w-5 shrink-0 text-[#16A34A]" />
-          <input
-            type="text"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onFocus={handleFocus}
-            placeholder={t('search.placeholder')}
-            autoFocus={autoFocus}
-            disabled={isSearching}
-            autoComplete="off"
-            className="h-12 w-full flex-1 truncate bg-transparent pl-11 pr-2 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 sm:h-14"
-          />
-          <button
-            type="button"
-            onClick={handleCameraClick}
-            aria-label="Search by image"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
-          >
-            <Camera className="h-5 w-5" />
-          </button>
-          <div aria-hidden className="mx-1.5 h-6 w-px shrink-0 bg-slate-200" />
-          <button
-            type="submit"
-            disabled={isSearching || !trimmedValue}
-            className="flex h-12 w-12 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
-          >
-            {isSearching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-[18px] w-[18px]" />
-            )}
-            <span className="hidden text-xs font-medium sm:inline">Search AI</span>
-          </button>
-        </div>
+            inside it. Both layers need `w-full` (the earlier version only
+            had it on the inner one, so the outer gradient pill shrank to
+            fit instead of matching the inner pill's width — the
+            misaligned/double-border look this replaces). `overflow-hidden`
+            on both layers guarantees nothing — gradient, white fill, the
+            input's own focus box — can ever poke out past the pill shape.
+            One component, one visible border; focus feedback is a shadow
+            bump on the outer layer only, not a second ring on the inner
+            one. */}
+        <div className="relative flex w-full items-center overflow-hidden rounded-full bg-gradient-to-r from-[#16A34A] to-[#2563EB] p-[1.5px] shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-shadow focus-within:shadow-[0_4px_16px_rgba(15,23,42,0.1)]">
+          <div className="relative flex w-full items-center overflow-hidden rounded-full bg-white px-2 py-2">
+            <Search className="pointer-events-none absolute left-4 h-5 w-5 shrink-0 text-[#16A34A]" />
+            {/* globals.css sets a sitewide `*:focus-visible` ring (real
+                accessibility feature, left alone everywhere else) — but a
+                plain <input> has no border-radius of its own, so that ring
+                rendered as a sharp rectangle cutting across this pill. The
+                outer gradient pill already bumps its shadow on focus, so
+                this is a redundant indicator, not a missing one: scoped
+                back off just on this input via a more specific class. */}
+            <input
+              type="text"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              onFocus={handleFocus}
+              placeholder={t('search.placeholder')}
+              autoFocus={autoFocus}
+              disabled={isSearching}
+              autoComplete="off"
+              className="h-12 w-full flex-1 truncate border-0 bg-transparent pl-11 pr-2 text-[15px] text-slate-900 outline-none ring-0 placeholder:text-slate-400 disabled:opacity-60 sm:h-14 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <button
+              type="button"
+              onClick={handleCameraClick}
+              aria-label="Search by image"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+            <div aria-hidden className="mx-1.5 h-6 w-px shrink-0 bg-slate-200" />
+            <button
+              type="submit"
+              disabled={isSearching || !trimmedValue}
+              className="flex h-12 w-12 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
+            >
+              {isSearching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="h-[18px] w-[18px]" />
+              )}
+              <span className="hidden text-xs font-medium sm:inline">Search AI</span>
+            </button>
+          </div>
         </div>
       </form>
 
