@@ -105,7 +105,11 @@ export function FlashSaleProductCard({ product, priority = false }: FlashSalePro
       </div>
 
       <Link href={`/products/${product.slug}`} className="block p-2.5">
-        <div className="flex items-baseline gap-1">
+        <h3 className="line-clamp-2 min-h-[2rem] text-xs font-medium leading-tight text-foreground">
+          {product.name}
+        </h3>
+
+        <div className="mt-1.5 flex items-baseline gap-1">
           {pricing.hasPromotion && <TicketPercent className="h-3.5 w-3.5 shrink-0 text-red-600" />}
           <span className="truncate text-base font-bold text-red-600">${pricing.currentPrice.toFixed(2)}</span>
         </div>
@@ -115,21 +119,36 @@ export function FlashSaleProductCard({ product, priority = false }: FlashSalePro
           </span>
         )}
 
-        {/* Urgency/social-proof pill — only ever one of these, and only when
-            there's real data behind it. Never shown for a healthy-stock
-            product with no recorded sales; no empty/fake pill rendered. */}
-        {!isOutOfStock && (isLowStock || soldCount > 0) && (
-          <div
-            className={cn(
-              'mt-2 flex h-5 items-center justify-center gap-1 rounded-full text-[10px] font-semibold',
-              isLowStock
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-                : 'bg-orange-100 text-orange-700',
-            )}
-          >
-            <Flame className="h-2.5 w-2.5" />
-            {isLowStock ? t('product.onlyLeft', { count: product.stock }) : `${soldCount} sold`}
+        {/* Sold/stock progress bar — Shopee-style, but the fill is a real
+            ratio (soldCount / (soldCount + remaining stock)), never an
+            arbitrary number: neither Promotion nor Product carries an
+            original flash-sale allocation to compute a "X% claimed" figure
+            against (checked schema.prisma), so this is the honest
+            equivalent — actual units sold vs. actual units left. Shown
+            whenever there's a real sold count to report; a healthy-stock
+            item with zero recorded sales just shows an empty bar, which is
+            still true, not hidden to fake momentum. "Terbatas" is a
+            separate, independently-real signal (actual stock <= 5) — never
+            implied by the bar itself. */}
+        {!isOutOfStock && soldCount > 0 && (
+          <div className="mt-2">
+            <div className="flex items-center gap-1 text-[10px] font-medium text-orange-700">
+              <Flame className="h-2.5 w-2.5 shrink-0" />
+              {soldCount} Terjual
+            </div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500"
+                style={{ width: `${Math.min(Math.max((soldCount / (soldCount + product.stock)) * 100, 6), 95)}%` }}
+              />
+            </div>
           </div>
+        )}
+
+        {isLowStock && (
+          <span className="mt-1.5 inline-block rounded-sm bg-red-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-600">
+            Terbatas
+          </span>
         )}
       </Link>
     </div>
