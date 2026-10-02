@@ -164,32 +164,34 @@ export function Header() {
           <div aria-hidden className="pointer-events-none absolute -left-12 bottom-0 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
 
           <div className="container-custom relative">
-          <div className="flex h-16 items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 py-3 sm:py-4">
             {/* Logo — the site name/logo are admin-editable (Settings → General),
                 so this reads real data instead of a hardcoded brand. min-w-0
                 (+ truncate below) lets long site names shrink gracefully on
                 narrow phones instead of overflowing, now that the wordmark
-                and tagline are shown at every breakpoint, not just sm:+. */}
-            <Link href="/" className="flex min-w-0 items-center gap-2.5 sm:flex-shrink-0">
+                and tagline are shown at every breakpoint, not just sm:+.
+                Sized to be the header's dominant element (not a small
+                favicon-sized chip) — brand name/logo are the first thing a
+                shopper should register here. */}
+            <Link href="/" className="flex min-w-0 items-center gap-3 sm:flex-shrink-0">
               {publicSettings?.logoUrl ? (
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white/10 ring-1 ring-white/30">
-                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="40px" className="object-contain" />
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/10 ring-1 ring-white/30">
+                  <Image src={publicSettings.logoUrl} alt={publicSettings.siteName} fill sizes="56px" className="object-contain" />
                 </div>
               ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm">
-                  <span className="text-[#16A34A] font-bold text-sm">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                  <span className="text-xl font-bold text-[#16A34A]">
                     {(publicSettings?.siteName || 'E').charAt(0).toUpperCase()}
                   </span>
                 </div>
               )}
               <div className="min-w-0">
-                <span className="block truncate text-lg font-extrabold leading-tight text-white sm:text-xl">
+                <span className="block truncate text-xl font-extrabold leading-tight text-white sm:text-2xl">
                   {publicSettings?.siteName || 'E-Commerce'}
                 </span>
-                <span className="block truncate text-[11px] font-medium leading-tight text-white/95 sm:text-xs">
+                <span className="block truncate text-xs font-medium leading-tight text-white/95 sm:text-sm">
                   {t('header.tagline')}
                 </span>
-                <span aria-hidden className="mt-1 block h-0.5 w-8 rounded-full bg-[#4ADE80]" />
               </div>
             </Link>
 
@@ -240,8 +242,8 @@ export function Header() {
                   mobile action set); still also reachable via bottom nav's
                   "Deseju" tab and the hamburger menu, same as before. */}
               <Link href="/account/wishlist">
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-white hover:bg-white/15 hover:text-white" aria-label="Wishlist">
-                  <Heart className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-11 w-11 text-white hover:bg-white/15 hover:text-white" aria-label="Wishlist">
+                  <Heart className="h-5 w-5" />
                 </Button>
               </Link>
 
@@ -249,8 +251,8 @@ export function Header() {
               {isAuthenticated && (
                 <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative h-9 w-9 text-white hover:bg-white/15 hover:text-white" aria-label="Notifications">
-                      <Bell className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="relative h-11 w-11 text-white hover:bg-white/15 hover:text-white" aria-label="Notifications">
+                      <Bell className="h-5 w-5" />
                       {unreadCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-1 text-[10px] bg-red-600">
                           {unreadCount > 9 ? '9+' : unreadCount}
@@ -440,11 +442,11 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden h-9 w-9 text-white hover:bg-white/15 hover:text-white"
+                className="md:hidden h-11 w-11 text-white hover:bg-white/15 hover:text-white"
                 onClick={() => setMobileNavOpen(true)}
                 aria-label="Open menu"
               >
-                <Menu className="h-4 w-4" />
+                <Menu className="h-5 w-5" />
               </Button>
             </div>
           </div>

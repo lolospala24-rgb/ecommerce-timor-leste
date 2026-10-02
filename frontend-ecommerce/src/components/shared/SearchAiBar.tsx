@@ -245,8 +245,8 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             always sits on Header's fixed brand gradient regardless of
             light/dark theme, so it needs to stay legible against that one
             background rather than following the page theme. */}
-        <div className="relative flex w-full items-center rounded-full border border-white/75 bg-white p-1.5 shadow-[0_6px_20px_rgba(15,23,42,0.08)] transition-shadow focus-within:shadow-[0_8px_24px_rgba(15,23,42,0.12)] focus-within:ring-1 focus-within:ring-[#16A34A]/30">
-          <Search className="pointer-events-none absolute left-4 h-[18px] w-[18px] shrink-0 text-[#16A34A]" />
+        <div className="relative flex w-full items-center rounded-full border border-white/75 bg-white p-2 shadow-[0_6px_20px_rgba(15,23,42,0.08)] transition-shadow focus-within:shadow-[0_8px_24px_rgba(15,23,42,0.12)] focus-within:ring-1 focus-within:ring-[#16A34A]/30">
+          <Search className="pointer-events-none absolute left-4 h-5 w-5 shrink-0 text-[#16A34A]" />
           <input
             type="text"
             value={value}
@@ -256,26 +256,26 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             autoFocus={autoFocus}
             disabled={isSearching}
             autoComplete="off"
-            className="h-11 w-full flex-1 truncate bg-transparent pl-11 pr-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 sm:h-12"
+            className="h-12 w-full flex-1 truncate bg-transparent pl-11 pr-2 text-[15px] text-slate-900 outline-none placeholder:text-slate-400 disabled:opacity-60 sm:h-14"
           />
           <button
             type="button"
             onClick={handleCameraClick}
             aria-label="Search by image"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
           >
-            <Camera className="h-[18px] w-[18px]" />
+            <Camera className="h-5 w-5" />
           </button>
           <div aria-hidden className="mx-1.5 h-6 w-px shrink-0 bg-slate-200" />
           <button
             type="submit"
             disabled={isSearching || !trimmedValue}
-            className="flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
+            className="flex h-12 w-12 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
           >
             {isSearching ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Search className="h-4 w-4" />
+              <Search className="h-[18px] w-[18px]" />
             )}
             <span className="hidden text-xs font-medium sm:inline">Search AI</span>
           </button>
