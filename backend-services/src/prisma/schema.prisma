@@ -680,6 +680,15 @@ model OrderItem {
   // never re-reads it.
   originalPrice Float?
   promotionId   Int?
+  // Which tier `price` came from, independent of promotionId: Promotion
+  // already has its own dedicated signal (promotionId != null) — this only
+  // distinguishes NORMAL vs WHOLESALE, never a third "PROMOTION" value (that
+  // would just duplicate promotionId). Set once by PromotionsService.
+  // resolveUnitPrice at order-creation time and never re-derived afterward,
+  // same immutable-snapshot reasoning as originalPrice/promotionId above —
+  // a seller changing/clearing Product.wholesalePrice later must never
+  // retroactively change what a historical order shows.
+  priceSource PriceSource @default(NORMAL)
   createdAt DateTime @default(now())
 
   // Relations
@@ -697,6 +706,14 @@ model OrderItem {
   @@index([variantId])
   @@index([promotionId])
   @@map("order_items")
+}
+
+// NORMAL vs WHOLESALE only — Promotion already has its own signal
+// (OrderItem.promotionId), so there is deliberately no PROMOTION value
+// here; adding one would just duplicate what promotionId already says.
+enum PriceSource {
+  NORMAL
+  WHOLESALE
 }
 
 enum CouponDiscountType {

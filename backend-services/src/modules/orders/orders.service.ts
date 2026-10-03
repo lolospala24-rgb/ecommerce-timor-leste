@@ -117,15 +117,13 @@ export class OrdersService {
       const group = sellerGroups.get(sellerId);
       const basePrice = item.variant?.price ?? item.product.price;
       const promo = promotionMap.get(item.product.id) ?? null;
-      const unitPrice = item.variant
-        ? this.promotionsService.computeEffectivePrice(basePrice, promo)
-        : this.promotionsService.resolveUnitPrice(
-            basePrice,
-            promo,
-            item.quantity,
-            item.product.wholesalePrice,
-            item.product.wholesaleMinQty,
-          );
+      const { price: unitPrice } = this.promotionsService.resolveUnitPrice(
+        basePrice,
+        promo,
+        item.quantity,
+        item.variant ? null : item.product.wholesalePrice,
+        item.variant ? null : item.product.wholesaleMinQty,
+      );
       group.items.push(item);
       group.subtotal += item.quantity * unitPrice;
     }
@@ -338,15 +336,13 @@ export class OrdersService {
           create: group.items.map((item) => {
             const basePrice = item.variant?.price ?? item.product.price;
             const promo = promotionMap.get(item.productId) ?? null;
-            const unitPrice = item.variant
-              ? this.promotionsService.computeEffectivePrice(basePrice, promo)
-              : this.promotionsService.resolveUnitPrice(
-                  basePrice,
-                  promo,
-                  item.quantity,
-                  item.product.wholesalePrice,
-                  item.product.wholesaleMinQty,
-                );
+            const { price: unitPrice, source: priceSource } = this.promotionsService.resolveUnitPrice(
+              basePrice,
+              promo,
+              item.quantity,
+              item.variant ? null : item.product.wholesalePrice,
+              item.variant ? null : item.product.wholesaleMinQty,
+            );
             return {
               productId: item.productId,
               variantId: item.variantId ?? null,
@@ -358,6 +354,11 @@ export class OrdersService {
               // promotionId is traceability only, never re-read for pricing.
               originalPrice: promo ? Math.round(basePrice * 100) / 100 : null,
               promotionId: promo ? promo.id : null,
+              // NORMAL vs WHOLESALE only, straight from resolveUnitPrice —
+              // never re-derived here. Promotion already has its own
+              // signal (promotionId above); priceSource never becomes a
+              // third "PROMOTION" value (see resolveUnitPrice's comment).
+              priceSource,
             };
           }),
         },

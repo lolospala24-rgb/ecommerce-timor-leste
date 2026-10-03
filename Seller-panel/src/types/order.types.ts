@@ -16,6 +16,15 @@ export interface OrderItem {
   quantity: number;
   price: number;
   total: number;
+  // Only set when a Promotion discounted this line — the single source of
+  // truth for "was this a Promotion-priced item" (never duplicated by
+  // priceSource below).
+  originalPrice?: number | null;
+  promotionId?: number | null;
+  // NORMAL vs WHOLESALE only — see backend's OrderItem.priceSource
+  // doc-comment. Check promotionId first when labeling a line in the UI;
+  // this field never takes the value "PROMOTION".
+  priceSource?: 'NORMAL' | 'WHOLESALE';
   createdAt: string;
   product: {
     id: number;

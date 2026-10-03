@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `order_items` ADD COLUMN `priceSource` ENUM('NORMAL', 'WHOLESALE') NOT NULL DEFAULT 'NORMAL';

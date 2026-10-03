@@ -93,19 +93,21 @@ export class CartsService {
     const enrichedItems = cart.items.map((item: any) => {
       const promo = promotionMap.get(item.product.id) ?? null;
       // Wholesale only applies to the simple product price, never a
-      // variant's own price (see resolveUnitPrice's comment).
-      const productEffectivePrice = item.variant
-        ? this.promotionsService.computeEffectivePrice(item.product.price, promo)
-        : this.promotionsService.resolveUnitPrice(
-            item.product.price,
-            promo,
-            item.quantity,
-            item.product.wholesalePrice,
-            item.product.wholesaleMinQty,
-          );
+      // variant's own price (see resolveUnitPrice's comment) — omit the
+      // wholesale fields entirely for a variant line rather than branching
+      // to a different pricing function, so there's exactly one place
+      // (resolveUnitPrice) that ever decides Promotion vs Wholesale vs
+      // Normal.
+      const { price: productEffectivePrice, source: priceSource } = this.promotionsService.resolveUnitPrice(
+        item.product.price,
+        promo,
+        item.quantity,
+        item.variant ? null : item.product.wholesalePrice,
+        item.variant ? null : item.product.wholesaleMinQty,
+      );
       return {
         ...item,
-        product: { ...item.product, effectivePrice: productEffectivePrice, promotion: promo },
+        product: { ...item.product, effectivePrice: productEffectivePrice, promotion: promo, priceSource },
         variant: item.variant
           ? { ...item.variant, effectivePrice: this.promotionsService.computeEffectivePrice(item.variant.price, promo) }
           : item.variant,
@@ -411,15 +413,13 @@ export class CartsService {
     for (const item of items) {
       const basePrice = item.variant?.price ?? item.product.price;
       const promo = promotionMap.get(item.product.id) ?? null;
-      const unitPrice = item.variant
-        ? this.promotionsService.computeEffectivePrice(basePrice, promo)
-        : this.promotionsService.resolveUnitPrice(
-            basePrice,
-            promo,
-            item.quantity,
-            item.product.wholesalePrice,
-            item.product.wholesaleMinQty,
-          );
+      const { price: unitPrice, source: priceSource } = this.promotionsService.resolveUnitPrice(
+        basePrice,
+        promo,
+        item.quantity,
+        item.variant ? null : item.product.wholesalePrice,
+        item.variant ? null : item.product.wholesaleMinQty,
+      );
       const itemTotal = item.quantity * unitPrice;
       subtotal += itemTotal;
       totalItems += item.quantity;
@@ -442,6 +442,10 @@ export class CartsService {
         nameTetum: item.product.nameTetum,
         quantity: item.quantity,
         price: unitPrice,
+        // NORMAL vs WHOLESALE — see resolveUnitPrice's comment. Promotion
+        // is signaled separately via `promotion` below, never folded into
+        // this field.
+        priceSource,
         // Only set when a promotion is actually discounting this line —
         // the crossed-out "was" price the cart page shows next to `price`.
         originalPrice: promo ? Math.round(basePrice * 100) / 100 : null,

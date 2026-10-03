@@ -161,6 +161,18 @@ export function OrderDetailModal({ orderId, open, onClose, onRefresh }: OrderDet
                           <div className="text-right">
                             <p className="text-sm">{item.quantity} x ${Number(item.price ?? 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                             <p className="font-medium">${Number(item.total ?? 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            {/* promotionId is the existing, sole signal for Promotion — priceSource
+                                only distinguishes Normal vs Wholesale, never a 3rd "Promotion" value. */}
+                            <Badge
+                              variant="outline"
+                              className="mt-1 text-[10px] font-normal"
+                            >
+                              {item.promotionId != null
+                                ? 'Promotion'
+                                : item.priceSource === 'WHOLESALE'
+                                  ? 'Wholesale'
+                                  : 'Normal'}
+                            </Badge>
                           </div>
                         </div>
                       );

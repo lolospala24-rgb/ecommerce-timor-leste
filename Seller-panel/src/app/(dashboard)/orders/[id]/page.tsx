@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { OrderStatusBadge, ShippingStatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -81,7 +82,18 @@ export default function OrderDetailPage() {
                       {item.quantity} × ${item.price.toFixed(2)}
                     </p>
                   </div>
-                  <p className="text-sm font-medium tabular-nums">${item.total.toFixed(2)}</p>
+                  <div className="text-right">
+                    <p className="text-sm font-medium tabular-nums">${item.total.toFixed(2)}</p>
+                    {/* promotionId is the existing, sole signal for Promotion — priceSource
+                        only distinguishes Normal vs Wholesale, never a 3rd "Promotion" value. */}
+                    <Badge variant="outline" className="mt-1 text-[10px] font-normal">
+                      {item.promotionId != null
+                        ? 'Promotion'
+                        : item.priceSource === 'WHOLESALE'
+                          ? 'Wholesale'
+                          : 'Normal'}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>
