@@ -514,6 +514,11 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                     <span className="font-semibold text-primary">{product.salesCount}</span> sold
                   </span>
                 ),
+                displayStock > 0 && (
+                  <span key="stock">
+                    Tersisa <span className="font-semibold text-foreground">{displayStock}</span>
+                  </span>
+                ),
                 displaySku && (
                   <span key="sku">
                     SKU: <span className="font-mono text-foreground">{displaySku}</span>
@@ -586,7 +591,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             {displayStock > 0 ? (
               <p className="flex items-center gap-1.5 text-sm font-medium text-green-700">
                 <Check className="h-4 w-4" />
-                In stock — {displayStock} available
+                In stock
               </p>
             ) : (
               <div className="space-y-2">
@@ -1129,6 +1134,15 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </p>
             )}
           </div>
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-11 w-11 shrink-0 border-muted-foreground/20 text-muted-foreground hover:text-red-600"
+            onClick={handleWishlistToggle}
+            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <Heart className={cn('h-5 w-5', isWishlisted && 'fill-red-600 text-red-600')} />
+          </Button>
           <Button
             size="icon"
             variant="outline"

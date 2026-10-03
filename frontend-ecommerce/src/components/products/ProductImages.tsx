@@ -283,11 +283,11 @@ export function ProductImages({
               )}
             </div>
 
-            {/* Image counter */}
+            {/* Image counter — top-right, matching the reference design */}
             {!activeVideoUrl && carouselImages.length > 1 && (
               <Badge
                 variant="secondary"
-                className="absolute bottom-3 left-3 z-10 bg-background/90 text-xs font-medium shadow-sm backdrop-blur-sm pointer-events-none"
+                className="absolute right-3 top-3 z-10 bg-background/90 text-xs font-medium shadow-sm backdrop-blur-sm pointer-events-none"
               >
                 {currentIndex + 1} / {carouselImages.length}
               </Badge>
