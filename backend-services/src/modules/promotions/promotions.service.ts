@@ -402,6 +402,30 @@ export class PromotionsService {
     return Math.round(Math.max(raw, 0) * 100) / 100;
   }
 
+  // Quantity-tiered pricing for cart/order line items. An active Promotion
+  // always wins — it's time-limited campaign pricing, which should take
+  // priority over a seller's standing wholesale offer. Only when no
+  // promotion applies AND the line's quantity meets the product's own
+  // wholesaleMinQty does wholesalePrice replace the regular price.
+  // wholesalePrice/wholesaleMinQty come straight from Product (the same
+  // fields shown as reference pricing on Product Detail's "Bulk &
+  // packaging options" block) — never fabricated, never quantity-tiered
+  // for a variant (same "which variant would this even describe" reasoning
+  // that already scopes the reference display to simple products only).
+  resolveUnitPrice(
+    basePrice: number,
+    promo: { discountType: PromotionDiscountType; discountValue: number } | null,
+    quantity: number,
+    wholesalePrice?: number | null,
+    wholesaleMinQty?: number | null,
+  ): number {
+    if (promo) return this.computeEffectivePrice(basePrice, promo);
+    if (wholesalePrice != null && wholesaleMinQty != null && quantity >= wholesaleMinQty) {
+      return Math.round(wholesalePrice * 100) / 100;
+    }
+    return this.computeEffectivePrice(basePrice, null);
+  }
+
   // Enriches a list of products (as returned by ProductsService) with a
   // `promotion` summary (or null) and an `effectivePrice` — and, when a
   // product has variants, the same `effectivePrice` added to each variant

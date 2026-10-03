@@ -92,9 +92,20 @@ export class CartsService {
 
     const enrichedItems = cart.items.map((item: any) => {
       const promo = promotionMap.get(item.product.id) ?? null;
+      // Wholesale only applies to the simple product price, never a
+      // variant's own price (see resolveUnitPrice's comment).
+      const productEffectivePrice = item.variant
+        ? this.promotionsService.computeEffectivePrice(item.product.price, promo)
+        : this.promotionsService.resolveUnitPrice(
+            item.product.price,
+            promo,
+            item.quantity,
+            item.product.wholesalePrice,
+            item.product.wholesaleMinQty,
+          );
       return {
         ...item,
-        product: { ...item.product, effectivePrice: this.promotionsService.computeEffectivePrice(item.product.price, promo), promotion: promo },
+        product: { ...item.product, effectivePrice: productEffectivePrice, promotion: promo },
         variant: item.variant
           ? { ...item.variant, effectivePrice: this.promotionsService.computeEffectivePrice(item.variant.price, promo) }
           : item.variant,
@@ -400,7 +411,15 @@ export class CartsService {
     for (const item of items) {
       const basePrice = item.variant?.price ?? item.product.price;
       const promo = promotionMap.get(item.product.id) ?? null;
-      const unitPrice = this.promotionsService.computeEffectivePrice(basePrice, promo);
+      const unitPrice = item.variant
+        ? this.promotionsService.computeEffectivePrice(basePrice, promo)
+        : this.promotionsService.resolveUnitPrice(
+            basePrice,
+            promo,
+            item.quantity,
+            item.product.wholesalePrice,
+            item.product.wholesaleMinQty,
+          );
       const itemTotal = item.quantity * unitPrice;
       subtotal += itemTotal;
       totalItems += item.quantity;

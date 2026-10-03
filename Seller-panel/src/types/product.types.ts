@@ -66,6 +66,12 @@ export interface SellerProduct {
   videoUrl: string | null;
   weight: number | null;
   brand: string | null;
+  // Reference wholesale pricing shown on the storefront's Product Detail
+  // page, and — once a cart/order quantity meets wholesaleMinQty — actually
+  // applied as the real per-unit charge server-side. Both null/unset means
+  // no wholesale tier for this product.
+  wholesalePrice: number | null;
+  wholesaleMinQty: number | null;
   specifications: Record<string, unknown> | null;
   hasVariants: boolean;
   isActive: boolean;
@@ -108,6 +114,8 @@ export interface CreateProductPayload {
   barcode?: string;
   weight?: number;
   brand?: string;
+  wholesalePrice?: number | null;
+  wholesaleMinQty?: number | null;
   categoryId: number;
   typeId?: number;
   isActive?: boolean;

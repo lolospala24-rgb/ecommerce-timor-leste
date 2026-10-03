@@ -65,10 +65,15 @@ export function ProductForm({ initialData }: ProductFormProps) {
     lowStockThreshold: initialData?.lowStockThreshold?.toString() ?? '10',
     isActive: initialData?.isActive ?? true,
     isFeatured: initialData?.isFeatured ?? false,
+    wholesalePrice: initialData?.wholesalePrice?.toString() ?? '',
+    wholesaleMinQty: initialData?.wholesaleMinQty?.toString() ?? '',
   });
   const [images, setImages] = useState<string[]>(initialData?.images ?? []);
   const [specRows, setSpecRows] = useState<SpecRow[]>(() => toSpecRows(initialData?.specifications));
   const [requestTypeOpen, setRequestTypeOpen] = useState(false);
+  const [wholesaleEnabled, setWholesaleEnabled] = useState(
+    initialData?.wholesalePrice != null && initialData?.wholesaleMinQty != null,
+  );
 
   const selectedType = productTypes?.find((t) => t.id === Number(form.typeId));
   // Advisory quick-add chips only — never forces a type's fields into the
@@ -121,6 +126,8 @@ export function ProductForm({ initialData }: ProductFormProps) {
       isActive: form.isActive,
       isFeatured: form.isFeatured,
       images,
+      wholesalePrice: wholesaleEnabled && form.wholesalePrice ? Number(form.wholesalePrice) : null,
+      wholesaleMinQty: wholesaleEnabled && form.wholesaleMinQty ? Number(form.wholesaleMinQty) : null,
     };
 
     if (isEdit && initialData) {
@@ -219,6 +226,69 @@ export function ProductForm({ initialData }: ProductFormProps) {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-lg border bg-card p-5">
+            <h3 className="mb-1 font-medium">Wholesale Pricing</h3>
+            <p className="mb-4 text-xs text-muted-foreground">
+              Offer a lower per-unit price when a buyer orders a large quantity. Shown on the product page as
+              reference pricing, and automatically applied at checkout once a buyer's cart quantity meets the
+              minimum below — unless a Flash Sale is active on this product, which always takes priority.
+            </p>
+            <label className="mb-3 flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={wholesaleEnabled}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setWholesaleEnabled(checked);
+                  if (!checked) {
+                    set('wholesalePrice', '');
+                    set('wholesaleMinQty', '');
+                  }
+                }}
+              />
+              This product has wholesale pricing
+            </label>
+            {wholesaleEnabled && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="wholesalePrice">Wholesale price (USD) *</Label>
+                  <Input
+                    id="wholesalePrice"
+                    type="number"
+                    required={wholesaleEnabled}
+                    min="0.01"
+                    step="0.01"
+                    value={form.wholesalePrice}
+                    onChange={(e) => set('wholesalePrice', e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground">Per-unit price at the minimum quantity</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wholesaleMinQty">Minimum quantity *</Label>
+                  <Input
+                    id="wholesaleMinQty"
+                    type="number"
+                    required={wholesaleEnabled}
+                    min="2"
+                    step="1"
+                    value={form.wholesaleMinQty}
+                    onChange={(e) => set('wholesaleMinQty', e.target.value)}
+                    placeholder="e.g. 10"
+                  />
+                </div>
+                {Number(form.wholesalePrice) > 0 && Number(form.wholesaleMinQty) > 0 && (
+                  <p className="sm:col-span-2 text-xs text-muted-foreground">
+                    Preview:{' '}
+                    <span className="font-medium text-foreground">
+                      Buy {form.wholesaleMinQty}+ units — ${Number(form.wholesalePrice).toFixed(2)}/unit
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border bg-card p-5">

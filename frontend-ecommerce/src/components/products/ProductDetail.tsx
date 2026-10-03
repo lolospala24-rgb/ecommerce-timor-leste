@@ -172,15 +172,19 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       ? Math.min(Math.max((flashSaleSoldCount / (flashSaleSoldCount + displayStock)) * 100, 6), 95)
       : 0;
 
-  // Wholesale/packaging pricing is reference information entered by the
-  // seller — it is not purchasable through Add to Cart/Buy Now at these
-  // rates (those always charge displayPrice), so it's only shown for
-  // simple products, where "the product's price" is unambiguous. For a
-  // variant product, which variant's packaging would this even describe?
+  // Packaging pricing is still reference-only (not purchasable through Add
+  // to Cart/Buy Now) — contact the seller directly for a package order.
+  // Wholesale, unlike packaging, IS real: the backend's cart/order pricing
+  // (carts.service.ts/orders.service.ts resolveUnitPrice) automatically
+  // charges wholesalePrice once quantity meets wholesaleMinQty, unless a
+  // Flash Sale promotion is active (which always takes priority). Both are
+  // only shown for simple products — for a variant product, which
+  // variant's wholesale/packaging would this even describe?
   const hasWholesaleInfo = !hasVariants && !!product.wholesalePrice && !!product.wholesaleMinQty;
   const hasPackagingInfo =
     !hasVariants && !!product.packagingName && !!product.packagingUnitCount && !!product.packagingPrice;
   const packagingPerUnit = hasPackagingInfo ? product.packagingPrice! / product.packagingUnitCount! : 0;
+  const isWholesaleActive = hasWholesaleInfo && quantity >= product.wholesaleMinQty! && !isFlashSale;
 
   // Server-resolved (resolveProductOrigin) — never re-derived here. Section
   // is hidden entirely for non-local products, and doesn't render an empty
@@ -619,20 +623,30 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             </div>
           )}
 
-          {/* Wholesale / packaging — informational reference pricing only;
-              Add to Cart / Buy Now always charge displayPrice regardless of
-              what's shown here. The seller's contact button further down
-              the page is the correct next step for a bulk order. */}
+          {/* Wholesale is real — automatically charged in cart/checkout once
+              quantity meets the minimum (unless Flash Sale is active).
+              Packaging stays informational only; contact the seller for
+              that. */}
           {(hasWholesaleInfo || hasPackagingInfo) && (
-            <div className="space-y-2 rounded-lg border border-dashed p-4">
+            <div
+              className={cn(
+                'space-y-2 rounded-lg border p-4',
+                isWholesaleActive ? 'border-green-300 bg-green-50/60' : 'border-dashed',
+              )}
+            >
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Package className="h-4 w-4 text-primary" />
                 Bulk &amp; packaging options
               </div>
               {hasWholesaleInfo && (
-                <p className="text-sm text-muted-foreground">
+                <p className={cn('text-sm', isWholesaleActive ? 'font-medium text-green-700' : 'text-muted-foreground')}>
                   Buy <span className="font-semibold text-foreground">{product.wholesaleMinQty}+ units</span> for{' '}
                   <span className="font-semibold text-foreground">${product.wholesalePrice!.toFixed(2)} each</span>
+                  {isWholesaleActive && (
+                    <span className="ml-1.5 inline-flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" /> Applied to your quantity
+                    </span>
+                  )}
                 </p>
               )}
               {hasPackagingInfo && (
@@ -645,7 +659,12 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                These are reference prices — contact the seller below to place a bulk or package order.
+                {hasWholesaleInfo &&
+                  (isFlashSale
+                    ? 'Flash Sale pricing is active and takes priority over wholesale right now.'
+                    : 'Wholesale pricing is applied automatically once your quantity meets the minimum.')}
+                {hasWholesaleInfo && hasPackagingInfo && ' '}
+                {hasPackagingInfo && 'Package pricing is a reference price — contact the seller below to place a package order.'}
               </p>
             </div>
           )}

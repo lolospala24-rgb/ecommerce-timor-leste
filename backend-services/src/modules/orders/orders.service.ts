@@ -116,10 +116,16 @@ export class OrdersService {
       }
       const group = sellerGroups.get(sellerId);
       const basePrice = item.variant?.price ?? item.product.price;
-      const unitPrice = this.promotionsService.computeEffectivePrice(
-        basePrice,
-        promotionMap.get(item.product.id) ?? null,
-      );
+      const promo = promotionMap.get(item.product.id) ?? null;
+      const unitPrice = item.variant
+        ? this.promotionsService.computeEffectivePrice(basePrice, promo)
+        : this.promotionsService.resolveUnitPrice(
+            basePrice,
+            promo,
+            item.quantity,
+            item.product.wholesalePrice,
+            item.product.wholesaleMinQty,
+          );
       group.items.push(item);
       group.subtotal += item.quantity * unitPrice;
     }
@@ -332,7 +338,15 @@ export class OrdersService {
           create: group.items.map((item) => {
             const basePrice = item.variant?.price ?? item.product.price;
             const promo = promotionMap.get(item.productId) ?? null;
-            const unitPrice = this.promotionsService.computeEffectivePrice(basePrice, promo);
+            const unitPrice = item.variant
+              ? this.promotionsService.computeEffectivePrice(basePrice, promo)
+              : this.promotionsService.resolveUnitPrice(
+                  basePrice,
+                  promo,
+                  item.quantity,
+                  item.product.wholesalePrice,
+                  item.product.wholesaleMinQty,
+                );
             return {
               productId: item.productId,
               variantId: item.variantId ?? null,
