@@ -15,6 +15,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { QuantitySelector } from './QuantitySelector';
 import { ProductVariantSelector } from './ProductVariantSelector';
 import { ProductImages } from './ProductImages';
@@ -325,6 +326,33 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
   const buyDisabled = displayStock === 0 || (hasVariants && !selectedVariant);
 
+  // Real copy only, same claims the page already made before — just
+  // consolidated into the single "Jaminan & Perlindungan" accordion
+  // instead of being split across two separate spots on the page (a
+  // standalone payment-security box and a 4-card trust row further down).
+  const trustItems = [
+    {
+      icon: ShieldCheck,
+      title: 'Secure payment',
+      subtitle: 'Your payment info is safe',
+    },
+    {
+      icon: Truck,
+      title: product.seller?.storeAddress ? `Ships from ${product.seller.storeAddress}` : 'Fast shipping',
+      subtitle: settings?.enableCOD ? 'Cost at checkout · COD available' : 'Cost calculated at checkout',
+    },
+    {
+      icon: Shield,
+      title: '100% authentic',
+      subtitle: 'All products guaranteed original',
+    },
+    {
+      icon: RotateCcw,
+      title: '7-day returns',
+      subtitle: 'Not satisfied? Return it',
+    },
+  ];
+
   return (
     <div className="space-y-3 md:space-y-5">
       {/* Breadcrumb — sits right under the header with minimal padding
@@ -588,6 +616,38 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
           </div>
 
+          {/* Jaminan & Perlindungan — collapsed by default so it doesn't
+              compete with price/stock/Flash Sale for attention; same real
+              copy that used to live in two separate places on this page
+              (the standalone "Secure checkout guaranteed" box below the
+              buy buttons, and the 4-card trust row near the bottom) —
+              consolidated here into one place instead of saying "your
+              payment is safe" twice in two different spots on the same
+              page. */}
+          <Accordion type="single" collapsible className="rounded-lg border px-4">
+            <AccordionItem value="guarantees" className="border-0">
+              <AccordionTrigger className="hover:no-underline">
+                <span className="flex items-center gap-2 text-foreground">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  Jaminan &amp; Perlindungan
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3">
+                  {trustItems.map(({ icon: Icon, title, subtitle }) => (
+                    <div key={title} className="flex items-start gap-2.5">
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{title}</p>
+                        <p className="text-xs text-muted-foreground">{subtitle}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
           {/* Flash Sale info — countdown to the promotion's real endAt,
               real units sold through THIS promotion, and the same honest
               sold/stock progress ratio used on the Flash Sale page's cards. */}
@@ -756,14 +816,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 )}
                 Buy Now
               </Button>
-            </div>
-
-            <div className="flex items-start gap-2.5 rounded-lg bg-muted/40 p-3">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <div className="text-xs leading-relaxed">
-                <p className="font-medium text-foreground">Secure checkout guaranteed</p>
-                <p className="text-muted-foreground">Your payment information is safe with us.</p>
-              </div>
             </div>
           </div>
         </div>
@@ -1031,42 +1083,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Trust row — compact icon cards, 2-up on mobile so it never reads
-          as one long scroll of plain rows. Same real copy as before (plus
-          the payment-security line already used next to the buy button,
-          reused here rather than inventing new claims) — just regrouped
-          into cards. */}
-      <div className="grid grid-cols-2 gap-3 border-t pt-6 sm:grid-cols-4">
-        {[
-          {
-            icon: ShieldCheck,
-            title: 'Secure payment',
-            subtitle: 'Your payment info is safe',
-          },
-          {
-            icon: Truck,
-            title: product.seller?.storeAddress ? `Ships from ${product.seller.storeAddress}` : 'Fast shipping',
-            subtitle: settings?.enableCOD ? 'Cost at checkout · COD available' : 'Cost calculated at checkout',
-          },
-          {
-            icon: Shield,
-            title: '100% authentic',
-            subtitle: 'All products guaranteed original',
-          },
-          {
-            icon: RotateCcw,
-            title: '7-day returns',
-            subtitle: 'Not satisfied? Return it',
-          },
-        ].map(({ icon: Icon, title, subtitle }) => (
-          <div key={title} className="rounded-xl border bg-card p-3">
-            <Icon className="h-5 w-5 text-primary" />
-            <p className="mt-2 line-clamp-1 text-sm font-medium text-foreground">{title}</p>
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-        ))}
-      </div>
 
       {/* Reviews */}
       <div id="reviews" className="rounded-xl border bg-card p-6 sm:p-8">
