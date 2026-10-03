@@ -931,6 +931,12 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           >
             Specifications
           </TabsTrigger>
+          <TabsTrigger
+            value="reviews"
+            className="rounded-none border-b-2 border-transparent bg-transparent px-0.5 pb-3 pt-0 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+          >
+            Reviews
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="description" className="mt-6">
@@ -1083,17 +1089,18 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             )}
           </div>
         </TabsContent>
-      </Tabs>
 
-      {/* Reviews */}
-      <div id="reviews" className="rounded-xl border bg-card p-6 sm:p-8">
-        <ProductReviews
-          productId={product.id}
-          rating={product.rating}
-          totalReviews={product.totalReviews}
-          ratingDistribution={product.ratingDistribution}
-        />
-      </div>
+        <TabsContent value="reviews">
+          <div className="rounded-xl border bg-card p-6 sm:p-8">
+            <ProductReviews
+              productId={product.id}
+              rating={product.rating}
+              totalReviews={product.totalReviews}
+              ratingDistribution={product.ratingDistribution}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {product.seller && (
         <SellerProducts
