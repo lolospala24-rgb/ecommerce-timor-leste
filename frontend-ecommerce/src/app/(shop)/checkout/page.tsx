@@ -37,6 +37,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 
 const NOTES_MAX_LENGTH = 300;
 
@@ -61,49 +62,56 @@ type ShippingOption = {
   shippingZoneId?: number;
 };
 
-// The backend resolves which couriers actually serve this address — the
-// frontend only renders whatever it returns, it never decides availability
-// or price itself (see GET /shipping/options).
-const mapApiShippingOptions = (apiOptions: any[] = []): ShippingOption[] =>
-  apiOptions.map((option) => ({
-    id: `zone-${option.shippingZoneId}`,
-    // The method name (Standard/Express/Same Day Delivery) is the primary
-    // label — a courier can offer several of these at once, so leading
-    // with the courier name alone would show duplicate-looking cards.
-    name: option.shippingMethod || option.courierName || option.zoneName || 'Delivery',
-    subtitle: option.estimatedDeliveryDays ? `${option.estimatedDeliveryDays} business days` : 'Estimated delivery',
-    cost: Number(option.shippingCost ?? 0),
-    eta: option.estimatedDeliveryDays ? `Arrives in ${option.estimatedDeliveryDays} days` : 'Estimated delivery',
-    icon: Truck,
-    source: 'zone',
-    courierLabel: option.courierName || undefined,
-    courierId: option.courierId ?? undefined,
-    shippingMethod: option.shippingMethod ?? undefined,
-    shippingZoneId: option.shippingZoneId ?? undefined,
-  }));
-
-const paymentMethods = [
-  { id: 'COD', name: 'Cash on Delivery', description: 'Pay when you receive your order', icon: Wallet },
-  { id: 'BANK_TRANSFER', name: 'Bank Transfer', description: 'Transfer via bank, confirm after ordering', icon: CreditCard },
-];
-
-// Capped at 3 — real, system-backed guarantees only (no SSL/encryption
-// claim, since that's a given for any HTTPS site and not something this
-// checkout specifically verifies).
-const trustIndicators = [
-  { icon: Lock, label: 'Secure Payment' },
-  { icon: ShieldCheck, label: 'Buyer Protection' },
-  { icon: BadgeCheck, label: 'Original Products' },
-];
-
 export default function CheckoutPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { isAuthenticated, checkAuth } = useAuthStore();
   const { items, isLoading: cartLoading, fetchCart, clearCart, mergeGuestCart } = useCartStore();
   const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { mutateAsync: createOrder, isPending: isPlacingOrder } = useCreateOrder();
   const { appliedCoupon, clearCoupon } = useCouponStore();
   const { data: referralSummary } = useReferralSummary();
+
+  // The backend resolves which couriers actually serve this address — the
+  // frontend only renders whatever it returns, it never decides availability
+  // or price itself (see GET /shipping/options). Needs `t` (translated
+  // fallback labels), so it lives inside the component instead of module
+  // scope like before.
+  const mapApiShippingOptions = (apiOptions: any[] = []): ShippingOption[] =>
+    apiOptions.map((option) => ({
+      id: `zone-${option.shippingZoneId}`,
+      // The method name (Standard/Express/Same Day Delivery) is the primary
+      // label — a courier can offer several of these at once, so leading
+      // with the courier name alone would show duplicate-looking cards.
+      name: option.shippingMethod || option.courierName || option.zoneName || t('checkout.shipping.deliveryFallback'),
+      subtitle: option.estimatedDeliveryDays
+        ? t('checkout.shipping.businessDays', { count: option.estimatedDeliveryDays })
+        : t('checkout.shipping.estimatedDelivery'),
+      cost: Number(option.shippingCost ?? 0),
+      eta: option.estimatedDeliveryDays
+        ? t('checkout.shipping.arrivesIn', { count: option.estimatedDeliveryDays })
+        : t('checkout.shipping.estimatedDelivery'),
+      icon: Truck,
+      source: 'zone' as const,
+      courierLabel: option.courierName || undefined,
+      courierId: option.courierId ?? undefined,
+      shippingMethod: option.shippingMethod ?? undefined,
+      shippingZoneId: option.shippingZoneId ?? undefined,
+    }));
+
+  const paymentMethods = [
+    { id: 'COD', name: t('checkout.payment.codName'), description: t('checkout.payment.codDescription'), icon: Wallet },
+    { id: 'BANK_TRANSFER', name: t('checkout.payment.bankTransferName'), description: t('checkout.payment.bankTransferDescription'), icon: CreditCard },
+  ];
+
+  // Capped at 3 — real, system-backed guarantees only (no SSL/encryption
+  // claim, since that's a given for any HTTPS site and not something this
+  // checkout specifically verifies).
+  const trustIndicators = [
+    { icon: Lock, label: t('checkout.trust.securePayment') },
+    { icon: ShieldCheck, label: t('checkout.trust.buyerProtection') },
+    { icon: BadgeCheck, label: t('checkout.trust.originalProducts') },
+  ];
 
   const [enableLocalPickup, setEnableLocalPickup] = useState(false);
   const [useWalletCredit, setUseWalletCredit] = useState(false);
@@ -248,7 +256,7 @@ export default function CheckoutPage() {
       } catch {
         if (!isMounted) return;
         setAddressShippingOptions([]);
-        setShippingOptionsError('Could not load shipping options for this address. Please try again.');
+        setShippingOptionsError(t('checkout.error.shippingOptionsLoad'));
       } finally {
         if (isMounted) setIsShippingOptionsLoading(false);
       }
@@ -266,13 +274,13 @@ export default function CheckoutPage() {
     if (enableLocalPickup) {
       options.push({
         id: 'local-pickup',
-        name: 'Local Pickup',
-        subtitle: 'Collect directly from the store',
+        name: t('checkout.shipping.localPickupName'),
+        subtitle: t('checkout.shipping.localPickupSubtitle'),
         cost: 0,
-        eta: 'Ready for pickup',
+        eta: t('checkout.shipping.localPickupEta'),
         icon: BadgeCheck,
         source: 'pickup',
-        courierLabel: 'Pickup from store',
+        courierLabel: t('checkout.shipping.localPickupCourierLabel'),
         shippingMethod: 'LOCAL_PICKUP',
       });
     }
@@ -415,7 +423,7 @@ export default function CheckoutPage() {
   // order creation) depend on.
   const handleContinueFromAddress = () => {
     if (!selectedAddressId) {
-      toast.error('Please select a delivery address before continuing.');
+      toast.error(t('checkout.error.selectAddress'));
       return;
     }
     setCurrentStep(2);
@@ -423,7 +431,7 @@ export default function CheckoutPage() {
 
   const handleContinueFromShipping = () => {
     if (!selectedShipping) {
-      toast.error('Please select a shipping method before continuing.');
+      toast.error(t('checkout.error.selectShipping'));
       return;
     }
     setCurrentStep(3);
@@ -431,17 +439,17 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
-      toast.error('Please select a delivery address before placing your order.');
+      toast.error(t('checkout.error.selectAddressFinal'));
       return;
     }
 
     if (!selectedShipping) {
-      toast.error('Please select a shipping method before placing your order.');
+      toast.error(t('checkout.error.selectShippingFinal'));
       return;
     }
 
     if (!agreedToTerms) {
-      toast.error('Please agree to the Terms & Conditions and Privacy Policy to continue.');
+      toast.error(t('checkout.error.agreeTerms'));
       return;
     }
 
@@ -566,7 +574,7 @@ export default function CheckoutPage() {
       <Card className="flex items-center justify-center p-10">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
-          Preparing your checkout...
+          {t('checkout.preparing')}
         </div>
       </Card>
     );
@@ -575,14 +583,14 @@ export default function CheckoutPage() {
   if (!isAuthenticated) {
     return (
       <Card className="mx-auto max-w-3xl p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in to continue</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Your cart and saved addresses are loaded from the backend once you sign in.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.signInTitle')}</h1>
+        <p className="mt-3 text-sm text-muted-foreground">{t('checkout.signInDescription')}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button size="lg" asChild>
-            <Link href="/login?redirect=/checkout">Sign in</Link>
+            <Link href="/login?redirect=/checkout">{t('checkout.signIn')}</Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link href="/cart">Back to cart</Link>
+            <Link href="/cart">{t('checkout.backToCart')}</Link>
           </Button>
         </div>
       </Card>
@@ -592,14 +600,14 @@ export default function CheckoutPage() {
   if (safeItems.length === 0) {
     return (
       <Card className="mx-auto max-w-3xl p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Choose a product first so the checkout can use your real cart items from the backend.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.emptyCartTitle')}</h1>
+        <p className="mt-3 text-sm text-muted-foreground">{t('checkout.emptyCartDescription')}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Button size="lg" asChild>
-            <Link href="/">Continue shopping</Link>
+            <Link href="/">{t('checkout.continueShopping')}</Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link href="/cart">Open cart</Link>
+            <Link href="/cart">{t('checkout.openCart')}</Link>
           </Button>
         </div>
       </Card>
@@ -618,20 +626,25 @@ export default function CheckoutPage() {
             <Link
               href="/cart"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted"
-              aria-label="Back to cart"
+              aria-label={t('checkout.backToCart')}
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Complete your order</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.title')}</h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Review your information and complete your purchase.
+                {t('checkout.subtitle')}
               </p>
             </div>
           </div>
 
           <CheckoutStepIndicator
             currentStep={currentStep}
+            steps={[
+              { step: 1, label: t('checkout.step.address') },
+              { step: 2, label: t('checkout.step.shipping') },
+              { step: 3, label: t('checkout.step.payment') },
+            ]}
             onStepClick={(step) => {
               if (step < currentStep) setCurrentStep(step);
             }}
@@ -643,8 +656,8 @@ export default function CheckoutPage() {
               <div className="rounded-xl border border-border bg-muted/40 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">Delivery Address</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Your order will be delivered to the address you select below.</p>
+                    <h2 className="text-lg font-semibold">{t('checkout.address.title')}</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">{t('checkout.address.description')}</p>
                   </div>
                   {selectedAddress && (
                     <button
@@ -652,7 +665,7 @@ export default function CheckoutPage() {
                       onClick={() => setIsAddressListOpen((prev) => !prev)}
                       className="shrink-0 text-sm font-medium text-primary transition hover:text-primary/80"
                     >
-                      {isAddressListOpen ? 'Cancel' : 'Change'}
+                      {isAddressListOpen ? t('checkout.address.cancel') : t('checkout.address.change')}
                     </button>
                   )}
                 </div>
@@ -664,13 +677,13 @@ export default function CheckoutPage() {
                 {selectedAddress && !isAddressListOpen ? (
                   <div className="mt-5 rounded-xl border border-border bg-card p-4">
                     <div className="flex items-center gap-2">
-                      <p className="text-base font-semibold text-foreground">{selectedAddress.label || 'Address'}</p>
+                      <p className="text-base font-semibold text-foreground">{selectedAddress.label || t('checkout.address.fallbackLabel')}</p>
                       {selectedAddress.isPrimary && (
-                        <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">Default</span>
+                        <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">{t('checkout.address.default')}</span>
                       )}
                     </div>
                     {selectedAddress.recipientName && (
-                      <p className="mt-2 text-sm font-medium text-foreground">Recipient: {selectedAddress.recipientName}</p>
+                      <p className="mt-2 text-sm font-medium text-foreground">{t('checkout.address.recipient', { name: selectedAddress.recipientName })}</p>
                     )}
                     <p className="mt-1 text-sm text-muted-foreground">{selectedAddress.phone}</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -680,7 +693,7 @@ export default function CheckoutPage() {
                       {selectedAddress.postoAdmin ? `${selectedAddress.postoAdmin}, ` : ''}
                       {selectedAddress.municipality}
                     </p>
-                    {selectedAddress.reference && <p className="mt-1 text-sm text-muted-foreground">Reference: {selectedAddress.reference}</p>}
+                    {selectedAddress.reference && <p className="mt-1 text-sm text-muted-foreground">{t('checkout.address.reference', { reference: selectedAddress.reference })}</p>}
 
                     {/* Kept visible even when the rest of the address actions
                         are tucked behind "Change" — pinning the exact spot
@@ -693,7 +706,7 @@ export default function CheckoutPage() {
                       onClick={() => setShowMap(true)}
                       className="mt-4 flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
                     >
-                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
+                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? t('checkout.address.changeExactLocation') : t('checkout.address.pinExactLocation')}
                     </button>
                   </div>
                 ) : addresses && addresses.length > 0 ? (
@@ -718,13 +731,13 @@ export default function CheckoutPage() {
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-base font-semibold text-foreground">{address.label || 'Address'}</p>
+                                <p className="text-base font-semibold text-foreground">{address.label || t('checkout.address.fallbackLabel')}</p>
                                 {address.isPrimary && (
-                                  <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">Default</span>
+                                  <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">{t('checkout.address.default')}</span>
                                 )}
                               </div>
                               {address.recipientName && (
-                                <p className="mt-2 text-sm font-medium text-foreground">Recipient: {address.recipientName}</p>
+                                <p className="mt-2 text-sm font-medium text-foreground">{t('checkout.address.recipient', { name: address.recipientName })}</p>
                               )}
                               <p className="mt-1 text-sm text-muted-foreground">{address.phone}</p>
                               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -734,10 +747,10 @@ export default function CheckoutPage() {
                                 {address.postoAdmin ? `${address.postoAdmin}, ` : ''}
                                 {address.municipality}
                               </p>
-                              {address.reference && <p className="mt-1 text-sm text-muted-foreground">Reference: {address.reference}</p>}
+                              {address.reference && <p className="mt-1 text-sm text-muted-foreground">{t('checkout.address.reference', { reference: address.reference })}</p>}
                             </div>
                             <div className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground">
-                              {selected ? 'Selected' : 'Select'}
+                              {selected ? t('checkout.address.selected') : t('checkout.address.select')}
                             </div>
                           </div>
                         </button>
@@ -746,7 +759,7 @@ export default function CheckoutPage() {
                   </div>
                 ) : (
                   <div className="mt-5 rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-                    No saved addresses were found. Add one in your account before placing the order.
+                    {t('checkout.address.none')}
                   </div>
                 )}
 
@@ -759,27 +772,27 @@ export default function CheckoutPage() {
                       href="/account/addresses/new?redirect=/checkout"
                       className="flex items-center gap-2 rounded-full border border-dashed border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary"
                     >
-                      <Plus className="h-4 w-4" /> Add new address
+                      <Plus className="h-4 w-4" /> {t('checkout.address.addNew')}
                     </Link>
                     <button
                       type="button"
                       onClick={() => setShowMap(true)}
                       className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
                     >
-                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? 'Change exact location' : 'Pin exact location'}
+                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? t('checkout.address.changeExactLocation') : t('checkout.address.pinExactLocation')}
                     </button>
                     <Link
                       href="/account/addresses"
                       className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
                     >
-                      Manage addresses
+                      {t('checkout.address.manage')}
                     </Link>
                     <button
                       type="button"
                       onClick={handleRefreshAddresses}
                       className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
                     >
-                      Refresh
+                      {t('checkout.address.refresh')}
                     </button>
                   </div>
                 )}
@@ -796,13 +809,13 @@ export default function CheckoutPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
-                        <h2 className="text-base font-semibold">Exact Delivery Location</h2>
+                        <h2 className="text-base font-semibold">{t('checkout.exactLocation.title')}</h2>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {pinLocation.placeName || `${pinLocation.lat.toFixed(5)}, ${pinLocation.lng.toFixed(5)}`}
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        This helps the courier find you for this order — it doesn't change your saved address or shipping fee.
+                        {t('checkout.exactLocation.description')}
                       </p>
                     </div>
                     <button
@@ -810,28 +823,29 @@ export default function CheckoutPage() {
                       onClick={handleRemovePin}
                       className="shrink-0 text-sm font-medium text-muted-foreground transition hover:text-destructive"
                     >
-                      Remove
+                      {t('checkout.exactLocation.remove')}
                     </button>
                   </div>
 
                   {pinMunicipalityMismatch && (
                     <div className="mt-3 rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-foreground">
-                      This pin looks like it&apos;s in a different area ({pinLocation.municipality}) than your
-                      selected delivery address ({selectedAddress?.municipality}). Shipping is still calculated for{' '}
-                      {selectedAddress?.municipality} — please double-check the pin is correct.
+                      {t('checkout.exactLocation.mismatch', {
+                        pinMunicipality: pinLocation.municipality || '',
+                        addressMunicipality: selectedAddress?.municipality || '',
+                      })}
                     </div>
                   )}
 
                   <div className="mt-3 space-y-1.5">
                     <Label htmlFor="pin-reference" className="text-xs font-medium text-muted-foreground">
-                      Note for the courier (optional)
+                      {t('checkout.exactLocation.noteLabel')}
                     </Label>
                     <Input
                       id="pin-reference"
                       type="text"
                       value={pinReference}
                       onChange={(e) => setPinReference(e.target.value)}
-                      placeholder="e.g. blue gate, 2nd floor"
+                      placeholder={t('checkout.exactLocation.notePlaceholder')}
                       maxLength={500}
                       className="h-9"
                     />
@@ -840,7 +854,7 @@ export default function CheckoutPage() {
               )}
 
               <Button type="button" size="lg" onClick={handleContinueFromAddress} className="w-full">
-                Continue
+                {t('checkout.continue')}
               </Button>
             </div>
           )}
@@ -849,18 +863,18 @@ export default function CheckoutPage() {
           {currentStep === 2 && (
             <div className="mt-6 space-y-5">
               <div>
-                <h2 className="text-lg font-semibold">Shipping</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Choose how you want your order delivered.</p>
+                <h2 className="text-lg font-semibold">{t('checkout.shipping.title')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t('checkout.shipping.description')}</p>
               </div>
 
               {!selectedAddress ? (
                 <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  Select a delivery address first.
+                  {t('checkout.shipping.selectAddressFirst')}
                 </div>
               ) : isShippingOptionsLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading shipping options...
+                  {t('checkout.shipping.loading')}
                 </div>
               ) : shippingOptionsError ? (
                 <div className="rounded-xl border border-dashed border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
@@ -919,14 +933,14 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  No courier currently delivers to {selectedAddress.municipality || 'this municipality'}. Please go back and choose a different address.
+                  {t('checkout.shipping.noCourier', { municipality: selectedAddress.municipality || t('checkout.shipping.thisMunicipality') })}
                 </div>
               )}
 
               <div>
                 <div className="flex items-center justify-between gap-2.5">
                   <Label htmlFor="delivery-notes" className="text-sm font-medium text-foreground">
-                    Delivery notes <span className="font-normal text-muted-foreground">(Optional)</span>
+                    {t('checkout.shipping.notesLabel')} <span className="font-normal text-muted-foreground">{t('checkout.shipping.optional')}</span>
                   </Label>
                   <span
                     className={cn(
@@ -942,7 +956,7 @@ export default function CheckoutPage() {
                   rows={3}
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
-                  placeholder='Example: "Please call when arriving."'
+                  placeholder={t('checkout.shipping.notesPlaceholder')}
                   maxLength={NOTES_MAX_LENGTH}
                   className="mt-2"
                 />
@@ -953,17 +967,17 @@ export default function CheckoutPage() {
                   use (computed by the /shipping/calculate effect above). */}
               <div className="rounded-xl bg-muted/40 p-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Shipping Fee</span>
+                  <span className="text-muted-foreground">{t('checkout.shipping.fee')}</span>
                   <span className="font-semibold text-foreground">${shippingCost.toFixed(2)}</span>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <Button type="button" size="lg" variant="outline" onClick={() => setCurrentStep(1)} className="flex-1">
-                  Back
+                  {t('checkout.back')}
                 </Button>
                 <Button type="button" size="lg" onClick={handleContinueFromShipping} className="flex-1">
-                  Continue
+                  {t('checkout.continue')}
                 </Button>
               </div>
             </div>
@@ -973,8 +987,8 @@ export default function CheckoutPage() {
           {currentStep === 3 && (
             <div className="mt-6 space-y-5">
               <div>
-                <h2 className="text-lg font-semibold">Payment</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Choose the payment method you prefer.</p>
+                <h2 className="text-lg font-semibold">{t('checkout.payment.title')}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t('checkout.payment.description')}</p>
               </div>
 
               {availablePaymentMethods.length > 0 ? (
@@ -1013,26 +1027,27 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  No payment methods are currently available. Please contact support.
+                  {t('checkout.payment.noMethods')}
                 </div>
               )}
 
               {selectedPayment === 'COD' && (Boolean(checkoutSettings.minCODOrderAmount) || Boolean(checkoutSettings.maxCODOrderAmount)) && (
                 <p className="text-xs text-muted-foreground">
-                  Cash on Delivery is available for orders
-                  {checkoutSettings.minCODOrderAmount ? ` from $${checkoutSettings.minCODOrderAmount.toFixed(2)}` : ''}
-                  {checkoutSettings.maxCODOrderAmount ? ` up to $${checkoutSettings.maxCODOrderAmount.toFixed(2)}` : ''}.
+                  {t('checkout.payment.codLimits', {
+                    from: checkoutSettings.minCODOrderAmount ? t('checkout.payment.codLimitsFrom', { amount: checkoutSettings.minCODOrderAmount.toFixed(2) }) : '',
+                    upTo: checkoutSettings.maxCODOrderAmount ? t('checkout.payment.codLimitsUpTo', { amount: checkoutSettings.maxCODOrderAmount.toFixed(2) }) : '',
+                  })}
                 </p>
               )}
 
               {selectedPayment === 'BANK_TRANSFER' && checkoutSettings.bankName && (
                 <div className="rounded-lg border border-warning/20 bg-warning/10 p-4 text-sm text-foreground">
-                  <p className="font-semibold text-warning">Transfer to:</p>
+                  <p className="font-semibold text-warning">{t('checkout.payment.transferTo')}</p>
                   <p className="mt-1">{checkoutSettings.bankName} — {checkoutSettings.bankAccountName}</p>
-                  {checkoutSettings.bankAccountNumber && <p>Account No: {checkoutSettings.bankAccountNumber}</p>}
-                  {checkoutSettings.bankSWIFT && <p>SWIFT: {checkoutSettings.bankSWIFT}</p>}
+                  {checkoutSettings.bankAccountNumber && <p>{t('checkout.payment.accountNo', { number: checkoutSettings.bankAccountNumber })}</p>}
+                  {checkoutSettings.bankSWIFT && <p>{t('checkout.payment.swift', { code: checkoutSettings.bankSWIFT })}</p>}
                   <p className="mt-2 text-muted-foreground">
-                    You&apos;ll confirm your transfer and upload a receipt after placing the order.
+                    {t('checkout.payment.transferNote')}
                   </p>
                 </div>
               )}
@@ -1042,8 +1057,8 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-2.5">
                     <Wallet className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="text-sm font-semibold">Wallet Credit</p>
-                      <p className="text-xs text-muted-foreground">Available: ${walletBalance.toFixed(2)}</p>
+                      <p className="text-sm font-semibold">{t('checkout.wallet.title')}</p>
+                      <p className="text-xs text-muted-foreground">{t('checkout.wallet.available', { amount: walletBalance.toFixed(2) })}</p>
                     </div>
                   </div>
                   <Switch checked={useWalletCredit} onCheckedChange={setUseWalletCredit} />
@@ -1052,10 +1067,10 @@ export default function CheckoutPage() {
 
               {/* Order Summary */}
               <div className="rounded-xl border border-border p-5">
-                <h3 className="text-base font-semibold">Order Summary</h3>
+                <h3 className="text-base font-semibold">{t('checkout.summary.title')}</h3>
                 {sellerCount > 1 && (
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    Items from {sellerCount} different sellers will be shipped as {sellerCount} separate orders.
+                    {t('checkout.summary.multiSeller', { count: sellerCount })}
                   </p>
                 )}
 
@@ -1067,7 +1082,7 @@ export default function CheckoutPage() {
                     aria-expanded={isProductsRowExpanded}
                   >
                     <span className="flex items-center gap-1.5">
-                      Products ({safeItems.length})
+                      {t('checkout.summary.products', { count: safeItems.length })}
                       <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isProductsRowExpanded && 'rotate-180')} />
                     </span>
                     <span>${subtotal.toFixed(2)}</span>
@@ -1094,21 +1109,21 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between text-success">
                       <span className="flex items-center gap-1.5">
                         <TicketPercent className="h-3.5 w-3.5" />
-                        Coupon ({appliedCoupon.code})
+                        {t('checkout.summary.coupon', { code: appliedCoupon.code })}
                       </span>
                       <span>-${discountAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between"><span>Shipping</span><span>${shippingCost.toFixed(2)}</span></div>
+                  <div className="flex items-center justify-between"><span>{t('checkout.summary.shipping')}</span><span>${shippingCost.toFixed(2)}</span></div>
                   {/* Tax and service fee are only ever real line items when
                       the store actually charges them — a "$0.00" row for a
                       fee that never applies is noise, not information. */}
                   {tax > 0 && (
-                    <div className="flex items-center justify-between"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
+                    <div className="flex items-center justify-between"><span>{t('checkout.summary.tax')}</span><span>${tax.toFixed(2)}</span></div>
                   )}
                   {serviceFee > 0 && (
                     <div className="flex items-center justify-between">
-                      <span>Service fee{sellerCount > 1 ? ` (${sellerCount} sellers)` : ''}</span>
+                      <span>{sellerCount > 1 ? t('checkout.summary.serviceFeeSellers', { count: sellerCount }) : t('checkout.summary.serviceFee')}</span>
                       <span>${serviceFee.toFixed(2)}</span>
                     </div>
                   )}
@@ -1116,7 +1131,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between text-success">
                       <span className="flex items-center gap-1.5">
                         <Wallet className="h-3.5 w-3.5" />
-                        Wallet credit
+                        {t('checkout.summary.walletCredit')}
                       </span>
                       <span>-${walletCreditApplied.toFixed(2)}</span>
                     </div>
@@ -1125,7 +1140,7 @@ export default function CheckoutPage() {
 
                 <div className="mt-4 rounded-xl bg-muted/40 p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Total</span>
+                    <span className="text-sm font-medium text-muted-foreground">{t('checkout.summary.total')}</span>
                     <span className="text-2xl font-semibold text-primary">${grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
@@ -1147,24 +1162,24 @@ export default function CheckoutPage() {
                   checked={agreedToTerms}
                   onCheckedChange={setAgreedToTerms}
                   className="mt-0.5"
-                  aria-label="I agree to the Terms & Conditions and Privacy Policy"
+                  aria-label={`${t('checkout.terms.agree')} ${t('checkout.terms.termsLink')} ${t('checkout.terms.and')} ${t('checkout.terms.privacyLink')}`}
                 />
                 <span className="text-sm text-muted-foreground">
-                  I agree to the{' '}
+                  {t('checkout.terms.agree')}{' '}
                   <Link
                     href="/terms"
                     onClick={(e) => e.stopPropagation()}
                     className="font-medium text-foreground underline hover:text-primary"
                   >
-                    Terms & Conditions
+                    {t('checkout.terms.termsLink')}
                   </Link>{' '}
-                  and{' '}
+                  {t('checkout.terms.and')}{' '}
                   <Link
                     href="/privacy"
                     onClick={(e) => e.stopPropagation()}
                     className="font-medium text-foreground underline hover:text-primary"
                   >
-                    Privacy Policy
+                    {t('checkout.terms.privacyLink')}
                   </Link>
                   .
                 </span>
@@ -1172,7 +1187,7 @@ export default function CheckoutPage() {
 
               <div className="flex gap-3">
                 <Button type="button" size="lg" variant="outline" onClick={() => setCurrentStep(2)} className="flex-1">
-                  Back
+                  {t('checkout.back')}
                 </Button>
                 <Button
                   type="button"
@@ -1186,7 +1201,7 @@ export default function CheckoutPage() {
                   ) : (
                     <Lock className="mr-2 h-4 w-4" />
                   )}
-                  Place Order
+                  {t('checkout.placeOrder')}
                 </Button>
               </div>
             </div>
@@ -1206,27 +1221,24 @@ export default function CheckoutPage() {
 // in as each step completes. Clicking a completed step's circle jumps back
 // to it (see onStepClick in the caller); the current/future steps aren't
 // clickable, since forward navigation only ever happens through each step's
-// own validated "Continue" button.
-const CHECKOUT_STEPS: { step: 1 | 2 | 3; label: string }[] = [
-  { step: 1, label: 'Address' },
-  { step: 2, label: 'Shipping' },
-  { step: 3, label: 'Payment' },
-];
-
+// own validated "Continue" button. Labels are passed in already translated
+// (the caller has `t`; this component doesn't need its own hook access).
 function CheckoutStepIndicator({
   currentStep,
+  steps,
   onStepClick,
 }: {
   currentStep: 1 | 2 | 3;
+  steps: { step: 1 | 2 | 3; label: string }[];
   onStepClick: (step: 1 | 2 | 3) => void;
 }) {
   return (
     <div className="mt-6 flex items-start">
-      {CHECKOUT_STEPS.map(({ step, label }, index) => {
+      {steps.map(({ step, label }, index) => {
         const isCompleted = step < currentStep;
         const isActive = step === currentStep;
         return (
-          <div key={step} className={cn('flex items-center', index < CHECKOUT_STEPS.length - 1 && 'flex-1')}>
+          <div key={step} className={cn('flex items-center', index < steps.length - 1 && 'flex-1')}>
             <button
               type="button"
               onClick={() => isCompleted && onStepClick(step)}
@@ -1250,7 +1262,7 @@ function CheckoutStepIndicator({
                 {label}
               </span>
             </button>
-            {index < CHECKOUT_STEPS.length - 1 && (
+            {index < steps.length - 1 && (
               <div className={cn('mx-2 h-0.5 flex-1 rounded-full', isCompleted ? 'bg-primary' : 'bg-border')} />
             )}
           </div>
