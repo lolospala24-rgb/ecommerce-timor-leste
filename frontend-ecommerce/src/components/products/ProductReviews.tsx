@@ -162,6 +162,12 @@ export function ProductReviews({
                 </div>
               </CardContent>
             </Card>
+          ) : eligibility.reason === 'not_purchased' ? (
+            // Nothing shown here for this reason — a product with no
+            // reviews yet already says so via the empty state further
+            // below ("No reviews yet" / "Be the first to review this
+            // product"), without also explaining purchase requirements.
+            null
           ) : (
             <Card className="border-dashed bg-muted/20">
               <CardContent className="flex items-start gap-3 p-6">
@@ -170,9 +176,7 @@ export function ProductReviews({
                   <p className="text-sm font-medium">
                     {eligibility.reason === 'already_reviewed'
                       ? "You've already reviewed this product"
-                      : eligibility.reason === 'not_purchased'
-                        ? 'Purchase required to review'
-                        : 'Reviews unavailable'}
+                      : 'Reviews unavailable'}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{eligibility.message}</p>
                 </div>
