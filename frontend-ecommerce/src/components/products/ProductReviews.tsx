@@ -58,11 +58,6 @@ export function ProductReviews({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const starCounts = useMemo(() => {
-    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    for (const d of ratingDistribution ?? []) counts[d.rating] = d.count;
-    return counts;
-  }, [ratingDistribution]);
   // Recomputed only when the file list itself changes, and revoked on the
   // way out — createObjectURL inside render would mint (and leak) a new
   // blob URL on every re-render instead of one per selected file.
@@ -309,21 +304,13 @@ export function ProductReviews({
         </Card>
       )}
 
-      {/* Filters — star options only appear once there's at least one
-          review at that rating, so there's never a filter guaranteed to
-          return nothing. "With Photos" has no such count available
-          up-front, so it's shown whenever there are any reviews at all;
-          an empty result under it is a normal, honest filtered-empty
-          state, not broken functionality. */}
+      {/* Filters — just All / With Photos, kept intentionally simple. */}
       {totalReviews > 0 && (
         <div className="flex flex-wrap gap-2">
           {(
             [
               { key: 'all' as const, label: 'All' },
               { key: 'photos' as const, label: 'With Photos' },
-              ...[5, 4, 3, 2, 1]
-                .filter((star) => (starCounts[star] ?? 0) > 0)
-                .map((star) => ({ key: star as ReviewFilter, label: `${star} Star` })),
             ]
           ).map(({ key, label }) => (
             <button

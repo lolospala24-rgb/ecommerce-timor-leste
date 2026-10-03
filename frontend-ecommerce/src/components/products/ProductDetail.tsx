@@ -326,6 +326,10 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
   const buyDisabled = displayStock === 0 || (hasVariants && !selectedVariant);
 
+  // Tetun-first — only falls back to the English description when the
+  // seller never wrote a Tetum one.
+  const displayDescription = product.descriptionTetum || product.description;
+
   // Real copy only, same claims the page already made before — just
   // consolidated into the single "Jaminan & Perlindungan" accordion
   // instead of being split across two separate spots on the page (a
@@ -490,7 +494,11 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               {product.name}
             </h1>
 
-            {product.nameTetum && (
+            {/* Only shown when it's an actual distinct translation — a
+                product whose Tetum name was never filled in differently
+                from the English one would otherwise show the same name
+                twice in a row. */}
+            {product.nameTetum && product.nameTetum.trim().toLowerCase() !== product.name.trim().toLowerCase() && (
               <p className="text-sm text-muted-foreground">{product.nameTetum}</p>
             )}
 
@@ -517,11 +525,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
                 displayStock > 0 && (
                   <span key="stock">
                     Tersisa <span className="font-semibold text-foreground">{displayStock}</span>
-                  </span>
-                ),
-                displaySku && (
-                  <span key="sku">
-                    SKU: <span className="font-mono text-foreground">{displaySku}</span>
                   </span>
                 ),
               ]
@@ -740,9 +743,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               from. Final cost is still confirmed at checkout against the
               buyer's actual saved address. */}
           <ShippingEstimator />
-          {settings?.enableCOD && (
-            <p className="-mt-1 pl-8 text-xs text-muted-foreground">Cash on Delivery available.</p>
-          )}
 
           {/* Variants — suppressed when isSimpleVariant: exactly one
               sellable variant with no distinguishing attributes has
@@ -935,18 +935,22 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
         <TabsContent value="description" className="mt-6">
           <div className="prose prose-sm max-w-none">
+            {/* Tetun only — falls back to the English description when a
+                seller hasn't written a Tetum one, instead of showing both
+                (which used to repeat the same text twice for products
+                where the two fields happen to match). */}
             <p
               className={cn(
                 'leading-relaxed text-foreground',
                 !isDescriptionExpanded && 'line-clamp-4',
               )}
             >
-              {product.description}
+              {displayDescription}
             </p>
             {/* Only offered when the description is actually long enough to
                 need it — a short one just shows in full with no dead
                 "Read more" button that expands nothing new. */}
-            {product.description && product.description.length > 220 && (
+            {displayDescription && displayDescription.length > 220 && (
               <button
                 type="button"
                 onClick={() => setIsDescriptionExpanded((prev) => !prev)}
@@ -954,14 +958,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               >
                 {isDescriptionExpanded ? 'Show less' : 'Read more'}
               </button>
-            )}
-            {product.descriptionTetum && (
-              <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-5 not-prose">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Tetun
-                </p>
-                <p className="text-muted-foreground leading-relaxed">{product.descriptionTetum}</p>
-              </div>
             )}
           </div>
         </TabsContent>
@@ -1134,15 +1130,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
               </p>
             )}
           </div>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-11 w-11 shrink-0 border-muted-foreground/20 text-muted-foreground hover:text-red-600"
-            onClick={handleWishlistToggle}
-            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          >
-            <Heart className={cn('h-5 w-5', isWishlisted && 'fill-red-600 text-red-600')} />
-          </Button>
           <Button
             size="icon"
             variant="outline"
