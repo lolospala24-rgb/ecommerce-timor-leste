@@ -234,9 +234,12 @@ export class CreateProductDto {
   @Type(() => Number)
   wholesalePrice?: number;
 
+  // Min 2 — a "wholesale" tier reachable at quantity 1 would just be a
+  // confusing second name for the regular price. Matches the Seller/Admin
+  // panel forms' own min="2" hint, now actually enforced server-side too.
   @IsInt()
   @IsOptional()
-  @Min(1)
+  @Min(2)
   @Type(() => Number)
   wholesaleMinQty?: number;
 

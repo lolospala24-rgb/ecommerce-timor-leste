@@ -225,9 +225,10 @@ export class UpdateProductDto {
   @Type(() => Number)
   wholesalePrice?: number | null;
 
+  // Min 2 — see create-product.dto.ts's wholesaleMinQty comment.
   @IsInt()
   @IsOptional()
-  @Min(1)
+  @Min(2)
   @Type(() => Number)
   wholesaleMinQty?: number | null;
 
