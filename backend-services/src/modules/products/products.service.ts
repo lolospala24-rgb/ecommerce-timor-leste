@@ -2346,13 +2346,26 @@ export class ProductsService {
         fields: createProductTypeDto.fields ?? {},
         specFields: createProductTypeDto.specFields ?? {},
         isActive: createProductTypeDto.isActive ?? true,
+        categories: createProductTypeDto.categoryIds
+          ? { connect: createProductTypeDto.categoryIds.map((id) => ({ id })) }
+          : undefined,
       },
+      include: { categories: { select: { id: true, name: true } } },
     });
   }
 
-  async getAllProductTypes() {
+  // categoryId, when passed, includes types with no category links (global)
+  // plus types explicitly linked to that category — see
+  // Category.productTypes's doc-comment for why unlinked types stay global.
+  async getAllProductTypes(categoryId?: number) {
     return await this.prisma.productType.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(categoryId
+          ? { OR: [{ categories: { none: {} } }, { categories: { some: { id: categoryId } } }] }
+          : {}),
+      },
+      include: { categories: { select: { id: true, name: true } } },
       orderBy: { name: 'asc' },
     });
   }
@@ -2360,6 +2373,7 @@ export class ProductsService {
   async getProductType(id: number) {
     const type = await this.prisma.productType.findUnique({
       where: { id },
+      include: { categories: { select: { id: true, name: true } } },
     });
 
     if (!type) {
@@ -2397,7 +2411,11 @@ export class ProductsService {
         fields: updateProductTypeDto.fields,
         specFields: updateProductTypeDto.specFields,
         isActive: updateProductTypeDto.isActive,
+        categories: updateProductTypeDto.categoryIds
+          ? { set: updateProductTypeDto.categoryIds.map((id) => ({ id })) }
+          : undefined,
       },
+      include: { categories: { select: { id: true, name: true } } },
     });
   }
 

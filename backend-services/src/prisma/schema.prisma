@@ -265,6 +265,11 @@ model Category {
   parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
   children Category[] @relation("CategoryToCategory")
   products Product[]
+  // Product types this category allows sellers to pick from. A type with
+  // no categories linked is global (selectable under any category) — this
+  // keeps every ProductType created before this relation existed visible
+  // everywhere, matching the old flat/unrestricted behavior.
+  productTypes ProductType[]
 
   @@unique([parentId, name])
   @@index([parentId])
@@ -465,6 +470,8 @@ model ProductType {
   // Relations
   products Product[]
   requestsApprovedInto ProductTypeRequest[]
+  // See Category.productTypes's doc-comment: empty = global/unrestricted.
+  categories Category[]
 
   @@map("product_types")
 }

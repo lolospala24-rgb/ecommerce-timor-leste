@@ -36,6 +36,10 @@ async function bootstrap() {
     'http://localhost:3000',
     'http://localhost:3002',
     'http://localhost:3003',
+    // lolospala_ui (Flutter) web dev build — `flutter run -d chrome
+    // --web-port=8765`. Mobile/desktop builds of the same app aren't
+    // subject to CORS at all; this entry only matters for the web target.
+    'http://localhost:8765',
   ].filter((origin): origin is string => Boolean(origin));
 
   app.use(cors({

@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsBoolean,
   IsObject,
+  IsArray,
+  IsInt,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -43,4 +45,11 @@ export class CreateProductTypeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  // Categories this type is restricted to. Omitted/empty = global, i.e.
+  // selectable under any category (see Category.productTypes's doc-comment).
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  categoryIds?: number[];
 }

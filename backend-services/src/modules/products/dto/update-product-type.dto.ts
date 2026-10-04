@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsBoolean,
   IsObject,
+  IsArray,
+  IsInt,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -40,4 +42,10 @@ export class UpdateProductTypeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  // Pass [] to clear all links and make the type global again.
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  categoryIds?: number[];
 }

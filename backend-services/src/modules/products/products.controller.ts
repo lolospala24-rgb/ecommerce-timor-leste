@@ -443,8 +443,10 @@ export class ProductsController {
 
   @Public()
   @Get('types')
-  async getAllProductTypes() {
-    const types = await this.productsService.getAllProductTypes();
+  async getAllProductTypes(@Query('categoryId') categoryId?: string) {
+    const types = await this.productsService.getAllProductTypes(
+      categoryId ? parseInt(categoryId, 10) : undefined,
+    );
     return { data: types };
   }
 
