@@ -11,6 +11,8 @@ import {
   testEmailTemplate,
   welcomeEmailTemplate,
   abandonedCartTemplate,
+  emailVerificationTemplate,
+  passwordResetTemplate,
 } from './mail-templates';
 
 interface ResolvedMailConfig {
@@ -195,21 +197,28 @@ export class MailService {
     return this.send(email, 'You left something in your cart', html);
   }
 
-  // The remaining notification types below aren't exposed as an admin
-  // Settings toggle (only order confirmation, payment confirmation,
-  // shipping/status updates, and the welcome email are), so they're left
-  // as no-op stubs rather than guessing at content/scope beyond what was
-  // asked for.
-  async sendEmailVerification(..._args: any[]) {
-    this.logger.debug(`sendEmailVerification`);
-    return Promise.resolve();
+  // Not gated by an admin Settings toggle — account verification and
+  // password reset are core auth flows, not optional notifications, so
+  // unlike the ones above they always attempt to send (same no-SMTP-
+  // configured fallback in `send()` still applies either way).
+  async sendEmailVerification(email: string, name: string, token: string) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const verifyUrl = frontendUrl ? `${frontendUrl}/verify-email/${token}` : `/verify-email/${token}`;
+    const html = emailVerificationTemplate({ customerName: name, verifyUrl });
+    await this.send(email, 'Verify your email — E-commerce Timor-Leste', html);
   }
 
-  async sendPasswordResetEmail(..._args: any[]) {
-    this.logger.debug(`sendPasswordResetEmail`);
-    return Promise.resolve();
+  async sendPasswordResetEmail(email: string, name: string, token: string) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const resetUrl = frontendUrl ? `${frontendUrl}/reset-password/${token}` : `/reset-password/${token}`;
+    const html = passwordResetTemplate({ customerName: name, resetUrl });
+    await this.send(email, 'Reset your password — E-commerce Timor-Leste', html);
   }
 
+  // The remaining notification type below isn't exposed as an admin
+  // Settings toggle and isn't a core auth flow either, so it's left as a
+  // no-op stub rather than guessing at content/scope beyond what was asked
+  // for.
   async sendNewOrderNotification(..._args: any[]) {
     this.logger.debug(`sendNewOrderNotification`);
     return Promise.resolve();

@@ -227,6 +227,32 @@ export function abandonedCartTemplate(params: {
   return layout('Still thinking it over?', body);
 }
 
+export function emailVerificationTemplate(params: { customerName: string; verifyUrl: string }) {
+  const body = `
+    <p>Hi ${params.customerName},</p>
+    <p>Thanks for signing up! Please verify your email address to activate your account.</p>
+    <p style="margin-top:20px;">
+      <a href="${params.verifyUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:bold;">
+        Verify Email &rarr;
+      </a>
+    </p>
+    <p style="margin-top:16px;color:#6b7280;font-size:13px;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>`;
+  return layout('Verify your email', body);
+}
+
+export function passwordResetTemplate(params: { customerName: string; resetUrl: string }) {
+  const body = `
+    <p>Hi ${params.customerName},</p>
+    <p>We received a request to reset your password. Click the button below to choose a new one.</p>
+    <p style="margin-top:20px;">
+      <a href="${params.resetUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:bold;">
+        Reset Password &rarr;
+      </a>
+    </p>
+    <p style="margin-top:16px;color:#6b7280;font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>`;
+  return layout('Reset your password', body);
+}
+
 export function testEmailTemplate() {
   const body = `<p>This is a test email confirming your SMTP settings are configured correctly.</p>`;
   return layout('Test Email', body);
