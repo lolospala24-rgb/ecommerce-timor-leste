@@ -10,7 +10,26 @@ export class RecaptchaGuard implements CanActivate {
   private readonly logger = new Logger(RecaptchaGuard.name);
   private readonly minScore = Number(process.env.RECAPTCHA_MIN_SCORE ?? 0.5);
 
+  // reCAPTCHA v3 is a web-browser technology (Google's JS widget tied to a
+  // site key) — there is no equivalent token a native mobile app can
+  // generate, so lolospala_ui (the Flutter app) can never pass the checks
+  // below. It identifies itself with this header on every request (see
+  // ApiClient's BaseOptions) so this guard can skip straight through for
+  // it. This is a client-asserted flag, not a verified credential — same
+  // trust level as a User-Agent string — so it does NOT replace the
+  // per-account lockout (AuthService.validateUser) or per-IP throttling
+  // (@Throttle on the login route) already protecting this endpoint; it
+  // only steps aside from the extra distributed-credential-stuffing check
+  // reCAPTCHA adds specifically for the web client.
+  private static readonly MOBILE_CLIENT_HEADER = 'x-client-platform';
+  private static readonly MOBILE_CLIENT_VALUE = 'lolospala-mobile';
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    if (request.headers[RecaptchaGuard.MOBILE_CLIENT_HEADER] === RecaptchaGuard.MOBILE_CLIENT_VALUE) {
+      return true;
+    }
+
     const secret = process.env.RECAPTCHA_SECRET_KEY;
 
     if (!secret) {
@@ -25,7 +44,6 @@ export class RecaptchaGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
     const token = request.body?.recaptchaToken;
 
     if (!token || typeof token !== 'string') {
