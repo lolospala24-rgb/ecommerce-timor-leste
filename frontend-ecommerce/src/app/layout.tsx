@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@/components/shared/HotToaster';
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome';
 import { MaintenanceGate } from '@/components/layout/MaintenanceGate';
 import { PwaInstall } from '@/components/pwa/PwaInstall';

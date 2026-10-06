@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { QuantitySelector } from '@/components/products/QuantitySelector';
+import { QuantityStepper } from '@/components/cart/QuantityStepper';
 import { useShippingZones } from '@/hooks/useAddresses';
 import { useShippingOptions } from '@/hooks/useShippingOptions';
 
@@ -98,7 +98,7 @@ export function BuyBottomSheet({
               <p className="text-sm font-semibold text-[#142019]">Kuantidade</p>
               <p className="text-xs text-[#56635B]">Másimu {stock}</p>
             </div>
-            <QuantitySelector quantity={quantity} setQuantity={setQuantity} max={Math.max(stock, 1)} />
+            <QuantityStepper quantity={quantity} onChange={setQuantity} max={Math.max(stock, 1)} />
           </div>
 
           <div className="mt-4">

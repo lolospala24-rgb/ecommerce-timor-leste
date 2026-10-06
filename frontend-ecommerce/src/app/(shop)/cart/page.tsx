@@ -1,82 +1,149 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCartStore } from '@/stores/cartStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useCouponStore } from '@/stores/couponStore';
+import { useCartSelectionStore } from '@/stores/cartSelectionStore';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { Trash2, ShoppingCart, ArrowRight, X, Plus, Minus, Truck, Shield, CreditCard, TicketPercent, Loader2, AlertCircle, Lock } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { CartSkeleton } from '@/components/cart/CartSkeleton';
+import { EmptyCartView } from '@/components/cart/EmptyCartView';
+import { SellerCartGroup } from '@/components/cart/SellerCartGroup';
+import { PromoRow } from '@/components/cart/PromoRow';
+import { CartBottomBar } from '@/components/cart/CartBottomBar';
+import { ArrowLeft, Trash2, TicketPercent, Loader2, AlertCircle, Truck } from 'lucide-react';
+import toast, { type Toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { getCartItemKey } from '@/lib/cart';
 import { useShippingSettings } from '@/hooks/useShippingSettings';
 import { useValidateCoupon, useAvailableCoupons, type AvailableCoupon } from '@/hooks/useCoupons';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
+import type { CartItem } from '@/types/cart.types';
 
 export default function CartPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
-  const { items, isLoading, error, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
+  const { items, isLoading, error, addItem, removeItem, updateQuantity, clearCart, fetchCart } = useCartStore();
   const { data: shippingSettings } = useShippingSettings();
   const { appliedCoupon, setAppliedCoupon, clearCoupon } = useCouponStore();
   const validateCoupon = useValidateCoupon();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const selection = useCartSelectionStore();
   const [couponInput, setCouponInput] = useState('');
   const [isClearCartDialogOpen, setIsClearCartDialogOpen] = useState(false);
   const [isClearingCart, setIsClearingCart] = useState(false);
+  const [updatingKeys, setUpdatingKeys] = useState<Set<string>>(new Set());
+  const [removeTarget, setRemoveTarget] = useState<CartItem | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
-  // Fetch cart when component mounts
   useEffect(() => {
     if (isAuthenticated) {
       fetchCart();
     }
   }, [isAuthenticated, fetchCart]);
 
-  // An emptied cart can no longer have a coupon meaningfully "applied" —
-  // drop it rather than carrying a stale discount into whatever the
-  // customer adds next.
+  const safeItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+
+  // Newly-seen cart lines start selected by default; removed lines are
+  // dropped from the selection store so it never grows unbounded.
   useEffect(() => {
-    if (!isLoading && items.length === 0 && appliedCoupon) {
+    selection.syncKeys(safeItems.map(getCartItemKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeItems]);
+
+  useEffect(() => {
+    if (!isLoading && safeItems.length === 0 && appliedCoupon) {
       clearCoupon();
     }
-  }, [isLoading, items.length, appliedCoupon, clearCoupon]);
+  }, [isLoading, safeItems.length, appliedCoupon, clearCoupon]);
 
-  const handleQuantityChange = async (
-    productId: number,
-    quantity: number,
-    variantId?: number | null,
-  ) => {
-    if (quantity < 1) {
-      await handleRemoveItem(productId, variantId);
-      return;
+  const groups = useMemo(() => {
+    const map = new Map<string, { sellerName: string; items: CartItem[] }>();
+    for (const item of safeItems) {
+      const key = String(item.sellerId ?? 'unknown');
+      if (!map.has(key)) map.set(key, { sellerName: item.sellerName || 'Loja', items: [] });
+      map.get(key)!.items.push(item);
     }
-    setIsUpdating(true);
+    return Array.from(map.values());
+  }, [safeItems]);
+
+  const selectableKeys = useMemo(
+    () => safeItems.filter((i) => i.stock > 0).map(getCartItemKey),
+    [safeItems],
+  );
+  const allSelected = selectableKeys.length > 0 && selectableKeys.every((k) => selection.isSelected(k));
+
+  const selectedItems = safeItems.filter((i) => i.stock > 0 && selection.isSelected(getCartItemKey(i)));
+  const selectedSubtotal = selectedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const selectedSavings = selectedItems.reduce(
+    (sum, i) => sum + Math.max((i.originalPrice ?? i.price) - i.price, 0) * i.quantity,
+    0,
+  );
+  const checkoutCount = selectedItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  const handleQuantityChange = async (item: CartItem, quantity: number) => {
+    const key = getCartItemKey(item);
+    setUpdatingKeys((prev) => new Set(prev).add(key));
     try {
-      await updateQuantity(productId, quantity, variantId);
-    } catch (error) {
-      // Error already handled in store
+      await updateQuantity(item.productId, quantity, item.variantId);
+    } catch {
+      // Error already toasted in the store; the row simply reverts to its
+      // last-fetched value since nothing was optimistically changed.
     } finally {
-      setIsUpdating(false);
+      setUpdatingKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     }
   };
 
-  const handleRemoveItem = async (productId: number, variantId?: number | null) => {
-    setIsUpdating(true);
+  const handleRemoveRequest = (item: CartItem) => setRemoveTarget(item);
+
+  const handleUndoRemove = async (item: CartItem) => {
     try {
-      await removeItem(productId, variantId);
-      toast.success('Item removed from cart');
-    } catch (error) {
-      // Error already handled in store
+      await addItem(
+        { id: item.productId, name: item.name, price: item.price },
+        item.quantity,
+        item.variantId ? { id: item.variantId } : null,
+      );
+    } catch {
+      // addItem already toasts its own error.
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!removeTarget) return;
+    const item = removeTarget;
+    setIsRemoving(true);
+    try {
+      await removeItem(item.productId, item.variantId);
+      setRemoveTarget(null);
+      toast((toastInstance: Toast) => (
+        <div className="flex items-center gap-3">
+          <span>{t('cart.removedMessage')}</span>
+          <button
+            type="button"
+            onClick={() => {
+              handleUndoRemove(item);
+              toast.dismiss(toastInstance.id);
+            }}
+            className="font-semibold text-[#17703F]"
+          >
+            {t('cart.undo')}
+          </button>
+        </div>
+      ));
+    } catch {
+      // Error already toasted in the store.
     } finally {
-      setIsUpdating(false);
+      setIsRemoving(false);
     }
   };
 
@@ -84,7 +151,6 @@ export default function CartPage() {
     setIsClearingCart(true);
     try {
       await clearCart();
-      toast.success('Cart cleared');
       setIsClearCartDialogOpen(false);
     } finally {
       setIsClearingCart(false);
@@ -98,7 +164,7 @@ export default function CartPage() {
       return;
     }
     try {
-      const result = await validateCoupon.mutateAsync({ code, subtotal: safeSubtotal });
+      const result = await validateCoupon.mutateAsync({ code, subtotal: selectedSubtotal });
       setAppliedCoupon({
         code: result.code,
         discountType: result.discountType,
@@ -112,9 +178,7 @@ export default function CartPage() {
     }
   };
 
-  const handleRemoveCoupon = () => {
-    clearCoupon();
-  };
+  const handleRemoveCoupon = () => clearCoupon();
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -122,40 +186,17 @@ export default function CartPage() {
       router.push('/login?redirect=/checkout');
       return;
     }
-    if (items.length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
+    if (checkoutCount === 0) return;
     router.push('/checkout');
   };
-
-  // Safe values with defaults
-  const safeItems = Array.isArray(items) ? items : [];
-  const safeSubtotal = safeItems.reduce((sum, item) => sum + (item?.price || 0) * (item?.quantity || 0), 0);
 
   const freeShippingEnabled = !!shippingSettings?.enableFreeShipping;
   const freeShippingThreshold = shippingSettings?.freeShippingThreshold ?? 0;
   const qualifiesForFreeShipping =
-    freeShippingEnabled && freeShippingThreshold > 0 && safeSubtotal >= freeShippingThreshold;
-  const amountToFreeShipping = freeShippingThreshold - safeSubtotal;
+    freeShippingEnabled && freeShippingThreshold > 0 && selectedSubtotal >= freeShippingThreshold;
+  const amountToFreeShipping = freeShippingThreshold - selectedSubtotal;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Shopping Cart</h1>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </div>
-          <Skeleton className="h-64" />
-        </div>
-      </div>
-    );
-  }
-
-  if (safeItems.length === 0 && error) {
+  if (safeItems.length === 0 && error && !isLoading) {
     return (
       <EmptyState
         title="Couldn't load your cart"
@@ -166,179 +207,136 @@ export default function CartPage() {
     );
   }
 
-  if (safeItems.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="rounded-full bg-muted p-6 mb-4">
-          <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+  const promoContent = (
+    <div className="space-y-4 pb-2">
+      {appliedCoupon ? (
+        <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm">
+            <TicketPercent className="h-4 w-4 text-green-600" />
+            <span className="font-medium text-green-700">{appliedCoupon.code}</span>
+            <span className="text-xs text-green-600">
+              {appliedCoupon.discountType === 'PERCENTAGE' ? `-${appliedCoupon.discountValue}%` : `-$${appliedCoupon.discountValue.toFixed(2)}`}
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive" onClick={handleRemoveCoupon}>
+            Remove
+          </Button>
         </div>
-        <h2 className="text-2xl font-bold">Your Cart is Empty</h2>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          Looks like you haven't added any items to your cart yet.
-          Start shopping to fill it up!
-        </p>
-        <Button className="mt-6" asChild>
-          <Link href="/products">Continue Shopping</Link>
-        </Button>
+      ) : (
+        <div className="flex gap-2">
+          <Input
+            placeholder="Coupon code"
+            value={couponInput}
+            onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+            disabled={validateCoupon.isPending}
+            className="h-9 flex-1 font-mono text-sm uppercase"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => handleApplyCoupon()} disabled={validateCoupon.isPending} className="h-9">
+            {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+          </Button>
+        </div>
+      )}
+
+      {!appliedCoupon && (
+        <AvailableCouponsList subtotal={selectedSubtotal} onUse={(code) => handleApplyCoupon(code)} isApplying={validateCoupon.isPending} />
+      )}
+
+      {freeShippingEnabled && freeShippingThreshold > 0 && !qualifiesForFreeShipping && selectedSubtotal > 0 && (
+        <div className="space-y-1.5 rounded-xl bg-[#F4F6F3] p-3">
+          <div className="flex items-center gap-1.5 text-xs text-[#56635B]">
+            <Truck className="h-3.5 w-3.5" />
+            <span>Add ${amountToFreeShipping.toFixed(2)} more for free shipping</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#DDE3DE]">
+            <div
+              className="h-full rounded-full bg-[#17703F]"
+              style={{ width: `${Math.min((selectedSubtotal / freeShippingThreshold) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const summarySidebar = (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+        <p className="text-[13px] text-[#56635B]">{t('cart.checkout', { count: checkoutCount })}</p>
+        <p className="mt-1 text-[22px] font-extrabold text-[#142019]">${selectedSubtotal.toFixed(2)}</p>
+        {selectedSavings > 0 && (
+          <p className="mt-0.5 text-[13px] font-semibold text-[#93330B]">{t('cart.savings', { amount: `$${selectedSavings.toFixed(2)}` })}</p>
+        )}
       </div>
-    );
-  }
+      <PromoRow summary={appliedCoupon?.code}>{promoContent}</PromoRow>
+      <button
+        type="button"
+        onClick={handleCheckout}
+        disabled={checkoutCount === 0}
+        className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-[#17703F] text-[15px] font-bold text-white disabled:bg-[#DDE3DE] disabled:text-[#56635B]"
+      >
+        {t('cart.checkout', { count: checkoutCount })}
+      </button>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Shopping Cart</h1>
-        <Button variant="ghost" size="sm" onClick={() => setIsClearCartDialogOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Clear Cart
-        </Button>
+    <div className="min-h-screen bg-[#F4F6F3] pb-24 min-[1000px]:pb-6">
+      <div className="flex items-center gap-3 border-b border-[#EEF1EE] bg-white px-4 py-3">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label={t('cart.back')}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-[19px] font-extrabold text-[#142019]">
+          {t('cart.title')} {safeItems.length > 0 && <span className="font-medium text-[#56635B]">({safeItems.length})</span>}
+        </h1>
+        {safeItems.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setIsClearCartDialogOpen(true)}
+            aria-label="Clear cart"
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-[#56635B]"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          {safeItems.map((item) => (
-            <CartItem
-              key={getCartItemKey(item)}
-              item={item}
-              onQuantityChange={handleQuantityChange}
-              onRemove={handleRemoveItem}
-              isUpdating={isUpdating}
-            />
-          ))}
-        </div>
+      <div className="mx-auto w-full px-4 py-5 min-[600px]:max-w-[720px] min-[1000px]:max-w-[1000px]">
+        {isLoading && safeItems.length === 0 ? (
+          <CartSkeleton />
+        ) : safeItems.length === 0 ? (
+          <EmptyCartView />
+        ) : (
+          <div className="min-[1000px]:grid min-[1000px]:grid-cols-[1fr_360px] min-[1000px]:items-start min-[1000px]:gap-8">
+            <div className="space-y-3">
+              {groups.map((group) => (
+                <SellerCartGroup
+                  key={group.sellerName}
+                  sellerName={group.sellerName}
+                  items={group.items}
+                  isItemSelected={(key) => selection.isSelected(key)}
+                  onToggleItem={(key) => selection.toggle(key)}
+                  onToggleSeller={(keys, selected) => selection.setMany(keys, selected)}
+                  onQuantityChange={handleQuantityChange}
+                  onRemove={handleRemoveRequest}
+                  isRowUpdating={(key) => updatingKeys.has(key)}
+                />
+              ))}
 
-        {/* Order Summary */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-20">
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${safeSubtotal.toFixed(2)}</span>
-                </div>
-                {appliedCoupon && (
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Coupon ({appliedCoupon.code})</span>
-                    <span>-${appliedCoupon.discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                <Separator />
-                <p className="text-xs text-muted-foreground">
-                  Shipping, tax, and any service fee are calculated at checkout based on your delivery address.
-                </p>
+              <div className="min-[1000px]:hidden">
+                <PromoRow summary={appliedCoupon?.code}>{promoContent}</PromoRow>
               </div>
+            </div>
 
-              {/* Coupon — validated against the real backend on Apply;
-                  final discount is re-validated again at order placement,
-                  this is only a preview. */}
-              <div className="space-y-2">
-                {appliedCoupon ? (
-                  <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <TicketPercent className="h-4 w-4 text-green-600" />
-                      <span className="font-medium text-green-700">{appliedCoupon.code}</span>
-                      <span className="text-xs text-green-600">
-                        {appliedCoupon.discountType === 'PERCENTAGE'
-                          ? `-${appliedCoupon.discountValue}%`
-                          : `-$${appliedCoupon.discountValue.toFixed(2)}`}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
-                      onClick={handleRemoveCoupon}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Coupon code"
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      disabled={validateCoupon.isPending}
-                      className="h-9 flex-1 font-mono text-sm uppercase"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleApplyCoupon()}
-                      disabled={validateCoupon.isPending}
-                      className="h-9"
-                    >
-                      {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
-                    </Button>
-                  </div>
-                )}
-
-                {!appliedCoupon && (
-                  <AvailableCouponsList
-                    subtotal={safeSubtotal}
-                    onUse={(code) => handleApplyCoupon(code)}
-                    isApplying={validateCoupon.isPending}
-                  />
-                )}
-              </div>
-
-              {/* Free shipping progress — only shown when the promotion is
-                  actually enabled, using the real admin-configured
-                  threshold rather than a guessed number. */}
-              {freeShippingEnabled && freeShippingThreshold > 0 && !qualifiesForFreeShipping && safeSubtotal > 0 && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Add ${amountToFreeShipping.toFixed(2)} more for free shipping</span>
-                    <span>{Math.round((safeSubtotal / freeShippingThreshold) * 100)}%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${Math.min((safeSubtotal / freeShippingThreshold) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleCheckout}
-                disabled={safeItems.length === 0}
-              >
-                <ArrowRight className="mr-2 h-4 w-4" />
-                Proceed to Checkout
-              </Button>
-
-              {/* Trust Badges */}
-              <div className="space-y-2 pt-4 border-t">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Shield className="h-4 w-4" />
-                  <span>Secure Checkout</span>
-                </div>
-                {freeShippingEnabled && freeShippingThreshold > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Truck className="h-4 w-4" />
-                    <span>
-                      {qualifiesForFreeShipping
-                        ? 'You qualify for free shipping'
-                        : `Free shipping on orders over $${freeShippingThreshold.toFixed(2)}`}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CreditCard className="h-4 w-4" />
-                  <span>Multiple payment methods</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="hidden min-[1000px]:block">
+              <div className="sticky top-6">{summarySidebar}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -351,43 +349,35 @@ export default function CartPage() {
         isLoading={isClearingCart}
       />
 
-      {/* Mobile sticky checkout bar — the Order Summary's "Proceed to
-          Checkout" button otherwise sits below every cart item (the sidebar
-          column only appears after the items column once the grid stacks
-          on mobile), so a shopper with several items has no visible way to
-          check out without scrolling all the way down first. Matches the
-          same pattern already used on the product detail and checkout
-          pages. */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background lg:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">
-              {safeItems.length} item{safeItems.length === 1 ? '' : 's'}
-            </p>
-            <p className="truncate text-lg font-bold text-primary">
-              ${(safeSubtotal - (appliedCoupon?.discountAmount || 0)).toFixed(2)}
-            </p>
-          </div>
-          <Button size="lg" className="h-11 shrink-0 px-6 font-semibold" onClick={handleCheckout}>
-            <Lock className="mr-2 h-4 w-4" />
-            Checkout
-          </Button>
-        </div>
-      </div>
-      <div className="h-[68px] lg:hidden" aria-hidden="true" />
+      <ConfirmDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+        title={t('cart.removeConfirmTitle')}
+        description={removeTarget?.name ?? ''}
+        confirmText={t('cart.removeConfirmConfirm')}
+        cancelText={t('cart.removeConfirmCancel')}
+        onConfirm={handleConfirmRemove}
+        isLoading={isRemoving}
+      />
+
+      {safeItems.length > 0 && (
+        <CartBottomBar
+          className="fixed inset-x-0 bottom-0 z-30 min-[1000px]:hidden"
+          allSelected={allSelected}
+          onToggleAll={(selected) => selection.setMany(selectableKeys, selected)}
+          selectedTotal={selectedSubtotal}
+          savings={selectedSavings}
+          checkoutCount={checkoutCount}
+          onCheckout={handleCheckout}
+        />
+      )}
     </div>
   );
 }
 
-// Coupons a customer could plausibly use, so they aren't limited to
-// blindly typing a code they'd have to already know from somewhere else
-// (an email, a social post) — matches the "browse available vouchers"
-// pattern of Shopee/Tokopedia. Coupons the cart hasn't reached the minimum
-// purchase for yet are shown, not hidden, with a clear "spend $X more" so
-// the customer knows they exist and how to unlock them.
+// Coupons a customer could plausibly use — matches the "browse available
+// vouchers" pattern of Shopee/Tokopedia. Unchanged from the previous cart
+// page, just now rendered inside the PromoRow sheet instead of inline.
 function AvailableCouponsList({
   subtotal,
   onUse,
@@ -411,18 +401,14 @@ function AvailableCouponsList({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Available Coupons
-      </p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Available Coupons</p>
       <div className="max-h-56 space-y-2 overflow-y-auto pr-0.5">
         {coupons.map((coupon: AvailableCoupon) => (
           <div
             key={coupon.code}
             className={cn(
               'flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors',
-              coupon.meetsMinimum
-                ? 'border-primary/20 bg-primary/5'
-                : 'border-dashed bg-muted/30',
+              coupon.meetsMinimum ? 'border-primary/20 bg-primary/5' : 'border-dashed bg-muted/30',
             )}
           >
             <div className="flex min-w-0 items-center gap-3">
@@ -437,15 +423,11 @@ function AvailableCouponsList({
               <div className="min-w-0">
                 <p className="font-mono text-sm font-semibold">{coupon.code}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {coupon.discountType === 'PERCENTAGE'
-                    ? `${coupon.discountValue}% off`
-                    : `$${coupon.discountValue.toFixed(2)} off`}
+                  {coupon.discountType === 'PERCENTAGE' ? `${coupon.discountValue}% off` : `$${coupon.discountValue.toFixed(2)} off`}
                   {coupon.maxDiscountAmount ? ` (up to $${coupon.maxDiscountAmount.toFixed(2)})` : ''}
                 </p>
                 {!coupon.meetsMinimum && coupon.minPurchaseAmount != null && (
-                  <p className="text-xs font-medium text-amber-600">
-                    Spend ${(coupon.minPurchaseAmount - subtotal).toFixed(2)} more to unlock
-                  </p>
+                  <p className="text-xs font-medium text-amber-600">Spend ${(coupon.minPurchaseAmount - subtotal).toFixed(2)} more to unlock</p>
                 )}
               </div>
             </div>
@@ -461,142 +443,6 @@ function AvailableCouponsList({
             </Button>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// Below this many units left, the stock line switches from green "In
-// stock" to an amber "Only N left" warning — same threshold/convention
-// ProductCard uses, so stock urgency reads consistently everywhere it's
-// shown across the storefront.
-const CART_LOW_STOCK_THRESHOLD = 5;
-
-// Cart Item Component with safe data access
-function CartItem({ item, onQuantityChange, onRemove, isUpdating }: any) {
-  // Safe access with defaults
-  const productId = item?.productId || 0;
-  const variantId = item?.variantId ?? null;
-  const name = item?.name || 'Product';
-  const nameTetum = item?.nameTetum || null;
-  const slug = item?.slug || '#';
-  const price = typeof item?.price === 'number' ? item.price : 0;
-  const originalPrice = typeof item?.originalPrice === 'number' ? item.originalPrice : null;
-  const thumbnail = item?.thumbnail || null;
-  const quantity = typeof item?.quantity === 'number' ? item.quantity : 1;
-  const stock = typeof item?.stock === 'number' ? item.stock : 0;
-  // Which Size/Warna/etc. combination this line is — without it, two lines
-  // for the same product (different variants) are visually indistinguishable
-  // beyond price/thumbnail.
-  const variantLabel: string | null =
-    item?.variantAttributes && typeof item.variantAttributes === 'object'
-      ? Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ') || null
-      : null;
-
-  const discount =
-    originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  const itemTotal = price * quantity;
-
-  const stockStatus =
-    stock === 0
-      ? { label: 'Out of stock', textClassName: 'text-destructive', dotClassName: 'bg-destructive' }
-      : stock <= CART_LOW_STOCK_THRESHOLD
-        ? { label: `Only ${stock} left`, textClassName: 'text-amber-700 dark:text-amber-400', dotClassName: 'bg-amber-500' }
-        : { label: 'In stock', textClassName: 'text-green-700 dark:text-green-400', dotClassName: 'bg-green-600' };
-
-  return (
-    <div className="rounded-lg border p-3 transition-shadow hover:shadow-sm sm:p-4">
-      {/* Top row: image + title/variant/price, remove button pinned to the
-          corner — two columns of content never have to fight a third
-          (quantity stepper) for width on a narrow phone, unlike before
-          when image+text+stepper+total+remove all shared one row. */}
-      <div className="flex gap-3">
-        <Link
-          href={`/products/${slug}`}
-          className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted sm:h-24 sm:w-24"
-        >
-          {thumbnail ? (
-            <Image src={thumbnail} alt={name} fill className="object-cover" sizes="96px" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-              <ShoppingCart className="h-8 w-8" />
-            </div>
-          )}
-          {discount > 0 && (
-            <span className="absolute top-1 left-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              -{discount}%
-            </span>
-          )}
-        </Link>
-
-        <div className="min-w-0 flex-1">
-          <Link href={`/products/${slug}`} className="hover:text-primary">
-            <h3 className="line-clamp-2 text-sm font-medium leading-snug sm:text-base">{name}</h3>
-          </Link>
-          {nameTetum && (
-            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{nameTetum}</p>
-          )}
-          {variantLabel && (
-            <p className="mt-1">
-              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{variantLabel}</span>
-            </p>
-          )}
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="font-semibold text-primary">${price.toFixed(2)}</span>
-            {originalPrice != null && (
-              <span className="text-xs text-muted-foreground line-through sm:text-sm">
-                ${originalPrice.toFixed(2)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onRemove(productId, variantId)}
-          disabled={isUpdating}
-          aria-label="Remove item"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Bottom row: stock status + quantity stepper + line total — its own
-          full-width row instead of a cramped third column, with plenty of
-          room for the stepper's touch targets. */}
-      <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3">
-        <span className={cn('inline-flex min-w-0 items-center gap-1.5 truncate text-xs font-medium', stockStatus.textClassName)}>
-          <span aria-hidden className={cn('h-1.5 w-1.5 shrink-0 rounded-full', stockStatus.dotClassName)} />
-          {stockStatus.label}
-        </span>
-
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onQuantityChange(productId, quantity - 1, variantId)}
-              disabled={quantity <= 1 || isUpdating}
-              aria-label="Decrease quantity"
-            >
-              <Minus className="h-3 w-3" />
-            </Button>
-            <span className="w-7 text-center text-sm font-medium">{quantity}</span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => onQuantityChange(productId, quantity + 1, variantId)}
-              disabled={quantity >= stock || isUpdating}
-              aria-label="Increase quantity"
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-          <span className="text-sm font-semibold text-foreground">${itemTotal.toFixed(2)}</span>
-        </div>
       </div>
     </div>
   );

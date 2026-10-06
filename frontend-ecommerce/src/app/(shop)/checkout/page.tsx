@@ -26,7 +26,9 @@ import api from '@/lib/api';
 import { useAddresses } from '@/hooks/useAddresses';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
+import { useCartSelectionStore } from '@/stores/cartSelectionStore';
 import { useCouponStore } from '@/stores/couponStore';
+import { getCartItemKey } from '@/lib/cart';
 import { useValidateCoupon } from '@/hooks/useCoupons';
 import { useReferralSummary } from '@/hooks/useReferral';
 import dynamic from 'next/dynamic';
@@ -75,6 +77,7 @@ export default function CheckoutPage() {
   const { t } = useTranslation();
   const { isAuthenticated, checkAuth } = useAuthStore();
   const { items, isLoading: cartLoading, fetchCart, clearCart, mergeGuestCart } = useCartStore();
+  const cartSelection = useCartSelectionStore();
   const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { mutateAsync: createOrder, isPending: isPlacingOrder } = useCreateOrder();
   const { appliedCoupon, setAppliedCoupon, clearCoupon } = useCouponStore();
@@ -335,7 +338,23 @@ export default function CheckoutPage() {
     }
   }, [availablePaymentMethods, selectedPayment]);
 
-  const safeItems = Array.isArray(items) ? items : [];
+  // Only the items selected on the cart page go to checkout — but only
+  // when the selection store actually has fresh data for the current cart
+  // (every current item key is "known" to it). Any path that lands here
+  // without going through cart selection first — Buy Now from Product
+  // Detail, a direct link, a newly-merged guest cart — falls back to the
+  // full cart, exactly like before this feature existed.
+  const safeItems = useMemo(() => {
+    const all = Array.isArray(items) ? items : [];
+    const allKeys = all.map(getCartItemKey);
+    const isSelectionFresh = allKeys.every((key) => cartSelection.knownKeys.includes(key));
+    const selectedSet = new Set(cartSelection.selectedKeys);
+    const hasAnySelected = allKeys.some((key) => selectedSet.has(key));
+    if (isSelectionFresh && hasAnySelected) {
+      return all.filter((item) => selectedSet.has(getCartItemKey(item)));
+    }
+    return all;
+  }, [items, cartSelection.knownKeys, cartSelection.selectedKeys]);
   const subtotal = useMemo(
     () => safeItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0),
     [safeItems],
