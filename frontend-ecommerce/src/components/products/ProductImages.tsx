@@ -28,6 +28,15 @@ interface ProductImagesProps {
   mainImageUrl?: string | null;
   onThumbnailSelect?: (item: GalleryThumbnailItem) => void;
   onMainImageChange?: (url: string) => void;
+  /**
+   * 'default' (desktop + the old mobile layout, unchanged) keeps thumbnails
+   * beside/below the main image with a light top-right counter badge.
+   * 'mobileOverlay' (used by the new ProductMediaHeader) renders the same
+   * carousel/video/zoom state and handlers below, just with thumbnails and
+   * the counter pill absolutely positioned over an edge-to-edge image
+   * instead — no new gallery logic, only where things render.
+   */
+  variant?: 'default' | 'mobileOverlay';
 }
 
 export function ProductImages({
@@ -41,7 +50,9 @@ export function ProductImages({
   mainImageUrl,
   onThumbnailSelect,
   onMainImageChange,
+  variant = 'default',
 }: ProductImagesProps) {
+  const isOverlay = variant === 'mobileOverlay';
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -130,11 +141,13 @@ export function ProductImages({
         }
         className={cn(
           'relative shrink-0 overflow-hidden rounded-lg border-2 bg-muted/30 transition-all',
-          'h-[64px] w-[64px] lg:h-[72px] lg:w-[72px]',
+          isOverlay ? 'h-[52px] w-[52px] rounded-xl' : 'h-[64px] w-[64px] lg:h-[72px] lg:w-[72px]',
           isActive
-            ? 'border-primary ring-2 ring-primary/25 shadow-sm'
-            : 'border-transparent opacity-70 hover:border-muted-foreground/40 hover:opacity-100',
-          item.type === 'variant' && !isActive && 'ring-1 ring-primary/15',
+            ? (isOverlay ? 'border-[#17703F] shadow-sm' : 'border-primary ring-2 ring-primary/25 shadow-sm')
+            : (isOverlay
+                ? 'border-white/80 opacity-90 hover:opacity-100'
+                : 'border-transparent opacity-70 hover:border-muted-foreground/40 hover:opacity-100'),
+          item.type === 'variant' && !isActive && !isOverlay && 'ring-1 ring-primary/15',
         )}
         onClick={() => {
           if (item.type === 'video' && item.videoUrl) {
@@ -174,6 +187,117 @@ export function ProductImages({
       </button>
     );
   };
+
+  // Mobile hero treatment — same carousel/video/zoom state and handlers as
+  // the default branch below, just laid out as an edge-to-edge image with
+  // thumbnails + counter pill absolutely positioned over it instead of
+  // beside/below it. No new gallery logic lives here.
+  if (isOverlay) {
+    return (
+      <div className="relative">
+        <div
+          ref={mainRef}
+          className={cn(
+            'group relative h-[340px] w-full overflow-hidden bg-muted/20',
+            activeVideoUrl ? 'cursor-default bg-black' : 'cursor-zoom-in',
+          )}
+          onMouseMove={handleMouseMove}
+          onClick={() => {
+            if (!activeVideoUrl) setIsZoomOpen(true);
+          }}
+          role={activeVideoUrl ? undefined : 'button'}
+          tabIndex={activeVideoUrl ? undefined : 0}
+          onKeyDown={(e) => {
+            if (!activeVideoUrl && (e.key === 'Enter' || e.key === ' ')) setIsZoomOpen(true);
+          }}
+          aria-label={activeVideoUrl ? undefined : 'Open image zoom'}
+        >
+          {activeVideoUrl ? (
+            <video
+              key={activeVideoUrl}
+              src={activeVideoUrl}
+              poster={thumbnail || carouselImages[0]}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              preload="auto"
+              className="h-full w-full object-contain"
+              onError={() => {
+                setActiveVideoUrl(null);
+                toast.error('Video could not be loaded');
+              }}
+            />
+          ) : (
+            <Image
+              src={resolvedMainUrl}
+              alt={name}
+              fill
+              className="object-cover"
+              priority
+              sizes="100vw"
+              draggable={false}
+            />
+          )}
+
+          {!activeVideoUrl && carouselImages.length > 1 && (
+            <span className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white">
+              {currentIndex + 1} / {carouselImages.length}
+            </span>
+          )}
+
+          {thumbItems.length > 0 && (
+            <div className="absolute bottom-3 left-3 z-10 flex max-w-[70%] gap-2 overflow-x-auto" data-lenis-prevent>
+              {thumbItems.map((item) => (
+                <ThumbnailButton key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Dialog open={isZoomOpen} onOpenChange={setIsZoomOpen}>
+          <DialogContent className="max-w-[95vw] border-0 bg-black/95 p-0 sm:max-w-5xl">
+            <DialogTitle className="sr-only">{name} — image zoom</DialogTitle>
+            <div className="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-2 z-20 text-white hover:bg-white/10"
+                onClick={() => setIsZoomOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <div className="relative aspect-square w-full min-h-[50vh] sm:min-h-0">
+                <Image src={resolvedMainUrl} alt={name} fill className="object-contain p-4 sm:p-8" sizes="95vw" priority />
+              </div>
+              {carouselImages.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2 rounded-full bg-black/60 px-3 py-2 backdrop-blur-sm">
+                  {carouselImages.map((image, index) => (
+                    <button
+                      key={`zoom-thumb-${index}`}
+                      type="button"
+                      className={cn(
+                        'relative h-10 w-10 overflow-hidden rounded-md border-2 transition-all',
+                        resolvedMainUrl === image ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-80',
+                      )}
+                      onClick={() => {
+                        setCurrentIndex(index);
+                        onMainImageChange?.(image);
+                      }}
+                    >
+                      <Image src={image} alt="" fill className="object-cover" sizes="40px" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

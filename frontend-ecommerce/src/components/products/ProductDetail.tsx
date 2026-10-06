@@ -1,13 +1,14 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCartStore } from '@/stores/cartStore';
+import { useCartStore, useCart } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useUIStore } from '@/stores/uiStore';
 import { useProductVariantSelection } from '@/hooks/useProductVariantSelection';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { usePromotionSoldCount } from '@/hooks/useFlashSale';
@@ -25,6 +26,14 @@ import { SellerProducts } from './SellerProducts';
 import { RelatedProducts } from './RelatedProducts';
 import { RecentlyViewedSection } from './RecentlyViewedSection';
 import { ShippingEstimator } from './ShippingEstimator';
+import { ProductMediaHeader } from './detail/ProductMediaHeader';
+import { ProductInfoCard } from './detail/ProductInfoCard';
+import { ProductActionRow } from './detail/ProductActionRow';
+import { SellerCard } from './detail/SellerCard';
+import { ProductTabs } from './detail/ProductTabs';
+import { ReviewSummary } from './detail/ReviewSummary';
+import { StickyBuyBar } from './detail/StickyBuyBar';
+import { BuyBottomSheet } from './detail/BuyBottomSheet';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
@@ -80,6 +89,40 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const { isAuthenticated } = useAuthStore();
   const { data: settings } = usePublicSettings();
   const { addProduct: recordRecentlyViewed } = useRecentlyViewed();
+
+  // Mobile redesign — bottom sheet + action-row expand state + the compact
+  // sticky header that appears once the shopper scrolls past the gallery.
+  // Everything these touch (handleAddToCart/handleBuyNow/quantity/etc.) is
+  // the exact same state/handlers the desktop layout already uses below.
+  const { totalItems: cartCount } = useCart();
+  const { setCartOpen } = useUIStore();
+  const [isBuySheetOpen, setIsBuySheetOpen] = useState(false);
+  const [buySheetMode, setBuySheetMode] = useState<'cart' | 'buyNow'>('cart');
+  const [isShippingRowOpen, setIsShippingRowOpen] = useState(false);
+  const [isGuaranteeRowOpen, setIsGuaranteeRowOpen] = useState(false);
+  const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
+  const mediaHeaderSentinelRef = useRef<HTMLDivElement>(null);
+  // The site's own <header> is `sticky top-0 z-40` (Header.tsx) — this
+  // compact bar needs to dock directly under it, not at the viewport's
+  // true top:0 (which that header already owns), so its real rendered
+  // height is measured instead of assumed.
+  const [siteHeaderHeight, setSiteHeaderHeight] = useState(64);
+
+  useEffect(() => {
+    const sentinel = mediaHeaderSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsCompactHeaderVisible(!entry.isIntersecting),
+      { rootMargin: '-56px 0px 0px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const header = document.querySelector('header');
+    if (header) setSiteHeaderHeight(header.getBoundingClientRect().height);
+  }, []);
 
   useEffect(() => {
     if (product.id) recordRecentlyViewed(product.id);
@@ -281,6 +324,22 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     }
   };
 
+  const openBuySheet = (mode: 'cart' | 'buyNow') => {
+    if (!validateSelection()) return;
+    setBuySheetMode(mode);
+    setIsBuySheetOpen(true);
+  };
+
+  const handleSheetConfirm = async () => {
+    if (buySheetMode === 'cart') {
+      await handleAddToCart();
+      setIsBuySheetOpen(false);
+    } else {
+      await handleBuyNow();
+      setIsBuySheetOpen(false);
+    }
+  };
+
   const handleWishlistToggle = async () => {
     if (!isAuthenticated) {
       toast.error('Please login to add to wishlist');
@@ -357,8 +416,345 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     },
   ];
 
+  const specRows = [
+    product.category && {
+      label: 'Kategoria',
+      value: product.category.name,
+      href: `/categories/${product.category.slug}`,
+    },
+    product.brand && { label: 'Marka', value: product.brand },
+    hasPackagingInfo && {
+      label: 'Pakote',
+      value: `${product.packagingName}, pote klík ${product.packagingUnitCount}`,
+    },
+    { label: 'Stok', value: String(displayStock) },
+    product.seller?.storeAddress && { label: 'Haruka husi', value: product.seller.storeAddress },
+    (displaySku || product.sku) && { label: 'SKU', value: (displaySku || product.sku) as string },
+    product.type?.name && { label: 'Produtu tipu', value: product.type.name },
+    product.weight && { label: 'Pesu', value: `${product.weight} kg` },
+    product.barcode && { label: 'Barcode', value: product.barcode },
+  ].filter((row): row is { label: string; value: string; href?: string } => !!row);
+
+  const specChips = product.specifications
+    ? Object.entries(product.specifications)
+        .map(([key, value]) => (value ? `${key} ${value}` : key).trim())
+        .filter(Boolean)
+    : [];
+
+  const mobileVariantsTable = hasVariants && !isSimpleVariant && (
+    <div className="mt-5">
+      <h3 className="mb-3 text-sm font-bold text-[#142019]">All variants</h3>
+      <div className="overflow-hidden rounded-xl border border-[#DDE3DE]">
+        <div className="overflow-x-auto" data-lenis-prevent>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[#EEF1EE] bg-[#F4F6F3] text-left">
+                <th className="px-3 py-2.5 font-semibold text-[#142019]">Variant</th>
+                <th className="px-3 py-2.5 font-semibold text-[#142019]">Price</th>
+                <th className="px-3 py-2.5 font-semibold text-[#142019]">Stock</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#EEF1EE]">
+              {variants.map((variant) => (
+                <tr key={variant.id} className={cn(selectedVariant?.id === variant.id && 'bg-[#E3F1E8]/40')}>
+                  <td className="px-3 py-2.5 font-medium text-[#142019]">
+                    {formatVariantLabel(variant, attributeKeys, attributeLabels)}
+                  </td>
+                  <td className="px-3 py-2.5 font-semibold text-[#17703F]">${variant.price.toFixed(2)}</td>
+                  <td className="px-3 py-2.5 text-[#56635B]">{variant.stock}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-3 md:space-y-5">
+      {/* ============ MOBILE (< lg) — redesigned layout ============ */}
+      <div className="lg:hidden">
+        <div className="-mx-4">
+          <ProductMediaHeader
+            images={galleryImages}
+            thumbnail={product.thumbnail}
+            name={product.name}
+            discount={discount}
+            thumbnailGallery={thumbnailGallery}
+            mainImageUrl={mainImageUrl}
+            onThumbnailSelect={selectThumbnail}
+            onMainImageChange={setMainImageUrl}
+            onBack={() => router.back()}
+            onShare={handleCopyLink}
+            onCart={() => setCartOpen(true)}
+            cartCount={cartCount}
+          />
+          <div ref={mediaHeaderSentinelRef} />
+
+          <ProductInfoCard
+            categoryName={product.category?.name}
+            categorySlug={product.category?.slug}
+            title={product.name}
+            rating={product.rating || 0}
+            totalReviews={product.totalReviews ?? 0}
+            salesCount={product.salesCount ?? 0}
+            isWishlisted={isWishlisted}
+            onWishlistToggle={handleWishlistToggle}
+            currentPrice={pricing.currentPrice}
+            originalPrice={pricing.originalPrice}
+            discountPercent={discount}
+            savings={savings}
+            priceRange={showPriceRange ? variantPriceRange : null}
+            inStock={displayStock > 0}
+            stockCount={displayStock}
+          />
+        </div>
+
+        <div className="space-y-2 bg-[#F4F6F3] px-4 pb-2 pt-2">
+          {isFlashSale && (
+            <div className="space-y-2.5 rounded-2xl border border-red-200 bg-red-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-red-700">
+                  <Flame className="h-4 w-4" />
+                  Flash Sale
+                </div>
+                {flashSaleCountdown && !flashSaleCountdown.expired && (
+                  <div className="flex items-center gap-1 font-mono text-sm font-semibold tabular-nums text-red-700">
+                    <span>{String(flashSaleCountdown.hours).padStart(2, '0')}</span>:
+                    <span>{String(flashSaleCountdown.minutes).padStart(2, '0')}</span>:
+                    <span>{String(flashSaleCountdown.seconds).padStart(2, '0')}</span>
+                  </div>
+                )}
+              </div>
+              {flashSaleSoldCount > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-xs font-medium text-orange-700">
+                    <span>{flashSaleSoldCount} Terjual</span>
+                    {displayStock > 0 && displayStock <= 5 && <span>Sisa {displayStock} unit</span>}
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-500 to-red-500"
+                      style={{ width: `${flashSaleProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(hasWholesaleInfo || hasPackagingInfo) && (
+            <div
+              className={cn(
+                'space-y-2 rounded-2xl border p-4',
+                isWholesaleActive ? 'border-green-300 bg-green-50/60' : 'border-dashed border-[#DDE3DE]',
+              )}
+            >
+              <div className="flex items-center gap-2 text-sm font-medium text-[#142019]">
+                <Package className="h-4 w-4 text-[#17703F]" />
+                Bulk &amp; packaging options
+              </div>
+              {hasWholesaleInfo && (
+                <p className={cn('text-sm', isWholesaleActive ? 'font-medium text-green-700' : 'text-[#56635B]')}>
+                  Buy <span className="font-semibold text-[#142019]">{product.wholesaleMinQty}+ units</span> for{' '}
+                  <span className="font-semibold text-[#142019]">${product.wholesalePrice!.toFixed(2)} each</span>
+                  {isWholesaleActive && (
+                    <span className="ml-1.5 inline-flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" /> Applied to your quantity
+                    </span>
+                  )}
+                </p>
+              )}
+              {hasPackagingInfo && (
+                <p className="text-sm text-[#56635B]">
+                  Also sold as{' '}
+                  <span className="font-semibold text-[#142019]">
+                    {product.packagingName} ({product.packagingUnitCount} units) — ${product.packagingPrice!.toFixed(2)}
+                  </span>{' '}
+                  (${packagingPerUnit.toFixed(2)}/unit)
+                </p>
+              )}
+            </div>
+          )}
+
+          {displayStock === 0 && canNotifyMe && (
+            <Button
+              type="button"
+              variant={isSubscribedToRestock ? 'secondary' : 'outline'}
+              className="w-full"
+              onClick={handleNotifyMe}
+              disabled={subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending}
+            >
+              {subscribeNotifyMe.isPending || unsubscribeNotifyMe.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : isSubscribedToRestock ? (
+                <BellRing className="mr-2 h-4 w-4" />
+              ) : (
+                <Bell className="mr-2 h-4 w-4" />
+              )}
+              {isSubscribedToRestock ? "We'll notify you when it's back" : 'Notify Me When Available'}
+            </Button>
+          )}
+
+          <div className="rounded-2xl border border-[#DDE3DE] bg-white px-4">
+            <ProductActionRow
+              icon={<ShieldCheck className="h-5 w-5" />}
+              title="Garantia & protesaun"
+              subtitle="Osan fila se produtu la to'o"
+              onClick={() => setIsGuaranteeRowOpen((prev) => !prev)}
+              expanded={isGuaranteeRowOpen}
+            >
+              <div className="space-y-3">
+                {trustItems.map(({ icon: Icon, title, subtitle }) => (
+                  <div key={title} className="flex items-start gap-2.5">
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#17703F]" />
+                    <div>
+                      <p className="text-sm font-medium text-[#142019]">{title}</p>
+                      <p className="text-xs text-[#56635B]">{subtitle}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ProductActionRow>
+            <ProductActionRow
+              icon={<Truck className="h-5 w-5" />}
+              title="Haruka ba"
+              subtitle="Hili munisípiu atu haree kustu"
+              onClick={() => setIsShippingRowOpen((prev) => !prev)}
+              expanded={isShippingRowOpen}
+              showDivider={false}
+            >
+              <ShippingEstimator />
+            </ProductActionRow>
+          </div>
+
+          {hasVariants && !isSimpleVariant && (
+            <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+              <ProductVariantSelector
+                variants={variants}
+                attributeKeys={attributeKeys}
+                attributeOptions={attributeOptions}
+                attributeLabels={attributeLabels}
+                selectedAttributes={selectedAttributes}
+                selectedVariant={selectedVariant}
+                selectedVariantLabel={selectedVariantLabel}
+                onSelectAttribute={selectAttribute}
+                onSelectVariant={selectVariant}
+                isAttributeValueAvailable={isAttributeValueAvailable}
+                productThumbnail={product.thumbnail}
+              />
+              {selectionHint && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{selectionHint}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {product.seller && (
+            <SellerCard
+              sellerId={product.seller.id}
+              storeName={product.seller.storeName}
+              storeLogo={product.seller.storeLogo}
+              isVerified={product.seller.isVerified}
+              municipality={hasLocalInfo ? localOriginParts[localOriginParts.length - 1] : undefined}
+            />
+          )}
+
+          {hasLocalInfo && (
+            <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+              <div className="flex items-center gap-2">
+                <Sprout className="h-5 w-5 text-[#17703F]" />
+                <h2 className="text-sm font-bold text-[#142019]">🇹🇱 Produtu Lokál Timor-Leste</h2>
+              </div>
+              <div className="mt-3 space-y-2.5 text-sm">
+                {localOriginParts.length > 0 && (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#56635B]" />
+                    <p className="text-[#2A3830]">{localOriginParts.join(', ')}</p>
+                  </div>
+                )}
+                {(product.producerName || product.producerOrganization) && (
+                  <div className="flex items-start gap-2.5">
+                    <User className="mt-0.5 h-4 w-4 shrink-0 text-[#56635B]" />
+                    <p className="text-[#2A3830]">
+                      {[product.producerName, product.producerOrganization].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                )}
+                {product.producerPhone && (
+                  <div className="flex items-start gap-2.5">
+                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#56635B]" />
+                    <p className="text-[#2A3830]">{product.producerPhone}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+            <ProductTabs
+              description={displayDescription}
+              specChips={specChips}
+              specRows={specRows}
+              variantsTable={mobileVariantsTable}
+              totalReviews={product.totalReviews ?? 0}
+              reviewSummarySlot={<ReviewSummary rating={product.rating || 0} totalReviews={product.totalReviews ?? 0} />}
+              reviewsSlot={
+                <ProductReviews
+                  productId={product.id}
+                  rating={product.rating}
+                  totalReviews={product.totalReviews}
+                  ratingDistribution={product.ratingDistribution}
+                />
+              }
+            />
+          </div>
+        </div>
+
+        {/* Compact sticky app bar — appears once the shopper scrolls past
+            the media header (IntersectionObserver on the sentinel above). */}
+        {isCompactHeaderVisible && (
+          <div
+            className="fixed inset-x-0 z-30 flex items-center gap-3 border-b border-[#DDE3DE] bg-white px-3 py-2"
+            style={{ top: siteHeaderHeight }}
+          >
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="Fila"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#142019]"
+            >
+              <ChevronRight className="h-5 w-5 rotate-180" />
+            </button>
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#F4F6F3]">
+              {mainImageUrl && <Image src={mainImageUrl} alt={product.name} fill className="object-cover" sizes="40px" />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[#142019]">{product.name}</p>
+              <p className="text-sm font-extrabold text-[#17703F]">${pricing.currentPrice.toFixed(2)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              aria-label="Karreta"
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#142019]"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#B4410F] px-1 text-[9px] font-semibold text-white">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ============ DESKTOP (lg+) — unchanged from before ============ */}
+      <div className="hidden lg:block">
       {/* Breadcrumb — sits right under the header with minimal padding
           (py-1.5 ≈ 6px) and a smaller 12px label size, closer to a compact
           utility strip than a full text row. */}
@@ -1101,6 +1497,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
           </div>
         </TabsContent>
       </Tabs>
+      </div>
 
       {product.seller && (
         <SellerProducts
@@ -1114,55 +1511,32 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
 
       <RecentlyViewedSection excludeId={product.id} />
 
-      {/* Mobile sticky buy bar — on a long product page, the inline Add to
-          Cart/Buy Now buttons (still shown as-is on lg: and up) end up
-          mid-scroll once a shopper reaches the description or reviews.
-          Pinning the same two actions to the bottom of the viewport keeps
-          them in the thumb zone the whole time, matching how Shopee/
-          Tokopedia and most mobile storefronts handle this. Spacer below
-          reserves the matching height so this bar never covers page
-          content (particularly the reviews/related-products sections). */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background lg:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-bold text-primary">${pricing.currentPrice.toFixed(2)}</p>
-            {selectionHint ? (
-              <p className="truncate text-xs text-amber-700">{selectionHint}</p>
-            ) : (
-              <p className="truncate text-xs text-muted-foreground">
-                {displayStock > 0 ? `${displayStock} available` : 'Out of stock'}
-              </p>
-            )}
-          </div>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-11 w-11 shrink-0 border-primary text-primary hover:bg-primary/5"
-            disabled={buyDisabled || isAddingToCart}
-            onClick={handleAddToCart}
-            aria-label="Add to cart"
-          >
-            {isAddingToCart ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ShoppingCart className="h-5 w-5" />
-            )}
-          </Button>
-          <Button
-            size="lg"
-            className="h-11 shrink-0 bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"
-            disabled={buyDisabled || isBuyingNow}
-            onClick={handleBuyNow}
-          >
-            {isBuyingNow ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-            Buy Now
-          </Button>
-        </div>
-      </div>
+      {/* Mobile sticky buy bar — Tau ba karreta/Sosa agora open the shared
+          BuyBottomSheet (quantity + municipality confirm) instead of
+          calling handleAddToCart/handleBuyNow directly; the sheet calls
+          them itself once confirmed. Desktop keeps its own inline buttons
+          inside the hidden lg:block section above, unchanged. */}
+      <StickyBuyBar
+        onAddToCart={() => openBuySheet('cart')}
+        onBuyNow={() => openBuySheet('buyNow')}
+        disabled={buyDisabled}
+      />
       <div className="h-[76px] lg:hidden" aria-hidden="true" />
+
+      <BuyBottomSheet
+        open={isBuySheetOpen}
+        onOpenChange={setIsBuySheetOpen}
+        imageUrl={mainImageUrl}
+        title={product.name}
+        price={pricing.currentPrice}
+        comparePrice={pricing.originalPrice}
+        stock={displayStock}
+        quantity={quantity}
+        setQuantity={setQuantity}
+        onConfirm={handleSheetConfirm}
+        isSubmitting={buySheetMode === 'cart' ? isAddingToCart : isBuyingNow}
+        confirmLabel={buySheetMode === 'cart' ? 'Tau ba karreta' : 'Sosa agora'}
+      />
     </div>
   );
 }
