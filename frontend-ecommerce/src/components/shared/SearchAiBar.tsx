@@ -262,8 +262,8 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
             bump on the outer layer only, not a second ring on the inner
             one. */}
         <div className="relative flex w-full items-center overflow-hidden rounded-full bg-gradient-to-r from-[#16A34A] to-[#2563EB] p-[1.5px] shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-shadow focus-within:shadow-[0_4px_16px_rgba(15,23,42,0.1)]">
-          <div className="relative flex w-full items-center overflow-hidden rounded-full bg-white px-2 py-2">
-            <Search className="pointer-events-none absolute left-4 h-5 w-5 shrink-0 text-[#16A34A]" />
+          <div className="relative flex w-full items-center overflow-hidden rounded-full bg-white px-2 py-1 sm:py-2">
+            <Search className="pointer-events-none absolute left-3 h-5 w-5 shrink-0 text-[#16A34A] sm:left-4" />
             {/* globals.css sets a sitewide `*:focus-visible` ring (real
                 accessibility feature, left alone everywhere else) — but a
                 plain <input> has no border-radius of its own, so that ring
@@ -280,26 +280,26 @@ export function SearchAiBar({ className, autoFocus, onNavigate }: SearchAiBarPro
               autoFocus={autoFocus}
               disabled={isSearching}
               autoComplete="off"
-              className="h-12 w-full flex-1 truncate border-0 bg-transparent pl-11 pr-2 text-[15px] text-slate-900 outline-none ring-0 placeholder:text-slate-400 disabled:opacity-60 sm:h-14 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="h-9 w-full flex-1 truncate border-0 bg-transparent pl-9 pr-2 text-[13px] text-slate-900 outline-none ring-0 placeholder:text-slate-400 disabled:opacity-60 sm:h-14 sm:pl-11 sm:text-[15px] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <button
               type="button"
               onClick={handleCameraClick}
               aria-label="Search by image"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F1F5F9] text-[#2563EB] transition-colors hover:bg-[#E2E8F0] sm:h-12 sm:w-12"
             >
-              <Camera className="h-5 w-5" />
+              <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
-            <div aria-hidden className="mx-1.5 h-6 w-px shrink-0 bg-slate-200" />
+            <div aria-hidden className="mx-1.5 h-5 w-px shrink-0 bg-slate-200 sm:h-6" />
             <button
               type="submit"
               disabled={isSearching || !trimmedValue}
-              className="flex h-12 w-12 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-4"
+              className="flex h-9 w-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#16A34A] text-white transition-colors hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:w-auto sm:px-4"
             >
               {isSearching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Search className="h-[18px] w-[18px]" />
+                <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
               )}
               <span className="hidden text-xs font-medium sm:inline">Search AI</span>
             </button>
