@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,11 +14,11 @@ import {
   MapPin,
   Plus,
   Lock,
-  ChevronDown,
   Loader2,
   LucideIcon,
-  TicketPercent,
   Check,
+  Store,
+  RotateCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCreateOrder } from '@/hooks/useOrders';
@@ -26,18 +27,25 @@ import { useAddresses } from '@/hooks/useAddresses';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore } from '@/stores/cartStore';
 import { useCouponStore } from '@/stores/couponStore';
+import { useValidateCoupon } from '@/hooks/useCoupons';
 import { useReferralSummary } from '@/hooks/useReferral';
 import dynamic from 'next/dynamic';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
+import { CheckoutStepper, type CheckoutStep } from './components/CheckoutStepper';
+import { CheckoutBottomBar } from './components/CheckoutBottomBar';
+import { AddressCard } from './components/AddressCard';
+import { ShippingOptionCard } from './components/ShippingOptionCard';
+import { PaymentMethodCard } from './components/PaymentMethodCard';
+import { OrderSummaryCard } from './components/OrderSummaryCard';
+import { CostBreakdown } from './components/CostBreakdown';
 
 const NOTES_MAX_LENGTH = 300;
 
@@ -69,8 +77,9 @@ export default function CheckoutPage() {
   const { items, isLoading: cartLoading, fetchCart, clearCart, mergeGuestCart } = useCartStore();
   const { addresses, isLoading: addressesLoading, refetch: refetchAddresses } = useAddresses();
   const { mutateAsync: createOrder, isPending: isPlacingOrder } = useCreateOrder();
-  const { appliedCoupon, clearCoupon } = useCouponStore();
+  const { appliedCoupon, setAppliedCoupon, clearCoupon } = useCouponStore();
   const { data: referralSummary } = useReferralSummary();
+  const validateCoupon = useValidateCoupon();
 
   // The backend resolves which couriers actually serve this address — the
   // frontend only renders whatever it returns, it never decides availability
@@ -124,15 +133,15 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [isProductsRowExpanded, setIsProductsRowExpanded] = useState(false);
-  const [isAddressListOpen, setIsAddressListOpen] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  // 3-step checkout flow: Address & Location → Shipping → Payment. Purely a
+  const [promoInput, setPromoInput] = useState('');
+  const [promoMessage, setPromoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // 4-step checkout flow: Enderesu → Haruka → Pagamentu → Revee. Purely a
   // UI concern — every field/handler below is unchanged from the single-
   // page layout, just shown one step at a time. Not persisted to the URL;
   // a refresh mid-checkout starts back at step 1, same as the previous
   // layout always scrolled to top on reload.
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [currentStep, setCurrentStep] = useState<CheckoutStep>(1);
   const [checkoutSettings, setCheckoutSettings] = useState<{
     taxRate?: number;
     serviceFee?: number;
@@ -152,6 +161,8 @@ export default function CheckoutPage() {
     void checkAuth();
     void fetchCart();
   }, [checkAuth, fetchCart]);
+
+  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -193,6 +204,7 @@ export default function CheckoutPage() {
         bankSWIFT: settingsPayload?.bankSWIFT ?? null,
         bankTransferInstructions: settingsPayload?.bankTransferInstructions ?? null,
       });
+      setIsSettingsLoading(false);
     };
 
     void loadCheckoutConfig();
@@ -371,6 +383,31 @@ export default function CheckoutPage() {
     return Math.max(ids.size, 1);
   }, [safeItems]);
 
+  // Real per-product discount (originalPrice vs the price actually charged
+  // — see CartItem's own comment in types/cart.types.ts), summed across the
+  // cart. Independent of any coupon — shown in Step 4's savings badge
+  // alongside (not instead of) the coupon discount row.
+  const productSavings = useMemo(
+    () =>
+      safeItems.reduce(
+        (sum, item) => sum + Math.max((item.originalPrice ?? item.price) - item.price, 0) * (item.quantity || 0),
+        0,
+      ),
+    [safeItems],
+  );
+
+  // Step 2's per-seller package cards — same safeItems, just grouped for
+  // display (no new data).
+  const packagesBySeller = useMemo(() => {
+    const map = new Map<string, { sellerName: string; items: typeof safeItems }>();
+    for (const item of safeItems) {
+      const key = String(item.sellerId ?? 'unknown');
+      if (!map.has(key)) map.set(key, { sellerName: item.sellerName || 'Loja', items: [] });
+      map.get(key)!.items.push(item);
+    }
+    return Array.from(map.values());
+  }, [safeItems]);
+
   // Grouped by real seller (sellerId/sellerName already come straight off
   // the backend's cart response, see lib/cart.ts) — sellerCount itself
   // (computed above) is all that's needed now: the "shipped as N separate
@@ -435,6 +472,29 @@ export default function CheckoutPage() {
       return;
     }
     setCurrentStep(3);
+  };
+
+  const handleContinueFromPayment = () => {
+    setCurrentStep(4);
+  };
+
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setPromoMessage(null);
+    try {
+      const result = await validateCoupon.mutateAsync({ code, subtotal });
+      setAppliedCoupon({
+        code: result.code,
+        discountType: result.discountType,
+        discountValue: result.discountValue,
+        discountAmount: result.discountAmount,
+      });
+      setPromoInput('');
+      setPromoMessage({ type: 'success', text: t('checkout.payment.promoSuccess', { code: result.code }) });
+    } catch (error: any) {
+      setPromoMessage({ type: 'error', text: error.response?.data?.message || t('checkout.payment.promoError') });
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -569,705 +629,618 @@ export default function CheckoutPage() {
     !!selectedAddress?.municipality &&
     pinLocation.municipality.trim().toLowerCase() !== selectedAddress.municipality.trim().toLowerCase();
 
+  // Step-aware back navigation — the app bar back button and (via the
+  // popstate listener below) the hardware/browser back button both move
+  // one step backward instead of leaving the page, matching the new
+  // design's explicit "Hardware back and the app bar back button go to the
+  // previous step" requirement.
+  const handleAppBarBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((currentStep - 1) as CheckoutStep);
+    } else {
+      router.push('/cart');
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentStep((prev) => (prev > 1 ? ((prev - 1) as CheckoutStep) : prev));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (currentStep > 1) {
+      window.history.pushState({ checkoutStep: currentStep }, '');
+    }
+    // Only the forward transition should push a new entry — jumping back
+    // via the stepper/app-bar already pops or re-sets state, it shouldn't
+    // also push a fresh one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
+
+  const selectedShippingOption = shippingOptions.find((option) => option.id === selectedShipping);
+  const selectedPaymentMethod = availablePaymentMethods.find((method) => method.id === selectedPayment);
+
+  const primaryAction = (() => {
+    switch (currentStep) {
+      case 1:
+        return {
+          label: t('checkout.address.continueButton'),
+          onClick: handleContinueFromAddress,
+          disabled: !selectedAddressId,
+          totalLabel: t('checkout.address.subtotal', { count: safeItems.length }),
+          amount: subtotal,
+        };
+      case 2:
+        return {
+          label: t('checkout.shipping.continueButton'),
+          onClick: handleContinueFromShipping,
+          disabled: !selectedShipping,
+          totalLabel: t('checkout.summary.total'),
+          amount: subtotal + shippingCost,
+        };
+      case 3:
+        return {
+          label: t('checkout.payment.continueButton'),
+          onClick: handleContinueFromPayment,
+          disabled: availablePaymentMethods.length === 0,
+          totalLabel: t('checkout.summary.total'),
+          amount: grandTotal,
+        };
+      case 4:
+      default:
+        return {
+          label: t('checkout.review.placeOrderButton'),
+          onClick: handlePlaceOrder,
+          disabled: !agreedToTerms || isSubmittingOrder || isPlacingOrder,
+          loading: isSubmittingOrder || isPlacingOrder,
+          totalLabel: t('checkout.summary.total'),
+          amount: grandTotal,
+        };
+    }
+  })();
+
   if (cartLoading || (addressesLoading && !addresses)) {
     return (
-      <Card className="flex items-center justify-center p-10">
-        <div className="flex items-center gap-3 text-muted-foreground">
+      <div className="flex items-center justify-center p-10">
+        <div className="flex items-center gap-3 text-[#56635B]">
           <Loader2 className="h-5 w-5 animate-spin" />
           {t('checkout.preparing')}
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <Card className="mx-auto max-w-3xl p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.signInTitle')}</h1>
-        <p className="mt-3 text-sm text-muted-foreground">{t('checkout.signInDescription')}</p>
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-xl font-extrabold text-[#142019]">{t('checkout.signInTitle')}</h1>
+        <p className="mt-3 text-sm text-[#56635B]">{t('checkout.signInDescription')}</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button size="lg" asChild>
-            <Link href="/login?redirect=/checkout">{t('checkout.signIn')}</Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/cart">{t('checkout.backToCart')}</Link>
-          </Button>
+          <Link href="/login?redirect=/checkout" className="rounded-2xl bg-[#17703F] px-5 py-3 text-sm font-bold text-white">
+            {t('checkout.signIn')}
+          </Link>
+          <Link href="/cart" className="rounded-2xl border border-[#DDE3DE] px-5 py-3 text-sm font-bold text-[#142019]">
+            {t('checkout.backToCart')}
+          </Link>
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (safeItems.length === 0) {
     return (
-      <Card className="mx-auto max-w-3xl p-8">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.emptyCartTitle')}</h1>
-        <p className="mt-3 text-sm text-muted-foreground">{t('checkout.emptyCartDescription')}</p>
+      <div className="mx-auto max-w-xl p-8">
+        <h1 className="text-xl font-extrabold text-[#142019]">{t('checkout.emptyCartTitle')}</h1>
+        <p className="mt-3 text-sm text-[#56635B]">{t('checkout.emptyCartDescription')}</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button size="lg" asChild>
-            <Link href="/">{t('checkout.continueShopping')}</Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/cart">{t('checkout.openCart')}</Link>
-          </Button>
+          <Link href="/" className="rounded-2xl bg-[#17703F] px-5 py-3 text-sm font-bold text-white">
+            {t('checkout.continueShopping')}
+          </Link>
+          <Link href="/cart" className="rounded-2xl border border-[#DDE3DE] px-5 py-3 text-sm font-bold text-[#142019]">
+            {t('checkout.openCart')}
+          </Link>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
     <>
-      {/* No breadcrumb here — (shop)/layout.tsx already renders the
-          site-wide <Breadcrumb /> above every page that doesn't opt out
-          (see hasOwnBreadcrumb()), and it already resolves "/checkout" to
-          "Home > Checkout". A second one here would just duplicate it. */}
-      <div className="mx-auto w-full max-w-2xl">
-        <Card className="p-6 sm:p-8">
-          <div className="flex items-center gap-3 border-b border-border pb-6">
-            <Link
-              href="/cart"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted"
-              aria-label={t('checkout.backToCart')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">{t('checkout.title')}</h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {t('checkout.subtitle')}
-              </p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-[#F4F6F3] pb-24 min-[1000px]:pb-6">
+        {/* App bar */}
+        <div className="flex items-center gap-3 border-b border-[#EEF1EE] bg-white px-4 py-3">
+          <button
+            type="button"
+            onClick={handleAppBarBack}
+            aria-label={t('checkout.back')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-[19px] font-extrabold text-[#142019]">{t('checkout.title')}</h1>
+        </div>
 
-          <CheckoutStepIndicator
-            currentStep={currentStep}
-            steps={[
-              { step: 1, label: t('checkout.step.address') },
-              { step: 2, label: t('checkout.step.shipping') },
-              { step: 3, label: t('checkout.step.payment') },
-            ]}
-            onStepClick={(step) => {
-              if (step < currentStep) setCurrentStep(step);
-            }}
-          />
+        <CheckoutStepper
+          currentStep={currentStep}
+          steps={[
+            { step: 1, label: t('checkout.step.address') },
+            { step: 2, label: t('checkout.step.shipping') },
+            { step: 3, label: t('checkout.step.payment') },
+            { step: 4, label: t('checkout.step.review') },
+          ]}
+          onStepClick={(step) => {
+            if (step < currentStep) setCurrentStep(step);
+          }}
+        />
 
-          {/* ============ STEP 1 — Address & Location ============ */}
-          {currentStep === 1 && (
-            <div className="mt-6 space-y-5">
-              <div className="rounded-xl border border-border bg-muted/40 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">{t('checkout.address.title')}</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">{t('checkout.address.description')}</p>
-                  </div>
-                  {selectedAddress && (
-                    <button
-                      type="button"
-                      onClick={() => setIsAddressListOpen((prev) => !prev)}
-                      className="shrink-0 text-sm font-medium text-primary transition hover:text-primary/80"
-                    >
-                      {isAddressListOpen ? t('checkout.address.cancel') : t('checkout.address.change')}
-                    </button>
-                  )}
-                </div>
-
-                {/* Once an address is selected, show just that one address —
-                    clean and unambiguous — instead of the full pickable list
-                    with every other saved address competing for attention.
-                    "Change" reveals the list again to pick a different one. */}
-                {selectedAddress && !isAddressListOpen ? (
-                  <div className="mt-5 rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-center gap-2">
-                      <p className="text-base font-semibold text-foreground">{selectedAddress.label || t('checkout.address.fallbackLabel')}</p>
-                      {selectedAddress.isPrimary && (
-                        <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">{t('checkout.address.default')}</span>
-                      )}
-                    </div>
-                    {selectedAddress.recipientName && (
-                      <p className="mt-2 text-sm font-medium text-foreground">{t('checkout.address.recipient', { name: selectedAddress.recipientName })}</p>
-                    )}
-                    <p className="mt-1 text-sm text-muted-foreground">{selectedAddress.phone}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {selectedAddress.street ? `${selectedAddress.street}, ` : ''}
-                      {selectedAddress.village ? `${selectedAddress.village}, ` : ''}
-                      {selectedAddress.suco ? `${selectedAddress.suco}, ` : ''}
-                      {selectedAddress.postoAdmin ? `${selectedAddress.postoAdmin}, ` : ''}
-                      {selectedAddress.municipality}
-                    </p>
-                    {selectedAddress.reference && <p className="mt-1 text-sm text-muted-foreground">{t('checkout.address.reference', { reference: selectedAddress.reference })}</p>}
-
-                    {/* Kept visible even when the rest of the address actions
-                        are tucked behind "Change" — pinning the exact spot
-                        is a per-order refinement shoppers reach for often,
-                        not address management. Also covers "use my current
-                        location" — GoogleMapPicker already has a built-in
-                        geolocation button. */}
-                    <button
-                      type="button"
-                      onClick={() => setShowMap(true)}
-                      className="mt-4 flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3.5 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
-                    >
-                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? t('checkout.address.changeExactLocation') : t('checkout.address.pinExactLocation')}
-                    </button>
-                  </div>
-                ) : addresses && addresses.length > 0 ? (
-                  <div className="mt-5 grid gap-3">
-                    {addresses.map((address: any) => {
-                      const selected = selectedAddressId === address.id;
-                      return (
-                        <button
-                          key={address.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAddressId(address.id);
-                            setIsAddressListOpen(false);
-                          }}
-                          className={cn(
-                            'rounded-xl border p-4 text-left transition',
-                            selected
-                              ? 'border-primary bg-primary/5 shadow-sm'
-                              : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
-                          )}
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="text-base font-semibold text-foreground">{address.label || t('checkout.address.fallbackLabel')}</p>
-                                {address.isPrimary && (
-                                  <span className="rounded-full bg-secondary/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-secondary">{t('checkout.address.default')}</span>
-                                )}
-                              </div>
-                              {address.recipientName && (
-                                <p className="mt-2 text-sm font-medium text-foreground">{t('checkout.address.recipient', { name: address.recipientName })}</p>
-                              )}
-                              <p className="mt-1 text-sm text-muted-foreground">{address.phone}</p>
-                              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                                {address.street ? `${address.street}, ` : ''}
-                                {address.village ? `${address.village}, ` : ''}
-                                {address.suco ? `${address.suco}, ` : ''}
-                                {address.postoAdmin ? `${address.postoAdmin}, ` : ''}
-                                {address.municipality}
-                              </p>
-                              {address.reference && <p className="mt-1 text-sm text-muted-foreground">{t('checkout.address.reference', { reference: address.reference })}</p>}
-                            </div>
-                            <div className="rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground">
-                              {selected ? t('checkout.address.selected') : t('checkout.address.select')}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="mt-5 rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-                    {t('checkout.address.none')}
-                  </div>
-                )}
-
-                {/* Hidden once an address is selected and the list is
-                    collapsed — these are address-management actions, not
-                    something needed every time this section is glanced at. */}
-                {(!selectedAddress || isAddressListOpen) && (
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Link
-                      href="/account/addresses/new?redirect=/checkout"
-                      className="flex items-center gap-2 rounded-full border border-dashed border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:border-primary hover:text-primary"
-                    >
-                      <Plus className="h-4 w-4" /> {t('checkout.address.addNew')}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setShowMap(true)}
-                      className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
-                    >
-                      <MapPin className="h-4 w-4 text-primary" /> {pinLocation ? t('checkout.address.changeExactLocation') : t('checkout.address.pinExactLocation')}
-                    </button>
-                    <Link
-                      href="/account/addresses"
-                      className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
-                    >
-                      {t('checkout.address.manage')}
-                    </Link>
+        <div className="mx-auto w-full px-4 py-5 min-[600px]:max-w-[720px] min-[1000px]:max-w-[1000px]">
+          <div className="min-[1000px]:grid min-[1000px]:grid-cols-[1fr_360px] min-[1000px]:items-start min-[1000px]:gap-8">
+            {/* ============ Step content ============ */}
+            <div className="space-y-4">
+              {/* ============ STEP 1 — Enderesu ============ */}
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-[17px] font-extrabold text-[#142019]">{t('checkout.address.heading')}</h2>
                     <button
                       type="button"
                       onClick={handleRefreshAddresses}
-                      className="rounded-full border border-border bg-card px-3.5 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted/50"
+                      aria-label={t('checkout.address.refresh')}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-[#56635B]"
                     >
-                      {t('checkout.address.refresh')}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Exact Delivery Location — deliberately a separate card from
-                  Delivery Address above. Copy is explicit that this never
-                  changes the address or shipping fee, to head off the exact
-                  confusion this feature used to cause when the map redirected
-                  into "Add new address" instead. */}
-              {pinLocation && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        <h2 className="text-base font-semibold">{t('checkout.exactLocation.title')}</h2>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {pinLocation.placeName || `${pinLocation.lat.toFixed(5)}, ${pinLocation.lng.toFixed(5)}`}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {t('checkout.exactLocation.description')}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemovePin}
-                      className="shrink-0 text-sm font-medium text-muted-foreground transition hover:text-destructive"
-                    >
-                      {t('checkout.exactLocation.remove')}
+                      <RotateCw className="h-4 w-4" />
                     </button>
                   </div>
 
-                  {pinMunicipalityMismatch && (
-                    <div className="mt-3 rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-foreground">
-                      {t('checkout.exactLocation.mismatch', {
-                        pinMunicipality: pinLocation.municipality || '',
-                        addressMunicipality: selectedAddress?.municipality || '',
-                      })}
+                  {addressesLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-28 w-full rounded-2xl" />
+                      <Skeleton className="h-28 w-full rounded-2xl" />
                     </div>
-                  )}
-
-                  <div className="mt-3 space-y-1.5">
-                    <Label htmlFor="pin-reference" className="text-xs font-medium text-muted-foreground">
-                      {t('checkout.exactLocation.noteLabel')}
-                    </Label>
-                    <Input
-                      id="pin-reference"
-                      type="text"
-                      value={pinReference}
-                      onChange={(e) => setPinReference(e.target.value)}
-                      placeholder={t('checkout.exactLocation.notePlaceholder')}
-                      maxLength={500}
-                      className="h-9"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <Button type="button" size="lg" onClick={handleContinueFromAddress} className="w-full">
-                {t('checkout.continue')}
-              </Button>
-            </div>
-          )}
-
-          {/* ============ STEP 2 — Shipping ============ */}
-          {currentStep === 2 && (
-            <div className="mt-6 space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold">{t('checkout.shipping.title')}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{t('checkout.shipping.description')}</p>
-              </div>
-
-              {!selectedAddress ? (
-                <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  {t('checkout.shipping.selectAddressFirst')}
-                </div>
-              ) : isShippingOptionsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t('checkout.shipping.loading')}
-                </div>
-              ) : shippingOptionsError ? (
-                <div className="rounded-xl border border-dashed border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                  {shippingOptionsError}
-                </div>
-              ) : shippingOptions.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {shippingOptions.map((option) => {
-                    const Icon = option.icon;
-                    const selected = option.id === selectedShipping;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedShipping(option.id);
-                          setSelectedShippingMeta({
-                            courierId: option.courierId,
-                            courierServiceId: option.courierServiceId,
-                            shippingMethod: option.shippingMethod ?? option.id,
-                            shippingZoneId: option.shippingZoneId,
-                          });
-                        }}
-                        aria-pressed={selected}
-                        className={cn(
-                          'relative rounded-xl border p-4 text-left transition',
-                          selected
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
-                        )}
-                      >
-                        {selected && (
-                          <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                        <div className="flex items-center gap-2 pr-6">
-                          <div className={cn('rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-foreground">{option.name}</p>
-                            <p className="text-sm text-muted-foreground">{option.subtitle}</p>
-                            {option.courierLabel && (
-                              <p className="mt-1 text-xs font-medium text-primary">{option.courierLabel}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-4 flex items-center justify-between text-sm">
-                          <span className="font-semibold text-foreground">${Number(option.cost ?? 0).toFixed(2)}</span>
-                          <span className="text-muted-foreground">{option.eta}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  {t('checkout.shipping.noCourier', { municipality: selectedAddress.municipality || t('checkout.shipping.thisMunicipality') })}
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between gap-2.5">
-                  <Label htmlFor="delivery-notes" className="text-sm font-medium text-foreground">
-                    {t('checkout.shipping.notesLabel')} <span className="font-normal text-muted-foreground">{t('checkout.shipping.optional')}</span>
-                  </Label>
-                  <span
-                    className={cn(
-                      'text-xs',
-                      notes.length > NOTES_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground',
-                    )}
-                  >
-                    {notes.length}/{NOTES_MAX_LENGTH}
-                  </span>
-                </div>
-                <Textarea
-                  id="delivery-notes"
-                  rows={3}
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  placeholder={t('checkout.shipping.notesPlaceholder')}
-                  maxLength={NOTES_MAX_LENGTH}
-                  className="mt-2"
-                />
-              </div>
-
-              {/* Shipping cost summary — real-time, same shippingCost the
-                  Order Summary in Step 3 and the final order charge both
-                  use (computed by the /shipping/calculate effect above). */}
-              <div className="rounded-xl bg-muted/40 p-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{t('checkout.shipping.fee')}</span>
-                  <span className="font-semibold text-foreground">${shippingCost.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button type="button" size="lg" variant="outline" onClick={() => setCurrentStep(1)} className="flex-1">
-                  {t('checkout.back')}
-                </Button>
-                <Button type="button" size="lg" onClick={handleContinueFromShipping} className="flex-1">
-                  {t('checkout.continue')}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* ============ STEP 3 — Payment ============ */}
-          {currentStep === 3 && (
-            <div className="mt-6 space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold">{t('checkout.payment.title')}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{t('checkout.payment.description')}</p>
-              </div>
-
-              {availablePaymentMethods.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {availablePaymentMethods.map((method) => {
-                    const Icon = method.icon;
-                    const selected = method.id === selectedPayment;
-                    return (
-                      <button
-                        key={method.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
-                        className={cn(
-                          'relative flex items-start gap-3 rounded-xl border p-4 text-left transition',
-                          selected
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border bg-card hover:border-primary/40 hover:bg-muted/50',
-                        )}
-                      >
-                        {selected && (
-                          <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="h-3 w-3" />
-                          </span>
-                        )}
-                        <div className={cn('shrink-0 rounded-full p-2', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 pr-6">
-                          <p className="font-medium text-foreground">{method.name}</p>
-                          <p className="mt-0.5 text-sm text-muted-foreground">{method.description}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  {t('checkout.payment.noMethods')}
-                </div>
-              )}
-
-              {selectedPayment === 'COD' && (Boolean(checkoutSettings.minCODOrderAmount) || Boolean(checkoutSettings.maxCODOrderAmount)) && (
-                <p className="text-xs text-muted-foreground">
-                  {t('checkout.payment.codLimits', {
-                    from: checkoutSettings.minCODOrderAmount ? t('checkout.payment.codLimitsFrom', { amount: checkoutSettings.minCODOrderAmount.toFixed(2) }) : '',
-                    upTo: checkoutSettings.maxCODOrderAmount ? t('checkout.payment.codLimitsUpTo', { amount: checkoutSettings.maxCODOrderAmount.toFixed(2) }) : '',
-                  })}
-                </p>
-              )}
-
-              {selectedPayment === 'BANK_TRANSFER' && checkoutSettings.bankName && (
-                <div className="rounded-lg border border-warning/20 bg-warning/10 p-4 text-sm text-foreground">
-                  <p className="font-semibold text-warning">{t('checkout.payment.transferTo')}</p>
-                  <p className="mt-1">{checkoutSettings.bankName} — {checkoutSettings.bankAccountName}</p>
-                  {checkoutSettings.bankAccountNumber && <p>{t('checkout.payment.accountNo', { number: checkoutSettings.bankAccountNumber })}</p>}
-                  {checkoutSettings.bankSWIFT && <p>{t('checkout.payment.swift', { code: checkoutSettings.bankSWIFT })}</p>}
-                  <p className="mt-2 text-muted-foreground">
-                    {t('checkout.payment.transferNote')}
-                  </p>
-                </div>
-              )}
-
-              {walletBalance > 0 && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-4">
-                  <div className="flex items-center gap-2.5">
-                    <Wallet className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="text-sm font-semibold">{t('checkout.wallet.title')}</p>
-                      <p className="text-xs text-muted-foreground">{t('checkout.wallet.available', { amount: walletBalance.toFixed(2) })}</p>
-                    </div>
-                  </div>
-                  <Switch checked={useWalletCredit} onCheckedChange={setUseWalletCredit} />
-                </div>
-              )}
-
-              {/* Order Summary */}
-              <div className="rounded-xl border border-border p-5">
-                <h3 className="text-base font-semibold">{t('checkout.summary.title')}</h3>
-                {sellerCount > 1 && (
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {t('checkout.summary.multiSeller', { count: sellerCount })}
-                  </p>
-                )}
-
-                <div className="mt-4 space-y-3 border-t border-border pt-4 text-sm text-muted-foreground">
-                  <button
-                    type="button"
-                    onClick={() => setIsProductsRowExpanded((prev) => !prev)}
-                    className="flex w-full items-center justify-between text-left"
-                    aria-expanded={isProductsRowExpanded}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {t('checkout.summary.products', { count: safeItems.length })}
-                      <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isProductsRowExpanded && 'rotate-180')} />
-                    </span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </button>
-
-                  {isProductsRowExpanded && (
-                    <div className="space-y-2 rounded-lg bg-muted/40 p-3">
-                      {safeItems.map((item) => (
-                        <div key={`${item.productId}-${item.variantId ?? 'default'}-summary`} className="flex items-center justify-between gap-3">
-                          <span className="truncate text-foreground">
-                            {item.name}
-                            {item.variantAttributes && Object.keys(item.variantAttributes).length > 0
-                              ? ` (${Object.values(item.variantAttributes as Record<string, string>).filter(Boolean).join(' / ')})`
-                              : ''}
-                            {' '}× {item.quantity}
-                          </span>
-                          <span className="shrink-0">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
-                        </div>
+                  ) : addresses && addresses.length > 0 ? (
+                    <div className="space-y-3" role="radiogroup">
+                      {addresses.map((address: any) => (
+                        <AddressCard
+                          key={address.id}
+                          address={address}
+                          selected={selectedAddressId === address.id}
+                          onSelect={() => setSelectedAddressId(address.id)}
+                        />
                       ))}
                     </div>
-                  )}
-
-                  {appliedCoupon && (
-                    <div className="flex items-center justify-between text-success">
-                      <span className="flex items-center gap-1.5">
-                        <TicketPercent className="h-3.5 w-3.5" />
-                        {t('checkout.summary.coupon', { code: appliedCoupon.code })}
-                      </span>
-                      <span>-${discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between"><span>{t('checkout.summary.shipping')}</span><span>${shippingCost.toFixed(2)}</span></div>
-                  {/* Tax and service fee are only ever real line items when
-                      the store actually charges them — a "$0.00" row for a
-                      fee that never applies is noise, not information. */}
-                  {tax > 0 && (
-                    <div className="flex items-center justify-between"><span>{t('checkout.summary.tax')}</span><span>${tax.toFixed(2)}</span></div>
-                  )}
-                  {serviceFee > 0 && (
-                    <div className="flex items-center justify-between">
-                      <span>{sellerCount > 1 ? t('checkout.summary.serviceFeeSellers', { count: sellerCount }) : t('checkout.summary.serviceFee')}</span>
-                      <span>${serviceFee.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {walletCreditApplied > 0 && (
-                    <div className="flex items-center justify-between text-success">
-                      <span className="flex items-center gap-1.5">
-                        <Wallet className="h-3.5 w-3.5" />
-                        {t('checkout.summary.walletCredit')}
-                      </span>
-                      <span>-${walletCreditApplied.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-4 rounded-xl bg-muted/40 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">{t('checkout.summary.total')}</span>
-                    <span className="text-2xl font-semibold text-primary">${grandTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Capped at 3, compact, inline — not five stacked full-width
-                  pills repeating the same "you can trust us" message. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                {trustIndicators.map(({ icon: Icon, label }) => (
-                  <span key={label} className="flex items-center gap-1.5">
-                    <Icon className="h-3.5 w-3.5 text-success" />
-                    {label}
-                  </span>
-                ))}
-              </div>
-
-              <label className="flex cursor-pointer items-start gap-2.5">
-                <Checkbox
-                  checked={agreedToTerms}
-                  onCheckedChange={setAgreedToTerms}
-                  className="mt-0.5"
-                  aria-label={`${t('checkout.terms.agree')} ${t('checkout.terms.termsLink')} ${t('checkout.terms.and')} ${t('checkout.terms.privacyLink')}`}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {t('checkout.terms.agree')}{' '}
-                  <Link
-                    href="/terms"
-                    onClick={(e) => e.stopPropagation()}
-                    className="font-medium text-foreground underline hover:text-primary"
-                  >
-                    {t('checkout.terms.termsLink')}
-                  </Link>{' '}
-                  {t('checkout.terms.and')}{' '}
-                  <Link
-                    href="/privacy"
-                    onClick={(e) => e.stopPropagation()}
-                    className="font-medium text-foreground underline hover:text-primary"
-                  >
-                    {t('checkout.terms.privacyLink')}
-                  </Link>
-                  .
-                </span>
-              </label>
-
-              <div className="flex gap-3">
-                <Button type="button" size="lg" variant="outline" onClick={() => setCurrentStep(2)} className="flex-1">
-                  {t('checkout.back')}
-                </Button>
-                <Button
-                  type="button"
-                  size="lg"
-                  disabled={!selectedAddressId || !selectedShipping || !agreedToTerms || isSubmittingOrder || isPlacingOrder}
-                  onClick={handlePlaceOrder}
-                  className="flex-[2]"
-                >
-                  {isSubmittingOrder || isPlacingOrder ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Lock className="mr-2 h-4 w-4" />
+                    <div className="rounded-2xl border border-dashed border-[#9FB5A6] bg-white p-6 text-center text-sm text-[#56635B]">
+                      {t('checkout.address.empty')}
+                    </div>
                   )}
-                  {t('checkout.placeOrder')}
-                </Button>
+
+                  <Link
+                    href="/account/addresses/new?redirect=/checkout"
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#9FB5A6] bg-white px-4 py-3 text-sm font-semibold text-[#17703F]"
+                  >
+                    <Plus className="h-4 w-4" /> {t('checkout.address.addNew')}
+                  </Link>
+
+                  <div>
+                    <Label htmlFor="courier-notes" className="text-sm font-semibold text-[#142019]">
+                      {t('checkout.address.notesLabel')}
+                    </Label>
+                    <Textarea
+                      id="courier-notes"
+                      rows={3}
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder={t('checkout.address.notesPlaceholder')}
+                      maxLength={NOTES_MAX_LENGTH}
+                      className="mt-2 rounded-2xl border-[#DDE3DE]"
+                    />
+                  </div>
+
+                  {/* Exact Delivery Location — deliberately a separate card.
+                      Copy is explicit that this never changes the address or
+                      shipping fee, to head off the exact confusion this
+                      feature used to cause when the map redirected into "Add
+                      new address" instead. Kept on this step (not in the new
+                      4-step spec, which doesn't mention it at all) since it's
+                      an address-adjacent refinement with no other home. */}
+                  {pinLocation ? (
+                    <div className="rounded-2xl border border-[#17703F]/30 bg-[#E3F1E8]/40 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-[#17703F]" />
+                            <h3 className="text-[14px] font-bold text-[#142019]">{t('checkout.exactLocation.title')}</h3>
+                          </div>
+                          <p className="mt-1 text-[13px] text-[#56635B]">
+                            {pinLocation.placeName || `${pinLocation.lat.toFixed(5)}, ${pinLocation.lng.toFixed(5)}`}
+                          </p>
+                          <p className="mt-1.5 text-[12px] text-[#56635B]">{t('checkout.exactLocation.description')}</p>
+                        </div>
+                        <button type="button" onClick={handleRemovePin} className="shrink-0 text-[13px] font-semibold text-[#93330B]">
+                          {t('checkout.exactLocation.remove')}
+                        </button>
+                      </div>
+
+                      {pinMunicipalityMismatch && (
+                        <div className="mt-3 rounded-xl bg-[#FDEEE6] p-3 text-[12px] text-[#93330B]">
+                          {t('checkout.exactLocation.mismatch', {
+                            pinMunicipality: pinLocation.municipality || '',
+                            addressMunicipality: selectedAddress?.municipality || '',
+                          })}
+                        </div>
+                      )}
+
+                      <div className="mt-3 space-y-1.5">
+                        <Label htmlFor="pin-reference" className="text-[12px] font-medium text-[#56635B]">
+                          {t('checkout.exactLocation.noteLabel')}
+                        </Label>
+                        <Input
+                          id="pin-reference"
+                          type="text"
+                          value={pinReference}
+                          onChange={(e) => setPinReference(e.target.value)}
+                          placeholder={t('checkout.exactLocation.notePlaceholder')}
+                          maxLength={500}
+                          className="h-9 rounded-xl border-[#DDE3DE]"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(true)}
+                      className="flex min-h-11 items-center gap-2 rounded-full border border-[#DDE3DE] bg-white px-3.5 py-2 text-sm font-medium text-[#142019]"
+                    >
+                      <MapPin className="h-4 w-4 text-[#17703F]" /> {t('checkout.address.pinExactLocation')}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* ============ STEP 2 — Haruka ============ */}
+              {currentStep === 2 && selectedAddress && (
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-[#DDE3DE] bg-white p-4 text-left"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E3F1E8] text-[#17703F]">
+                      <MapPin className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#142019]">
+                      {t('checkout.shipping.addressSummary', {
+                        label: selectedAddress.label || t('checkout.address.fallbackLabel'),
+                        name: selectedAddress.recipientName || selectedAddress.municipality,
+                      })}
+                    </span>
+                    <span className="shrink-0 text-[13px] font-semibold text-[#17703F]">{t('checkout.address.change')}</span>
+                  </button>
+
+                  {packagesBySeller.map((pkg) => (
+                    <div key={pkg.sellerName} className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+                      <div className="flex items-center gap-2">
+                        <Store className="h-4 w-4 text-[#56635B]" />
+                        <span className="text-[13px] font-bold text-[#142019]">{pkg.sellerName}</span>
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {pkg.items.map((item) => (
+                          <div key={`${item.productId}-${item.variantId ?? 'default'}`} className="flex items-center gap-3">
+                            <div className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl bg-[#F4F6F3]">
+                              {item.thumbnail && <Image src={item.thumbnail} alt={item.name} fill className="object-cover" sizes="60px" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[14px] font-medium text-[#142019]">{item.name}</p>
+                              <p className="text-[13px] text-[#56635B]">×{item.quantity}</p>
+                            </div>
+                            <span className="shrink-0 text-[14px] font-bold text-[#142019]">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <h2 className="text-[17px] font-extrabold text-[#142019]">{t('checkout.shipping.heading')}</h2>
+
+                  {isShippingOptionsLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-16 w-full rounded-2xl" />
+                      <Skeleton className="h-16 w-full rounded-2xl" />
+                    </div>
+                  ) : shippingOptionsError ? (
+                    <div className="rounded-2xl border border-dashed border-[#9FB5A6] bg-white p-4 text-sm text-[#93330B]">{shippingOptionsError}</div>
+                  ) : shippingOptions.length > 0 ? (
+                    <div className="space-y-3" role="radiogroup">
+                      {shippingOptions.map((option) => (
+                        <ShippingOptionCard
+                          key={option.id}
+                          name={option.name}
+                          subtitle={option.eta}
+                          cost={option.cost}
+                          icon={option.icon}
+                          selected={option.id === selectedShipping}
+                          onSelect={() => {
+                            setSelectedShipping(option.id);
+                            setSelectedShippingMeta({
+                              courierId: option.courierId,
+                              courierServiceId: option.courierServiceId,
+                              shippingMethod: option.shippingMethod ?? option.id,
+                              shippingZoneId: option.shippingZoneId,
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-[#9FB5A6] bg-white p-4 text-sm text-[#56635B]">
+                      {t('checkout.shipping.noCourier', { municipality: selectedAddress.municipality || t('checkout.shipping.thisMunicipality') })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ============ STEP 3 — Pagamentu ============ */}
+              {currentStep === 3 && (
+                <div className="space-y-4">
+                  <h2 className="text-[17px] font-extrabold text-[#142019]">{t('checkout.payment.heading')}</h2>
+
+                  {isSettingsLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                    </div>
+                  ) : availablePaymentMethods.length > 0 ? (
+                    <div className="space-y-3" role="radiogroup">
+                      {availablePaymentMethods.map((method) => (
+                        <PaymentMethodCard
+                          key={method.id}
+                          name={method.name}
+                          description={method.description}
+                          icon={method.icon}
+                          selected={method.id === selectedPayment}
+                          onSelect={() => setSelectedPayment(method.id as 'COD' | 'BANK_TRANSFER')}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-[#9FB5A6] bg-white p-4 text-sm text-[#56635B]">
+                      {t('checkout.payment.noMethods')}
+                    </div>
+                  )}
+
+                  {selectedPayment === 'COD' && (
+                    <div className="flex items-start gap-2.5 rounded-2xl bg-[#E3F1E8] p-4 text-[13px] text-[#0F5530]">
+                      <Wallet className="mt-0.5 h-4 w-4 shrink-0" />
+                      <div className="space-y-1">
+                        <p>{t('checkout.payment.infoCod', { amount: `$${grandTotal.toFixed(2)}` })}</p>
+                        {(Boolean(checkoutSettings.minCODOrderAmount) || Boolean(checkoutSettings.maxCODOrderAmount)) && (
+                          <p>
+                            {t('checkout.payment.codLimits', {
+                              from: checkoutSettings.minCODOrderAmount ? t('checkout.payment.codLimitsFrom', { amount: checkoutSettings.minCODOrderAmount.toFixed(2) }) : '',
+                              upTo: checkoutSettings.maxCODOrderAmount ? t('checkout.payment.codLimitsUpTo', { amount: checkoutSettings.maxCODOrderAmount.toFixed(2) }) : '',
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPayment === 'BANK_TRANSFER' && checkoutSettings.bankName && (
+                    <div className="space-y-1 rounded-2xl bg-[#E3F1E8] p-4 text-[13px] text-[#0F5530]">
+                      <p className="font-semibold">{t('checkout.payment.transferTo')}</p>
+                      <p>{checkoutSettings.bankName} — {checkoutSettings.bankAccountName}</p>
+                      {checkoutSettings.bankAccountNumber && <p>{t('checkout.payment.accountNo', { number: checkoutSettings.bankAccountNumber })}</p>}
+                      {checkoutSettings.bankSWIFT && <p>{t('checkout.payment.swift', { code: checkoutSettings.bankSWIFT })}</p>}
+                      <p className="pt-1">{t('checkout.payment.transferNote')}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="promo-code" className="text-sm font-semibold text-[#142019]">
+                      {t('checkout.payment.promoLabel')}
+                    </Label>
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        id="promo-code"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value)}
+                        placeholder={t('checkout.payment.promoPlaceholder')}
+                        className="h-11 flex-1 rounded-2xl border-[#DDE3DE]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={validateCoupon.isPending || !promoInput.trim()}
+                        className="shrink-0 rounded-2xl border border-[#17703F] px-4 text-sm font-semibold text-[#17703F] disabled:opacity-50"
+                      >
+                        {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('checkout.payment.promoApply')}
+                      </button>
+                    </div>
+                    {promoMessage && (
+                      <p className={cn('mt-1.5 text-[13px]', promoMessage.type === 'success' ? 'text-[#17703F]' : 'text-[#93330B]')}>
+                        {promoMessage.text}
+                      </p>
+                    )}
+                    {appliedCoupon && (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-[#17703F]">
+                        <Check className="h-3.5 w-3.5" /> {t('checkout.summary.coupon', { code: appliedCoupon.code })}
+                        <button type="button" onClick={clearCoupon} className="ml-1 underline">
+                          {t('checkout.exactLocation.remove')}
+                        </button>
+                      </p>
+                    )}
+                  </div>
+
+                  {walletBalance > 0 && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#DDE3DE] bg-white p-4">
+                      <div className="flex items-center gap-2.5">
+                        <Wallet className="h-5 w-5 text-[#17703F]" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#142019]">{t('checkout.wallet.title')}</p>
+                          <p className="text-xs text-[#56635B]">{t('checkout.wallet.available', { amount: walletBalance.toFixed(2) })}</p>
+                        </div>
+                      </div>
+                      <Switch checked={useWalletCredit} onCheckedChange={setUseWalletCredit} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ============ STEP 4 — Revee ============ */}
+              {currentStep === 4 && (
+                <div className="space-y-4">
+                  <OrderSummaryCard
+                    rows={[
+                      {
+                        icon: MapPin,
+                        label: t('checkout.step.address'),
+                        value: selectedAddress
+                          ? t('checkout.shipping.addressSummary', {
+                              label: selectedAddress.label || t('checkout.address.fallbackLabel'),
+                              name: selectedAddress.suco || selectedAddress.municipality,
+                            })
+                          : '',
+                        onChange: () => setCurrentStep(1),
+                      },
+                      {
+                        icon: Truck,
+                        label: t('checkout.step.shipping'),
+                        value: selectedShippingOption ? `${selectedShippingOption.name}, ${selectedShippingOption.eta}` : '',
+                        onChange: () => setCurrentStep(2),
+                      },
+                      {
+                        icon: selectedPaymentMethod?.icon ?? Wallet,
+                        label: t('checkout.step.payment'),
+                        value: selectedPaymentMethod?.name ?? '',
+                        onChange: () => setCurrentStep(3),
+                      },
+                    ]}
+                  />
+
+                  <div className="space-y-3 rounded-2xl border border-[#DDE3DE] bg-white p-4">
+                    {safeItems.map((item) => (
+                      <div key={`${item.productId}-${item.variantId ?? 'default'}`} className="flex items-center gap-3">
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#F4F6F3]">
+                          {item.thumbnail && <Image src={item.thumbnail} alt={item.name} fill className="object-cover" sizes="56px" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[14px] font-medium text-[#142019]">{item.name}</p>
+                          <p className="text-[13px] text-[#56635B]">{item.sellerName ?? ''}, ×{item.quantity}</p>
+                        </div>
+                        <span className="shrink-0 text-[14px] font-bold text-[#142019]">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+                    <CostBreakdown
+                      subtotal={subtotal}
+                      shippingCost={shippingCost}
+                      tax={tax}
+                      serviceFee={serviceFee}
+                      sellerCount={sellerCount}
+                      discountAmount={discountAmount}
+                      couponCode={appliedCoupon?.code}
+                      walletCreditApplied={walletCreditApplied}
+                      grandTotal={grandTotal}
+                      productSavings={productSavings}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-[12px] text-[#56635B]">
+                    {trustIndicators.map(({ icon: Icon, label }) => (
+                      <span key={label} className="flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5 text-[#17703F]" />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+
+                  <label className="flex cursor-pointer items-start gap-2.5 px-1">
+                    <Checkbox
+                      checked={agreedToTerms}
+                      onCheckedChange={setAgreedToTerms}
+                      className="mt-0.5"
+                      aria-label={`${t('checkout.review.termsPrefix')} ${t('checkout.review.termsLinkLabel')} ${t('checkout.review.termsSuffix')}`}
+                    />
+                    <span className="text-[13px] text-[#56635B]">
+                      {t('checkout.review.termsPrefix')}{' '}
+                      <Link href="/terms" onClick={(e) => e.stopPropagation()} className="font-semibold text-[#17703F] underline">
+                        {t('checkout.review.termsLinkLabel')}
+                      </Link>{' '}
+                      {t('checkout.review.termsSuffix')}
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* ============ Desktop sticky sidebar (≥1000px) ============ */}
+            <div className="hidden min-[1000px]:block">
+              <div className="sticky top-6 space-y-4">
+                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-2xl border border-[#DDE3DE] bg-white p-4" data-lenis-prevent>
+                  {safeItems.map((item) => (
+                    <div key={`sidebar-${item.productId}-${item.variantId ?? 'default'}`} className="flex items-center gap-3">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#F4F6F3]">
+                        {item.thumbnail && <Image src={item.thumbnail} alt={item.name} fill className="object-cover" sizes="48px" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-[#142019]">{item.name}</p>
+                        <p className="text-[12px] text-[#56635B]">×{item.quantity}</p>
+                      </div>
+                      <span className="shrink-0 text-[13px] font-bold text-[#142019]">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
+                  <CostBreakdown
+                    subtotal={subtotal}
+                    shippingCost={shippingCost}
+                    tax={tax}
+                    serviceFee={serviceFee}
+                    sellerCount={sellerCount}
+                    discountAmount={discountAmount}
+                    couponCode={appliedCoupon?.code}
+                    walletCreditApplied={walletCreditApplied}
+                    grandTotal={grandTotal}
+                    productSavings={productSavings}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={primaryAction.onClick}
+                  disabled={primaryAction.disabled || primaryAction.loading}
+                  className="flex h-[50px] w-full items-center justify-center rounded-2xl bg-[#17703F] text-[15px] font-bold text-white disabled:bg-[#DDE3DE] disabled:text-[#9AA59C]"
+                >
+                  {primaryAction.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : primaryAction.label}
+                </button>
               </div>
             </div>
-          )}
-        </Card>
+          </div>
+        </div>
+
+        {/* Mobile/tablet sticky bottom bar — hidden once the desktop
+            two-column layout (with its own always-visible button) takes
+            over at ≥1000px. */}
+        <CheckoutBottomBar
+          className="fixed inset-x-0 bottom-0 z-30 min-[1000px]:hidden"
+          totalLabel={primaryAction.totalLabel}
+          amount={primaryAction.amount}
+          buttonLabel={primaryAction.label}
+          onButtonClick={primaryAction.onClick}
+          disabled={primaryAction.disabled}
+          loading={primaryAction.loading}
+        />
       </div>
 
       {showMap && (
         <GoogleMapPicker onSelect={handlePinExactLocation} onClose={() => setShowMap(false)} />
       )}
     </>
-  );
-}
-
-// Horizontal 3-step progress indicator — numbered circle per step,
-// checkmark once a step is behind the current one, connecting line colored
-// in as each step completes. Clicking a completed step's circle jumps back
-// to it (see onStepClick in the caller); the current/future steps aren't
-// clickable, since forward navigation only ever happens through each step's
-// own validated "Continue" button. Labels are passed in already translated
-// (the caller has `t`; this component doesn't need its own hook access).
-function CheckoutStepIndicator({
-  currentStep,
-  steps,
-  onStepClick,
-}: {
-  currentStep: 1 | 2 | 3;
-  steps: { step: 1 | 2 | 3; label: string }[];
-  onStepClick: (step: 1 | 2 | 3) => void;
-}) {
-  return (
-    <div className="mt-6 flex items-start">
-      {steps.map(({ step, label }, index) => {
-        const isCompleted = step < currentStep;
-        const isActive = step === currentStep;
-        return (
-          <div key={step} className={cn('flex items-center', index < steps.length - 1 && 'flex-1')}>
-            <button
-              type="button"
-              onClick={() => isCompleted && onStepClick(step)}
-              disabled={!isCompleted}
-              className={cn('flex flex-col items-center gap-1.5', isCompleted ? 'cursor-pointer' : 'cursor-default')}
-            >
-              <span
-                className={cn(
-                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors',
-                  isCompleted || isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                )}
-              >
-                {isCompleted ? <Check className="h-4 w-4" /> : step}
-              </span>
-              <span
-                className={cn(
-                  'whitespace-nowrap text-xs font-medium',
-                  isCompleted || isActive ? 'text-foreground' : 'text-muted-foreground',
-                )}
-              >
-                {label}
-              </span>
-            </button>
-            {index < steps.length - 1 && (
-              <div className={cn('mx-2 h-0.5 flex-1 rounded-full', isCompleted ? 'bg-primary' : 'bg-border')} />
-            )}
-          </div>
-        );
-      })}
-    </div>
   );
 }
