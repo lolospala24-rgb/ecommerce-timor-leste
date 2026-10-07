@@ -22,6 +22,9 @@ interface ProductFilters {
   /** Matches the product's server-resolved origin (SELLER_ORIGIN or
    *  CUSTOM_ORIGIN alike) — see resolveProductOrigin on the backend. */
   originMunicipality?: string;
+  /** Defaults to true — pass false to skip firing this query (e.g. the
+   *  filter sheet's live result-count preview shouldn't query while closed). */
+  enabled?: boolean;
 }
 
 // The backend (`ProductsService.mapProductSort`) already understands these
@@ -67,6 +70,7 @@ export const useProducts = (filters?: ProductFilters) => {
       const response = await api.get(`/products?${params.toString()}`);
       return response.data;
     },
+    enabled: filters?.enabled !== false,
   });
 };
 
