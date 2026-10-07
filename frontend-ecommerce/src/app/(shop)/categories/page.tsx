@@ -1,322 +1,172 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeft, Search, ShoppingCart } from 'lucide-react';
 import { useCategories } from '@/hooks/useCategories';
-import { SearchInput } from '@/components/shared/SearchInput';
+import { useCartStore } from '@/stores/cartStore';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
+import { CategoryRail } from '@/components/categories/CategoryRail';
+import { CategoryBanner } from '@/components/categories/CategoryBanner';
+import { SubCategoryGrid } from '@/components/categories/SubCategoryGrid';
+import { PopularSearchChips } from '@/components/categories/PopularSearchChips';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Skeleton } from '@/components/ui/skeleton';
-import { getCategoryIcon } from '@/lib/categoryIcons';
-import { FolderTree, ChevronRight, Home, ShoppingBag, LayoutGrid, ArrowRight } from 'lucide-react';
 import type { Category } from '@/types/category.types';
-
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-// Real category, real name, real description; the banner is a flat brand-
-// colored fill standing in for a real category photo (most categories in
-// this catalog don't have one uploaded yet) — one consistent color rather
-// than a different one per category.
-const BANNER_STYLE = 'bg-primary';
 
 interface CategoryNode extends Category {
   children: CategoryNode[];
 }
 
-function firstLetter(name: string): string {
-  const ch = name.trim().charAt(0).toUpperCase();
-  return ALPHABET.includes(ch) ? ch : '#';
-}
-
-export default function CategoriesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const { data: categories, isLoading } = useCategories({
-    limit: 100,
-    includeProducts: true,
-  });
-
-  const allCategories = (categories?.data ?? []) as Category[];
-
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery) return allCategories;
-    const query = searchQuery.toLowerCase();
-    return allCategories.filter(
-      (category) =>
-        category.name.toLowerCase().includes(query) ||
-        category.nameTetum?.toLowerCase().includes(query) ||
-        category.description?.toLowerCase().includes(query),
-    );
-  }, [allCategories, searchQuery]);
-
-  const categoryTree = useMemo(() => {
-    const buildTree = (items: Category[], parentId: number | null = null): CategoryNode[] =>
-      items
-        .filter((item) => (item.parentId ?? null) === parentId)
-        .map((item) => ({ ...item, children: buildTree(items, item.id) }));
-    return buildTree(filteredCategories).sort((a, b) => a.name.localeCompare(b.name));
-  }, [filteredCategories]);
-
-  // Directory browsing (jump to a letter) instead of numbered pages — the
-  // A-Z nav below is the navigation mechanism, and with a real category
-  // count in the tens rather than thousands there's no need to page.
-  const groupedByLetter = useMemo(() => {
-    const groups = new Map<string, CategoryNode[]>();
-    for (const category of categoryTree) {
-      const letter = firstLetter(category.name);
-      if (!groups.has(letter)) groups.set(letter, []);
-      groups.get(letter)!.push(category);
-    }
-    return groups;
-  }, [categoryTree]);
-
-  const availableLetters = useMemo(
-    () => new Set([...groupedByLetter.keys()].filter((l) => l !== '#')),
-    [groupedByLetter],
-  );
-
-  const totalProducts = allCategories.reduce((sum, c) => sum + (c.productCount ?? 0), 0);
-
-  const handleSearch = (value: string) => setSearchQuery(value);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-64" />
-        </div>
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <div className="space-y-6">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
+function CategoriesSkeleton() {
+  return (
+    <div className="flex h-[calc(100vh-128px)]">
+      <div className="w-24 shrink-0 space-y-2 bg-[#F4F6F3] px-2 py-3 min-[600px]:w-[120px]">
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="h-[72px] animate-pulse rounded-[14px] bg-[#E4E9E5]" />
+        ))}
+      </div>
+      <div className="flex-1 space-y-5 p-4">
+        <div className="h-24 animate-pulse rounded-2xl bg-[#F4F6F3]" />
+        <div className="h-4 w-28 animate-pulse rounded bg-[#F4F6F3]" />
+        <div className="grid grid-cols-3 gap-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-16 w-16 animate-pulse rounded-[18px] bg-[#F4F6F3]" />
           ))}
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+export default function CategoriesPage() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
+  const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
+
+  const { data, isLoading } = useCategories({ limit: 100, includeProducts: true });
+  const allCategories = useMemo(() => (data?.data ?? []) as Category[], [data]);
+
+  // Same flat-list -> tree shaping the old directory page used (parentId
+  // grouping) — the API itself returns a flat list here (unlike
+  // /categories/tree), this is the real business logic kept as-is.
+  const tree = useMemo<CategoryNode[]>(() => {
+    const buildTree = (parentId: number | null): CategoryNode[] =>
+      allCategories
+        .filter((c) => (c.parentId ?? null) === parentId)
+        .map((c) => ({ ...c, children: buildTree(c.id) }));
+    return buildTree(null);
+  }, [allCategories]);
+
+  const filteredTree = useMemo(() => {
+    if (!searchQuery) return tree;
+    const q = searchQuery.toLowerCase();
+    const matches = (c: CategoryNode): boolean =>
+      c.name.toLowerCase().includes(q) ||
+      !!c.nameTetum?.toLowerCase().includes(q) ||
+      c.children.some(matches);
+    return tree.filter(matches);
+  }, [tree, searchQuery]);
+
+  // First load selects the first category; search narrowing the rail keeps
+  // the selection valid (falls back to the new first match) instead of
+  // pointing at a now-hidden category.
+  useEffect(() => {
+    if (filteredTree.length === 0) {
+      setSelectedId(undefined);
+      return;
+    }
+    if (!filteredTree.some((c) => c.id === selectedId)) {
+      setSelectedId(filteredTree[0].id);
+    }
+  }, [filteredTree, selectedId]);
+
+  const selectedCategory = filteredTree.find((c) => c.id === selectedId);
 
   return (
-    <div className="space-y-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-label="Breadcrumb">
-        <Link href="/" className="flex items-center gap-1 hover:text-primary transition-colors">
-          <Home className="h-3.5 w-3.5" />
-          Home
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-foreground">Categories</span>
-      </nav>
-
-      {/* Header */}
-      <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <LayoutGrid className="h-5 w-5 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Direktoriu Kategoria</h1>
-          </div>
-          <p className="text-sm text-muted-foreground sm:text-base">
-            {allCategories.length} {allCategories.length === 1 ? 'kategoria' : 'kategoria'} &middot;{' '}
-            {totalProducts.toLocaleString()} {totalProducts === 1 ? 'produtu' : 'produtu'} atu esplora
-          </p>
+    <div className="flex min-h-screen flex-col bg-[#F4F6F3]">
+      <div className="border-b border-[#EEF1EE] bg-white px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label={t('category.backAria')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="flex-1 text-[19px] font-extrabold text-[#142019]">{t('category.title')}</h1>
+          <Link
+            href="/cart"
+            aria-label={t('category.cartAria')}
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {cartCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#B4410F] px-1 text-[10px] font-semibold text-white">
+                {cartCount > 9 ? '9+' : cartCount}
+              </span>
+            )}
+          </Link>
         </div>
-        <div className="w-full sm:w-72">
-          <SearchInput
-            placeholder="Search categories..."
+        <div className="relative mt-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#56635B]" />
+          <input
+            type="text"
             value={searchQuery}
-            onChange={handleSearch}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('category.searchPlaceholder')}
+            aria-label={t('category.searchAria')}
+            className="h-[46px] w-full rounded-xl border border-transparent bg-[#F4F6F3] pl-9 pr-4 text-[14px] text-[#142019] outline-none focus:border-[#17703F]"
           />
         </div>
       </div>
 
-      {categoryTree.length === 0 ? (
-        <EmptyState
-          title="No categories found"
-          description={
-            searchQuery
-              ? `No categories match "${searchQuery}". Try a different search term.`
-              : 'Categories will appear here once they are added to the catalog.'
-          }
-          icon={<FolderTree className="h-10 w-10 text-muted-foreground" />}
-          action={searchQuery ? { label: 'Clear Search', onClick: () => handleSearch('') } : undefined}
-        />
+      {isLoading ? (
+        <CategoriesSkeleton />
+      ) : filteredTree.length === 0 ? (
+        <div className="p-6">
+          <EmptyState
+            title={searchQuery ? t('category.emptySearch') : t('category.noCategories')}
+            icon={<Search className="h-10 w-10 text-muted-foreground" />}
+          />
+        </div>
       ) : (
-        <>
-          {/* A-Z jump nav */}
-          <div className="sticky top-16 z-10 flex flex-wrap items-center gap-x-1 gap-y-2 rounded-xl border bg-background/95 px-4 py-3 shadow-sm backdrop-blur">
-            <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Direktori menurut
-            </span>
-            {ALPHABET.map((letter) => {
-              const available = availableLetters.has(letter);
-              return available ? (
-                <a
-                  key={letter}
-                  href={`#cat-letter-${letter}`}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-bold text-primary transition-colors hover:bg-primary/10"
+        <div className="flex flex-1 overflow-hidden">
+          <CategoryRail categories={filteredTree} selectedId={selectedId} onSelect={(c) => setSelectedId(c.id)} />
+
+          <div className="flex-1 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              {selectedCategory && (
+                <motion.div
+                  key={selectedCategory.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="space-y-5 p-4"
                 >
-                  {letter}
-                </a>
-              ) : (
-                <span
-                  key={letter}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-medium text-muted-foreground/30"
-                >
-                  {letter}
-                </span>
-              );
-            })}
-          </div>
+                  <CategoryBanner category={selectedCategory} />
 
-          {/* Letter sections */}
-          <div className="space-y-12">
-            {[...groupedByLetter.entries()]
-              .sort(([a], [b]) => (a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b)))
-              .map(([letter, letterCategories]) => (
-                <section key={letter} id={`cat-letter-${letter}`} className="scroll-mt-32">
-                  <div className="flex flex-col gap-6 sm:flex-row">
-                    <div className="shrink-0 sm:w-32">
-                      <span className="text-5xl font-black text-muted-foreground/20">{letter}</span>
-                      <ul className="mt-2 space-y-1">
-                        {letterCategories.map((category) => (
-                          <li key={category.id}>
-                            <a
-                              href={`#cat-${category.slug}`}
-                              className="text-sm text-muted-foreground hover:text-primary"
-                            >
-                              {category.name}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
+                  {selectedCategory.children.length > 0 && (
+                    <div>
+                      <h3 className="mb-2.5 text-[15px] font-extrabold text-[#142019]">
+                        {t('category.subCategoryTitle')}
+                      </h3>
+                      <SubCategoryGrid category={selectedCategory} children={selectedCategory.children} />
                     </div>
+                  )}
 
-                    <div className="flex-1 space-y-6">
-                      {letterCategories.map((category) => (
-                        <CategoryDirectoryRow
-                          key={category.id}
-                          category={category}
-                          bannerClass={BANNER_STYLE}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              ))}
+                  <PopularSearchChips />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-
-          <div className="flex justify-center pt-2">
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-muted/40"
-            >
-              <ShoppingBag className="h-4 w-4 text-primary" />
-              Browse All Products
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
-}
-
-// One category "entry" in the directory: a colored banner (icon standing in
-// for a real photo, most categories don't have one uploaded) plus either a
-// real subcategory grid — if this category actually has children — or its
-// description, since fabricating subcategories that don't exist in the
-// catalog isn't an option.
-function CategoryDirectoryRow({ category, bannerClass }: { category: CategoryNode; bannerClass: string }) {
-  const Icon = getCategoryIcon(category.name);
-
-  return (
-    <div
-      id={`cat-${category.slug}`}
-      className="scroll-mt-32 overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm transition-shadow hover:shadow-md sm:flex"
-    >
-      <Link
-        href={`/categories/${category.slug}`}
-        className={`group relative flex min-h-[160px] shrink-0 flex-col justify-end overflow-hidden p-5 sm:w-72 ${bannerClass}`}
-      >
-        <Icon className="absolute -right-4 -top-4 h-28 w-28 text-white/15" strokeWidth={1.25} />
-        {category.isFeatured && (
-          <span className="absolute left-4 top-4 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-            Featured
-          </span>
-        )}
-        <Icon className="h-8 w-8 text-white" strokeWidth={1.75} />
-        <h2 className="mt-3 text-xl font-bold leading-tight text-white">{category.name}</h2>
-        {category.nameTetum && category.nameTetum !== category.name && (
-          <p className="text-sm text-white/80">{category.nameTetum}</p>
-        )}
-      </Link>
-
-      <div className="flex-1 p-5 sm:p-6">
-        {category.children.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {groupChildrenIntoColumns(category.children).map((column, idx) => (
-              <div key={idx} className="space-y-2">
-                {column.map((child) => (
-                  <Link
-                    key={child.id}
-                    href={`/categories/${child.slug}`}
-                    className="block text-sm text-foreground/80 hover:text-primary hover:underline"
-                  >
-                    {child.name}
-                  </Link>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          // No subcategories to list — a plain description sentence alone
-          // left this whole wide column looking empty, so the real product
-          // count (already fetched, not fabricated) fills the rest of the
-          // row as a proper visual anchor instead of blank space.
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-              {category.description || 'Explore products in this category.'}
-            </p>
-            {!!category.productCount && category.productCount > 0 && (
-              <div className="flex shrink-0 items-center gap-3 self-start rounded-xl bg-muted/40 px-5 py-3 sm:self-auto">
-                <ShoppingBag className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold leading-none text-foreground">{category.productCount}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {category.productCount === 1 ? 'product available' : 'products available'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
-          {category.children.length > 0 && !!category.productCount && category.productCount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <ShoppingBag className="h-3.5 w-3.5" />
-              {category.productCount} {category.productCount === 1 ? 'product' : 'products'}
-            </span>
-          ) : (
-            <span />
-          )}
-          <Link
-            href={`/categories/${category.slug}`}
-            className="group flex shrink-0 items-center text-sm font-semibold text-primary"
-          >
-            Browse Category
-            <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Splits a flat children list into up to 3 evenly-sized columns for the
-// directory grid (reference layout groups subcategories into columns).
-function groupChildrenIntoColumns<T>(items: T[]): T[][] {
-  const columnCount = items.length > 6 ? 3 : items.length > 3 ? 2 : 1;
-  const perColumn = Math.ceil(items.length / columnCount);
-  return Array.from({ length: columnCount }, (_, i) => items.slice(i * perColumn, (i + 1) * perColumn));
 }

@@ -1,112 +1,42 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronRight, Package } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ChevronRight } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
+import { getCategoryIcon } from '@/lib/categoryIcons';
+import { getCategoryColorPair } from './categoryTokens';
 import type { Category } from '@/types/category.types';
 
 interface CategoryBannerProps {
   category: Category;
-  productCount?: number;
 }
 
-export function CategoryBanner({ category, productCount = 0 }: CategoryBannerProps) {
-  const bannerImage = category.banner || category.image;
+// Screen 1's right-panel banner — distinct from the Screen 2 hero
+// (CategoryHero): compact (96px), tinted by the category's own color pair,
+// and links straight into the category detail page.
+export function CategoryBanner({ category }: CategoryBannerProps) {
+  const { t } = useTranslation();
+  const Icon = getCategoryIcon(category.name);
+  const pair = getCategoryColorPair(category.name, category.id);
+  const tagline = category.description || category.nameTetum;
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
-      <div className="relative h-[240px] md:h-[320px] lg:h-[360px] w-full">
-        {bannerImage ? (
-          <>
-            <Image
-              src={bannerImage}
-              alt={category.name}
-              fill
-              className="object-cover"
-              priority
-              sizes="100vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-transparent" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-primary" />
-        )}
-
-        <div className="relative h-full flex items-center">
-          <div className="container-custom w-full">
-            <div className="max-w-3xl space-y-3 md:space-y-4">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
-                {category.name}
-              </h1>
-
-              {category.nameTetum && (
-                <p className="text-base md:text-lg text-white/85 font-medium">{category.nameTetum}</p>
-              )}
-
-              {category.description && (
-                <p className="text-white/75 text-sm md:text-base max-w-2xl line-clamp-2">
-                  {category.description}
-                </p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm px-3 py-1.5">
-                  <Package className="h-3.5 w-3.5 mr-1.5" />
-                  {productCount} {productCount === 1 ? 'Product' : 'Products'}
-                </Badge>
-                {category.children && category.children.length > 0 && (
-                  <Badge className="bg-white/20 text-white border-0 backdrop-blur-sm px-3 py-1.5">
-                    {category.children.length}{' '}
-                    {category.children.length === 1 ? 'Subcategory' : 'Subcategories'}
-                  </Badge>
-                )}
-              </div>
-
-              <Button size="sm" className="bg-white text-primary hover:bg-white/90" asChild>
-                <Link href="#products">Browse Products</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+    <Link
+      href={`/categories/${category.slug}`}
+      className="relative flex h-24 items-center overflow-hidden rounded-2xl px-4"
+      style={{ backgroundColor: pair.tint }}
+    >
+      <div className="relative z-10 min-w-0 flex-1 pr-16">
+        <h2 className="truncate text-[16px] font-extrabold text-[#142019]">{category.name}</h2>
+        {tagline && <p className="mt-0.5 truncate text-[12px] text-[#56635B]">{tagline}</p>}
+        <span className="mt-1 inline-flex items-center gap-0.5 text-[12px] font-bold text-[#17703F]">
+          {t('category.seeAll')}
+          <ChevronRight className="h-3.5 w-3.5" />
+        </span>
       </div>
-    </div>
-  );
-}
-
-interface CategoryBreadcrumbProps {
-  category: Category;
-}
-
-export function CategoryBreadcrumb({ category }: CategoryBreadcrumbProps) {
-  const crumbs = [
-    { label: 'Home', href: '/' },
-    { label: 'Categories', href: '/categories' },
-    ...(category.ancestors || []).map((ancestor) => ({
-      label: ancestor.name,
-      href: `/categories/${ancestor.slug}`,
-    })),
-    { label: category.name, href: `/categories/${category.slug}` },
-  ];
-
-  return (
-    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-      {crumbs.map((crumb, index) => {
-        const isLast = index === crumbs.length - 1;
-        return (
-          <span key={`${crumb.href}-${index}`} className="flex items-center gap-1.5">
-            {index > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-            {isLast ? (
-              <span className="font-medium text-foreground line-clamp-1">{crumb.label}</span>
-            ) : (
-              <Link href={crumb.href} className="hover:text-primary transition-colors line-clamp-1">
-                {crumb.label}
-              </Link>
-            )}
-          </span>
-        );
-      })}
-    </nav>
+      <span className="absolute -bottom-3 -right-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/70">
+        <Icon className="h-8 w-8" style={{ color: pair.icon }} strokeWidth={1.75} />
+      </span>
+    </Link>
   );
 }

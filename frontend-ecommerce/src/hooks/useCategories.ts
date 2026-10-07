@@ -102,7 +102,11 @@ function buildCategoryProductsParams(filters: CategoryListingFilters): URLSearch
   return params;
 }
 
-export const useCategoryProducts = (slug: string, filters: CategoryListingFilters) => {
+export const useCategoryProducts = (
+  slug: string,
+  filters: CategoryListingFilters,
+  options?: { enabled?: boolean },
+) => {
   return useQuery<CategoryProductsResponse>({
     queryKey: ['categories', 'slug', slug, 'products', filters],
     queryFn: async () => {
@@ -112,7 +116,7 @@ export const useCategoryProducts = (slug: string, filters: CategoryListingFilter
       );
       return response.data;
     },
-    enabled: !!slug,
+    enabled: !!slug && options?.enabled !== false,
     placeholderData: (previous) => previous,
   });
 };

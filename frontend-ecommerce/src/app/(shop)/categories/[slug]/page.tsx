@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { CategoryPageContent } from '@/components/categories/CategoryPageContent';
+import { CategoryDetailScreen } from '@/components/categories/CategoryDetailScreen';
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -72,12 +72,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
 
   // Real HTTP 404 for a category that doesn't exist or was deactivated —
-  // CategoryPageContent's own client-side notFound() call only affects
+  // CategoryDetailScreen's own client-side notFound() call only affects
   // client-side navigations, not the initial server response status.
   const category = await getPublicCategory(slug);
   if (!category) {
     notFound();
   }
 
-  return <CategoryPageContent slug={slug} />;
+  return <CategoryDetailScreen slug={slug} />;
 }
