@@ -1,36 +1,29 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { getInitials } from '@/lib/formatters';
-import {
-  User,
-  ShoppingBag,
-  MapPin,
-  Heart,
-  History,
-  Star,
-  Settings,
-  LogOut,
-  Wallet,
-  Gift,
-} from 'lucide-react';
+import { AccountHubContent } from '@/components/account/AccountHubContent';
 
-const menuItems = [
-  { href: '/profile', label: 'Profile', icon: User },
-  { href: '/orders', label: 'My Orders', icon: ShoppingBag },
-  { href: '/addresses', label: 'Addresses', icon: MapPin },
-  { href: '/wishlist', label: 'Wishlist', icon: Heart },
-  { href: '/recently-viewed', label: 'Recently Viewed', icon: History },
-  { href: '/reviews', label: 'My Reviews', icon: Star },
-  { href: '/wallet', label: 'Wallet', icon: Wallet },
-  { href: '/referrals', label: 'Referrals', icon: Gift },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+// Matches the `md:` breakpoint (768px) already used everywhere else in
+// this layout/app — kept as one real conditional (not a CSS-hidden
+// duplicate) so `children` only ever mounts once at a time. Rendering it
+// in two parallel branches would double every page's hooks/queries/sockets
+// (e.g. orders' useOrderRealtime) whenever only one branch is CSS-hidden.
+const DESKTOP_QUERY = '(min-width: 768px)';
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(false); // SSR-safe default: mobile first
+  useEffect(() => {
+    const mql = window.matchMedia(DESKTOP_QUERY);
+    setIsDesktop(mql.matches);
+    const listener = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener('change', listener);
+    return () => mql.removeEventListener('change', listener);
+  }, []);
+  return isDesktop;
+}
 
 export default function AccountLayout({
   children,
@@ -39,29 +32,30 @@ export default function AccountLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading, hasHydrated, logout } = useAuthStore();
+  const { user, isAuthenticated, isLoading, hasHydrated } = useAuthStore();
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     // Wait for the persisted session to load before judging auth state —
     // otherwise every account page bounces an already-logged-in user out to
-    // /login for a single frame, and since the redirect target here was
-    // hardcoded, they'd land back on /account/profile no matter which
-    // account page they actually asked for.
+    // /login for a single frame. Redirect target defaults to the hub, not a
+    // specific sub-page, since that's the new landing screen.
     if (hasHydrated && !isLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(pathname || '/account/profile')}`);
+      router.push(`/login?redirect=${encodeURIComponent(pathname || '/account')}`);
     }
   }, [hasHydrated, isAuthenticated, isLoading, pathname, router]);
 
   if (!hasHydrated || isLoading) {
     return (
-      <div className="container-custom py-8">
-        <div className="grid gap-8 md:grid-cols-4">
-          <div className="md:col-span-1 space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-64 w-full" />
+      <div className="container-custom py-4 md:py-8">
+        <div className="grid gap-8 md:grid-cols-[360px_1fr]">
+          <div className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-          <div className="md:col-span-3">
-            <Skeleton className="h-96 w-full" />
+          <div className="hidden md:block">
+            <Skeleton className="h-96 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -72,118 +66,34 @@ export default function AccountLayout({
     return null;
   }
 
-  const initials = getInitials(user.name);
-  const isActive = (href: string) => {
-    const full = `/account${href}`;
-    return pathname === full || pathname?.startsWith(`${full}/`);
-  };
+  const isHubRoute = pathname === '/account';
 
+  if (!isDesktop) {
+    // Mobile: every route is its own full-height pushed screen — the hub
+    // (/account) supplies its own header, every other page uses
+    // AccountAppBar for its back button. No shared chrome here.
+    return <div className="container-custom py-4">{children}</div>;
+  }
+
+  // Desktop/tablet: persistent left pane reusing the same hub content as
+  // mobile, selected section on the right. Visiting the hub route itself
+  // would otherwise show the hub twice (nav pane + main pane) — the main
+  // pane shows a "pick something" placeholder there instead.
   return (
-    <div className="container-custom py-4 md:py-8">
-      {/* Mobile: compact identity bar + horizontal scrollable pill nav.
-          A full sidebar dump above the content (the old behavior) forced
-          mobile users to scroll past a profile card and 6 menu links before
-          ever seeing the page they navigated to. */}
-      <div className="md:hidden -mx-4 mb-4 border-b bg-card px-4 pb-3 pt-1">
-        <div className="flex items-center gap-3 py-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-base font-bold text-primary">{initials}</span>
-          </div>
-          <div className="min-w-0">
-            <p className="truncate font-semibold leading-tight">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-          </div>
-          {user.role === 'SELLER' && (
-            <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              Seller
-            </span>
+    <div className="container-custom py-8">
+      <div className="grid gap-8 md:grid-cols-[360px_1fr] md:items-start">
+        <aside className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto rounded-2xl border bg-card p-4">
+          <AccountHubContent />
+        </aside>
+        <main className="min-w-0">
+          {isHubRoute ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center text-muted-foreground">
+              Hili menu iha karuk atu hahu.
+            </div>
+          ) : (
+            children
           )}
-        </div>
-
-        <nav className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={`/account${item.href}`}
-                className={cn(
-                  'shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-                  active
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background hover:border-primary/40',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {item.label}
-              </Link>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => logout()}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3.5 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Logout
-          </button>
-        </nav>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-4">
-        {/* Sidebar — desktop only */}
-        <div className="hidden md:block md:col-span-1 space-y-4">
-          <div className="rounded-lg border p-4 text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary">{initials}</span>
-            </div>
-            <h3 className="mt-2 font-semibold">{user.name}</h3>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-            {user.role === 'SELLER' && (
-              <span className="mt-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Seller
-              </span>
-            )}
-          </div>
-
-          <nav className="rounded-lg border p-2 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={`/account${item.href}`}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground hover:bg-accent',
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-
-            <div className="border-t pt-2 mt-2">
-              <button
-                onClick={() => logout()}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </div>
-          </nav>
-        </div>
-
-        {/* Main Content */}
-        <div className="md:col-span-3">
-          {children}
-        </div>
+        </main>
       </div>
     </div>
   );

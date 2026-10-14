@@ -2,21 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Heart, ShoppingCart, Trash2 } from 'lucide-react';
-import { useCartStore } from '@/stores/cartStore';
+import { Heart, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import toast from 'react-hot-toast';
+import { ProductCard } from '@/components/products/ProductCard';
+import { AccountAppBar } from '@/components/account/AccountAppBar';
 
 export default function WishlistPage() {
   const { isAuthenticated } = useAuthStore();
-  const { items, isLoading, removeItem, clearWishlist, fetchWishlist } = useWishlistStore();
-  const { addItem, items: cartItems } = useCartStore();
+  const { items, isLoading, clearWishlist, fetchWishlist } = useWishlistStore();
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -38,28 +35,14 @@ export default function WishlistPage() {
     }
   }, [isAuthenticated, fetchWishlist]);
 
-  const handleAddToCart = async (product: any) => {
-    try {
-      await addItem(product, 1);
-      toast.success('Added to cart');
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to add to cart');
-    }
-  };
-
-  const handleRemove = (productId: number) => {
-    removeItem(productId);
-    toast.success('Removed from wishlist');
-  };
-
   if (!isAuthenticated) {
     return (
-      <div className="text-center py-12">
-        <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-2xl font-bold">Sign in to view wishlist</h2>
-        <p className="text-muted-foreground mt-2">Save your favorite items</p>
+      <div className="py-12 text-center">
+        <Heart className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+        <h2 className="text-2xl font-bold">Tama ba konta atu haree lista hakarak</h2>
+        <p className="mt-2 text-muted-foreground">Rai ita-nia produtu favoritu</p>
         <Button className="mt-4" asChild>
-          <Link href="/login?redirect=/account/wishlist">Sign In</Link>
+          <Link href="/login?redirect=/account/wishlist">Tama</Link>
         </Button>
       </div>
     );
@@ -68,10 +51,10 @@ export default function WishlistPage() {
   if (isLoading && items.length === 0) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-72 rounded-lg" />
+        <AccountAppBar title="Lista hakarak" backHref="/account" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-72 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -80,80 +63,43 @@ export default function WishlistPage() {
 
   if (items.length === 0) {
     return (
-      <div className="text-center py-12">
-        <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-2xl font-bold">Your Wishlist is Empty</h2>
-        <p className="text-muted-foreground mt-2">Save your favorite items here</p>
+      <div className="py-12 text-center">
+        <span className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-warning/15">
+          <Heart className="h-10 w-10 text-warning-foreground" />
+        </span>
+        <h2 className="text-xl font-bold">Lista hakarak mamuk</h2>
+        <p className="mt-2 text-muted-foreground">Baku ikon fuan iha produtu ruma atu rai iha ne'e.</p>
         <Button className="mt-4" asChild>
-          <Link href="/products">Browse Products</Link>
+          <Link href="/products">Buka produtu</Link>
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">My Wishlist</h1>
-          <p className="text-muted-foreground">{items.length} items saved</p>
-        </div>
-        <Button variant="destructive" size="sm" onClick={() => setConfirmClearOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Clear All
-        </Button>
-      </div>
+    <div className="space-y-5">
+      <AccountAppBar
+        title={`Lista hakarak (${items.length})`}
+        backHref="/account"
+        rightAction={
+          <Button variant="ghost" size="icon" aria-label="Hamoos lista hakarak" onClick={() => setConfirmClearOpen(true)}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {items.map((product: any) => (
-          <Card key={product.id} className="overflow-hidden group">
-            <div className="relative aspect-square overflow-hidden bg-muted">
-              <Link href={`/products/${product.slug}`}>
-                <Image
-                  src={product.thumbnail || '/images/placeholder.png'}
-                  alt={product.name}
-                  fill
-                  className="object-cover transition-transform group-hover:scale-[1.03]"
-                />
-              </Link>
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-                onClick={() => handleRemove(product.id)}
-                aria-label="Remove from wishlist"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-4 space-y-2">
-              <Link href={`/products/${product.slug}`} className="hover:text-primary">
-                <h3 className="font-medium line-clamp-1">{product.name}</h3>
-              </Link>
-              <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={() => handleAddToCart(product)}
-                disabled={
-                  (cartItems?.find((it) => it.productId === product.id)?.quantity ?? 0) >= Math.min(product.stock, 99) ||
-                  product.stock === 0
-                }
-              >
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Add to Cart
-              </Button>
-            </div>
-          </Card>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {items.map((product) => (
+          <ProductCard key={product.id} product={{ ...product, isActive: product.isActive ?? true, stock: product.stock ?? 0 }} />
         ))}
       </div>
 
       <ConfirmDialog
         open={confirmClearOpen}
         onOpenChange={setConfirmClearOpen}
-        title="Clear Wishlist"
-        description="Are you sure you want to remove all items from your wishlist? This action cannot be undone."
-        confirmText="Clear All"
+        title="Hamoos lista hakarak"
+        description="Ita boot iha serteza katak atu hamoos produtu hotu husi lista hakarak? Asaun ida-ne'e labele troka fali."
+        confirmText="Hamoos hotu"
         onConfirm={handleClearAll}
         isLoading={isClearing}
       />

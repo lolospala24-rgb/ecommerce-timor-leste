@@ -34,7 +34,7 @@ export function BottomNav() {
     { href: '/cart', label: t('nav.bottom.cart'), icon: ShoppingCart, badge: cartCount },
     { href: '/account/wishlist', label: t('nav.bottom.wishlist'), icon: Heart, badge: wishlistCount },
     {
-      href: isAuthenticated ? '/account/profile' : '/login',
+      href: isAuthenticated ? '/account' : '/login',
       label: t('nav.bottom.account'),
       icon: User,
     },
@@ -48,7 +48,13 @@ export function BottomNav() {
     >
       <div className="grid grid-cols-5">
         {tabs.map((tab) => {
-          const active = isActive(pathname ?? '', tab.href);
+          // The Account tab now points at the /account hub, whose prefix
+          // also covers /account/wishlist — exclude that one path so it
+          // doesn't light up two tabs at once on the Wishlist screen.
+          const active =
+            tab.href === '/account'
+              ? isActive(pathname ?? '', tab.href) && !(pathname ?? '').startsWith('/account/wishlist')
+              : isActive(pathname ?? '', tab.href);
           return (
             <Link
               key={tab.href}

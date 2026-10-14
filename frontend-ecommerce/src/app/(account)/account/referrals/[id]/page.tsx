@@ -4,11 +4,12 @@ import { use } from 'react';
 import Link from 'next/link';
 import { useReferralDetail } from '@/hooks/useReferral';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Check, Circle, Gift } from 'lucide-react';
+import { Check, Circle, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AccountAppBar } from '@/components/account/AccountAppBar';
+import { StatusPill } from '@/components/account/StatusPill';
 
 interface ReferralDetail {
   id: number;
@@ -82,20 +83,16 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      <div>
-        <Button variant="ghost" size="sm" className="gap-1.5 px-0 text-muted-foreground" asChild>
-          <Link href="/account/referrals">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Referrals
-          </Link>
-        </Button>
-        <div className="mt-2 flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{referral.referredUser.name}</h1>
-          <Badge variant={referral.status === 'REWARDED' ? 'default' : 'secondary'}>
-            {referral.status === 'REWARDED' ? 'Rewarded' : 'Pending'}
-          </Badge>
-        </div>
-      </div>
+      <AccountAppBar
+        title={referral.referredUser.name}
+        backHref="/account/referrals"
+        rightAction={
+          <StatusPill
+            label={referral.status === 'REWARDED' ? 'Prémiu simu' : 'Hein hela'}
+            tone={referral.status === 'REWARDED' ? 'success' : 'muted'}
+          />
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="p-6">

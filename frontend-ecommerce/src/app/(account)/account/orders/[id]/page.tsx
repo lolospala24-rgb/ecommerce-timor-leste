@@ -1,27 +1,28 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useOrder, useConfirmDelivery } from '@/hooks/useOrders';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, CreditCard, User } from 'lucide-react';
+import { Package, Truck, CheckCircle, MapPin, CreditCard, User } from 'lucide-react';
 import { BankTransferProof } from '@/components/checkout/BankTransferProof';
 import { RefundRequestPanel } from '@/components/orders/RefundRequestPanel';
 import { CancelOrderPanel } from '@/components/orders/CancelOrderPanel';
+import { AccountAppBar } from '@/components/account/AccountAppBar';
+import { StatusPill, type StatusPillTone } from '@/components/account/StatusPill';
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  PENDING: { label: 'Pending', color: 'bg-amber-500' },
-  PAID: { label: 'Paid', color: 'bg-green-600' },
-  PROCESSING: { label: 'Processing', color: 'bg-blue-600' },
-  SHIPPING: { label: 'In Transit', color: 'bg-blue-600' },
-  DELIVERED: { label: 'Delivered', color: 'bg-green-600' },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-600' },
+const statusConfig: Record<string, { label: string; tone: StatusPillTone }> = {
+  PENDING: { label: 'Atu selu', tone: 'warning' },
+  PAID: { label: 'Prepara', tone: 'info' },
+  PROCESSING: { label: 'Prepara', tone: 'info' },
+  SHIPPING: { label: 'Haruka hela', tone: 'success' },
+  DELIVERED: { label: 'Simu ona', tone: 'muted' },
+  CANCELLED: { label: 'Kansela', tone: 'muted' },
 };
 
 const paymentStatusColors: Record<string, string> = {
@@ -47,7 +48,6 @@ const formatMoney = (value: unknown) => {
 
 export default function AccountOrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = parseInt(params.id as string);
   const { data: order, isLoading, refetch } = useOrder(orderId);
   useOrderRealtime(orderId);
@@ -75,27 +75,16 @@ export default function AccountOrderDetailPage() {
     );
   }
 
-  const status = statusConfig[order.status] || { label: order.status, color: 'bg-muted-foreground' };
+  const status = statusConfig[order.status] || { label: order.status, tone: 'muted' as StatusPillTone };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold truncate">Order #{order.orderNumber}</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              {new Date(order.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-        <Badge className={`${status.color} text-white px-4 py-2 self-start sm:self-auto ml-12 sm:ml-0`}>
-          {status.label}
-        </Badge>
-      </div>
+      <AccountAppBar
+        title={`Order #${order.orderNumber}`}
+        backHref="/account/orders"
+        rightAction={<StatusPill label={status.label} tone={status.tone} />}
+      />
+      <p className="-mt-4 text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
 
       {/* Courier marked this delivered but the customer hasn't confirmed
           yet — status stays SHIPPING (and COD funds/seller earnings held)

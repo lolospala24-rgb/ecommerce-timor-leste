@@ -2,41 +2,65 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { useUserOrders } from '@/hooks/useOrders';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Pagination } from '@/components/shared/Pagination';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Package, Truck, CheckCircle, Clock, XCircle, Eye, AlertCircle } from 'lucide-react';
+import { Package, AlertCircle } from 'lucide-react';
+import { AccountAppBar } from '@/components/account/AccountAppBar';
+import { StatusPill, type StatusPillTone } from '@/components/account/StatusPill';
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING: { label: 'Pending', color: 'bg-amber-500', icon: Clock },
-  PAID: { label: 'Paid', color: 'bg-green-600', icon: Package },
-  PROCESSING: { label: 'Processing', color: 'bg-blue-600', icon: Package },
-  SHIPPING: { label: 'In Transit', color: 'bg-blue-600', icon: Truck },
-  DELIVERED: { label: 'Delivered', color: 'bg-green-600', icon: CheckCircle },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-600', icon: XCircle },
+const TABS = [
+  { value: 'all', label: 'Hotu' },
+  { value: 'PENDING', label: 'Atu selu' },
+  { value: 'PROCESSING', label: 'Prepara' },
+  { value: 'SHIPPING', label: 'Haruka hela' },
+  { value: 'DELIVERED', label: 'Simu ona' },
+  { value: 'CANCELLED', label: 'Kansela' },
+];
+
+const STATUS_META: Record<string, { pillLabel: string; tone: StatusPillTone; actionLabel: string }> = {
+  PENDING: { pillLabel: 'Atu selu', tone: 'warning', actionLabel: 'Selu agora' },
+  PAID: { pillLabel: 'Prepara', tone: 'info', actionLabel: 'Haree' },
+  PROCESSING: { pillLabel: 'Prepara', tone: 'info', actionLabel: 'Haree' },
+  SHIPPING: { pillLabel: 'Haruka hela', tone: 'success', actionLabel: 'Track order' },
+  DELIVERED: { pillLabel: 'Simu ona', tone: 'muted', actionLabel: 'Hakerek review' },
+  CANCELLED: { pillLabel: 'Kansela', tone: 'muted', actionLabel: 'Sosa fali' },
 };
+
+function statusNote(order: any): string | null {
+  if (order.status === 'PENDING' && order.payment?.expiresAt) {
+    return `Selu molok ${new Date(order.payment.expiresAt).toLocaleDateString()}`;
+  }
+  if (order.status === 'PROCESSING' || order.status === 'PAID') return 'Loja prepara hela produtu';
+  if (order.status === 'DELIVERED' && order.deliveredAt) {
+    return `Simu iha ${new Date(order.deliveredAt).toLocaleDateString()}`;
+  }
+  return null;
+}
 
 // See the mirrored helper in (shop)/orders-shop/page.tsx — same reasoning:
 // order.status alone doesn't tell a customer their bank-transfer receipt
 // still needs uploading or was rejected.
 function getActionNeeded(order: any): string | null {
   if (order.paymentMethod !== 'BANK_TRANSFER' || order.status === 'CANCELLED') return null;
-  if (!order.payment) return 'Payment needed';
-  if (order.payment.status === 'FAILED') return 'Receipt rejected — retry';
-  if (order.payment.status === 'PENDING' && !order.payment.proofImage) return 'Upload receipt';
+  if (!order.payment) return 'Selu presiza';
+  if (order.payment.status === 'FAILED') return 'Rejeita — subi fali';
+  if (order.payment.status === 'PENDING' && !order.payment.proofImage) return 'Subi resibu';
   return null;
 }
 
 export default function AccountOrdersPage() {
-  const [statusFilter, setStatusFilter] = useState('all');
+  const searchParams = useSearchParams();
+  const initialStatus = TABS.some((t) => t.value === searchParams.get('status')) ? searchParams.get('status')! : 'all';
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [page, setPage] = useState(1);
-  
+
   const { data, isLoading, isError, refetch } = useUserOrders({
     page,
     limit: 10,
@@ -45,111 +69,98 @@ export default function AccountOrdersPage() {
 
   useOrderRealtime();
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-10 w-48" />
-        </div>
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} className="h-32 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <EmptyState
-        title="Couldn't load your orders"
-        description="Something went wrong while fetching your orders. Please try again."
-        icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
-        action={{ label: 'Try again', onClick: () => refetch() }}
-      />
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Orders</h1>
-        <p className="text-muted-foreground">Track and manage your orders</p>
-      </div>
+    <div>
+      <AccountAppBar title="Ha'u-nia order" backHref="/account" />
 
-      <Tabs defaultValue="all" onValueChange={setStatusFilter}>
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="PENDING">Pending</TabsTrigger>
-          <TabsTrigger value="PROCESSING">Processing</TabsTrigger>
-          <TabsTrigger value="SHIPPING">In Transit</TabsTrigger>
-          <TabsTrigger value="DELIVERED">Delivered</TabsTrigger>
-          <TabsTrigger value="CANCELLED">Cancelled</TabsTrigger>
+      <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }} className="mt-2">
+        <TabsList className="flex h-auto flex-wrap gap-1">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value={statusFilter} className="space-y-4 mt-4">
-          {data?.data?.length === 0 ? (
-            <div className="text-center py-12 border rounded-lg">
-              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium">No Orders</h3>
+        <TabsContent value={statusFilter} className="mt-4 space-y-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : isError ? (
+            <EmptyState
+              title="La konsege hatama orders"
+              description="Iha problema bainhira buka ita-nia orders. Koko fali."
+              icon={<AlertCircle className="h-10 w-10 text-muted-foreground" />}
+              action={{ label: 'Koko fali', onClick: () => refetch() }}
+            />
+          ) : data?.data?.length === 0 ? (
+            <div className="rounded-2xl border py-12 text-center">
+              <Package className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-medium">Seidauk iha order</h3>
               <p className="text-muted-foreground">
-                {statusFilter === 'all' 
-                  ? 'You haven\'t placed any orders yet.'
-                  : `No ${statusFilter.toLowerCase()} orders`}
+                {statusFilter === 'all' ? "Ita seidauk halo order ida." : 'Seidauk iha order ho estadu ida-ne’e.'}
               </p>
               <Button className="mt-4" asChild>
-                <Link href="/products">Start Shopping</Link>
+                <Link href="/products">Komesa sosa</Link>
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               {data?.data.map((order: any) => {
-                const status = statusConfig[order.status] || { label: order.status, color: 'bg-muted-foreground', icon: Package };
-                const StatusIcon = status.icon;
+                const meta = STATUS_META[order.status] || { pillLabel: order.status, tone: 'muted' as const, actionLabel: 'Haree' };
                 const actionNeeded = getActionNeeded(order);
+                const note = statusNote(order);
+                const firstItem = order.items?.[0];
+                const detailHref = `/account/orders/${order.id}`;
+                const actionHref =
+                  order.status === 'DELIVERED' && firstItem?.product?.slug
+                    ? `/products/${firstItem.product.slug}`
+                    : order.status === 'CANCELLED'
+                      ? '/products'
+                      : detailHref;
+
                 return (
-                  <Card key={order.id} className="rounded-xl hover:shadow-md transition-shadow">
-                    <CardContent className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Link href={`/account/orders/${order.id}`} className="hover:text-primary">
-                              <h3 className="font-semibold">Order #{order.orderNumber}</h3>
-                            </Link>
-                            <Badge className={status.color}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {status.label}
-                            </Badge>
-                            {actionNeeded && (
-                              <Badge variant="outline" className="border-amber-500 text-amber-700">
-                                {actionNeeded}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {order.items?.length || 0} items • {order.seller?.storeName || 'Unknown Seller'}
-                          </p>
-                        </div>
-                        <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-end">
-                          <div className="text-right">
-                            <p className="font-bold">${order.total.toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Bank Transfer'}
-                            </p>
-                          </div>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/account/orders/${order.id}`}>
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Link>
-                          </Button>
-                        </div>
+                  <div key={order.id} className="overflow-hidden rounded-2xl border bg-card">
+                    <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2.5">
+                      <Link href={detailHref} className="min-w-0 truncate text-sm font-semibold hover:text-primary">
+                        {order.seller?.storeName || 'Loja'}
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {actionNeeded && <StatusPill label={actionNeeded} tone="warning" />}
+                        <StatusPill label={meta.pillLabel} tone={meta.tone} />
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    <Link href={detailHref} className="flex gap-3 px-4 py-3 hover:bg-accent/50">
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        {firstItem?.product?.thumbnail && (
+                          <Image src={firstItem.product.thumbnail} alt={firstItem.product.name} fill className="object-cover" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {firstItem?.product?.name || `Order #${order.orderNumber}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          x{order.items?.length || 0} · #{order.orderNumber} · {new Date(order.createdAt).toLocaleDateString()}
+                        </p>
+                        {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
+                      </div>
+                    </Link>
+
+                    <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="font-bold text-foreground">${order.total.toFixed(2)}</p>
+                      </div>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={actionHref}>{meta.actionLabel}</Link>
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

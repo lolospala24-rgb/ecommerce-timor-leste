@@ -8,133 +8,126 @@ import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import api from '@/lib/api';
 import { unwrapApiData } from '@/lib/product';
 import { getInitials } from '@/lib/formatters';
 import toast from 'react-hot-toast';
+import { AccountAppBar } from '@/components/account/AccountAppBar';
+import { MenuRow } from '@/components/account/MenuRow';
+import { ChangePasswordDialog } from '@/components/account/ChangePasswordDialog';
 
 const profileSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  name: z.string().min(2, 'Naran tenke iha sekarea 2 ka liu'),
   phone: z.string().optional(),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
 
+// Phone is stored with its +670 prefix, but the UI shows that prefix as a
+// fixed box (per design) — strip it for the editable field and re-add it
+// on submit so the stored format never changes.
+const stripPrefix = (phone?: string | null) => (phone || '').replace(/^\+670\s*/, '');
+
 export default function ProfilePage() {
   const { user, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: user?.name || '',
-      phone: user?.phone || '',
+      phone: stripPrefix(user?.phone),
     },
   });
 
   const onSubmit = async (data: ProfileForm) => {
     setIsLoading(true);
-    setSuccess(false);
     try {
+      const localPhone = data.phone?.trim();
       const payload = {
         name: data.name,
-        phone: data.phone?.trim() || undefined,
+        phone: localPhone ? `+670 ${localPhone}` : undefined,
       };
       const response = await api.patch('/users/profile', payload);
       setUser(unwrapApiData(response?.data));
-      toast.success('Profile updated successfully');
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      toast.success('Profile atualiza ona');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.response?.data?.message || 'La konsege atualiza profile');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">Manage your personal information</p>
-      </div>
+    <div>
+      <AccountAppBar title="Perfil" backHref="/account" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>Update your profile details</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-6">
-            {success && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-600">
-                  Profile updated successfully!
-                </AlertDescription>
-              </Alert>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <Avatar className="h-24 w-24">
+            <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
+            <AvatarFallback className="bg-primary/10 text-2xl font-bold text-primary">
+              {getInitials(user?.name)}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+
+        <div className="space-y-4 rounded-2xl border bg-card p-4">
+          <p className="text-sm font-bold text-foreground">Informasaun pesoál</p>
+
+          <div className="space-y-2">
+            <Label htmlFor="name">Naran kompletu</Label>
+            <Input id="name" {...register('name')} />
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Input id="email" value={user?.email} disabled className="bg-muted pr-9" />
+              <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">Email la bele troka.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Numeru telefone</Label>
+            <div className="flex gap-2">
+              <span className="flex h-10 shrink-0 items-center rounded-lg border bg-muted px-3 text-sm font-medium text-foreground">
+                +670
+              </span>
+              <Input id="phone" placeholder="7xxx xxxx" {...register('phone')} />
+            </div>
+            {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border bg-card">
+          <MenuRow icon={Lock} title="Troka password" onClick={() => setChangePasswordOpen(true)} />
+        </div>
+
+        <div className="sticky bottom-0 -mx-4 bg-background px-4 pb-1 pt-3 md:static md:mx-0 md:px-0">
+          <Button type="submit" className="w-full" disabled={isLoading || !isDirty}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Rai hela...
+              </>
+            ) : (
+              'Rai mudansa'
             )}
+          </Button>
+        </div>
+      </form>
 
-            {/* Avatar */}
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
-                <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                  {getInitials(user?.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" {...register('name')} />
-                {errors.name && (
-                  <p className="text-sm text-destructive">{errors.name.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" value={user?.email} disabled className="bg-muted" />
-                <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" placeholder="+670 1234 5678" {...register('phone')} />
-                {errors.phone && (
-                  <p className="text-sm text-destructive">{errors.phone.message}</p>
-                )}
-              </div>
-            </div>
-
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </CardContent>
-        </form>
-      </Card>
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   );
 }
