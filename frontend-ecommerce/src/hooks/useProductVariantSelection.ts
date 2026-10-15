@@ -169,21 +169,22 @@ export function useProductVariantSelection(product: Product) {
     setActiveImageUrl(url);
   };
 
-  // "Available" means a customer could actually complete this pick: a real,
-  // active, in-stock variant exists for {this value + every other attribute
-  // already chosen}. Stock is part of the check (not just existence) so a
-  // combination that exists but is sold out — e.g. Size L + Warna Merah at
-  // 0 stock — greys out and disables just like one that was never a real
-  // combination at all, instead of only failing once the customer clicks it
-  // and sees "Out of stock" downstream.
+  // "Available" means this value is still a real, sellable option on its
+  // own — some active, in-stock variant has it — regardless of whatever
+  // else is currently selected on other attributes. Deliberately does NOT
+  // cross-filter against selectedAttributes: doing that previously meant
+  // picking Size L locked Color down to only the colors L happens to come
+  // in, greying out e.g. Black the moment L was picked even though Black is
+  // a perfectly real option (just not combined with L) — the customer could
+  // never click it to switch. Every attribute's options now stay
+  // independently pickable; a combination that doesn't actually exist is
+  // instead surfaced after the fact via hasInvalidCombination/
+  // selectionHint (see ProductDetail.tsx), not by disabling the button that
+  // would let them discover and fix it.
   const isAttributeValueAvailable = (attribute: string, value: string) =>
-    variants.some((variant) => {
-      if (variant.attributes?.[attribute] !== value) return false;
-      if (!variant.isActive || variant.stock <= 0) return false;
-      return Object.entries(selectedAttributes).every(([currentKey, currentValue]) =>
-        currentKey === attribute ? true : variant.attributes?.[currentKey] === currentValue,
-      );
-    });
+    variants.some(
+      (variant) => variant.attributes?.[attribute] === value && variant.isActive && variant.stock > 0,
+    );
 
   // Gated on hasChosenVariant, matching how galleryImages already behaves —
   // a matched selectedVariant only counts as "the customer's choice" once

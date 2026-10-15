@@ -1540,6 +1540,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         selectedVariant={selectedVariant}
         onSelectAttribute={selectAttribute}
         isAttributeValueAvailable={isAttributeValueAvailable}
+        hasInvalidCombination={hasInvalidCombination}
       />
     </div>
   );

@@ -45,6 +45,10 @@ interface BuyBottomSheetProps {
   selectedVariant?: ProductVariant | null;
   onSelectAttribute?: (attribute: string, value: string) => void;
   isAttributeValueAvailable?: (attribute: string, value: string) => boolean;
+  // True once every attribute has a value but that specific combination
+  // doesn't match any real variant — distinct from "still choosing", so the
+  // hint below can say which one it actually is.
+  hasInvalidCombination?: boolean;
 }
 
 // Opens on "Tau ba karreta" / "Sosa agora" taps — confirms quantity + an
@@ -75,6 +79,7 @@ export function BuyBottomSheet({
   selectedVariant = null,
   onSelectAttribute,
   isAttributeValueAvailable = () => true,
+  hasInvalidCombination = false,
 }: BuyBottomSheetProps) {
   const { municipalities, municipalitiesLoading } = useShippingZones();
   const [municipalityId, setMunicipalityId] = useState<number | null>(null);
@@ -169,7 +174,11 @@ export function BuyBottomSheet({
 
           <div className="shrink-0 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
             {variantSelectionIncomplete && (
-              <p className="mb-2 text-center text-xs font-medium text-[#B4410F]">Hili uluk variante molok kontinua.</p>
+              <p className="mb-2 text-center text-xs font-medium text-[#B4410F]">
+                {hasInvalidCombination
+                  ? "Kombinasaun ne'e la iha. Favór hili opsaun seluk."
+                  : 'Hili uluk variante molok kontinua.'}
+              </p>
             )}
             <button
               type="button"
