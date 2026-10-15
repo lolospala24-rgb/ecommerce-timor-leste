@@ -2,13 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { ProductCard } from '@/components/products/ProductCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useLocalOriginMunicipalities } from '@/hooks/useLocalOriginMunicipalities';
-import { useCartStore } from '@/stores/cartStore';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { CategoryChipBar } from '@/components/products/list/CategoryChipBar';
@@ -22,7 +20,7 @@ import {
   EMPTY_PRODUCT_LIST_FILTERS,
   type ProductListFilterValues,
 } from '@/components/products/list/FilterSheet';
-import { ArrowLeft, ArrowUp, Loader2, Search, ShoppingCart, SlidersHorizontal } from 'lucide-react';
+import { ArrowUp, Loader2, Search, SlidersHorizontal } from 'lucide-react';
 
 export default function ProductsPage() {
   return (
@@ -130,7 +128,6 @@ function ProductsPageContent() {
   const { data, isLoading, isFetching, isError, refetch } = useProducts(filters);
   const { data: categories } = useCategories({ limit: 100 });
   const { data: municipalities } = useLocalOriginMunicipalities();
-  const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
 
   // Update filters when URL params change (shared links, header search bar).
   useEffect(() => {
@@ -289,30 +286,6 @@ function ProductsPageContent() {
 
   return (
     <div className="min-h-screen bg-[#F4F6F3] pb-6">
-      <div className="flex items-center justify-between gap-2 border-b border-[#EEF1EE] bg-white px-4 py-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label={t('productList.close')}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="flex-1 text-center text-base font-bold text-[#142019]">{t('productList.title')}</h1>
-        <Link
-          href="/cart"
-          aria-label="Karreta"
-          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F4F6F3] text-[#142019]"
-        >
-          <ShoppingCart className="h-5 w-5" />
-          {cartCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#B4410F] px-1 text-[10px] font-semibold text-white">
-              {cartCount > 9 ? '9+' : cartCount}
-            </span>
-          )}
-        </Link>
-      </div>
-
       <div className="bg-white">
         <CategoryChipBar categories={categoryList} selectedId={filters.categoryId} onSelect={handleCategorySelect} />
       </div>
