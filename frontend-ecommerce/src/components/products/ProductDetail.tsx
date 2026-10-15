@@ -34,6 +34,7 @@ import { ProductTabs } from './detail/ProductTabs';
 import { ReviewSummary } from './detail/ReviewSummary';
 import { StickyBuyBar } from './detail/StickyBuyBar';
 import { BuyBottomSheet } from './detail/BuyBottomSheet';
+import { ProductShareSheet } from './detail/ProductShareSheet';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { Product } from '@/types/product.types';
 import { formatVariantLabel, parseProductTypeFields } from '@/lib/product';
@@ -98,6 +99,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   const { setCartOpen } = useUIStore();
   const [isBuySheetOpen, setIsBuySheetOpen] = useState(false);
   const [buySheetMode, setBuySheetMode] = useState<'cart' | 'buyNow'>('cart');
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [isShippingRowOpen, setIsShippingRowOpen] = useState(false);
   const [isGuaranteeRowOpen, setIsGuaranteeRowOpen] = useState(false);
   const [isCompactHeaderVisible, setIsCompactHeaderVisible] = useState(false);
@@ -494,9 +496,7 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             onThumbnailSelect={selectThumbnail}
             onMainImageChange={setMainImageUrl}
             onBack={() => router.back()}
-            onShare={handleCopyLink}
-            onCart={() => setCartOpen(true)}
-            cartCount={cartCount}
+            onShare={() => setIsShareSheetOpen(true)}
           />
           <div ref={mediaHeaderSentinelRef} />
 
@@ -1541,6 +1541,13 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         onSelectAttribute={selectAttribute}
         isAttributeValueAvailable={isAttributeValueAvailable}
         hasInvalidCombination={hasInvalidCombination}
+      />
+
+      <ProductShareSheet
+        open={isShareSheetOpen}
+        onOpenChange={setIsShareSheetOpen}
+        productName={product.name}
+        productUrl={typeof window !== 'undefined' ? window.location.href : ''}
       />
     </div>
   );

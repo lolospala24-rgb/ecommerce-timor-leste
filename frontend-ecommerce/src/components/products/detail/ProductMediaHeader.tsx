@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Share2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Share2 } from 'lucide-react';
 import { ProductImages } from '@/components/products/ProductImages';
 import type { GalleryThumbnailItem } from '@/lib/product';
 
@@ -17,8 +17,6 @@ interface ProductMediaHeaderProps {
   onMainImageChange?: (url: string) => void;
   onBack: () => void;
   onShare: () => void;
-  onCart: () => void;
-  cartCount: number;
 }
 
 // Floating circular button matching the reference design — 44px, 94%
@@ -64,8 +62,6 @@ export function ProductMediaHeader({
   onMainImageChange,
   onBack,
   onShare,
-  onCart,
-  cartCount,
 }: ProductMediaHeaderProps) {
   return (
     <div className="relative">
@@ -89,12 +85,9 @@ export function ProductMediaHeader({
             <ArrowLeft className="h-5 w-5" />
           </FloatingIconButton>
         </div>
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto">
           <FloatingIconButton label="Fahe" onClick={onShare}>
             <Share2 className="h-5 w-5" />
-          </FloatingIconButton>
-          <FloatingIconButton label="Karreta" onClick={onCart} badgeCount={cartCount}>
-            <ShoppingCart className="h-5 w-5" />
           </FloatingIconButton>
         </div>
       </div>
