@@ -121,8 +121,6 @@ function ProductsPageContent() {
     originMunicipality: undefined as string | undefined,
   });
 
-  const [searchInput, setSearchInput] = useState(filters.search);
-  const debouncedSearch = useDebounce(searchInput, 400);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [allItems, setAllItems] = useState<any[]>([]);
@@ -151,19 +149,9 @@ function ProductsPageContent() {
       sortBy: sortBy && VALID_SORT_VALUES.has(sortBy) ? sortBy : prev.sortBy,
       page: 1,
     }));
-    setSearchInput(q || '');
     setAllItems([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-
-  // Debounced in-page search box — separate from the URL-driven ?q= sync
-  // above so typing here doesn't fight that effect.
-  useEffect(() => {
-    if (debouncedSearch === filters.search) return;
-    setFilters((prev) => ({ ...prev, search: debouncedSearch, page: 1 }));
-    setAllItems([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
 
   const handleSortChange = (sortBy: string) => {
     setFilters((prev) => ({ ...prev, sortBy, page: 1 }));
@@ -203,7 +191,6 @@ function ProductsPageContent() {
       isLocallyMade: undefined,
       originMunicipality: undefined,
     });
-    setSearchInput('');
     setAllItems([]);
     router.push('/products');
   };
@@ -302,7 +289,7 @@ function ProductsPageContent() {
 
   return (
     <div className="min-h-screen bg-[#F4F6F3] pb-6">
-      <div className="flex items-center gap-2 border-b border-[#EEF1EE] bg-white px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-[#EEF1EE] bg-white px-4 py-3">
         <button
           type="button"
           onClick={() => router.back()}
@@ -311,16 +298,7 @@ function ProductsPageContent() {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#56635B]" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t('productList.searchPlaceholder')}
-            className="h-11 w-full rounded-full border border-[#DDE3DE] bg-[#F4F6F3] pl-9 pr-4 text-[14px] text-[#142019] outline-none focus:border-[#17703F]"
-          />
-        </div>
+        <h1 className="flex-1 text-center text-base font-bold text-[#142019]">{t('productList.title')}</h1>
         <Link
           href="/cart"
           aria-label="Karreta"

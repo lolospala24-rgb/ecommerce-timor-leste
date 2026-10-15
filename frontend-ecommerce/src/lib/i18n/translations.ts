@@ -361,6 +361,7 @@ export const translations: Record<Locale, Dictionary> = {
     'cart.savings': 'Poupa {amount}',
     'cart.selectSeller': 'Hili produtu husi {seller}',
     // All Products list + filter
+    'productList.title': 'Produtu',
     'productList.searchPlaceholder': 'Buka iha produtu hotu',
     'productList.categoryAll': 'Hotu',
     'productList.sortRelevant': 'Relevante',
@@ -745,6 +746,7 @@ export const translations: Record<Locale, Dictionary> = {
     'cart.savings': 'Save {amount}',
     'cart.selectSeller': 'Select items from {seller}',
     // All Products list + filter
+    'productList.title': 'Products',
     'productList.searchPlaceholder': 'Search all products',
     'productList.categoryAll': 'All',
     'productList.sortRelevant': 'Relevant',
@@ -1129,6 +1131,7 @@ export const translations: Record<Locale, Dictionary> = {
     'cart.savings': 'Hemat {amount}',
     'cart.selectSeller': 'Pilih produk dari {seller}',
     // All Products list + filter
+    'productList.title': 'Produk',
     'productList.searchPlaceholder': 'Cari semua produk',
     'productList.categoryAll': 'Semua',
     'productList.sortRelevant': 'Relevan',
@@ -1513,6 +1516,7 @@ export const translations: Record<Locale, Dictionary> = {
     'cart.savings': 'Poupa {amount}',
     'cart.selectSeller': 'Selecionar produtos de {seller}',
     // All Products list + filter
+    'productList.title': 'Produtos',
     'productList.searchPlaceholder': 'Pesquisar todos os produtos',
     'productList.categoryAll': 'Todos',
     'productList.sortRelevant': 'Relevante',
