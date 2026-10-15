@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { Check, Tag } from 'lucide-react';
 import type { ProductVariant } from '@/types/product.types';
-import { getVariantForOption, getVariantImageForOption } from '@/lib/product';
+import { getVariantImageForOption } from '@/lib/product';
 import { cn } from '@/lib/utils';
 
 interface VariantOptionGridProps {
@@ -17,13 +17,14 @@ interface VariantOptionGridProps {
   productThumbnail?: string | null;
 }
 
-// The BuyBottomSheet's variant picker — one card per option (thumbnail,
-// name, price, stock), grouped by attribute, so a buyer can pick a variant
-// without leaving the sheet. Deliberately a different, richer visual than
-// ProductVariantSelector's pill/swatch style used on the page itself: this
-// mirrors the reference "quick buy" sheet design (per-option price/stock
-// preview), while reusing the same selectAttribute/isAttributeValueAvailable
-// logic the inline selector already uses, so both stay in sync.
+// The BuyBottomSheet's variant picker — one card per option (thumbnail +
+// name), grouped by attribute, so a buyer can pick a variant without
+// leaving the sheet. No per-option price/stock here — for attributes like
+// Size/Color those are almost always identical across options anyway,
+// so showing them just repeated noise; the sheet's header above already
+// shows the resolved price/stock for whatever's currently selected.
+// Reuses the same selectAttribute/isAttributeValueAvailable logic the
+// inline page selector already uses, so both stay in sync.
 export function VariantOptionGrid({
   variants,
   attributeKeys,
@@ -63,13 +64,10 @@ export function VariantOptionGrid({
               {attributeOptions[attribute]?.map((value) => {
                 const selected = selectedValue === value;
                 const available = isAttributeValueAvailable(attribute, value);
-                const optionVariant = getVariantForOption(variants, attribute, value, selectedAttributes);
                 const optionImage =
                   getVariantImageForOption(variants, attribute, value, selectedAttributes, productThumbnail) ??
                   productThumbnail ??
                   '/images/placeholder.png';
-                const optionPrice = optionVariant?.effectivePrice ?? optionVariant?.price;
-                const optionStock = optionVariant?.stock;
 
                 return (
                   <button
@@ -92,12 +90,7 @@ export function VariantOptionGrid({
                       <Image src={optionImage} alt={value} fill className="object-cover" sizes="56px" />
                     </div>
                     <span className="line-clamp-1 text-xs font-semibold text-[#142019]">{value}</span>
-                    {optionPrice != null && (
-                      <span className="text-xs font-bold text-[#17703F]">${optionPrice.toFixed(2)}</span>
-                    )}
-                    <span className="text-[11px] text-[#56635B]">
-                      {optionStock != null ? `Stok: ${optionStock}` : available ? '—' : 'La iha'}
-                    </span>
+                    {!available && <span className="text-[11px] text-[#56635B]">La iha</span>}
                   </button>
                 );
               })}
