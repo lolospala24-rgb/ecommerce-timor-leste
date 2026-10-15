@@ -61,12 +61,15 @@ export function Header() {
   // someone already there has already searched their way in, so a search
   // row is unlikely to be their next tap, and the page needs the vertical
   // space more than a listing page does. Mirrors (shop)/layout.tsx's own
-  // hasOwnBreadcrumb() check for the same class of page. Listing pages
-  // (home, /products, /categories, /cart, etc.) keep the search row.
+  // hasOwnBreadcrumb() check for the same class of page. Other listing
+  // pages (home, /categories, /cart, etc.) keep the search row.
   const isDetailPage =
     (pathname?.startsWith('/products/') && pathname !== '/products/') ||
     (pathname?.startsWith('/sellers/') && pathname !== '/sellers/');
-  const isMobileSearchRowVisible = !isDetailPage;
+  // The /products listing page already has its own back/title/cart header
+  // plus category chips, sort tabs, and a filter sheet to narrow results —
+  // this row would just duplicate that, same reasoning as isDetailPage.
+  const isMobileSearchRowVisible = !isDetailPage && pathname !== '/products';
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
