@@ -18,6 +18,8 @@ import {
 import { QuantityStepper } from '@/components/cart/QuantityStepper';
 import { useShippingZones } from '@/hooks/useAddresses';
 import { useShippingOptions } from '@/hooks/useShippingOptions';
+import { VariantOptionGrid } from './VariantOptionGrid';
+import type { ProductVariant } from '@/types/product.types';
 
 interface BuyBottomSheetProps {
   open: boolean;
@@ -32,6 +34,17 @@ interface BuyBottomSheetProps {
   onConfirm: () => void;
   isSubmitting: boolean;
   confirmLabel: string;
+  // Variant selection — all optional so the sheet still works unchanged for
+  // simple (non-variant) products.
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  attributeKeys?: string[];
+  attributeOptions?: Record<string, string[]>;
+  attributeLabels?: Record<string, string>;
+  selectedAttributes?: Record<string, string>;
+  selectedVariant?: ProductVariant | null;
+  onSelectAttribute?: (attribute: string, value: string) => void;
+  isAttributeValueAvailable?: (attribute: string, value: string) => boolean;
 }
 
 // Opens on "Tau ba karreta" / "Sosa agora" taps — confirms quantity + an
@@ -53,6 +66,15 @@ export function BuyBottomSheet({
   onConfirm,
   isSubmitting,
   confirmLabel,
+  hasVariants = false,
+  variants = [],
+  attributeKeys = [],
+  attributeOptions = {},
+  attributeLabels = {},
+  selectedAttributes = {},
+  selectedVariant = null,
+  onSelectAttribute,
+  isAttributeValueAvailable = () => true,
 }: BuyBottomSheetProps) {
   const { municipalities, municipalitiesLoading } = useShippingZones();
   const [municipalityId, setMunicipalityId] = useState<number | null>(null);
@@ -60,6 +82,7 @@ export function BuyBottomSheet({
 
   const shippingCost = shippingOptions && shippingOptions.length > 0 ? shippingOptions[0].shippingCost : 0;
   const total = price * quantity + (municipalityId ? shippingCost : 0);
+  const variantSelectionIncomplete = hasVariants && !selectedVariant;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -74,66 +97,89 @@ export function BuyBottomSheet({
           <X className="h-4 w-4" />
         </button>
 
-        <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          <div className="flex gap-3 pr-10">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#F4F6F3]">
-              {imageUrl && <Image src={imageUrl} alt={title} fill className="object-cover" sizes="96px" />}
-            </div>
-            <div className="min-w-0 flex-1 pt-1">
-              <p className="line-clamp-2 text-sm font-semibold text-[#142019]">{title}</p>
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-lg font-extrabold text-[#17703F]">${price.toFixed(2)}</span>
-                {comparePrice != null && (
-                  <span className="text-xs text-[#56635B] line-through">${comparePrice.toFixed(2)}</span>
-                )}
+        <div className="flex max-h-[85vh] flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-2" data-lenis-prevent>
+            <div className="flex gap-3 pr-10">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#F4F6F3]">
+                {imageUrl && <Image src={imageUrl} alt={title} fill className="object-cover" sizes="96px" />}
               </div>
-              <p className="mt-1 text-xs text-[#56635B]">Stok: {stock}</p>
+              <div className="min-w-0 flex-1 pt-1">
+                <p className="line-clamp-2 text-sm font-semibold text-[#142019]">{title}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-lg font-extrabold text-[#17703F]">${price.toFixed(2)}</span>
+                  {comparePrice != null && (
+                    <span className="text-xs text-[#56635B] line-through">${comparePrice.toFixed(2)}</span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-[#56635B]">Stok: {stock}</p>
+              </div>
+            </div>
+
+            <div className="my-4 h-px bg-[#EEF1EE]" />
+
+            {hasVariants && onSelectAttribute && (
+              <>
+                <VariantOptionGrid
+                  variants={variants}
+                  attributeKeys={attributeKeys}
+                  attributeOptions={attributeOptions}
+                  attributeLabels={attributeLabels}
+                  selectedAttributes={selectedAttributes}
+                  onSelectAttribute={onSelectAttribute}
+                  isAttributeValueAvailable={isAttributeValueAvailable}
+                  productThumbnail={imageUrl}
+                />
+                <div className="my-4 h-px bg-[#EEF1EE]" />
+              </>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#142019]">Kuantidade</p>
+                <p className="text-xs text-[#56635B]">Másimu {stock} (stok variante ne'ebé hili)</p>
+              </div>
+              <QuantityStepper quantity={quantity} onChange={setQuantity} max={Math.max(stock, 1)} />
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-1.5 text-sm font-semibold text-[#142019]">Haruka ba</p>
+              <Select
+                value={municipalityId ? String(municipalityId) : ''}
+                onValueChange={(value) => setMunicipalityId(Number(value))}
+                disabled={municipalitiesLoading}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-[#DDE3DE] text-sm">
+                  <SelectValue placeholder="Hili munisípiu" />
+                </SelectTrigger>
+                <SelectContent>
+                  {municipalities.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-[#F4F6F3] p-4">
+              <span className="text-sm font-medium text-[#56635B]">Total ({quantity} item)</span>
+              <span className="text-lg font-extrabold text-[#142019]">${total.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="my-4 h-px bg-[#EEF1EE]" />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[#142019]">Kuantidade</p>
-              <p className="text-xs text-[#56635B]">Másimu {stock}</p>
-            </div>
-            <QuantityStepper quantity={quantity} onChange={setQuantity} max={Math.max(stock, 1)} />
-          </div>
-
-          <div className="mt-4">
-            <p className="mb-1.5 text-sm font-semibold text-[#142019]">Haruka ba</p>
-            <Select
-              value={municipalityId ? String(municipalityId) : ''}
-              onValueChange={(value) => setMunicipalityId(Number(value))}
-              disabled={municipalitiesLoading}
+          <div className="shrink-0 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
+            {variantSelectionIncomplete && (
+              <p className="mb-2 text-center text-xs font-medium text-[#B4410F]">Hili uluk variante molok kontinua.</p>
+            )}
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isSubmitting || stock <= 0 || variantSelectionIncomplete}
+              className="flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#17703F] text-base font-bold text-white disabled:opacity-60"
             >
-              <SelectTrigger className="h-11 rounded-xl border-[#DDE3DE] text-sm">
-                <SelectValue placeholder="Hili munisípiu" />
-              </SelectTrigger>
-              <SelectContent>
-                {municipalities.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : confirmLabel}
+            </button>
           </div>
-
-          <div className="mt-4 flex items-center justify-between rounded-xl bg-[#F4F6F3] p-4">
-            <span className="text-sm font-medium text-[#56635B]">Total ({quantity} item)</span>
-            <span className="text-lg font-extrabold text-[#142019]">${total.toFixed(2)}</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isSubmitting || stock <= 0}
-            className="mt-4 flex h-[54px] w-full items-center justify-center rounded-2xl bg-[#17703F] text-base font-bold text-white disabled:opacity-60"
-          >
-            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : confirmLabel}
-          </button>
         </div>
       </DrawerContent>
     </Drawer>

@@ -302,6 +302,27 @@ export function getVariantImageForOption(
   return fallback ?? null;
 }
 
+// Same "hold every other currently-selected attribute fixed" matching as
+// getVariantImageForOption above, but returns the variant itself so a
+// per-option card can preview that option's own price/stock (e.g. a
+// bottom-sheet variant picker) instead of just its image.
+export function getVariantForOption(
+  variants: ProductVariant[],
+  attribute: string,
+  value: string,
+  selectedAttributes: Record<string, string>,
+): ProductVariant | null {
+  const matches = variants.filter((variant) => {
+    if (variant.attributes?.[attribute] !== value) return false;
+    return Object.entries(selectedAttributes).every(([key, val]) =>
+      key === attribute ? true : variant.attributes?.[key] === val,
+    );
+  });
+
+  if (matches.length === 0) return null;
+  return matches.find((variant) => variant.isActive) ?? matches[0];
+}
+
 export function alignAttributesWithTypeFields(
   attributes: Record<string, string>,
   typeFields: unknown,

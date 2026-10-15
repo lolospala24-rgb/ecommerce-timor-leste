@@ -324,8 +324,16 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
     }
   };
 
+  // Deliberately does NOT run the full validateSelection() check — unlike
+  // handleAddToCart/handleBuyNow (called on the sheet's own Confirm button),
+  // this only needs to gate on auth. A missing variant selection is instead
+  // resolved inside the sheet itself (it now has its own variant picker),
+  // not by blocking the sheet from opening at all.
   const openBuySheet = (mode: 'cart' | 'buyNow') => {
-    if (!validateSelection()) return;
+    if (!isAuthenticated) {
+      toast.error('Please login to continue');
+      return;
+    }
     setBuySheetMode(mode);
     setIsBuySheetOpen(true);
   };
@@ -1512,14 +1520,17 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
       <RecentlyViewedSection excludeId={product.id} />
 
       {/* Mobile sticky buy bar — Tau ba karreta/Sosa agora open the shared
-          BuyBottomSheet (quantity + municipality confirm) instead of
-          calling handleAddToCart/handleBuyNow directly; the sheet calls
+          BuyBottomSheet (variant + quantity + municipality confirm) instead
+          of calling handleAddToCart/handleBuyNow directly; the sheet calls
           them itself once confirmed. Desktop keeps its own inline buttons
-          inside the hidden lg:block section above, unchanged. */}
+          inside the hidden lg:block section above, unchanged. Only gated on
+          stock here (not hasVariants && !selectedVariant like buyDisabled
+          below) — a missing variant is now resolved inside the sheet
+          itself, so this button must stay enabled to open it. */}
       <StickyBuyBar
         onAddToCart={() => openBuySheet('cart')}
         onBuyNow={() => openBuySheet('buyNow')}
-        disabled={buyDisabled}
+        disabled={displayStock === 0}
       />
       <div className="h-[76px] lg:hidden" aria-hidden="true" />
 
@@ -1536,6 +1547,15 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
         onConfirm={handleSheetConfirm}
         isSubmitting={buySheetMode === 'cart' ? isAddingToCart : isBuyingNow}
         confirmLabel={buySheetMode === 'cart' ? 'Tau ba karreta' : 'Sosa agora'}
+        hasVariants={hasVariants}
+        variants={variants}
+        attributeKeys={attributeKeys}
+        attributeOptions={attributeOptions}
+        attributeLabels={attributeLabels}
+        selectedAttributes={selectedAttributes}
+        selectedVariant={selectedVariant}
+        onSelectAttribute={selectAttribute}
+        isAttributeValueAvailable={isAttributeValueAvailable}
       />
     </div>
   );
