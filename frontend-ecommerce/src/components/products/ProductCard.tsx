@@ -3,14 +3,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Heart, Loader2, Bell, BellRing, MapPin, Star, ShoppingCart } from 'lucide-react';
+import { Heart, Loader2, Bell, BellRing, MapPin, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import toast from 'react-hot-toast';
@@ -67,12 +65,9 @@ interface ProductCardProps {
 
 export function ProductCard({ product, isLocal = false, priority = false }: ProductCardProps) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [imageError, setImageError] = useState(false);
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
-  const addItem = useCartStore((state) => state.addItem);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   const isWishlisted = isInWishlist(product.id);
 
@@ -155,31 +150,6 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
       await toggleItem(product);
     } catch (error) {
       toast.error('Failed to update wishlist');
-    }
-  };
-
-  // Variant-bearing products can't be added straight from a listing card —
-  // the customer has to choose Size/Warna/etc first, which only the product
-  // page's selector can do — so the cart icon just takes them there instead
-  // of silently adding the wrong (or no) variant.
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (product.hasVariants) {
-      router.push(`/products/${product.slug}`);
-      return;
-    }
-    if (!isAuthenticated) {
-      toast.error('Please login to add to cart');
-      return;
-    }
-    setIsAddingToCart(true);
-    try {
-      await addItem(product, 1, null);
-    } catch {
-      // addItem already surfaces its own error toast.
-    } finally {
-      setIsAddingToCart(false);
     }
   };
 
@@ -287,7 +257,7 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           from content alone; any leftover row-stretch slack now shows as
           quiet bottom padding on the card instead of splitting the price
           away from the rest of the content. */}
-      <div className="mt-1.5 flex items-end justify-between gap-1.5 px-2.5 pb-2.5">
+      <div className="mt-1.5 px-2.5 pb-2.5">
         <Link href={`/products/${product.slug}`} className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
           <span className="text-base font-bold text-success">
             ${pricing.currentPrice.toFixed(2)}
@@ -298,21 +268,6 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             </span>
           )}
         </Link>
-        {!isOutOfStock && (
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={isAddingToCart}
-            aria-label={t('product.addToCart')}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {isAddingToCart ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ShoppingCart className="h-4 w-4" />
-            )}
-          </button>
-        )}
       </div>
       </div>
 
