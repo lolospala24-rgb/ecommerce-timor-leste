@@ -5,10 +5,9 @@ import type { ReactElement } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCartStore, useCart } from '@/stores/cartStore';
+import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
-import { useUIStore } from '@/stores/uiStore';
 import { useProductVariantSelection } from '@/hooks/useProductVariantSelection';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { usePromotionSoldCount } from '@/hooks/useFlashSale';
@@ -43,6 +42,7 @@ import { trackViewItem } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
+  Share2,
   Zap,
   Heart,
   Link2,
@@ -95,8 +95,6 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
   // sticky header that appears once the shopper scrolls past the gallery.
   // Everything these touch (handleAddToCart/handleBuyNow/quantity/etc.) is
   // the exact same state/handlers the desktop layout already uses below.
-  const { totalItems: cartCount } = useCart();
-  const { setCartOpen } = useUIStore();
   const [isBuySheetOpen, setIsBuySheetOpen] = useState(false);
   const [buySheetMode, setBuySheetMode] = useState<'cart' | 'buyNow'>('cart');
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
@@ -730,16 +728,11 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             </div>
             <button
               type="button"
-              onClick={() => setCartOpen(true)}
-              aria-label="Karreta"
-              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#142019]"
+              onClick={() => setIsShareSheetOpen(true)}
+              aria-label="Fahe"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#142019]"
             >
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#B4410F] px-1 text-[9px] font-semibold text-white">
-                  {cartCount > 9 ? '9+' : cartCount}
-                </span>
-              )}
+              <Share2 className="h-5 w-5" />
             </button>
           </div>
         )}
