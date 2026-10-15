@@ -637,29 +637,13 @@ export function ProductDetail({ product, onAddToCart }: ProductDetailProps) {
             </ProductActionRow>
           </div>
 
-          {hasVariants && !isSimpleVariant && (
-            <div className="rounded-2xl border border-[#DDE3DE] bg-white p-4">
-              <ProductVariantSelector
-                variants={variants}
-                attributeKeys={attributeKeys}
-                attributeOptions={attributeOptions}
-                attributeLabels={attributeLabels}
-                selectedAttributes={selectedAttributes}
-                selectedVariant={selectedVariant}
-                selectedVariantLabel={selectedVariantLabel}
-                onSelectAttribute={selectAttribute}
-                onSelectVariant={selectVariant}
-                isAttributeValueAvailable={isAttributeValueAvailable}
-                productThumbnail={product.thumbnail}
-              />
-              {selectionHint && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{selectionHint}</span>
-                </div>
-              )}
-            </div>
-          )}
+          {/* No inline variant selector here on mobile (removed — it was
+              the generic/English ProductVariantSelector card, visually
+              inconsistent with this branch's Tetum/green theme). Variant
+              selection on mobile now happens exclusively inside
+              BuyBottomSheet's VariantOptionGrid, opened from the sticky
+              buy bar below. Desktop keeps its own inline selector further
+              down, unchanged. */}
 
           {product.seller && (
             <SellerCard
