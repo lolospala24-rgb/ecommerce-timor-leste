@@ -57,15 +57,18 @@ export function Header() {
   // and crowds the header on pages where vertical space actually matters
   // (e.g. a product detail page fighting for room above the fold).
   const isMobileBrowseRowVisible = pathname === '/';
-  // Single-item detail pages (a specific product, a specific seller) —
-  // someone already there has already searched their way in, so a search
-  // row is unlikely to be their next tap, and the page needs the vertical
-  // space more than a listing page does. Mirrors (shop)/layout.tsx's own
-  // hasOwnBreadcrumb() check for the same class of page. Other listing
-  // pages (home, /categories, /cart, etc.) keep the search row.
+  // Single-item detail pages (a specific product, a specific seller, a
+  // specific category) — someone already there has already searched their
+  // way in, so a search row is unlikely to be their next tap, and the page
+  // needs the vertical space more than a listing page does. A category
+  // detail page also already has its own working, category-scoped search
+  // behind its header's search icon — this row would just duplicate it.
+  // Mirrors (shop)/layout.tsx's own hasOwnBreadcrumb() check for the same
+  // class of page. The /categories list page itself keeps the row.
   const isDetailPage =
     (pathname?.startsWith('/products/') && pathname !== '/products/') ||
-    (pathname?.startsWith('/sellers/') && pathname !== '/sellers/');
+    (pathname?.startsWith('/sellers/') && pathname !== '/sellers/') ||
+    (pathname?.startsWith('/categories/') && pathname !== '/categories/');
   // The /products listing page already has its own back/title/cart header
   // plus category chips, sort tabs, and a filter sheet to narrow results —
   // this row would just duplicate that, same reasoning as isDetailPage.
