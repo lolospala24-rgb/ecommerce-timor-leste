@@ -184,8 +184,8 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
   };
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden rounded-xl border shadow-none transition-shadow hover:shadow-md">
-      <div className="relative aspect-square overflow-hidden bg-muted/40">
+    <Card className="group flex h-full flex-col overflow-hidden rounded-xl border-0 bg-transparent shadow-none">
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/40">
         <Link href={`/products/${product.slug}`} aria-label={product.name}>
           <Image
             src={imageSrc}
@@ -289,7 +289,7 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
           away from the rest of the content. */}
       <div className="mt-1.5 flex items-end justify-between gap-1.5 px-2.5 pb-2.5">
         <Link href={`/products/${product.slug}`} className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
-          <span className="text-base font-bold text-primary">
+          <span className="text-base font-bold text-success">
             ${pricing.currentPrice.toFixed(2)}
           </span>
           {pricing.originalPrice != null && (
