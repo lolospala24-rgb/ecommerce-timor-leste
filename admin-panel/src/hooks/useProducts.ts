@@ -85,6 +85,9 @@ interface ProductFilters {
   sortOrder?: 'asc' | 'desc';
   inStock?: boolean;
   isActive?: boolean;
+  status?: 'all' | 'active' | 'inactive';
+  stockStatus?: 'all' | 'inStock' | 'outOfStock' | 'lowStock';
+  isLocallyMade?: boolean;
   minRating?: number;
 }
 
@@ -104,6 +107,9 @@ export const useProducts = (filters?: ProductFilters) => {
       if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
       if (filters?.inStock !== undefined) params.append('inStock', filters.inStock.toString());
       if (filters?.isActive !== undefined) params.append('isActive', filters.isActive.toString());
+      if (filters?.status) params.append('status', filters.status);
+      if (filters?.stockStatus) params.append('stockStatus', filters.stockStatus);
+      if (filters?.isLocallyMade !== undefined) params.append('isLocallyMade', filters.isLocallyMade.toString());
       if (filters?.minRating) params.append('minRating', filters.minRating.toString());
       
       const response = await api.get<ProductsResponse>(`/products?${params.toString()}`);

@@ -169,8 +169,13 @@ export class CreateProductDto {
   @MaxLength(100)
   slug?: string;
 
+  // each: true matches the metaKeywords/tags pattern below — rejects any
+  // non-string element (object, number, null, nested array) without
+  // requiring strict URL shape, so legitimate Cloudinary URLs (and any
+  // other plain string the frontend sends) still pass.
   @IsArray()
   @IsOptional()
+  @IsString({ each: true })
   images?: string[];
 
   @IsNumber()

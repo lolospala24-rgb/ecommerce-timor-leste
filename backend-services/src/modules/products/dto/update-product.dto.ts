@@ -168,6 +168,7 @@ export class UpdateProductDto {
   // never persisted.
   @IsArray()
   @IsOptional()
+  @IsString({ each: true })
   images?: string[];
 
   @IsNumber()

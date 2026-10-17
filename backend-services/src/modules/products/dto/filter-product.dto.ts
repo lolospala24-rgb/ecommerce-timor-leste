@@ -60,6 +60,25 @@ export class FilterProductDto {
   @IsBoolean()
   isActive?: boolean = true;
 
+  // Tri-state status filter for admin use (Public findAll() still defaults
+  // to active-only via isActive above when this is omitted — storefront
+  // callers never send this). 'all' is the only way to see both active and
+  // inactive products in one request; isActive alone can't express "no
+  // filter" since its own default is `true`.
+  @IsOptional()
+  @IsEnum(['all', 'active', 'inactive'])
+  status?: 'all' | 'active' | 'inactive';
+
+  // Same idea for stock, layered on top of the existing `inStock` boolean
+  // (kept as-is for existing callers e.g. the storefront's in-stock-only
+  // toggle). Takes precedence over `inStock` when present, including 'all'
+  // explicitly clearing any stock filter. 'lowStock' reuses each product's
+  // own lowStockThreshold (see ProductsService.findAll) rather than a new
+  // hardcoded threshold.
+  @IsOptional()
+  @IsEnum(['all', 'inStock', 'outOfStock', 'lowStock'])
+  stockStatus?: 'all' | 'inStock' | 'outOfStock' | 'lowStock';
+
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

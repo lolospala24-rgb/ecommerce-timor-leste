@@ -33,6 +33,7 @@ import { UpdateProductTypeDto } from './dto/update-product-type.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt-auth.guard';
 import { Role } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -94,10 +95,17 @@ export class ProductsController {
     return { message: 'Bulk import processed', data: result };
   }
 
+  // Public for anonymous storefront browsing, but OptionalJwtAuthGuard
+  // still verifies a token if one is present (never rejects when absent)
+  // so an authenticated ADMIN gets full status/stock visibility while an
+  // anonymous or non-admin caller is always forced to the active-only
+  // view inside ProductsService.findAll — regardless of what status/
+  // isActive they pass in the query string. See that method's comment.
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  async findAll(@Query() filterDto: FilterProductDto) {
-    const result = await this.productsService.findAll(filterDto);
+  async findAll(@Query() filterDto: FilterProductDto, @CurrentUser('role') role?: Role) {
+    const result = await this.productsService.findAll(filterDto, role);
     return result;
   }
 
@@ -244,6 +252,11 @@ export class ProductsController {
     return { message: 'Product updated successfully', data: product };
   }
 
+  // Permanent delete. Only succeeds when the product has zero order
+  // history and isn't in any cart — see ProductsService.remove's doc
+  // comment. For anything else (the common case for a product that's
+  // actually been live), use force-delete below instead, which
+  // deactivates rather than deletes.
   @Delete(':id')
   @Roles(Role.SELLER, Role.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -254,6 +267,13 @@ export class ProductsController {
     await this.productsService.remove(id, userId);
   }
 
+  // Despite the route name, this does NOT permanently delete the product —
+  // it deactivates it (isActive: false), same as toggleStatus forced to
+  // "off". It exists as the admin-only, always-succeeds alternative to
+  // DELETE :id for a product that has order/cart history and therefore
+  // can't be hard-deleted; the response message has always said
+  // "deactivated", not "deleted". Kept under its existing route name/path
+  // to avoid breaking the admin panel and any other callers.
   @Post(':id/force-delete')
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.OK)

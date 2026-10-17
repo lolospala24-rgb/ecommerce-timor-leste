@@ -6,7 +6,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
@@ -41,6 +41,12 @@ export interface BulkImportResult {
   errorCount: number;
   results: BulkImportRowResult[];
 }
+
+// Used only when a product has no lowStockThreshold of its own — matches
+// the admin panel's pre-existing "stock > 0 && stock < 10" heuristic so
+// reusing the real per-product field doesn't change behavior for products
+// that never set one.
+const LOW_STOCK_FALLBACK_THRESHOLD = 10;
 
 @Injectable()
 export class ProductsService {
@@ -385,7 +391,11 @@ export class ProductsService {
     };
   }
 
-  async findAll(filterDto: FilterProductDto) {
+  // `callerRole` is the JWT-verified role of whoever is calling (see
+  // OptionalJwtAuthGuard on the controller's @Public() route) — undefined
+  // for an anonymous caller. Never trust a role the client merely claims in
+  // the query string; this is the real, server-verified identity or none.
+  async findAll(filterDto: FilterProductDto, callerRole?: Role) {
     const {
       page = 1,
       limit = 20,
@@ -398,6 +408,8 @@ export class ProductsService {
       sortOrder = 'desc',
       inStock,
       isActive = true,
+      status,
+      stockStatus,
       minRating,
       isLocallyMade,
       originMunicipality,
@@ -407,8 +419,33 @@ export class ProductsService {
 
     const { orderBy, postSort } = this.mapProductSort(sortBy, sortOrder);
 
-    // Build where clause
-    const where: any = { isActive };
+    // Build where clause. `status` (tri-state) takes precedence over the
+    // plain `isActive` boolean when present — it's the only way to ask for
+    // both active and inactive products ('all'), which `isActive` alone
+    // can't express since it defaults to true. Omitted entirely (every
+    // existing caller that doesn't know about `status`, e.g. the public
+    // storefront), behavior is unchanged: active-only by default.
+    const where: any = {};
+    if (status === 'all') {
+      // no isActive filter at all
+    } else if (status === 'active') {
+      where.isActive = true;
+    } else if (status === 'inactive') {
+      where.isActive = false;
+    } else {
+      where.isActive = isActive;
+    }
+
+    // Only an authenticated ADMIN may see non-active products through this
+    // shared public/admin endpoint. Anonymous storefront visitors and any
+    // other role get the public view regardless of what status/isActive
+    // they request — this is what actually stops `?status=all`,
+    // `?status=inactive`, or `?isActive=false` from leaking unpublished
+    // products to the storefront; the branches above only decide what an
+    // *authorized* caller gets.
+    if (callerRole !== Role.ADMIN && where.isActive !== true) {
+      where.isActive = true;
+    }
 
     if (search) {
       where.OR = [
@@ -457,7 +494,25 @@ export class ProductsService {
       if (maxPrice !== undefined) where.price.lte = maxPrice;
     }
 
-    if (inStock !== undefined) {
+    // `stockStatus` (tri-plus-one-state) takes precedence over the plain
+    // `inStock` boolean when present, kept below for existing callers (e.g.
+    // the storefront's in-stock-only toggle) that don't know about it.
+    // 'lowStock' can't be expressed as a `where` clause — it compares each
+    // product's own stock against its own lowStockThreshold, a per-row
+    // column-to-column comparison Prisma's query API doesn't support — so
+    // it only narrows to "in stock at all" here and is finished in-memory
+    // below (lowStockOnly).
+    let lowStockOnly = false;
+    if (stockStatus !== undefined && stockStatus !== 'all') {
+      if (stockStatus === 'inStock') {
+        where.stock = { gt: 0 };
+      } else if (stockStatus === 'outOfStock') {
+        where.stock = 0;
+      } else if (stockStatus === 'lowStock') {
+        where.stock = { gt: 0 };
+        lowStockOnly = true;
+      }
+    } else if (stockStatus === undefined && inStock !== undefined) {
       if (inStock) {
         where.stock = { gt: 0 };
       } else {
@@ -553,6 +608,18 @@ export class ProductsService {
       const products = await this.prisma.product.findMany({ where, orderBy, include: includeBase } as any);
       let productsWithRating = mapWithComputedFields(products);
 
+      // lowStockOnly narrows `where` to "in stock at all" only (see below) —
+      // the actual per-product threshold compare still has to happen here
+      // too, or a lowStock request that also sorts by rating/best_selling/
+      // popularity would silently return every in-stock product instead of
+      // just the low-stock ones, since this branch returns before the
+      // dedicated lowStockOnly branch further down ever runs.
+      if (lowStockOnly) {
+        productsWithRating = productsWithRating.filter(
+          (p) => p.stock > 0 && p.stock < (p.lowStockThreshold ?? LOW_STOCK_FALLBACK_THRESHOLD),
+        );
+      }
+
       if (minRating) {
         productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
       }
@@ -569,6 +636,25 @@ export class ProductsService {
       // would re-interleave in-stock and out-of-stock items.
       productsWithRating = this.sortInStockFirst(productsWithRating);
 
+      const filteredTotal = productsWithRating.length;
+      const paginatedProducts = productsWithRating.slice(skip, skip + limit);
+      const withPricing = await this.promotionsService.attachPricing(paginatedProducts);
+      return ResponseUtil.paginate(withPricing, filteredTotal, page, limit);
+    }
+
+    if (lowStockOnly) {
+      // Same fetch-all/filter/paginate-in-memory shape as postSort above —
+      // required here because "low" is relative to each product's own
+      // lowStockThreshold (falling back to the admin UI's long-standing
+      // <10 heuristic when a product has none set), which Prisma's `where`
+      // can't compare column-to-column.
+      const products = await this.prisma.product.findMany({ where, orderBy, include: includeBase } as any);
+      let productsWithRating = mapWithComputedFields(products).filter(
+        (p: any) => p.stock > 0 && p.stock < (p.lowStockThreshold ?? LOW_STOCK_FALLBACK_THRESHOLD),
+      );
+      if (minRating) {
+        productsWithRating = productsWithRating.filter((p) => p.rating >= minRating);
+      }
       const filteredTotal = productsWithRating.length;
       const paginatedProducts = productsWithRating.slice(skip, skip + limit);
       const withPricing = await this.promotionsService.attachPricing(paginatedProducts);
@@ -1071,19 +1157,18 @@ export class ProductsService {
     }
   }
 
+  // Permanent delete. Deliberately refuses rather than deleting whenever
+  // the product has ANY order history (not just pending ones, see below)
+  // or sits in a cart — both OrderItem.product and CartItem.product have
+  // no onDelete override in schema.prisma, which defaults to RESTRICT at
+  // the DB level, so a delete that reached that point would fail anyway;
+  // this turns that into one clear, actionable error instead of a raw FK
+  // failure, and a product.delete() try/catch below is the last-resort net
+  // for a request that raced a brand-new order/cart-add past these checks.
   async remove(id: number, userId: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: {
-        seller: true,
-        orderItems: {
-          where: {
-            order: {
-              status: { notIn: ['DELIVERED', 'CANCELLED'] },
-            },
-          },
-        },
-      },
+      include: { seller: true },
     });
 
     if (!product) {
@@ -1093,9 +1178,32 @@ export class ProductsService {
     // Check ownership
     await this.assertCanManageProduct(product, userId, 'You do not have permission to delete this product');
 
-    // Check if product has pending orders
-    if (product.orderItems.length > 0) {
-      throw new BadRequestException('Cannot delete product with pending orders');
+    // The previous check here only counted OrderItems on orders NOT YET
+    // DELIVERED/CANCELLED — a product whose only orders had already
+    // completed or been cancelled passed it, and the hard delete below
+    // then hit the database's FK constraint anyway (surfaced as a generic
+    // "Foreign key constraint failed" via PrismaExceptionFilter, not this
+    // specific, actionable message). Any order history at all — completed
+    // or not — must permanently keep this product record, since deleting
+    // it would either cascade away a real customer's order history or be
+    // rejected by the database; neither is acceptable, so this is checked
+    // up front regardless of order status.
+    const orderItemCount = await this.prisma.orderItem.count({ where: { productId: id } });
+    if (orderItemCount > 0) {
+      throw new BadRequestException(
+        'This product has order history and cannot be permanently deleted, to preserve past orders. Deactivate it instead to hide it from the storefront.',
+      );
+    }
+
+    // In a customer's cart. Deleting the product here would either cascade
+    // away their cart item without them knowing, or (since CartItem.product
+    // is also RESTRICT by default) fail at the database — surfacing this
+    // explicitly instead of silently destroying cart contents.
+    const cartItemCount = await this.prisma.cartItem.count({ where: { productId: id } });
+    if (cartItemCount > 0) {
+      throw new BadRequestException(
+        'This product is currently in one or more customer carts and cannot be permanently deleted. Deactivate it instead, or wait until it clears from carts.',
+      );
     }
 
     // Delete images from Cloudinary
@@ -1106,9 +1214,24 @@ export class ProductsService {
       }
     }
 
-    await this.prisma.product.delete({
-      where: { id },
-    });
+    // Variants/ProductAttribute/etc. all cascade from Product at the schema
+    // level (see schema.prisma) — a single delete is already atomic at the
+    // database layer, no explicit $transaction needed for that. The
+    // try/catch below only exists for the race-condition case: a brand-new
+    // order or cart-add landing on this product between the counts above
+    // and this statement. Same P2003 code the PrismaExceptionFilter would
+    // otherwise show generically — translated here into the same specific
+    // message used above, for a consistent experience either way.
+    try {
+      await this.prisma.product.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new BadRequestException(
+          'This product cannot be permanently deleted because it is still referenced elsewhere (a new order or cart may have just been placed). Deactivate it instead.',
+        );
+      }
+      throw error;
+    }
 
     // Clear cache
     await this.clearProductCache(id);

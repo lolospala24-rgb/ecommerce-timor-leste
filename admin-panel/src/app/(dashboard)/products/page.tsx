@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useProducts } from '@/hooks/useProducts';
 import { ProductsTable } from './components/ProductsTable';
 import ProductFilters from './components/ProductFilters';
@@ -28,8 +29,84 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
+type BaseFilters = {
+  page: number;
+  limit: number;
+  search: string;
+  categoryId: number | undefined;
+  sellerId: number | undefined;
+};
+
+type TabOverrides = {
+  status?: 'all' | 'active' | 'inactive';
+  stockStatus?: 'all' | 'inStock' | 'outOfStock' | 'lowStock';
+  isLocallyMade?: boolean;
+};
+
+// Each tab is now its own query (status/stockStatus/isLocallyMade applied
+// server-side, see ProductsService.findAll) instead of a client-side
+// .filter() over one shared, already-paginated page of results — that
+// previously made both the "X products found" count and pagination wrong
+// for every tab except the unfiltered default. Living inside its own
+// component (rather than a top-level hook call in ProductsPage) matters:
+// Radix's Tabs only mounts the active TabsContent's subtree, so only the
+// visible tab's query actually runs.
+function ProductsTabPanel({
+  base,
+  overrides,
+  selectedProducts,
+  onSelectProduct,
+  onSelectAll,
+}: {
+  base: BaseFilters;
+  overrides: TabOverrides;
+  selectedProducts: number[];
+  onSelectProduct: (id: number) => void;
+  onSelectAll: (ids: number[]) => void;
+}) {
+  const { data, isLoading, isError, refetch } = useProducts({ ...base, ...overrides });
+
+  if (isError) {
+    return (
+      <CardContent>
+        <ErrorState description="Couldn't load products. Check your connection and try again." onRetry={() => refetch()} />
+      </CardContent>
+    );
+  }
+
+  return (
+    <>
+      <CardHeader>
+        <CardTitle>Products</CardTitle>
+        <CardDescription>
+          Total {data?.pagination.total ?? 0} products found
+          {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : (
+          <ProductsTable
+            products={data?.data || []}
+            selectedProducts={selectedProducts}
+            onSelectProduct={onSelectProduct}
+            onSelectAll={onSelectAll}
+            onRefresh={refetch}
+          />
+        )}
+      </CardContent>
+    </>
+  );
+}
+
 export default function ProductsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -42,25 +119,20 @@ export default function ProductsPage() {
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useProducts({
+  const base: BaseFilters = {
     page: filters.page,
     limit: filters.limit,
     search: filters.search,
     categoryId: filters.categoryId,
     sellerId: filters.sellerId,
-  });
+  };
 
-  // The shared /products endpoint has no "all statuses" or "low stock"
-  // concept server-side, so the dropdown filters are applied client-side —
-  // matching the pattern the other status tabs below already use.
-  const visibleProducts = (data?.data || []).filter((p) => {
-    if (filters.status === 'active' && !p.isActive) return false;
-    if (filters.status === 'inactive' && p.isActive) return false;
-    if (filters.stockStatus === 'inStock' && p.stock <= 0) return false;
-    if (filters.stockStatus === 'outOfStock' && p.stock !== 0) return false;
-    if (filters.stockStatus === 'lowStock' && !(p.stock > 0 && p.stock < 10)) return false;
-    return true;
-  });
+  const onSelectProduct = (id: number) => {
+    setSelectedProducts((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+  const onSelectAll = (ids: number[]) => setSelectedProducts(ids);
 
   const handleExport = async () => {
     try {
@@ -97,7 +169,7 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()}>
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['products'] })}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -112,13 +184,6 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {isError ? (
-        <Card>
-          <CardContent>
-            <ErrorState description="Couldn't load products. Check your connection and try again." onRetry={() => refetch()} />
-          </CardContent>
-        </Card>
-      ) : (
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Products</TabsTrigger>
@@ -131,56 +196,28 @@ export default function ProductsPage() {
 
         <TabsContent value="all" className="space-y-4">
           <ProductFilters filters={filters} setFilters={setFilters} />
+          {selectedProducts.length > 0 && (
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">
+                {selectedProducts.length} products selected
+              </p>
+              <Button variant="outline" size="sm" onClick={handleBulkAction}>
+                Bulk Actions ({selectedProducts.length})
+              </Button>
+            </div>
+          )}
           <Card>
-            <CardHeader>
-              <CardTitle>Products</CardTitle>
-              <CardDescription>
-                Total {visibleProducts.length} products found
-                {selectedProducts.length > 0 && ` • ${selectedProducts.length} selected`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <>
-                  {selectedProducts.length > 0 && (
-                    <div className="mb-4 flex justify-between items-center">
-                      <p className="text-sm text-muted-foreground">
-                        {selectedProducts.length} products selected
-                      </p>
-                      <Button variant="outline" size="sm" onClick={handleBulkAction}>
-                        Bulk Actions ({selectedProducts.length})
-                      </Button>
-                    </div>
-                  )}
-                  <ProductsTable
-                    products={visibleProducts}
-                    selectedProducts={selectedProducts}
-                    onSelectProduct={(id) => {
-                      setSelectedProducts(prev =>
-                        prev.includes(id)
-                          ? prev.filter(p => p !== id)
-                          : [...prev, id]
-                      );
-                    }}
-                    onSelectAll={(ids) => {
-                      setSelectedProducts(ids);
-                    }}
-                    onRefresh={refetch}
-                  />
-                </>
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ status: filters.status, stockStatus: filters.stockStatus }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
 
         <TabsContent value="active">
-          <ProductFilters filters={filters} setFilters={setFilters} />
           <Card>
             <CardHeader>
               <CardTitle>Active Products</CardTitle>
@@ -188,31 +225,13 @@ export default function ProductsPage() {
                 Products that are currently active and visible to customers
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <ProductsTable
-                  products={(data?.data || []).filter(p => p.isActive)}
-                  selectedProducts={selectedProducts}
-                  onSelectProduct={(id) => {
-                    setSelectedProducts(prev =>
-                      prev.includes(id)
-                        ? prev.filter(p => p !== id)
-                        : [...prev, id]
-                    );
-                  }}
-                  onSelectAll={(ids) => {
-                    setSelectedProducts(ids);
-                  }}
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ status: 'active' }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
 
@@ -224,31 +243,13 @@ export default function ProductsPage() {
                 Products that are hidden from customers
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <ProductsTable
-                  products={(data?.data || []).filter(p => !p.isActive)}
-                  selectedProducts={selectedProducts}
-                  onSelectProduct={(id) => {
-                    setSelectedProducts(prev =>
-                      prev.includes(id)
-                        ? prev.filter(p => p !== id)
-                        : [...prev, id]
-                    );
-                  }}
-                  onSelectAll={(ids) => {
-                    setSelectedProducts(ids);
-                  }}
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ status: 'inactive' }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
 
@@ -260,31 +261,13 @@ export default function ProductsPage() {
                 Products with zero inventory
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <ProductsTable
-                  products={(data?.data || []).filter(p => p.stock === 0)}
-                  selectedProducts={selectedProducts}
-                  onSelectProduct={(id) => {
-                    setSelectedProducts(prev =>
-                      prev.includes(id)
-                        ? prev.filter(p => p !== id)
-                        : [...prev, id]
-                    );
-                  }}
-                  onSelectAll={(ids) => {
-                    setSelectedProducts(ids);
-                  }}
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ stockStatus: 'outOfStock' }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
 
@@ -293,34 +276,16 @@ export default function ProductsPage() {
             <CardHeader>
               <CardTitle>Low Stock Products</CardTitle>
               <CardDescription>
-                Products with stock below 10 units
+                Products below their low-stock alert threshold (or below 10 units, for products without one set)
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <ProductsTable
-                  products={(data?.data || []).filter(p => p.stock > 0 && p.stock < 10)}
-                  selectedProducts={selectedProducts}
-                  onSelectProduct={(id) => {
-                    setSelectedProducts(prev =>
-                      prev.includes(id)
-                        ? prev.filter(p => p !== id)
-                        : [...prev, id]
-                    );
-                  }}
-                  onSelectAll={(ids) => {
-                    setSelectedProducts(ids);
-                  }}
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ stockStatus: 'lowStock' }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
         <TabsContent value="local">
@@ -332,35 +297,16 @@ export default function ProductsPage() {
                 the same flag the storefront&apos;s /local-products page and homepage section use
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <ProductsTable
-                  products={(data?.data || []).filter(p => p.isLocallyMade)}
-                  selectedProducts={selectedProducts}
-                  onSelectProduct={(id) => {
-                    setSelectedProducts(prev =>
-                      prev.includes(id)
-                        ? prev.filter(p => p !== id)
-                        : [...prev, id]
-                    );
-                  }}
-                  onSelectAll={(ids) => {
-                    setSelectedProducts(ids);
-                  }}
-                  onRefresh={refetch}
-                />
-              )}
-            </CardContent>
+            <ProductsTabPanel
+              base={base}
+              overrides={{ isLocallyMade: true }}
+              selectedProducts={selectedProducts}
+              onSelectProduct={onSelectProduct}
+              onSelectAll={onSelectAll}
+            />
           </Card>
         </TabsContent>
       </Tabs>
-      )}
 
       {/* Bulk Actions Dialog */}
       <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
@@ -376,7 +322,7 @@ export default function ProductsPage() {
             onComplete={() => {
               setShowBulkDialog(false);
               setSelectedProducts([]);
-              refetch();
+              queryClient.invalidateQueries({ queryKey: ['products'] });
             }}
             onCancel={() => setShowBulkDialog(false)}
           />

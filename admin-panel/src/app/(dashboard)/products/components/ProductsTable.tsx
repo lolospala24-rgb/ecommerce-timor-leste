@@ -76,15 +76,21 @@ export function ProductsTable({
     setIsLoading(true);
     try {
       await api.delete(`/products/${selectedProduct.id}`);
-      toast.success('Product deleted successfully');
+      toast.success('Product permanently deleted');
       onRefresh();
     } catch (error) {
-      const message = (error as any).response?.data?.message;
-      if (message === 'Cannot delete product with pending orders') {
-        const confirm = window.confirm(
-          'This product has pending orders and cannot be deleted. Deactivate (hide) the product instead?'
+      const message = (error as any).response?.data?.message as string | undefined;
+      // Backend (ProductsService.remove) rejects with a message containing
+      // this phrase for every case a hard delete isn't safe — order
+      // history, cart references, or a race against a just-placed order —
+      // never a raw database/foreign-key error. Matched on substring
+      // rather than one exact string so all of those cases offer the same
+      // deactivate-instead fallback, not just one of them.
+      if (message?.includes('cannot be permanently deleted')) {
+        const confirmDeactivate = window.confirm(
+          `${message}\n\nDeactivate "${selectedProduct.name}" instead? It will be hidden from the storefront but its order history stays intact.`,
         );
-        if (confirm) {
+        if (confirmDeactivate) {
           try {
             await api.post(`/products/${selectedProduct.id}/force-delete`);
             toast.success('Product deactivated successfully');
@@ -270,8 +276,8 @@ export function ProductsTable({
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete Product"
-        description={`Are you sure you want to delete "${selectedProduct?.name}"? This will also remove all associated orders and reviews. This action cannot be undone.`}
+        title="Permanently Delete Product"
+        description={`Are you sure you want to permanently delete "${selectedProduct?.name}"? This only succeeds if it has never been ordered or added to a cart — order history is never removed. This will also delete its reviews. This action cannot be undone. If it has order history, you'll be offered to deactivate it instead.`}
         confirmText="Delete"
         onConfirm={handleDelete}
         isLoading={isLoading}

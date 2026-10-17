@@ -12,6 +12,8 @@ import { FinanceService } from '../finance/finance.service';
 import { RefundsService } from '../finance/refunds.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { CouponsService } from '../coupons/coupons.service';
+import { PromotionsService } from '../promotions/promotions.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { OrderStatus, PaymentMethod, Role, ShippingStatus } from '@prisma/client';
 
 // Covers the courier/driver + delivery-confirmation logic added this
@@ -71,6 +73,21 @@ describe('OrdersService — courier & delivery confirmation', () => {
         { provide: RefundsService, useValue: {} },
         { provide: NotificationsGateway, useValue: notificationsGateway },
         { provide: CouponsService, useValue: {} },
+        // Added when OrdersService's constructor grew to include these two
+        // (PromotionsService in 9a1b0df "Add seller Promotion/Discount
+        // system", ReferralsService in d33005d "Add Referral Program")
+        // without this spec's provider list being updated — every test in
+        // this file failed at TestingModule.compile() with "Nest can't
+        // resolve dependencies of OrdersService ... PromotionsService at
+        // index [11]" until these were added. PromotionsService is only
+        // called from create() (not exercised by any test below), so an
+        // empty stub matches the SettingsService/RefundsService/
+        // CouponsService convention above. ReferralsService.
+        // rewardReferrerIfEligible IS called for real (via the $transaction
+        // mock executing its callback) by the shared completeDelivery()
+        // helper that confirmDelivery/autoConfirmDelivery tests exercise.
+        { provide: PromotionsService, useValue: {} },
+        { provide: ReferralsService, useValue: { rewardReferrerIfEligible: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 
