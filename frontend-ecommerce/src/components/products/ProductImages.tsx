@@ -14,6 +14,85 @@ import { cn } from '@/lib/utils';
 import type { GalleryThumbnailItem } from '@/lib/product';
 import toast from 'react-hot-toast';
 
+// Same fallback asset ProductCard.tsx uses for its own broken-image guard —
+// kept as a local literal here rather than a shared export since it's a
+// single static path, not worth a cross-file constants module for.
+const PLACEHOLDER_IMAGE = '/images/placeholder.png';
+
+const SWIPE_DISTANCE_THRESHOLD = 40; // px of horizontal travel to count as a swipe
+const SWIPE_AXIS_LOCK_THRESHOLD = 10; // px of movement before we decide horizontal vs vertical
+
+// Attaches real (non-passive) touch listeners to `ref`'s element so a
+// horizontal swipe can call preventDefault() on touchmove and stop the page
+// from scrolling underneath it — React's own onTouchMove prop is registered
+// passive by default and silently can't do this. The axis is only "locked"
+// horizontal once movement clearly favors X over Y, so a normal vertical
+// scroll that happens to start on the image is never hijacked; until then
+// nothing is prevented and the gesture is free to become a page scroll.
+function useSwipeNavigation(
+  ref: React.RefObject<HTMLElement | null>,
+  onSwipeLeft: () => void,
+  onSwipeRight: () => void,
+  enabled: boolean,
+) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+
+    let startX = 0;
+    let startY = 0;
+    let axis: 'horizontal' | 'vertical' | null = null;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      axis = null;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      if (axis === null) {
+        if (Math.abs(deltaX) > SWIPE_AXIS_LOCK_THRESHOLD || Math.abs(deltaY) > SWIPE_AXIS_LOCK_THRESHOLD) {
+          axis = Math.abs(deltaX) > Math.abs(deltaY) ? 'horizontal' : 'vertical';
+        }
+      }
+      if (axis === 'horizontal' && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (axis === 'horizontal') {
+        const touch = e.changedTouches[0];
+        if (touch) {
+          const deltaX = touch.clientX - startX;
+          if (Math.abs(deltaX) >= SWIPE_DISTANCE_THRESHOLD) {
+            if (deltaX < 0) onSwipeLeft();
+            else onSwipeRight();
+          }
+        }
+      }
+      axis = null;
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [ref, onSwipeLeft, onSwipeRight, enabled]);
+}
+
 interface ProductImagesProps {
   images: string[];
   thumbnail?: string | null;
@@ -57,6 +136,11 @@ export function ProductImages({
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
+  // Per-URL, not a single flag — one broken thumbnail (or the main image,
+  // or a lightbox thumbnail) must fall back to the placeholder on its own
+  // without affecting any other image still loading fine. Never written
+  // back to `images`/product data — purely a local display fallback.
+  const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
   // Purely local to this component — selecting the video thumbnail never
   // touches mainImageUrl/onMainImageChange, so none of the existing image
   // gallery state or callbacks are affected by it. Defaults to the product
@@ -67,6 +151,24 @@ export function ProductImages({
   );
   const isFirstMount = useRef(true);
   const mainRef = useRef<HTMLDivElement>(null);
+  const lightboxImageRef = useRef<HTMLDivElement>(null);
+  // Purely presentational — never the source of truth for which image is
+  // showing (that stays currentIndex/mainImageUrl, completely unchanged).
+  // animTick increments on every navigation so the wrapper div below
+  // remounts and its CSS entrance animation replays; slideDirection just
+  // picks which direction that animation comes from. 'next'/'prev' only
+  // come from the explicit nextImage/prevImage calls below (swipe + arrow
+  // buttons) — wrap-around direction is unambiguous there since the caller
+  // already knows its own intent. Thumbnail-driven jumps (including the
+  // lightbox's mini-thumbnails) fall back to a plain fade via nearest-index
+  // comparison, since "next vs prev" isn't really a meaningful question for
+  // jumping to an arbitrary thumbnail.
+  const [animTick, setAnimTick] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'next' | 'prev' | 'jump'>('jump');
+  const triggerSlide = useCallback((direction: 'next' | 'prev' | 'jump') => {
+    setSlideDirection(direction);
+    setAnimTick((t) => t + 1);
+  }, []);
 
   const carouselImages =
     images && images.length > 0 ? images : [thumbnail || '/images/placeholder.png'];
@@ -79,10 +181,33 @@ export function ProductImages({
       type: 'product' as const,
     }));
 
+  // Guards against a variant switch (or any other prop change) shrinking
+  // carouselImages out from under a stale currentIndex — e.g. index was 5
+  // on a 6-image gallery, the newly selected variant only has 3 images, and
+  // nothing has explicitly navigated since. carouselImages[currentIndex]
+  // would be undefined and the "x / y" counter would show a position that
+  // doesn't exist. resolvedMainUrl/goTo already recompute fresh on every
+  // call, so this only needs to guard currentIndex's own passive display.
+  const safeCurrentIndex = currentIndex < carouselImages.length ? currentIndex : 0;
+
   const resolvedMainUrl =
     mainImageUrl && carouselImages.includes(mainImageUrl)
       ? mainImageUrl
-      : mainImageUrl ?? carouselImages[currentIndex] ?? carouselImages[0];
+      : mainImageUrl ?? carouselImages[safeCurrentIndex] ?? carouselImages[0];
+
+  // One failed-image check point, reused by every <Image> below instead of
+  // each tracking its own error state — markImageFailed never touches a
+  // placeholder's own URL, so a placeholder that itself fails to load just
+  // renders Next/Image's own broken-image box once, instead of looping.
+  const getImageSrc = useCallback(
+    (url: string) => (failedImages.has(url) ? PLACEHOLDER_IMAGE : url),
+    [failedImages],
+  );
+  const markImageFailed = useCallback((url: string) => {
+    if (url === PLACEHOLDER_IMAGE) return;
+    setFailedImages((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
+  }, []);
+  const mainSrc = getImageSrc(resolvedMainUrl);
 
   useEffect(() => {
     if (!mainImageUrl) return;
@@ -112,8 +237,30 @@ export function ProductImages({
     [carouselImages, onMainImageChange],
   );
 
-  const nextImage = () => goTo(currentIndex + 1);
-  const prevImage = () => goTo(currentIndex - 1);
+  const nextImage = useCallback(() => {
+    triggerSlide('next');
+    goTo(currentIndex + 1);
+  }, [goTo, currentIndex, triggerSlide]);
+  const prevImage = useCallback(() => {
+    triggerSlide('prev');
+    goTo(currentIndex - 1);
+  }, [goTo, currentIndex, triggerSlide]);
+
+  // Mobile (and desktop, harmlessly — touch listeners simply never fire on
+  // a non-touch device) swipe on the main image. Disabled during video
+  // playback so a drag on the <video> never gets intercepted ahead of its
+  // own native controls, and with 0-1 images there's nothing to swipe to.
+  useSwipeNavigation(mainRef, nextImage, prevImage, !activeVideoUrl && carouselImages.length > 1);
+  // Lightbox swipe — a separate ref since it's a different DOM subtree that
+  // Radix only mounts while the Dialog is open. isZoomOpen has to be part
+  // of `enabled` (not just carouselImages.length): a plain ref object's
+  // identity never changes, so without isZoomOpen in the dependency array
+  // the effect below would never re-run to pick up lightboxImageRef.current
+  // once Radix actually mounts it on open — it'd still be the null it saw
+  // during ProductImages' own first render, while the dialog was closed.
+  // The zoom trigger itself already guards against opening while a video is
+  // playing, so no video check is needed here.
+  useSwipeNavigation(lightboxImageRef, nextImage, prevImage, isZoomOpen && carouselImages.length > 1);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!mainRef.current) return;
@@ -156,20 +303,22 @@ export function ProductImages({
           }
 
           setActiveVideoUrl(null);
+          const idx = carouselImages.indexOf(item.url);
+          if (idx >= 0) triggerSlide(idx > safeCurrentIndex ? 'next' : idx < safeCurrentIndex ? 'prev' : 'jump');
           if (onThumbnailSelect) {
             onThumbnailSelect(item);
             return;
           }
-          const idx = carouselImages.indexOf(item.url);
           if (idx >= 0) setCurrentIndex(idx);
         }}
       >
         <Image
-          src={item.url}
+          src={getImageSrc(item.url)}
           alt={item.type === 'video' ? `${name} video` : `${name} thumbnail`}
           fill
           className="object-cover"
           sizes="72px"
+          onError={() => markImageFailed(item.url)}
         />
         {item.type === 'video' && (
           <span className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -230,20 +379,31 @@ export function ProductImages({
               }}
             />
           ) : (
-            <Image
-              src={resolvedMainUrl}
-              alt={name}
-              fill
-              className="object-cover"
-              priority
-              sizes="100vw"
-              draggable={false}
-            />
+            <div
+              key={animTick}
+              className={cn(
+                'absolute inset-0',
+                slideDirection === 'next' && 'motion-safe:animate-slide-in-right',
+                slideDirection === 'prev' && 'motion-safe:animate-slide-in-left',
+                slideDirection === 'jump' && 'motion-safe:animate-fade-in',
+              )}
+            >
+              <Image
+                src={mainSrc}
+                alt={name}
+                fill
+                className="object-cover"
+                priority
+                sizes="100vw"
+                draggable={false}
+                onError={() => markImageFailed(resolvedMainUrl)}
+              />
+            </div>
           )}
 
           {!activeVideoUrl && carouselImages.length > 1 && (
             <span className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white">
-              {currentIndex + 1} / {carouselImages.length}
+              {safeCurrentIndex + 1} / {carouselImages.length}
             </span>
           )}
 
@@ -266,28 +426,85 @@ export function ProductImages({
                 size="icon"
                 className="absolute right-2 top-2 z-20 text-white hover:bg-white/10"
                 onClick={() => setIsZoomOpen(false)}
+                aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </Button>
-              <div className="relative aspect-square w-full min-h-[50vh] sm:min-h-0">
-                <Image src={resolvedMainUrl} alt={name} fill className="object-contain p-4 sm:p-8" sizes="95vw" priority />
+
+              {carouselImages.length > 1 && (
+                <Badge className="absolute left-2 top-2 z-20 bg-white/10 text-white hover:bg-white/10">
+                  {safeCurrentIndex + 1} / {carouselImages.length}
+                </Badge>
+              )}
+
+              <div ref={lightboxImageRef} className="relative aspect-square w-full min-h-[50vh] sm:min-h-0">
+                <div
+                  key={animTick}
+                  className={cn(
+                    'absolute inset-0',
+                    slideDirection === 'next' && 'motion-safe:animate-slide-in-right',
+                    slideDirection === 'prev' && 'motion-safe:animate-slide-in-left',
+                    slideDirection === 'jump' && 'motion-safe:animate-fade-in',
+                  )}
+                >
+                  <Image
+                    src={mainSrc}
+                    alt={name}
+                    fill
+                    className="object-contain p-4 sm:p-8"
+                    sizes="95vw"
+                    priority
+                    onError={() => markImageFailed(resolvedMainUrl)}
+                  />
+                </div>
               </div>
+
+              {carouselImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Previous image"
+                    className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white"
+                    onClick={prevImage}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next image"
+                    className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white"
+                    onClick={nextImage}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+
               {carouselImages.length > 1 && (
                 <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2 rounded-full bg-black/60 px-3 py-2 backdrop-blur-sm">
                   {carouselImages.map((image, index) => (
                     <button
                       key={`zoom-thumb-${index}`}
                       type="button"
+                      aria-label={`View image ${index + 1}`}
                       className={cn(
                         'relative h-10 w-10 overflow-hidden rounded-md border-2 transition-all',
                         resolvedMainUrl === image ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-80',
                       )}
                       onClick={() => {
+                        triggerSlide(index > safeCurrentIndex ? 'next' : index < safeCurrentIndex ? 'prev' : 'jump');
                         setCurrentIndex(index);
                         onMainImageChange?.(image);
                       }}
                     >
-                      <Image src={image} alt="" fill className="object-cover" sizes="40px" />
+                      <Image
+                        src={getImageSrc(image)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                        onError={() => markImageFailed(image)}
+                      />
                     </button>
                   ))}
                 </div>
@@ -366,23 +583,34 @@ export function ProductImages({
                 }}
               />
             ) : (
-              <Image
-                src={resolvedMainUrl}
-                alt={name}
-                fill
+              <div
+                key={animTick}
                 className={cn(
-                  'object-contain p-0 transition-transform duration-200 ease-out sm:p-4',
-                  isHovering && 'scale-[2]',
+                  'absolute inset-0',
+                  slideDirection === 'next' && 'motion-safe:animate-slide-in-right',
+                  slideDirection === 'prev' && 'motion-safe:animate-slide-in-left',
+                  slideDirection === 'jump' && 'motion-safe:animate-fade-in',
                 )}
-                style={
-                  isHovering
-                    ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` }
-                    : undefined
-                }
-                priority
-                sizes="(max-width: 768px) 100vw, 50vw"
-                draggable={false}
-              />
+              >
+                <Image
+                  src={mainSrc}
+                  alt={name}
+                  fill
+                  className={cn(
+                    'object-contain p-0 transition-transform duration-200 ease-out sm:p-4',
+                    isHovering && 'scale-[2]',
+                  )}
+                  style={
+                    isHovering
+                      ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` }
+                      : undefined
+                  }
+                  priority
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  draggable={false}
+                  onError={() => markImageFailed(resolvedMainUrl)}
+                />
+              </div>
             )}
 
             {/* Badges — kept visible during video playback too, so the
@@ -413,18 +641,22 @@ export function ProductImages({
                 variant="secondary"
                 className="absolute right-3 top-3 z-10 bg-background/90 text-xs font-medium shadow-sm backdrop-blur-sm pointer-events-none"
               >
-                {currentIndex + 1} / {carouselImages.length}
+                {safeCurrentIndex + 1} / {carouselImages.length}
               </Badge>
             )}
 
-            {/* Nav arrows */}
+            {/* Nav arrows — visible on hover (desktop pointer affordance)
+                and on keyboard focus (focus-visible), so a Tab-focused
+                button is never invisible to the person who just focused it;
+                hover stays the primary discovery path for a mouse. */}
             {!activeVideoUrl && carouselImages.length > 1 && (
               <>
                 <Button
                   type="button"
                   variant="secondary"
                   size="icon"
-                  className="absolute left-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border bg-background/90 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                  aria-label="Previous image"
+                  className="absolute left-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border bg-background/90 opacity-0 shadow-md transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     prevImage();
@@ -436,7 +668,8 @@ export function ProductImages({
                   type="button"
                   variant="secondary"
                   size="icon"
-                  className="absolute right-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border bg-background/90 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                  aria-label="Next image"
+                  className="absolute right-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full border bg-background/90 opacity-0 shadow-md transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     nextImage();
@@ -470,19 +703,31 @@ export function ProductImages({
               size="icon"
               className="absolute right-2 top-2 z-20 text-white hover:bg-white/10"
               onClick={() => setIsZoomOpen(false)}
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="relative aspect-square w-full min-h-[50vh] sm:min-h-0">
-              <Image
-                src={resolvedMainUrl}
-                alt={name}
-                fill
-                className="object-contain p-4 sm:p-8"
-                sizes="95vw"
-                priority
-              />
+            <div ref={lightboxImageRef} className="relative aspect-square w-full min-h-[50vh] sm:min-h-0">
+              <div
+                key={animTick}
+                className={cn(
+                  'absolute inset-0',
+                  slideDirection === 'next' && 'motion-safe:animate-slide-in-right',
+                  slideDirection === 'prev' && 'motion-safe:animate-slide-in-left',
+                  slideDirection === 'jump' && 'motion-safe:animate-fade-in',
+                )}
+              >
+                <Image
+                  src={mainSrc}
+                  alt={name}
+                  fill
+                  className="object-contain p-4 sm:p-8"
+                  sizes="95vw"
+                  priority
+                  onError={() => markImageFailed(resolvedMainUrl)}
+                />
+              </div>
             </div>
 
             {carouselImages.length > 1 && (
@@ -491,6 +736,7 @@ export function ProductImages({
                   type="button"
                   variant="secondary"
                   size="icon"
+                  aria-label="Previous image"
                   className="absolute left-3 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full"
                   onClick={prevImage}
                 >
@@ -500,6 +746,7 @@ export function ProductImages({
                   type="button"
                   variant="secondary"
                   size="icon"
+                  aria-label="Next image"
                   className="absolute right-3 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full"
                   onClick={nextImage}
                 >
@@ -510,6 +757,7 @@ export function ProductImages({
                     <button
                       key={`zoom-thumb-${index}`}
                       type="button"
+                      aria-label={`View image ${index + 1}`}
                       className={cn(
                         'relative h-10 w-10 overflow-hidden rounded-md border-2 transition-all',
                         resolvedMainUrl === image
@@ -517,11 +765,19 @@ export function ProductImages({
                           : 'border-transparent opacity-50 hover:opacity-80',
                       )}
                       onClick={() => {
+                        triggerSlide(index > safeCurrentIndex ? 'next' : index < safeCurrentIndex ? 'prev' : 'jump');
                         setCurrentIndex(index);
                         onMainImageChange?.(image);
                       }}
                     >
-                      <Image src={image} alt="" fill className="object-cover" sizes="40px" />
+                      <Image
+                        src={getImageSrc(image)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="40px"
+                        onError={() => markImageFailed(image)}
+                      />
                     </button>
                   ))}
                 </div>
@@ -531,7 +787,7 @@ export function ProductImages({
             <div className="absolute left-4 top-4 z-20">
               <Badge className="bg-white/10 text-white hover:bg-white/10">
                 <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
-                {currentIndex + 1} / {carouselImages.length}
+                {safeCurrentIndex + 1} / {carouselImages.length}
               </Badge>
             </div>
           </div>
