@@ -33,9 +33,12 @@ export function CommentItem({ comment, onLike }: CommentItemProps) {
         <button
           type="button"
           onClick={() => onLike(comment.id)}
-          className="mt-1 flex items-center gap-1 text-xs text-neutral-400 transition hover:text-rose-600"
+          aria-pressed={comment.isLiked}
+          className={`mt-1 flex items-center gap-1 text-xs transition hover:text-rose-600 ${
+            comment.isLiked ? 'font-medium text-rose-600' : 'text-neutral-400'
+          }`}
         >
-          <ThumbsUp className="h-3 w-3" />
+          <ThumbsUp className={`h-3 w-3 ${comment.isLiked ? 'fill-rose-600' : ''}`} />
           {comment.likes > 0 ? comment.likes : 'Like'}
         </button>
 

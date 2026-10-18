@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { commentService } from '@/services/comment.service';
+import type { Comment } from '@/types/comment';
 import { useAuthStore } from '@/stores/authStore';
 import { patchVideoInCaches } from './video/useVideoCache';
 
@@ -48,21 +49,58 @@ export const useComments = (videoId: number | null) => {
     onError: () => toast.error("Couldn't delete comment. Please try again."),
   });
 
+  // Toggles like/unlike — unlike VideoLike (checked via video.isLiked, a
+  // single top-level flag), a comment can be nested one level in `replies`,
+  // so this walks both when patching the cache.
+  const patchCommentLikeState = (commentId: number, liked: boolean, likes: number) => {
+    const patch = (c: any): any =>
+      c.id === commentId
+        ? { ...c, isLiked: liked, likes }
+        : { ...c, replies: Array.isArray(c.replies) ? c.replies.map(patch) : c.replies };
+
+    queryClient.setQueryData(['comments', videoId], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          items: page.items.map(patch),
+        })),
+      };
+    });
+  };
+
   const likeMutation = useMutation({
     mutationFn: (commentId: number) => commentService.likeComment(commentId),
-    onSuccess: (result, commentId) => {
-      queryClient.setQueryData(['comments', videoId], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            items: page.items.map((c: any) => (c.id === commentId ? { ...c, likes: result.likes } : c)),
-          })),
-        };
-      });
-    },
+    onSuccess: (result, commentId) => patchCommentLikeState(commentId, result.liked, result.likes),
   });
+
+  const unlikeMutation = useMutation({
+    mutationFn: (commentId: number) => commentService.unlikeComment(commentId),
+    onSuccess: (result, commentId) => patchCommentLikeState(commentId, result.liked, result.likes),
+  });
+
+  const findComment = (commentId: number): Comment | undefined => {
+    for (const c of comments) {
+      if (c.id === commentId) return c;
+      const reply = c.replies.find((r) => r.id === commentId);
+      if (reply) return reply;
+    }
+    return undefined;
+  };
+
+  const toggleLikeComment = (commentId: number) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to like comments');
+      return;
+    }
+    const comment = findComment(commentId);
+    if (comment?.isLiked) {
+      unlikeMutation.mutate(commentId);
+    } else {
+      likeMutation.mutate(commentId);
+    }
+  };
 
   const addComment = (content: string, parentId?: number) => {
     if (!isAuthenticated) {
@@ -84,6 +122,6 @@ export const useComments = (videoId: number | null) => {
     addComment,
     isPosting: createMutation.isPending,
     deleteComment: deleteMutation.mutate,
-    likeComment: likeMutation.mutate,
+    likeComment: toggleLikeComment,
   };
 };

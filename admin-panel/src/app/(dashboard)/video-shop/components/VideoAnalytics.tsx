@@ -8,25 +8,25 @@ import { BarChart3, Trophy, MessageCircle } from 'lucide-react';
 import { useAdminVideos } from '@/hooks/useVideos';
 
 export function VideoAnalytics() {
-  const { data, isLoading } = useAdminVideos({ status: 'all', limit: 100, sortBy: 'views', sortOrder: 'desc' });
-  const videos = useMemo(() => data?.items ?? [], [data]);
+  // Each panel sorts server-side by the metric it actually displays —
+  // previously all three were derived from one views-sorted, 100-item
+  // slice, so "Most liked"/"Most discussed" silently excluded any video
+  // outside the top 100 by views once the catalog grew past that.
+  const { data: byViews, isLoading: loadingViews } = useAdminVideos({ status: 'all', limit: 7, sortBy: 'views', sortOrder: 'desc' });
+  const { data: byLikes, isLoading: loadingLikes } = useAdminVideos({ status: 'all', limit: 5, sortBy: 'likes', sortOrder: 'desc' });
+  const { data: byComments, isLoading: loadingComments } = useAdminVideos({ status: 'all', limit: 5, sortBy: 'comments', sortOrder: 'desc' });
+
+  const isLoading = loadingViews || loadingLikes || loadingComments;
 
   const chartData = useMemo(() => {
-    const top = videos.slice(0, 7).map((video) => ({ label: video.title, value: video.views }));
+    const top = (byViews?.items ?? []).map((video) => ({ label: video.title, value: video.views }));
     return top.length > 0 ? top : [{ label: 'No data', value: 0 }];
-  }, [videos]);
+  }, [byViews]);
 
   const maxViews = Math.max(...chartData.map((entry) => entry.value), 1);
 
-  const topByLikes = useMemo(
-    () => [...videos].sort((a, b) => b.likes - a.likes).slice(0, 5),
-    [videos],
-  );
-
-  const topByComments = useMemo(
-    () => [...videos].sort((a, b) => (b._count?.comments ?? 0) - (a._count?.comments ?? 0)).slice(0, 5),
-    [videos],
-  );
+  const topByLikes = useMemo(() => byLikes?.items ?? [], [byLikes]);
+  const topByComments = useMemo(() => byComments?.items ?? [], [byComments]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">

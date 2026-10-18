@@ -10,6 +10,7 @@ export interface Comment {
   parentId: number | null;
   content: string;
   likes: number;
+  isLiked: boolean;
   createdAt: string;
   updatedAt: string;
   user: CommentAuthor;

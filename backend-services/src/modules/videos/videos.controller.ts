@@ -22,6 +22,8 @@ import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { FilterVideoDto } from './dto/filter-video.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { AdminFilterVideoDto } from './dto/admin-filter-video.dto';
+import { AdminFilterCommentsDto } from './dto/admin-filter-comments.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -60,26 +62,8 @@ export class VideosController {
   // search/status/seller/category filter/sort, for the Video Management table.
   @Roles(Role.ADMIN)
   @Get()
-  async adminList(
-    @Query('search') search?: string,
-    @Query('status') status?: 'PENDING' | 'PUBLISHED' | 'SCHEDULED' | 'REJECTED' | 'all',
-    @Query('sellerId') sellerId?: string,
-    @Query('categoryId') categoryId?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('sortBy') sortBy?: 'createdAt' | 'views' | 'likes' | 'comments',
-    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
-  ) {
-    const result = await this.service.adminList({
-      search,
-      status,
-      sellerId: sellerId ? parseInt(sellerId) : undefined,
-      categoryId: categoryId ? parseInt(categoryId) : undefined,
-      page: page ? parseInt(page) : 1,
-      limit: clampLimit(limit, 20),
-      sortBy,
-      sortOrder,
-    });
+  async adminList(@Query() query: AdminFilterVideoDto) {
+    const result = await this.service.adminList(query);
     return { success: true, data: result.items, total: result.total };
   }
 
@@ -97,18 +81,8 @@ export class VideosController {
   // before ':id' so Nest doesn't parse "comments" as a numeric video id.
   @Roles(Role.ADMIN)
   @Get('comments')
-  async adminListComments(
-    @Query('search') search?: string,
-    @Query('videoId') videoId?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const result = await this.service.adminListComments({
-      search,
-      videoId: videoId ? parseInt(videoId) : undefined,
-      page: page ? parseInt(page) : 1,
-      limit: clampLimit(limit, 20),
-    });
+  async adminListComments(@Query() query: AdminFilterCommentsDto) {
+    const result = await this.service.adminListComments(query);
     return { success: true, data: result.items, total: result.total };
   }
 
@@ -256,17 +230,23 @@ export class VideosController {
 
   // ==================== Comments ====================
 
+  // OptionalJwtAuthGuard so a logged-in viewer's own isLiked state is
+  // attached (see attachCommentLikedState) without requiring auth to read
+  // comments at all — same pattern as getFeed/getOne above.
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id/comments')
   async getComments(
     @Param('id', ParseIntPipe) id: number,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @CurrentUser('id') userId?: number,
   ) {
-    const result = await this.service.getComments(id, {
-      page: page ? parseInt(page) : 1,
-      limit: clampLimit(limit, 20),
-    });
+    const result = await this.service.getComments(
+      id,
+      { page: page ? parseInt(page) : 1, limit: clampLimit(limit, 20) },
+      userId,
+    );
     return { success: true, data: result.items, total: result.total };
   }
 
@@ -291,8 +271,14 @@ export class VideosController {
   }
 
   @Post('comments/:commentId/like')
-  async likeComment(@Param('commentId', ParseIntPipe) commentId: number) {
-    const comment = await this.service.likeComment(commentId);
-    return { success: true, data: { likes: comment.likes } };
+  async likeComment(@Param('commentId', ParseIntPipe) commentId: number, @CurrentUser('id') userId: number) {
+    const result = await this.service.likeComment(commentId, userId);
+    return { success: true, data: result };
+  }
+
+  @Delete('comments/:commentId/like')
+  async unlikeComment(@Param('commentId', ParseIntPipe) commentId: number, @CurrentUser('id') userId: number) {
+    const result = await this.service.unlikeComment(commentId, userId);
+    return { success: true, data: result };
   }
 }

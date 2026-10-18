@@ -22,6 +22,7 @@ function normalizeComment(raw: any): Comment {
     parentId: raw.parentId != null ? Number(raw.parentId) : null,
     content: raw.content,
     likes: Number(raw.likes ?? 0),
+    isLiked: Boolean(raw.isLiked),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? raw.createdAt,
     user: { id: Number(raw.user?.id ?? 0), name: raw.user?.name ?? 'User' },
@@ -54,9 +55,14 @@ class CommentService {
     await api.delete(`/videos/comments/${commentId}`);
   }
 
-  async likeComment(commentId: number): Promise<{ likes: number }> {
+  async likeComment(commentId: number): Promise<{ liked: boolean; likes: number }> {
     const response = await api.post(`/videos/comments/${commentId}/like`);
-    return unwrapItem(response) ?? { likes: 0 };
+    return unwrapItem(response) ?? { liked: true, likes: 0 };
+  }
+
+  async unlikeComment(commentId: number): Promise<{ liked: boolean; likes: number }> {
+    const response = await api.delete(`/videos/comments/${commentId}/like`);
+    return unwrapItem(response) ?? { liked: false, likes: 0 };
   }
 }
 

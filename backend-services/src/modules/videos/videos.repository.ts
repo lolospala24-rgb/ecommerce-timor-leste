@@ -355,7 +355,11 @@ export class VideosRepository {
 
   // ==================== Comments ====================
 
-  async findComments(videoId: number, { page = 1, limit = 20 }: { page?: number; limit?: number }) {
+  async findComments(
+    videoId: number,
+    { page = 1, limit = 20 }: { page?: number; limit?: number },
+    userId?: number | null,
+  ) {
     const skip = (page - 1) * limit;
     const commentInclude = {
       user: { select: { id: true, name: true } },
@@ -378,7 +382,30 @@ export class VideosRepository {
       this.prisma.videoComment.count({ where: { videoId, parentId: null } }),
     ]);
 
-    return { items, total };
+    return { items: await this.attachCommentLikedState(items, userId), total };
+  }
+
+  // Flattens parent + reply comments to one id list so a single query
+  // covers both levels, mirroring attachViewerState's shape for videos.
+  private async attachCommentLikedState(comments: any[], userId?: number | null) {
+    const flatten = (list: any[]): any[] => list.flatMap((c) => [c, ...flatten(c.replies ?? [])]);
+    const allComments = flatten(comments);
+
+    if (!userId || allComments.length === 0) {
+      const markUnliked = (list: any[]): any[] =>
+        list.map((c) => ({ ...c, isLiked: false, replies: markUnliked(c.replies ?? []) }));
+      return markUnliked(comments);
+    }
+
+    const likes = await this.prisma.videoCommentLike.findMany({
+      where: { userId, commentId: { in: allComments.map((c) => c.id) } },
+      select: { commentId: true },
+    });
+    const likedSet = new Set(likes.map((l) => l.commentId));
+
+    const applyLiked = (list: any[]): any[] =>
+      list.map((c) => ({ ...c, isLiked: likedSet.has(c.id), replies: applyLiked(c.replies ?? []) }));
+    return applyLiked(comments);
   }
 
   createComment(videoId: number, userId: number, content: string, parentId?: number | null) {
@@ -396,7 +423,32 @@ export class VideosRepository {
     return this.prisma.videoComment.delete({ where: { id } });
   }
 
-  likeComment(id: number) {
-    return this.prisma.videoComment.update({ where: { id }, data: { likes: { increment: 1 } } });
+  // Mirrors likeVideo/unlikeVideo — per-user dedup via the unique
+  // (commentId, userId) constraint, with VideoComment.likes kept as a
+  // denormalized counter for cheap reads (same idiom as Video.likes).
+  async likeComment(commentId: number, userId: number) {
+    const created = await this.prisma.videoCommentLike
+      .create({ data: { commentId, userId } })
+      .then(() => true)
+      .catch((error: any) => {
+        if (error?.code === 'P2002') return false; // already liked — idempotent
+        throw error;
+      });
+
+    if (created) {
+      await this.prisma.videoComment.update({ where: { id: commentId }, data: { likes: { increment: 1 } } });
+    }
+
+    return this.prisma.videoComment.findUnique({ where: { id: commentId }, select: { likes: true } });
+  }
+
+  async unlikeComment(commentId: number, userId: number) {
+    const result = await this.prisma.videoCommentLike.deleteMany({ where: { commentId, userId } });
+
+    if (result.count > 0) {
+      await this.prisma.videoComment.update({ where: { id: commentId }, data: { likes: { decrement: 1 } } });
+    }
+
+    return this.prisma.videoComment.findUnique({ where: { id: commentId }, select: { likes: true } });
   }
 }

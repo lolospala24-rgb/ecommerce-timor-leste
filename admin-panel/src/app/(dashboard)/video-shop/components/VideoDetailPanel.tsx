@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { X, Play, Package, BadgeCheck, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,6 +86,17 @@ export function VideoDetailPanel({ video, onClose, onPreview, onSaved }: VideoDe
   const isSaving = updateVideo.isPending;
 
   const handleSave = async () => {
+    if (status === 'SCHEDULED') {
+      if (!scheduledFor) {
+        toast.error('Pick a publish date/time to schedule this video');
+        return;
+      }
+      if (new Date(scheduledFor).getTime() <= Date.now()) {
+        toast.error('Scheduled publish time must be in the future');
+        return;
+      }
+    }
+
     setUploadProgress(0);
     const updated = await updateVideo.mutateAsync({
       id: video.id,
@@ -246,6 +258,7 @@ export function VideoDetailPanel({ video, onClose, onPreview, onSaved }: VideoDe
                   <Input
                     type="datetime-local"
                     value={scheduledFor}
+                    min={toDatetimeLocalValue(new Date().toISOString())}
                     onChange={(e) => setScheduledFor(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">

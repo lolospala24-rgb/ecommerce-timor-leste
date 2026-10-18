@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { VideosRepository } from './videos.repository';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -15,6 +15,8 @@ const VIEW_DEDUP_WINDOW_SECONDS = 30 * 60;
 
 @Injectable()
 export class VideosService {
+  private readonly logger = new Logger(VideosService.name);
+
   constructor(
     private repo: VideosRepository,
     private cloudinaryService: CloudinaryService,
@@ -199,12 +201,20 @@ export class VideosService {
     if (videoFile && (existing as any).videoPublicId) {
       this.cloudinaryService
         .deleteFile((existing as any).videoPublicId, 'video')
-        .catch(() => undefined);
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to delete replaced video asset ${(existing as any).videoPublicId} for video ${id}: ${err?.message ?? err}`,
+          ),
+        );
     }
     if (thumbnailFile && (existing as any).thumbnailPublicId) {
       this.cloudinaryService
         .deleteFile((existing as any).thumbnailPublicId, 'image')
-        .catch(() => undefined);
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to delete replaced thumbnail asset ${(existing as any).thumbnailPublicId} for video ${id}: ${err?.message ?? err}`,
+          ),
+        );
     }
 
     return updated;
@@ -238,12 +248,20 @@ export class VideosService {
     if ((existing as any).videoPublicId) {
       this.cloudinaryService
         .deleteFile((existing as any).videoPublicId, 'video')
-        .catch(() => undefined);
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to delete video asset ${(existing as any).videoPublicId} for deleted video ${id}: ${err?.message ?? err}`,
+          ),
+        );
     }
     if ((existing as any).thumbnailPublicId) {
       this.cloudinaryService
         .deleteFile((existing as any).thumbnailPublicId, 'image')
-        .catch(() => undefined);
+        .catch((err) =>
+          this.logger.warn(
+            `Failed to delete thumbnail asset ${(existing as any).thumbnailPublicId} for deleted video ${id}: ${err?.message ?? err}`,
+          ),
+        );
     }
 
     return deleted;
@@ -340,9 +358,9 @@ export class VideosService {
 
   // ==================== Comments ====================
 
-  async getComments(videoId: number, pagination: { page?: number; limit?: number }) {
+  async getComments(videoId: number, pagination: { page?: number; limit?: number }, viewerId?: number | null) {
     await this.findById(videoId);
-    return this.repo.findComments(videoId, pagination);
+    return this.repo.findComments(videoId, pagination, viewerId);
   }
 
   async addComment(videoId: number, userId: number, dto: CreateCommentDto) {
@@ -372,9 +390,17 @@ export class VideosService {
     await this.repo.deleteComment(commentId);
   }
 
-  async likeComment(commentId: number) {
+  async likeComment(commentId: number, userId: number) {
     const comment = await this.repo.findCommentById(commentId);
     if (!comment) throw new NotFoundException('Comment not found');
-    return this.repo.likeComment(commentId);
+    const result = await this.repo.likeComment(commentId, userId);
+    return { liked: true, likes: result?.likes ?? 0 };
+  }
+
+  async unlikeComment(commentId: number, userId: number) {
+    const comment = await this.repo.findCommentById(commentId);
+    if (!comment) throw new NotFoundException('Comment not found');
+    const result = await this.repo.unlikeComment(commentId, userId);
+    return { liked: false, likes: result?.likes ?? 0 };
   }
 }

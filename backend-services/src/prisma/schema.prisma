@@ -144,6 +144,7 @@ model User {
   videoLikes      VideoLike[]
   videoSaves      VideoSave[]
   videoComments   VideoComment[]
+  videoCommentLikes VideoCommentLike[]
   sellerFollows   SellerFollow[]
   couponUsages    CouponUsage[]
   stockNotifications StockNotification[]
@@ -1323,9 +1324,10 @@ model VideoSave {
 }
 
 // Comments on a Video, with one level of replies via parentId. `likes` is a
-// simple anonymous counter — same idiom already used on Video (likes/views/
-// shares) — rather than a second per-user join table, to keep this addition
-// proportionate to what the redesign actually needs.
+// denormalized counter kept in sync by VideoCommentLike (the per-user join
+// table below) — same pattern as Video.likes/VideoLike, so "like" is
+// idempotent per user and supports unlike, instead of an anonymous counter
+// anyone could increment without limit.
 model VideoComment {
   id        Int      @id @default(autoincrement())
   videoId   Int
@@ -1336,14 +1338,30 @@ model VideoComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  video   Video          @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  VideoComment?  @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies VideoComment[] @relation("VideoCommentReplies")
+  video   Video              @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  VideoComment?      @relation("VideoCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies VideoComment[]     @relation("VideoCommentReplies")
+  likedBy VideoCommentLike[]
 
   @@index([videoId])
   @@index([parentId])
   @@map("video_comments")
+}
+
+// Per-user like on a VideoComment — see VideoComment.likes doc-comment.
+model VideoCommentLike {
+  id        Int      @id @default(autoincrement())
+  commentId Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  comment VideoComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("video_comment_likes")
 }
 
 // Per-user follow of a Seller/creator — backs the Follow button and
