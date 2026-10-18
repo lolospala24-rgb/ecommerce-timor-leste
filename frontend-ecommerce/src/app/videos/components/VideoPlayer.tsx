@@ -103,7 +103,7 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-neutral-100">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-neutral-900">
       <video
         ref={videoRef}
         src={getOptimizedVideoUrl(video.videoUrl) ?? video.videoUrl}

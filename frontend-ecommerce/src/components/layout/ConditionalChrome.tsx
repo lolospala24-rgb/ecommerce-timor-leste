@@ -8,13 +8,16 @@ import { CompactFooter } from './CompactFooter';
 import { BottomNav } from './BottomNav';
 import { SupportChatWidget } from '@/components/shared/SupportChatWidget';
 
-// The video-shopping feed (/videos) keeps the real site header — logo,
-// search, cart, notifications, profile — so it still reads as part of the
-// same storefront rather than a disconnected microsite. It drops the
-// Footer and locks to the viewport height instead of the normal
-// scrolling page shell: the feed manages its own internal scroll (one
-// snapped video at a time), so letting the outer page scroll too would
-// fight that and let the layout grow past the viewport.
+// The video-shopping feed (/videos) is a fully immersive, edge-to-edge
+// experience (TikTok/Reels-style) — no site Header, no Footer. VideoTopBar
+// (rendered inside the feed itself, see videos/page.tsx) is its own
+// minimal in-video nav instead, matching the reference design; stacking
+// the full storefront Header above it just duplicated navigation and ate
+// vertical space the video needs. It still locks to the viewport height
+// instead of the normal scrolling page shell: the feed manages its own
+// internal scroll (one snapped video at a time), so letting the outer
+// page scroll too would fight that and let the layout grow past the
+// viewport.
 export const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export function ConditionalChrome({ children }: { children: ReactNode }) {
@@ -44,12 +47,7 @@ export function ConditionalChrome({ children }: { children: ReactNode }) {
   const isCheckout = pathname?.startsWith('/checkout');
 
   if (isVideoShopping) {
-    return (
-      <div className="flex h-[100dvh] flex-col overflow-hidden">
-        <Header />
-        <main className="min-h-0 flex-1">{children}</main>
-      </div>
-    );
+    return <main className="h-[100dvh] overflow-hidden">{children}</main>;
   }
 
   if (isAuthPage || isDriverPortal) {
