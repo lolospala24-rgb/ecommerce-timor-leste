@@ -3,12 +3,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
-import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Heart, Loader2, Bell, BellRing, MapPin, Star } from 'lucide-react';
+import { Loader2, Bell, BellRing, MapPin, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import toast from 'react-hot-toast';
@@ -66,10 +65,7 @@ interface ProductCardProps {
 export function ProductCard({ product, isLocal = false, priority = false }: ProductCardProps) {
   const { t } = useTranslation();
   const [imageError, setImageError] = useState(false);
-  const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
-
-  const isWishlisted = isInWishlist(product.id);
 
   const isOutOfStock = product.stock === 0;
   const { data: notifyStatus } = useNotifyMeStatus(product.id, isAuthenticated && isOutOfStock);
@@ -139,20 +135,6 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
   const imageSrc = imageError || !product.thumbnail ? PLACEHOLDER_IMAGE : product.thumbnail;
   const hasRating = (product.totalReviews ?? 0) > 0;
 
-  const handleWishlist = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated) {
-      toast.error('Please login to add to wishlist');
-      return;
-    }
-    try {
-      await toggleItem(product);
-    } catch (error) {
-      toast.error('Failed to update wishlist');
-    }
-  };
-
   return (
     <Card className="group flex h-full flex-col overflow-hidden rounded-xl border-0 bg-transparent shadow-none">
       <div className="relative aspect-square overflow-hidden rounded-xl bg-muted/40">
@@ -193,15 +175,6 @@ export function ProductCard({ product, isLocal = false, priority = false }: Prod
             <Badge className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white">{t('product.outOfStock')}</Badge>
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={handleWishlist}
-          aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-          className="absolute right-2.5 top-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 transition-colors hover:bg-background"
-        >
-          <Heart className={cn('h-4 w-4 text-foreground', isWishlisted && 'fill-red-600 text-red-600')} />
-        </button>
       </div>
 
       <div className="flex flex-col">
