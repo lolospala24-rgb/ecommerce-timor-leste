@@ -184,11 +184,13 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
         )}
       </AnimatePresence>
 
+      {/* top-16 clears VideoTopBar's mobile/tablet overlay (see page.tsx);
+          that overlay is lg:hidden, so this can sit back at top-3 there. */}
       <button
         type="button"
         onClick={toggleMute}
         aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-        className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-neutral-900 shadow-sm backdrop-blur transition hover:bg-white"
+        className="absolute right-3 top-16 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-neutral-900 shadow-sm backdrop-blur transition hover:bg-white lg:top-3"
       >
         {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>

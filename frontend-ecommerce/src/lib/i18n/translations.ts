@@ -55,6 +55,17 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.searchIn': 'Buka iha',
     'nav.megaMenu.noResults': 'Laiha rezultadu.',
 
+    // Video shop (mobile feed overlay)
+    'video.live': 'Live',
+    'video.tab.forYou': 'Ba Ita',
+    'video.tab.following': 'Tuir',
+    'video.search': 'Buka',
+    'video.like': 'Gosta',
+    'video.comment': 'Komentá',
+    'video.save': 'Rai',
+    'video.share': 'Fahe',
+    'video.buy': 'Sosa',
+
     // Deals page
     'deals.title': 'Promosaun & Kupaun',
     'deals.subtitle': 'Kupaun ativu sira neebe ita bele uza bainhira sosa.',
@@ -451,6 +462,17 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.searchIn': 'Search in',
     'nav.megaMenu.noResults': 'No results.',
 
+    // Video shop (mobile feed overlay)
+    'video.live': 'Live',
+    'video.tab.forYou': 'For You',
+    'video.tab.following': 'Following',
+    'video.search': 'Search',
+    'video.like': 'Like',
+    'video.comment': 'Comment',
+    'video.save': 'Save',
+    'video.share': 'Share',
+    'video.buy': 'Buy',
+
     // Deals page
     'deals.title': 'Deals & Coupons',
     'deals.subtitle': 'Active coupons you can use at checkout.',
@@ -836,6 +858,17 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.searchIn': 'Cari di',
     'nav.megaMenu.noResults': 'Tidak ada hasil.',
 
+    // Video shop (mobile feed overlay)
+    'video.live': 'Live',
+    'video.tab.forYou': 'Untuk Anda',
+    'video.tab.following': 'Mengikuti',
+    'video.search': 'Cari',
+    'video.like': 'Suka',
+    'video.comment': 'Komentar',
+    'video.save': 'Simpan',
+    'video.share': 'Bagikan',
+    'video.buy': 'Beli',
+
     // Deals page
     'deals.title': 'Promo & Kupon',
     'deals.subtitle': 'Kupon aktif yang bisa digunakan saat checkout.',
@@ -1220,6 +1253,17 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.searchPlaceholder': 'Pesquisar categorias...',
     'nav.megaMenu.searchIn': 'Pesquisar em',
     'nav.megaMenu.noResults': 'Nenhum resultado.',
+
+    // Video shop (mobile feed overlay)
+    'video.live': 'Live',
+    'video.tab.forYou': 'Para Você',
+    'video.tab.following': 'Seguindo',
+    'video.search': 'Pesquisar',
+    'video.like': 'Gosto',
+    'video.comment': 'Comentário',
+    'video.save': 'Guardar',
+    'video.share': 'Partilhar',
+    'video.buy': 'Comprar',
 
     // Deals page
     'deals.title': 'Ofertas e Cupons',

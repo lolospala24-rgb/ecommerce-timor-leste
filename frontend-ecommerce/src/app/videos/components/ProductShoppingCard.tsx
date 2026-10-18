@@ -7,12 +7,14 @@ import toast from 'react-hot-toast';
 import { VideoProduct } from '@/types/video';
 import { useCart } from '@/hooks/useCart';
 import { useAuthStore } from '@/stores/authStore';
+import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { formatCurrency as formatPrice } from '@/lib/formatters';
 import { trackVideoProductClick, trackAddToCart } from '@/lib/analytics';
 
 export function ProductShoppingCard({ product, videoId }: { product: VideoProduct; videoId: number }) {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuthStore();
+  const { t } = useTranslation();
   const hasDiscount = product.comparePrice != null && product.comparePrice > product.price;
   const outOfStock = product.stock <= 0;
 
@@ -59,19 +61,25 @@ export function ProductShoppingCard({ product, videoId }: { product: VideoProduc
         {outOfStock && <span className="text-xs font-medium text-neutral-400">Out of stock</span>}
       </div>
 
+      {/* Desktop/tablet only — the single green CTA below is mobile's
+          entire shopping action (matching the redesign reference), so a
+          separate quick-add icon there would be redundant. */}
       <button
         type="button"
         onClick={handleQuickAdd}
         disabled={outOfStock}
         aria-label="Add to cart"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-40"
+        className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-40 lg:flex"
       >
         <ShoppingCart className="h-4 w-4" />
       </button>
 
-      <span className="flex shrink-0 items-center gap-1 rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white">
+      <span className="hidden shrink-0 items-center gap-1 rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white lg:flex">
         Shop Now
         <ArrowRight className="h-3.5 w-3.5" />
+      </span>
+      <span className="flex shrink-0 items-center rounded-full bg-[#17703F] px-4 py-2 text-xs font-semibold text-white lg:hidden">
+        {t('video.buy')}
       </span>
     </Link>
   );

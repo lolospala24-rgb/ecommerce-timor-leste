@@ -35,13 +35,17 @@ export const VideoFeedItem = forwardRef<HTMLDivElement, VideoFeedItemProps>(func
     <div
       ref={ref}
       data-video-id={video.id}
-      className="flex h-full w-full shrink-0 snap-center items-center justify-center px-0 py-4 md:px-4"
+      className="flex h-full w-full shrink-0 snap-center items-center justify-center px-0 py-0 md:px-4 md:py-4"
     >
       <div className="relative h-full max-h-full w-full max-w-[420px] overflow-hidden rounded-none shadow-xl md:rounded-2xl">
         <VideoPlayer video={video} isActive={isActive} onDoubleTapLike={like} />
 
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
-          <div className="flex justify-start">
+          {/* Below `lg` the creator's identity moves down next to the
+              caption (see VideoCaption) and onto the follow badge on the
+              action rail's avatar, matching the redesigned mobile feed —
+              this floating header is desktop/tablet-only from here down. */}
+          <div className="hidden justify-start lg:flex">
             <CreatorHeader video={video} />
           </div>
 
