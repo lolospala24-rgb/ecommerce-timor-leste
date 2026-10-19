@@ -24,6 +24,12 @@ const contentSecurityPolicy = [
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsScriptSrc} https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`,
   `style-src 'self' 'unsafe-inline' ${googleFontsStyleSrc}`,
   `img-src 'self' data: blob: https://res.cloudinary.com https://images.unsplash.com https://via.placeholder.com ${googleMapsImgSrc}`,
+  // Without this, media-src falls back to default-src 'self' — which
+  // blocks every Cloudinary-hosted video from playing at all in the Video
+  // Shop admin preview (confirmed via a real browser CSP violation: "Loading
+  // media from https://res.cloudinary.com/.../video/upload/... violates
+  // ... default-src 'self'"). Matches frontend-ecommerce's working media-src.
+  "media-src 'self' blob: https://res.cloudinary.com http://res.cloudinary.com",
   `font-src 'self' data: ${googleFontsFontSrc}`,
   `connect-src 'self' ${apiUrl} ${apiWsUrl} ${googleMapsConnectSrc} https://www.google.com/recaptcha/`,
   "frame-src https://www.google.com/recaptcha/",
