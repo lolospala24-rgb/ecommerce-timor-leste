@@ -199,15 +199,6 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Munisípiu',
     'localProducts.filters.allMunicipalities': 'Munisípiu Hotu',
 
-    // Top sellers
-    'home.topSellers.badge': 'Vendedór Konfiável',
-    'home.topSellers.title': 'Vendedór Sira Di\'ak Liu',
-    'home.topSellers.subtitle': 'Vendedór konfiável ho produtu di\'ak liu',
-    'home.topSellers.viewAll': 'Haree Vendedór Hotu',
-    'home.topSellers.visitStore': 'Vizita Loja',
-    'home.topSellers.productsCount': '{count} produtu',
-    'home.topSellers.sales': '${amount} vendas',
-
     // Product card
     'product.badge.new': 'Foun',
     'product.badge.popular': 'Populár',
@@ -597,14 +588,6 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Municipality',
     'localProducts.filters.allMunicipalities': 'All Municipalities',
 
-    'home.topSellers.badge': 'Trusted Sellers',
-    'home.topSellers.title': 'Top Sellers',
-    'home.topSellers.subtitle': 'Trusted sellers with the best products',
-    'home.topSellers.viewAll': 'View All Sellers',
-    'home.topSellers.visitStore': 'Visit Store',
-    'home.topSellers.productsCount': '{count} products',
-    'home.topSellers.sales': '${amount} in sales',
-
     'product.badge.new': 'New',
     'product.badge.popular': 'Popular',
     'product.badge.local': 'Local',
@@ -993,14 +976,6 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.municipality': 'Munisipalitas',
     'localProducts.filters.allMunicipalities': 'Semua Munisipalitas',
 
-    'home.topSellers.badge': 'Penjual Terpercaya',
-    'home.topSellers.title': 'Penjual Terbaik',
-    'home.topSellers.subtitle': 'Penjual terpercaya dengan produk terbaik',
-    'home.topSellers.viewAll': 'Lihat Semua Penjual',
-    'home.topSellers.visitStore': 'Kunjungi Toko',
-    'home.topSellers.productsCount': '{count} produk',
-    'home.topSellers.sales': '${amount} penjualan',
-
     'product.badge.new': 'Baru',
     'product.badge.popular': 'Populer',
     'product.badge.local': 'Lokal',
@@ -1388,14 +1363,6 @@ export const translations: Record<Locale, Dictionary> = {
     'localProducts.filters.allCategories': 'Todas as Categorias',
     'localProducts.filters.municipality': 'Município',
     'localProducts.filters.allMunicipalities': 'Todos os Municípios',
-
-    'home.topSellers.badge': 'Vendedores Confiáveis',
-    'home.topSellers.title': 'Melhores Vendedores',
-    'home.topSellers.subtitle': 'Vendedores confiáveis com os melhores produtos',
-    'home.topSellers.viewAll': 'Ver Todos os Vendedores',
-    'home.topSellers.visitStore': 'Visitar Loja',
-    'home.topSellers.productsCount': '{count} produtos',
-    'home.topSellers.sales': '${amount} em vendas',
 
     'product.badge.new': 'Novo',
     'product.badge.popular': 'Popular',

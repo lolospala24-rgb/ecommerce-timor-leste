@@ -3,7 +3,6 @@
 import { HeroSection } from '@/components/home/HeroSection';
 import QuickMenu from '@/components/home/QuickMenu';
 import { HomepageSections } from '@/components/home/HomepageSections';
-import { TopSellers } from '@/components/home/TopSellers';
 
 // Product sections (Featured/New Arrivals/Popular/Local/...) are no longer
 // individual hardcoded components — HomepageSections fetches the admin-
@@ -25,7 +24,6 @@ export function HomePageClient() {
       <HeroSection />
       <QuickMenu />
       <HomepageSections />
-      <TopSellers />
     </div>
   );
 }

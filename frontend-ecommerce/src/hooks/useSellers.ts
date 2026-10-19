@@ -60,14 +60,3 @@ export function useSeller(id: number) {
     enabled: !!id,
   })
 }
-
-export function useTopSellers(limit: number = 6) {
-  return useQuery({
-    queryKey: ['top-sellers', limit],
-    queryFn: async () => {
-      const response = await api.get(`/sellers/verified?limit=${limit}`)
-      const sellers = response?.data?.data || []
-      return sellers.map(mapSellerForDisplay)
-    },
-  })
-}
