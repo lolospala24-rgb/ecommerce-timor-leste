@@ -61,7 +61,18 @@ const contentSecurityPolicy = [
   // google-analytics.com, or GA4 silently drops a portion of events.
   // https://accounts.google.com: Google Identity Services' own credential
   // exchange calls (One Tap) — distinct from apis.google.com above.
-  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://accounts.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net' : ''}`,
+  // https://res.cloudinary.com: img-src/media-src above cover a plain
+  // <img>/<video src>, but the PWA service worker's runtime-caching
+  // strategy (Serwist/Workbox) does its own fetch() for every Cloudinary
+  // image/video/thumbnail it caches — that fetch is governed by
+  // connect-src, not img-src/media-src, so without this every Cloudinary
+  // asset silently failed to load on /videos (confirmed via a real
+  // browser CSP violation + the sw.js "no-response" console error, same
+  // failure mode the apis.google.com comment above already describes).
+  // https://www.googletagmanager.com: same service-worker-fetch gap for
+  // gtag.js — script-src already allows the <script> tag itself, but the
+  // SW's own fetch of that script needs connect-src too.
+  `connect-src 'self' ${apiUrl} ${apiWsUrl} https://apis.google.com https://accounts.google.com https://maps.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.google.com https://res.cloudinary.com http://res.cloudinary.com${process.env.NEXT_PUBLIC_SENTRY_DSN ? ' https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io' : ''}${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? ' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com' : ''}`,
   "worker-src 'self' blob:",
   // https://accounts.google.com: the One Tap prompt itself renders inside
   // an iframe from this origin.
