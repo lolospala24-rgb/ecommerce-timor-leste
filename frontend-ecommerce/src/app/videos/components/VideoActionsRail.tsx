@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
 import { Plus, ShoppingBag, Music2 } from 'lucide-react';
 import { Video } from '@/types/video';
 import { useSellerFollow } from '@/hooks/video/useSellerFollow';
@@ -15,6 +16,11 @@ interface VideoActionsRailProps {
 
 export function VideoActionsRail({ video, onOpenComments }: VideoActionsRailProps) {
   const creator = video.product?.seller;
+  // storeLogo being set only means a URL exists, not that it actually
+  // loads — a 404/CORS/broken asset otherwise leaves the browser's own
+  // broken-image glyph sitting in the rail instead of falling back to the
+  // initial-letter avatar below.
+  const [logoError, setLogoError] = useState(false);
   // Hook must run unconditionally (creator may be null) — toggleFollow is
   // simply never wired up to a control when there's no creator to follow.
   const { toggleFollow, isToggling } = useSellerFollow(
@@ -27,8 +33,15 @@ export function VideoActionsRail({ video, onOpenComments }: VideoActionsRailProp
       {creator && (
         <div className="relative h-9 w-9 shrink-0 sm:h-11 sm:w-11">
           <div className="relative h-full w-full overflow-hidden rounded-full border-2 border-white bg-neutral-200 shadow-sm">
-            {creator.storeLogo ? (
-              <Image src={creator.storeLogo} alt={creator.storeName} fill sizes="44px" className="object-cover" />
+            {creator.storeLogo && !logoError ? (
+              <Image
+                src={creator.storeLogo}
+                alt={creator.storeName}
+                fill
+                sizes="44px"
+                className="object-cover"
+                onError={() => setLogoError(true)}
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                 {creator.storeName.slice(0, 1).toUpperCase()}
