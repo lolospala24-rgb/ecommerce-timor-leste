@@ -1,14 +1,16 @@
-import { IsString, IsOptional, IsUrl, IsInt, IsBooleanString, IsIn, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsUrl, IsInt, IsBooleanString, IsIn, IsDateString, MaxLength } from 'class-validator';
 
 const VIDEO_STATUSES = ['PENDING', 'PUBLISHED', 'SCHEDULED', 'REJECTED'] as const;
 const VIDEO_VISIBILITIES = ['PUBLIC', 'UNLISTED', 'PRIVATE'] as const;
 
 export class CreateVideoDto {
   @IsString()
+  @MaxLength(200)
   title: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   description?: string;
 
   @IsOptional()

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Volume2, VolumeX, Play, Loader2, Heart } from 'lucide-react';
 import { Video } from '@/types/video';
 import { getOptimizedVideoUrl } from '@/lib/video';
+import { getOptimizedImageUrl } from '@/lib/images';
 import { trackVideoStart, trackVideoProgress, trackVideoMuteToggle } from '@/lib/analytics';
 
 interface VideoPlayerProps {
@@ -107,7 +108,7 @@ export function VideoPlayer({ video, isActive, onEnded, onDoubleTapLike }: Video
       <video
         ref={videoRef}
         src={getOptimizedVideoUrl(video.videoUrl) ?? video.videoUrl}
-        poster={video.thumbnailUrl ?? undefined}
+        poster={getOptimizedImageUrl(video.thumbnailUrl) ?? undefined}
         className="h-full w-full object-cover"
         loop
         muted={isMuted}

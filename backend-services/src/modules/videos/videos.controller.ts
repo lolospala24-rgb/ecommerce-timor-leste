@@ -15,6 +15,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { videoWithThumbnailMulterConfig } from '../../common/config/multer.config';
 import { VideosService } from './videos.service';
@@ -250,6 +251,11 @@ export class VideosController {
     return { success: true, data: result.items, total: result.total };
   }
 
+  // Unlike view/like, a comment has no dedup — only the global 600/min
+  // baseline stood between a bad actor and flooding a video's comment
+  // section. Comment creation is bursty-by-nature for a real user, so
+  // this is generous enough not to bite a genuine conversation.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/comments')
   async addComment(
     @Param('id', ParseIntPipe) id: number,

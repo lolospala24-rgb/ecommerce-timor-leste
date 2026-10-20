@@ -22,7 +22,7 @@ export const VideoFeedItemPlaceholder = forwardRef<HTMLDivElement, VideoFeedItem
       <div
         ref={ref}
         data-video-id={video.id}
-        className="flex h-full w-full shrink-0 snap-center items-center justify-center px-0 py-4 md:px-4"
+        className="flex h-full w-full shrink-0 snap-center items-center justify-center px-0 py-0 md:px-4 md:py-4"
       >
         <div className="relative h-full max-h-full w-full max-w-[420px] overflow-hidden rounded-none bg-neutral-100 shadow-xl md:rounded-2xl">
           {video.thumbnailUrl && (
