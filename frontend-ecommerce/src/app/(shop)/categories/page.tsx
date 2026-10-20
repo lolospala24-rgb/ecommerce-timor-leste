@@ -43,7 +43,6 @@ function CategoriesSkeleton() {
 export default function CategoriesPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
   const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
 
@@ -61,30 +60,20 @@ export default function CategoriesPage() {
     return buildTree(null);
   }, [allCategories]);
 
-  const filteredTree = useMemo(() => {
-    if (!searchQuery) return tree;
-    const q = searchQuery.toLowerCase();
-    const matches = (c: CategoryNode): boolean =>
-      c.name.toLowerCase().includes(q) ||
-      !!c.nameTetum?.toLowerCase().includes(q) ||
-      c.children.some(matches);
-    return tree.filter(matches);
-  }, [tree, searchQuery]);
-
-  // First load selects the first category; search narrowing the rail keeps
-  // the selection valid (falls back to the new first match) instead of
-  // pointing at a now-hidden category.
+  // First load selects the first category; if the tree changes underneath
+  // the current selection (e.g. a category gets deactivated), fall back to
+  // the new first entry instead of pointing at a now-missing category.
   useEffect(() => {
-    if (filteredTree.length === 0) {
+    if (tree.length === 0) {
       setSelectedId(undefined);
       return;
     }
-    if (!filteredTree.some((c) => c.id === selectedId)) {
-      setSelectedId(filteredTree[0].id);
+    if (!tree.some((c) => c.id === selectedId)) {
+      setSelectedId(tree[0].id);
     }
-  }, [filteredTree, selectedId]);
+  }, [tree, selectedId]);
 
-  const selectedCategory = filteredTree.find((c) => c.id === selectedId);
+  const selectedCategory = tree.find((c) => c.id === selectedId);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F4F6F3]">
@@ -112,31 +101,20 @@ export default function CategoriesPage() {
             )}
           </Link>
         </div>
-        <div className="relative mt-3">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#56635B]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('category.searchPlaceholder')}
-            aria-label={t('category.searchAria')}
-            className="h-[46px] w-full rounded-xl border border-transparent bg-[#F4F6F3] pl-9 pr-4 text-[14px] text-[#142019] outline-none focus:border-[#17703F]"
-          />
-        </div>
       </div>
 
       {isLoading ? (
         <CategoriesSkeleton />
-      ) : filteredTree.length === 0 ? (
+      ) : tree.length === 0 ? (
         <div className="p-6">
           <EmptyState
-            title={searchQuery ? t('category.emptySearch') : t('category.noCategories')}
+            title={t('category.noCategories')}
             icon={<Search className="h-10 w-10 text-muted-foreground" />}
           />
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          <CategoryRail categories={filteredTree} selectedId={selectedId} onSelect={(c) => setSelectedId(c.id)} />
+          <CategoryRail categories={tree} selectedId={selectedId} onSelect={(c) => setSelectedId(c.id)} />
 
           <div className="flex-1 overflow-y-auto">
             <AnimatePresence mode="wait">
