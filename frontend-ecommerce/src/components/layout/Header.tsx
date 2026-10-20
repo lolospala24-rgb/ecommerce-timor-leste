@@ -57,22 +57,11 @@ export function Header() {
   // and crowds the header on pages where vertical space actually matters
   // (e.g. a product detail page fighting for room above the fold).
   const isMobileBrowseRowVisible = pathname === '/';
-  // Single-item detail pages (a specific product, a specific seller, a
-  // specific category) — someone already there has already searched their
-  // way in, so a search row is unlikely to be their next tap, and the page
-  // needs the vertical space more than a listing page does. A category
-  // detail page also already has its own working, category-scoped search
-  // behind its header's search icon — this row would just duplicate it.
-  // Mirrors (shop)/layout.tsx's own hasOwnBreadcrumb() check for the same
-  // class of page. The /categories list page itself keeps the row.
-  const isDetailPage =
-    (pathname?.startsWith('/products/') && pathname !== '/products/') ||
-    (pathname?.startsWith('/sellers/') && pathname !== '/sellers/') ||
-    (pathname?.startsWith('/categories/') && pathname !== '/categories/');
-  // The /products listing page already has its own back/title/cart header
-  // plus category chips, sort tabs, and a filter sheet to narrow results —
-  // this row would just duplicate that, same reasoning as isDetailPage.
-  const isMobileSearchRowVisible = !isDetailPage && pathname !== '/products';
+  // Mobile search row is Home-only — every other page (category, account,
+  // product detail, cart, orders, etc.) keeps the rest of the header but
+  // hides this row, same as the browse row above. Desktop is unaffected:
+  // its SearchAiBar further down has no pathname check at all.
+  const isMobileSearchRowVisible = pathname === '/';
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
@@ -475,8 +464,8 @@ export function Header() {
               breathing room above AND below — it used to sit flush against
               the gradient's bottom edge (even pulled past it via a negative
               margin), which read as the bar being stuck to the next section
-              rather than contained inside the header. Hidden on
-              product/seller detail pages — see isDetailPage above. */}
+              rather than contained inside the header. Home-only — see
+              isMobileSearchRowVisible above. */}
           {isMobileSearchRowVisible && (
             <div className="relative z-10 pt-2 pb-5 md:hidden">
               <SearchAiBar className="w-full" />
