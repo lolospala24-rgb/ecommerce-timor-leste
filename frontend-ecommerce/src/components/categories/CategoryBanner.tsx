@@ -9,12 +9,16 @@ import type { Category } from '@/types/category.types';
 
 interface CategoryBannerProps {
   category: Category;
+  /** Called right before navigating — lets a host that renders this inside
+   *  an overlay close itself first. The /categories page itself doesn't
+   *  need this: navigating away unmounts it anyway. */
+  onNavigate?: () => void;
 }
 
 // Screen 1's right-panel banner — distinct from the Screen 2 hero
 // (CategoryHero): compact (96px), tinted by the category's own color pair,
 // and links straight into the category detail page.
-export function CategoryBanner({ category }: CategoryBannerProps) {
+export function CategoryBanner({ category, onNavigate }: CategoryBannerProps) {
   const { t } = useTranslation();
   const Icon = getCategoryIcon(category.name);
   const pair = getCategoryColorPair(category.name, category.id);
@@ -23,6 +27,7 @@ export function CategoryBanner({ category }: CategoryBannerProps) {
   return (
     <Link
       href={`/categories/${category.slug}`}
+      onClick={onNavigate}
       className="relative flex h-24 items-center overflow-hidden rounded-2xl px-4"
       style={{ backgroundColor: pair.tint }}
     >

@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Play, ShoppingCart, Heart, User } from 'lucide-react';
+import { Home, Play, LayoutGrid, Heart, User } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
-import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -25,13 +24,15 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
-  const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
   const wishlistCount = useWishlistStore((state) => state.items.length);
 
+  // Cart replaced with Categories here — still fully reachable via the
+  // header's own cart icon (present on every page, mobile included), so
+  // this isn't a loss of access, just no longer a bottom-tab slot.
   const tabs = [
     { href: '/', label: t('nav.bottom.home'), icon: Home },
     { href: '/videos', label: t('nav.videoShop'), icon: Play },
-    { href: '/cart', label: t('nav.bottom.cart'), icon: ShoppingCart, badge: cartCount },
+    { href: '/categories', label: t('category.title'), icon: LayoutGrid },
     { href: '/account/wishlist', label: t('nav.bottom.wishlist'), icon: Heart, badge: wishlistCount },
     {
       href: isAuthenticated ? '/account' : '/login',

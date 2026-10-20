@@ -9,7 +9,6 @@ import { useCartStore } from '@/stores/cartStore';
 import { useOrderNotifications } from '@/hooks/useOrderNotifications';
 import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { CategoriesMegaMenu } from './CategoriesMegaMenu';
-import { CategoryDrawer } from './CategoryDrawer';
 import { Button } from '@/components/ui/button';
 import { useUIStore } from '@/stores/uiStore';
 import { SearchAiBar } from '@/components/shared/SearchAiBar';
@@ -44,33 +43,21 @@ import {
   Trash2,
   ChevronDown,
   LayoutGrid,
-  Truck,
 } from 'lucide-react';
 import { Play } from 'lucide-react';
 
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
-  // The mobile categories/video-shop row is a homepage browse shortcut —
-  // once a shopper has drilled into a product/category/cart/etc, it just
-  // duplicates what the hamburger menu and CategoryDrawer already offer,
-  // and crowds the header on pages where vertical space actually matters
-  // (e.g. a product detail page fighting for room above the fold).
-  const isMobileBrowseRowVisible = pathname === '/';
   // Mobile search row is Home-only — every other page (category, account,
   // product detail, cart, orders, etc.) keeps the rest of the header but
-  // hides this row, same as the browse row above. Desktop is unaffected:
-  // its SearchAiBar further down has no pathname check at all.
+  // hides this row. Desktop is unaffected: its SearchAiBar further down has
+  // no pathname check at all.
   const isMobileSearchRowVisible = pathname === '/';
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { data: publicSettings } = usePublicSettings();
   const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
-  // Deliberately its own state — never shares open/close with mobileNavOpen
-  // (the hamburger menu). Conflating them was the bug: tapping "All
-  // Categories" on mobile opened the Administrator/Quick Links menu instead
-  // of a categories-only view.
-  const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
   // Narrow selectors instead of the shared useCart() hook: Header only ever
   // displays these two derived numbers, so subscribing to the full cart
   // hook (items/isLoading/error/actions) would re-render it on every
@@ -147,9 +134,7 @@ export function Header() {
           gradient block): near-white with only a whisper of brand tint, so
           the header reads as calm/trustworthy rather than a loud color
           block. The safe-area padding lives on this inner wrapper (not the
-          outer <header>) so the status-bar area is covered too, while the
-          homepage-only categories row below stays outside it on the plain
-          page background — see isMobileBrowseRowVisible block further down. */}
+          outer <header>) so the status-bar area is covered too. */}
       <header className="sticky top-0 z-40 bg-background">
         <div
           className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-[#F0FDF4] via-white to-[#EFF6FF] shadow-sm"
@@ -473,50 +458,7 @@ export function Header() {
           )}
           </div>
         </div>
-
-        {/* Mobile-only second row: All Categories + delivery trust info — a
-            homepage-only browse shortcut. Deliberately outside the gradient
-            block (plain page background) so its white/green pill keeps
-            normal contrast instead of sitting on the colored header.
-            Opening the desktop mega menu's 880px panel on a phone screen
-            isn't an option, so this is its own row on the homepage.
-            Everywhere else (product/category/cart/etc pages) it's just dead
-            weight crowding a header that already competes with page content
-            for space, with the hamburger menu and CategoryDrawer still one
-            tap away regardless. Video Shop moved to BottomNav's persistent
-            tab bar — no need for it here too. */}
-        {isMobileBrowseRowVisible && (
-          <div className="container-custom">
-            <div className="flex items-center justify-between gap-3 py-3 md:hidden">
-              <button
-                type="button"
-                onClick={() => setCategoryDrawerOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={categoryDrawerOpen}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-white px-3.5 py-2 text-sm font-semibold text-[#15803D] shadow-sm transition-colors active:bg-[#F0FDF4]"
-              >
-                <LayoutGrid className="h-4 w-4 text-[#16A34A]" />
-                {t('nav.allCategories')}
-                <ChevronDown className="h-3.5 w-3.5 text-[#16A34A]" />
-              </button>
-
-              <div aria-hidden className="h-8 w-px shrink-0 bg-[#CBD5E1]" />
-
-              {/* Delivery trust signal — static copy, no admin/API backing,
-                  purely a visual trust cue matching the approved reference. */}
-              <div className="flex min-w-0 items-center gap-2">
-                <Truck className="h-5 w-5 shrink-0 text-[#2563EB]" strokeWidth={2} />
-                <div className="min-w-0 leading-tight">
-                  <p className="truncate text-xs font-bold text-[#0F172A]">{t('header.delivery.title')}</p>
-                  <p className="truncate text-[11px] font-medium text-[#64748B]">{t('header.delivery.subtitle')}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </header>
-
-      <CategoryDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} />
 
       {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />

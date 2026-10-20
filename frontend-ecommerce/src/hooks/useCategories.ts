@@ -42,8 +42,8 @@ export const useCategoryTree = () => {
       const response = await api.get(API_ENDPOINTS.CATEGORIES.TREE);
       return response.data.data || response.data;
     },
-    // The header (mega-menu + mobile CategoryDrawer) refetches this on
-    // every mount under the global 60s default — needless network chatter
+    // The header's mega-menu refetches this on every mount under the
+    // global 60s default — needless network chatter
     // for a tree that only changes when an admin edits categories, and
     // that the backend itself already caches for a full hour. 5 minutes
     // is a middle ground: still short enough that an admin edit shows up
