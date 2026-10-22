@@ -19,12 +19,12 @@ interface CategoryNode extends Category {
 function CategoriesSkeleton() {
   return (
     <div className="flex h-[calc(100vh-128px)]">
-      <div className="w-24 shrink-0 space-y-2 bg-[#F4F6F3] px-2 py-3 min-[600px]:w-[120px]">
+      <div className="w-24 shrink-0 space-y-2 bg-[#F4F6F3] px-2 pb-3 min-[600px]:w-[120px]">
         {[...Array(7)].map((_, i) => (
           <div key={i} className="h-[72px] animate-pulse rounded-[14px] bg-[#E4E9E5]" />
         ))}
       </div>
-      <div className="flex-1 space-y-5 p-4">
+      <div className="flex-1 space-y-5 px-4 pb-4">
         <div className="h-24 animate-pulse rounded-2xl bg-[#F4F6F3]" />
         <div className="h-4 w-28 animate-pulse rounded bg-[#F4F6F3]" />
         <div className="grid grid-cols-3 gap-3">
@@ -75,7 +75,7 @@ export default function CategoriesPage() {
       {isLoading ? (
         <CategoriesSkeleton />
       ) : tree.length === 0 ? (
-        <div className="p-6">
+        <div className="px-6 pb-6">
           <EmptyState
             title={t('category.noCategories')}
             icon={<Search className="h-10 w-10 text-muted-foreground" />}
@@ -94,7 +94,7 @@ export default function CategoriesPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
-                  className="space-y-5 p-4"
+                  className="space-y-5 px-4 pb-4"
                 >
                   <CategoryBanner category={selectedCategory} />
 

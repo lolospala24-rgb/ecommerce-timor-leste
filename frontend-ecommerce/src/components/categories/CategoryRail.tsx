@@ -14,7 +14,7 @@ export function CategoryRail({ categories, selectedId, onSelect }: CategoryRailP
     <div
       role="tablist"
       aria-orientation="vertical"
-      className="h-full w-24 shrink-0 min-[600px]:w-[120px] overflow-y-auto bg-[#F4F6F3] px-2 py-3"
+      className="h-full w-24 shrink-0 min-[600px]:w-[120px] overflow-y-auto bg-[#F4F6F3] px-2 pb-3"
     >
       <div className="flex flex-col gap-1.5">
         {categories.map((category) => (
