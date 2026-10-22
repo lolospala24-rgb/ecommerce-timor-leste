@@ -28,6 +28,7 @@ import { useTranslation } from '@/lib/i18n/LanguageContext';
 import { TopHeader } from './TopHeader';
 import { CartDrawer } from './CartDrawer';
 import { MobileNav } from './MobileNav';
+import { cn } from '@/lib/utils';
 import {
   ShoppingCart,
   User,
@@ -134,10 +135,24 @@ export function Header() {
           gradient block): near-white with only a whisper of brand tint, so
           the header reads as calm/trustworthy rather than a loud color
           block. The safe-area padding lives on this inner wrapper (not the
-          outer <header>) so the status-bar area is covered too. */}
+          outer <header>) so the status-bar area is covered too.
+          The gradient's final stop (#EFF6FF, a light blue) was meant to
+          blend into the mobile search row directly below it on Home —
+          on every other mobile page that row is hidden, so the div
+          collapses to just the logo row and that blue tail shows as a
+          stray sliver against whatever page content follows (reported
+          live on /categories once its own local header, which used to
+          mask this, was removed). Flat white on mobile there instead;
+          desktop is untouched — it already carries its own inline
+          search bar in the same row, not a page-conditional one. */}
       <header className="sticky top-0 z-40 bg-background">
         <div
-          className="relative overflow-hidden border-b border-slate-200/80 bg-gradient-to-b from-[#F0FDF4] via-white to-[#EFF6FF] shadow-sm"
+          className={cn(
+            'relative overflow-hidden border-b border-slate-200/80 shadow-sm',
+            isMobileSearchRowVisible
+              ? 'bg-gradient-to-b from-[#F0FDF4] via-white to-[#EFF6FF]'
+              : 'bg-white md:bg-gradient-to-b md:from-[#F0FDF4] md:via-white md:to-[#EFF6FF]',
+          )}
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
 
