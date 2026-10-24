@@ -3,7 +3,7 @@ import { ReferralsService } from './referrals.service';
 import { UpdateReferralSettingsDto } from './dto/update-referral-settings.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { clampLimit } from '../../common/utils/pagination.util';
-import { Role } from '@prisma/client';
+import { Role, ReferralStatus } from '@prisma/client';
 
 @Roles(Role.ADMIN)
 @Controller('admin/referrals')
@@ -35,7 +35,7 @@ export class AdminReferralsController {
   async list(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('status') status?: 'PENDING' | 'REWARDED',
+    @Query('status') status?: ReferralStatus,
   ) {
     const data = await this.referralsService.listForAdmin({
       page: page ? parseInt(page, 10) : 1,

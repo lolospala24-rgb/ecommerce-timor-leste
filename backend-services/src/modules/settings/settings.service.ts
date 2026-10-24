@@ -100,6 +100,11 @@ export class SettingsService {
       referralProgramEnabled: settings.referralProgramEnabled,
       referralWelcomeCredit: settings.referralWelcomeCredit,
       referralRewardAmount: settings.referralRewardAmount,
+      // Monthly cap deliberately left out — nothing storefront-facing
+      // needs it, unlike the hold period/minimum amount which the
+      // referral program copy explains to shoppers.
+      referralHoldDays: settings.referralHoldDays,
+      referralMinQualifyingAmount: settings.referralMinQualifyingAmount,
     };
   }
 

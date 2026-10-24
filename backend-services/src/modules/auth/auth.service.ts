@@ -119,13 +119,16 @@ export class AuthService {
     await this.mailService.sendWelcomeEmail(user.email, user.name);
 
     // Best-effort — a notification hiccup must never fail an otherwise
-    // successful signup.
+    // successful signup. Phrased as a future credit, not a past one — the
+    // referral program now defers crediting it until the referrer's
+    // reward also clears (see ReferralsService.payoutDueReferrals), so
+    // nothing has actually been added to the wallet yet at this point.
     if (welcomeCredit > 0) {
       try {
         await this.notificationsService.sendNotification({
           userId: user.id,
           title: 'Welcome to Lolospala!',
-          message: `You've received $${welcomeCredit.toFixed(2)} wallet credit.`,
+          message: `You'll receive $${welcomeCredit.toFixed(2)} wallet credit once your first order (min $${Number(settings.referralMinQualifyingAmount ?? 0).toFixed(2)}) is delivered.`,
           type: NotificationEvent.REFERRAL_WELCOME_CREDIT,
         });
       } catch (err) {

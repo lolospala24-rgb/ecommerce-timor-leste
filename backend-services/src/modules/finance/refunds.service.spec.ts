@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { FinanceService } from './finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { OrderStatus, PaymentStatus, RefundStatus, RefundType } from '@prisma/client';
 
 // Refunds are the one flow that touches everything: payment status, order
@@ -19,6 +20,7 @@ describe('RefundsService', () => {
   let financeService: any;
   let notificationsService: any;
   let mailService: any;
+  let referralsService: any;
 
   beforeEach(async () => {
     prisma = {
@@ -39,8 +41,12 @@ describe('RefundsService', () => {
     notificationsService = {
       notifyRefundRequested: jest.fn().mockResolvedValue(undefined),
       notifyRefundDecision: jest.fn().mockResolvedValue(undefined),
+      sendNotification: jest.fn().mockResolvedValue(undefined),
     };
     mailService = { sendPaymentRefundEmail: jest.fn() };
+    // Default: no referral tied to the order being refunded — individual
+    // tests that care about the clawback hook override this.
+    referralsService = { reverseReferralForRefundedOrder: jest.fn().mockResolvedValue(null) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -49,6 +55,7 @@ describe('RefundsService', () => {
         { provide: MailService, useValue: mailService },
         { provide: FinanceService, useValue: financeService },
         { provide: NotificationsService, useValue: notificationsService },
+        { provide: ReferralsService, useValue: referralsService },
       ],
     }).compile();
 
@@ -199,6 +206,53 @@ describe('RefundsService', () => {
       );
       expect(prisma.order.update).not.toHaveBeenCalled();
       expect(financeService.reverseEarningsOnRefund).toHaveBeenCalledWith(prisma, 1);
+      // Referral reversal is FULL-refund-only — see
+      // ReferralsService.reverseReferralForRefundedOrder's doc-comment.
+      expect(referralsService.reverseReferralForRefundedOrder).not.toHaveBeenCalled();
+    });
+
+    it('a FULL refund checks for a reward to claw back, and notifies both sides when one is reversed', async () => {
+      prisma.refund.findUnique.mockResolvedValue(pendingRefund);
+      prisma.refund.updateMany.mockResolvedValue({ count: 1 });
+      prisma.refund.findUniqueOrThrow.mockResolvedValue({
+        id: 1,
+        orderId: 1,
+        amount: 100,
+        order: { orderNumber: 'ORD-1', customerId: 5, customer: { email: 'a@b.com', name: 'Ana' } },
+      });
+      referralsService.reverseReferralForRefundedOrder.mockResolvedValue({
+        kind: 'REVERSED',
+        referrerId: 10,
+        referredUserId: 5,
+        rewardAmount: 5,
+        welcomeCreditAmount: 3,
+      });
+
+      await service.approveRefund(1, 42);
+
+      expect(referralsService.reverseReferralForRefundedOrder).toHaveBeenCalledWith(prisma, 1);
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 10, type: 'REFERRAL_REWARD_REVERSED' }),
+      );
+      expect(notificationsService.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 5, type: 'REFERRAL_REWARD_REVERSED' }),
+      );
+    });
+
+    it('a FULL refund with no matching reward to claw back sends no referral notification', async () => {
+      prisma.refund.findUnique.mockResolvedValue(pendingRefund);
+      prisma.refund.updateMany.mockResolvedValue({ count: 1 });
+      prisma.refund.findUniqueOrThrow.mockResolvedValue({
+        id: 1,
+        orderId: 1,
+        amount: 100,
+        order: { orderNumber: 'ORD-1', customerId: 5, customer: { email: 'a@b.com', name: 'Ana' } },
+      });
+      referralsService.reverseReferralForRefundedOrder.mockResolvedValue({ kind: 'REVERTED_TO_PENDING' });
+
+      await service.approveRefund(1, 42);
+
+      expect(notificationsService.sendNotification).not.toHaveBeenCalled();
     });
 
     it('does not re-cancel an order that is already CANCELLED', async () => {

@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
 
 // Thin, referral-scoped subset of SystemSettingsDto — backs the dedicated
 // admin Referral Settings screen. Internally forwarded into
@@ -18,4 +18,19 @@ export class UpdateReferralSettingsDto {
   @IsOptional()
   @Min(0)
   referralRewardAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  referralHoldDays?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  referralMinQualifyingAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  referralMonthlyCap?: number;
 }

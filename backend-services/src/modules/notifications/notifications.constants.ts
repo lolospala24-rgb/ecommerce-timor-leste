@@ -34,6 +34,7 @@ export enum NotificationEvent {
   PRODUCT_TYPE_REQUEST_REJECTED = 'PRODUCT_TYPE_REQUEST_REJECTED',
   REFERRAL_WELCOME_CREDIT = 'REFERRAL_WELCOME_CREDIT',
   REFERRAL_REWARD_EARNED = 'REFERRAL_REWARD_EARNED',
+  REFERRAL_REWARD_REVERSED = 'REFERRAL_REWARD_REVERSED',
 }
 
 // Default category + priority per event — call sites can still override
@@ -65,4 +66,5 @@ export const NOTIFICATION_DEFAULTS: Record<
   [NotificationEvent.PRODUCT_TYPE_REQUEST_REJECTED]: { category: 'PRODUCT', priority: 'WARNING' },
   [NotificationEvent.REFERRAL_WELCOME_CREDIT]: { category: 'CUSTOMER', priority: 'SUCCESS' },
   [NotificationEvent.REFERRAL_REWARD_EARNED]: { category: 'CUSTOMER', priority: 'SUCCESS' },
+  [NotificationEvent.REFERRAL_REWARD_REVERSED]: { category: 'CUSTOMER', priority: 'WARNING' },
 };

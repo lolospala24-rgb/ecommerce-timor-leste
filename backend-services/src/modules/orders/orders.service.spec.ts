@@ -83,11 +83,11 @@ describe('OrdersService — courier & delivery confirmation', () => {
         // called from create() (not exercised by any test below), so an
         // empty stub matches the SettingsService/RefundsService/
         // CouponsService convention above. ReferralsService.
-        // rewardReferrerIfEligible IS called for real (via the $transaction
+        // qualifyReferralIfEligible IS called for real (via the $transaction
         // mock executing its callback) by the shared completeDelivery()
         // helper that confirmDelivery/autoConfirmDelivery tests exercise.
         { provide: PromotionsService, useValue: {} },
-        { provide: ReferralsService, useValue: { rewardReferrerIfEligible: jest.fn().mockResolvedValue(null) } },
+        { provide: ReferralsService, useValue: { qualifyReferralIfEligible: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

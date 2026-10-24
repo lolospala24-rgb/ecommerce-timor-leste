@@ -1092,7 +1092,6 @@ export class OrdersService {
     // pending -> available earnings) to succeed or fail together, so it
     // gets its own transaction rather than the plain single-table update
     // every other status transition uses.
-    let referralReward: { referrerId: number; rewardAmount: number } | null = null;
     const updatedOrder =
       targetStatus === OrderStatus.DELIVERED
         ? await this.prisma.$transaction(async (tx) => {
@@ -1111,9 +1110,16 @@ export class OrdersService {
             });
 
             await this.financeService.releaseEarningsOnDelivery(tx, order.id);
-            referralReward = await this.referralsService.rewardReferrerIfEligible(tx, {
+            // Only marks QUALIFIED now — the actual reward (and the
+            // referred friend's welcome credit) waits out
+            // SystemSettings.referralHoldDays via ReferralPayoutJob, so
+            // there's no notification to send here anymore (see
+            // ReferralsService.qualifyReferralIfEligible).
+            await this.referralsService.qualifyReferralIfEligible(tx, {
               id: order.id,
               customerId: order.customerId,
+              subtotal: result.subtotal,
+              walletCreditUsed: result.walletCreditUsed,
             });
 
             return result;
@@ -1157,20 +1163,6 @@ export class OrdersService {
       },
       sendEmail: false,
     });
-
-    if (referralReward) {
-      try {
-        await this.notificationsService.sendNotification({
-          userId: referralReward.referrerId,
-          title: 'You earned a referral reward!',
-          message: `Your referred friend's first order was delivered — $${referralReward.rewardAmount.toFixed(2)} wallet credit has been added to your account.`,
-          type: NotificationEvent.REFERRAL_REWARD_EARNED,
-          sendEmail: false,
-        });
-      } catch (err) {
-        this.logger.error(`Failed to send referral reward notification: ${err}`);
-      }
-    }
 
     // Send status update email — fire-and-forget so the admin's
     // status-change request doesn't wait on MailService's retry loop (up to
@@ -1373,7 +1365,6 @@ export class OrdersService {
   // (system-triggered, see DeliveryAutoConfirmJob) — both end at the exact
   // same financial transition, just reached by a different trigger.
   private async completeDelivery(id: number, paymentMethod: PaymentMethod | null) {
-    let referralReward: { referrerId: number; rewardAmount: number } | null = null;
     const confirmedOrder = await this.prisma.$transaction(async (tx) => {
       if (paymentMethod === PaymentMethod.COD) {
         await tx.payment.update({
@@ -1392,34 +1383,19 @@ export class OrdersService {
       });
 
       await this.financeService.releaseEarningsOnDelivery(tx, id);
-      referralReward = await this.referralsService.rewardReferrerIfEligible(tx, {
+      // See the identical call in updateStatus() above — QUALIFIED only,
+      // reward/notification deferred to ReferralPayoutJob.
+      await this.referralsService.qualifyReferralIfEligible(tx, {
         id: result.id,
         customerId: result.customerId,
+        subtotal: result.subtotal,
+        walletCreditUsed: result.walletCreditUsed,
       });
 
       return result;
     });
 
     await this.clearOrderCache(id);
-
-    // Shared by both DELIVERED entry points that funnel through this
-    // method (confirmDelivery, autoConfirmDelivery) — one notification
-    // site covers both, no duplication needed. Best-effort: never allow a
-    // notification hiccup to fail an otherwise-successful delivery
-    // confirmation.
-    if (referralReward) {
-      try {
-        await this.notificationsService.sendNotification({
-          userId: referralReward.referrerId,
-          title: 'You earned a referral reward!',
-          message: `Your referred friend's first order was delivered — $${referralReward.rewardAmount.toFixed(2)} wallet credit has been added to your account.`,
-          type: NotificationEvent.REFERRAL_REWARD_EARNED,
-          sendEmail: false,
-        });
-      } catch (err) {
-        this.logger.error(`Failed to send referral reward notification: ${err}`);
-      }
-    }
 
     return confirmedOrder;
   }
