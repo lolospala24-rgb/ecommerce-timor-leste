@@ -33,4 +33,8 @@ export class UpdateReferralSettingsDto {
   @IsOptional()
   @Min(1)
   referralMonthlyCap?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  referralRequirePhoneVerification?: boolean;
 }

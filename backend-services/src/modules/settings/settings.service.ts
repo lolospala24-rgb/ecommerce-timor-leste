@@ -105,6 +105,10 @@ export class SettingsService {
       // Needed by the /terms#referral policy text ("{batas} kada fulan") —
       // no longer admin-only now that the public policy page states it.
       referralMonthlyCap: settings.referralMonthlyCap,
+      // Same sensitivity class as referralProgramEnabled — a plain
+      // boolean the storefront needs to decide whether to show phone
+      // verification prompts/copy at all.
+      referralRequirePhoneVerification: settings.referralRequirePhoneVerification,
     };
   }
 

@@ -27,6 +27,7 @@ describe('ReferralsService', () => {
     referralHoldDays: 7,
     referralMinQualifyingAmount: 5,
     referralMonthlyCap: 20,
+    referralRequirePhoneVerification: false,
   };
 
   beforeEach(async () => {
@@ -287,6 +288,70 @@ describe('ReferralsService', () => {
       expect(prisma.referral.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'REWARDED' }) }),
       );
+    });
+  });
+
+  // ==========================================================================
+  // referralRequirePhoneVerification gate (Phase 2, Section C):
+  // - flag false -> payout behaves exactly like Phase 1 (regression check)
+  // - flag true + friend unverified -> SKIPPED, nothing credited
+  // - flag true + friend verified -> pays out normally
+  // ==========================================================================
+  describe('payoutDueReferrals — phone verification gate', () => {
+    const referral = {
+      id: 8,
+      referrerId: 16,
+      referredUserId: 27,
+      status: 'QUALIFIED',
+      welcomeCreditAmount: 3,
+      welcomeCreditGrantedAt: null,
+      qualifyingOrderId: 800,
+    };
+
+    it('flag false: pays out exactly as Phase 1, regardless of phoneVerifiedAt', async () => {
+      prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
+      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { phoneVerifiedAt: null } });
+      prisma.user.update.mockResolvedValue({ walletCredit: 5 });
+      prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
+      prisma.referral.updateMany.mockResolvedValue({ count: 1 });
+      // baseSettings already has referralRequirePhoneVerification: false.
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 1, capped: 0, failed: 0 });
+    });
+
+    it('flag true + friend unverified: SKIPPED, nothing credited, referral untouched', async () => {
+      settingsService.getSettings.mockResolvedValue({ ...baseSettings, referralRequirePhoneVerification: true });
+      prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
+      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { phoneVerifiedAt: null } });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 0, capped: 0, failed: 0 });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.walletTransaction.create).not.toHaveBeenCalled();
+      expect(prisma.referral.updateMany).not.toHaveBeenCalled();
+      expect(prisma.referral.update).not.toHaveBeenCalled();
+      // Doesn't even bother checking for an open refund — the phone gate
+      // short-circuits first.
+      expect(prisma.refund.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('flag true + friend verified (next sweep after verification): pays out normally', async () => {
+      settingsService.getSettings.mockResolvedValue({ ...baseSettings, referralRequirePhoneVerification: true });
+      prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
+      prisma.referral.findUnique.mockResolvedValue({
+        ...referral,
+        referredUser: { phoneVerifiedAt: new Date('2026-10-20') },
+      });
+      prisma.user.update.mockResolvedValue({ walletCredit: 5 });
+      prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
+      prisma.referral.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 1, capped: 0, failed: 0 });
     });
   });
 

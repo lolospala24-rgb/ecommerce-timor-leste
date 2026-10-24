@@ -147,6 +147,10 @@ export class SystemSettingsDto {
   @Min(1)
   referralMonthlyCap?: number;
 
+  @IsBoolean()
+  @IsOptional()
+  referralRequirePhoneVerification?: boolean;
+
   @IsString()
   @IsOptional()
   bankName?: string;

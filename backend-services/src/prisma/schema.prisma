@@ -128,6 +128,17 @@ model User {
   referredById Int?
   walletCredit Float   @default(0)
 
+  // Phone verification (SystemSettings.referralRequirePhoneVerification
+  // gate) — deliberately separate from the freeform `phone` field above,
+  // which a user can edit anytime for unrelated contact-info reasons.
+  // verifiedPhone is only ever written by PhoneVerificationService after a
+  // successful OTP check, and nothing else ever touches it. A nullable
+  // `@unique` column allows unlimited NULLs (standard SQL semantics) —
+  // exactly "verified numbers must be unique, unverified ones
+  // unrestricted" with no extra modeling needed.
+  verifiedPhone   String?   @unique
+  phoneVerifiedAt DateTime?
+
   // Relations
   seller          Seller?
   customerAddress Address[]
@@ -155,9 +166,32 @@ model User {
   referralsGiven     Referral[]          @relation("ReferralReferrer")
   referralReceived   Referral?           @relation("ReferralReferredUser")
   walletTransactions WalletTransaction[]
+  phoneVerificationCodes PhoneVerificationCode[]
 
   @@index([referredById])
   @@map("users")
+}
+
+// One row per issued OTP code — the row itself is the audit trail /
+// attempt counter, not just a transient cache entry (send-rate-limiting
+// lives in Redis instead, see PhoneVerificationService). `phone` is the
+// E.164 number being verified, which may differ from User.phone (the
+// freeform contact field) and is only promoted to User.verifiedPhone once
+// this code is actually confirmed.
+model PhoneVerificationCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("phone_verification_codes")
 }
 
 model Seller {
@@ -1686,6 +1720,12 @@ model SystemSettings {
   // Max referrals a single referrer can have REWARDED within one calendar
   // month (Asia/Dili) — see ReferralMonthlyRewardCount.
   referralMonthlyCap          Int   @default(20)
+  // Default false: Phase 1 payout behavior is completely unchanged until
+  // an admin opts in. When true, ReferralPayoutJob additionally requires
+  // the referred user to have a verified phone (User.phoneVerifiedAt) —
+  // see ReferralsService.payoutOne's doc-comment. The referrer's own
+  // phone is never checked.
+  referralRequirePhoneVerification Boolean @default(false)
 
   bankName                 String?
   bankAccountName          String?

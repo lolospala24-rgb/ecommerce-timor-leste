@@ -210,11 +210,23 @@ export class ReferralsService {
 
   private async payoutOne(
     referralId: number,
-    settings: { referralRewardAmount: unknown; referralMonthlyCap: unknown },
+    settings: { referralRewardAmount: unknown; referralMonthlyCap: unknown; referralRequirePhoneVerification: unknown },
   ): Promise<PayoutOutcome> {
     return this.prisma.$transaction(async (tx) => {
-      const referral = await tx.referral.findUnique({ where: { id: referralId } });
+      const referral = await tx.referral.findUnique({
+        where: { id: referralId },
+        include: { referredUser: { select: { phoneVerifiedAt: true } } },
+      });
       if (!referral || (referral.status !== ReferralStatus.QUALIFIED && referral.status !== ReferralStatus.CAPPED)) {
+        return { kind: 'SKIPPED' };
+      }
+
+      // Default false — Phase 1 behavior is completely unchanged unless an
+      // admin opts in. Only the referred user's phone matters here; the
+      // referrer is never required to verify anything. Checked before the
+      // open-refund gate below purely for cost (no DB round trip needed
+      // when this already short-circuits), order doesn't matter otherwise.
+      if (Boolean(settings.referralRequirePhoneVerification) && !referral.referredUser.phoneVerifiedAt) {
         return { kind: 'SKIPPED' };
       }
 
@@ -609,7 +621,7 @@ export class ReferralsService {
     const [items, total] = await Promise.all([
       this.prisma.referral.findMany({
         where: { referrerId: userId },
-        include: { referredUser: { select: { id: true, name: true, email: true } } },
+        include: { referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -626,7 +638,7 @@ export class ReferralsService {
       where: { id: referralId, OR: [{ referrerId: userId }, { referredUserId: userId }] },
       include: {
         referrer: { select: { id: true, name: true } },
-        referredUser: { select: { id: true, name: true } },
+        referredUser: { select: { id: true, name: true, phoneVerifiedAt: true } },
         qualifyingOrder: { select: { id: true, orderNumber: true, total: true, status: true, deliveredAt: true } },
       },
     });
@@ -667,7 +679,7 @@ export class ReferralsService {
         where,
         include: {
           referrer: { select: { id: true, name: true, email: true } },
-          referredUser: { select: { id: true, name: true, email: true } },
+          referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } },
           qualifyingOrder: { select: { id: true, orderNumber: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -684,7 +696,7 @@ export class ReferralsService {
       where: { id },
       include: {
         referrer: { select: { id: true, name: true, email: true } },
-        referredUser: { select: { id: true, name: true, email: true } },
+        referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } },
         qualifyingOrder: {
           select: { id: true, orderNumber: true, subtotal: true, total: true, paymentMethod: true, status: true, deliveredAt: true },
         },
@@ -723,6 +735,7 @@ export class ReferralsService {
       referralHoldDays: settings.referralHoldDays,
       referralMinQualifyingAmount: settings.referralMinQualifyingAmount,
       referralMonthlyCap: settings.referralMonthlyCap,
+      referralRequirePhoneVerification: settings.referralRequirePhoneVerification,
     };
   }
 
