@@ -55,6 +55,16 @@ describe('ReferralsService', () => {
         upsert: jest.fn().mockResolvedValue({}),
         updateMany: jest.fn(),
       },
+      order: {
+        findUnique: jest.fn(),
+      },
+      refund: {
+        // Default: no open refund blocking a payout, and no approved
+        // refunds reducing the order's net-paid amount. Individual tests
+        // override either as needed.
+        findFirst: jest.fn().mockResolvedValue(null),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      },
       $transaction: jest.fn(async (callback: any) => callback(prisma)),
     };
 
@@ -229,6 +239,58 @@ describe('ReferralsService', () => {
   });
 
   // ==========================================================================
+  // 1. A QUALIFIED referral with an open (PENDING) refund on its
+  //    qualifying order -> the job does not pay it out
+  // 2. That refund is later REJECTED -> the next sweep pays it out normally
+  // ==========================================================================
+  describe('payoutDueReferrals — open refund on the qualifying order', () => {
+    const referral = {
+      id: 7,
+      referrerId: 15,
+      referredUserId: 26,
+      status: 'QUALIFIED',
+      welcomeCreditAmount: 3,
+      welcomeCreditGrantedAt: null,
+      qualifyingOrderId: 700,
+    };
+
+    it('skips a referral whose qualifying order has a PENDING refund request', async () => {
+      prisma.referral.findMany.mockResolvedValue([{ id: 7 }]);
+      prisma.referral.findUnique.mockResolvedValue(referral);
+      prisma.refund.findFirst.mockResolvedValue({ id: 99 }); // an open refund exists
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 0, capped: 0, failed: 0 });
+      expect(prisma.refund.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { orderId: 700, status: 'PENDING' } }),
+      );
+      // Nothing credited, nothing flipped, nothing touched — left exactly
+      // as it was for the next sweep to re-check.
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.walletTransaction.create).not.toHaveBeenCalled();
+      expect(prisma.referral.updateMany).not.toHaveBeenCalled();
+      expect(prisma.referral.update).not.toHaveBeenCalled();
+    });
+
+    it('pays out normally once the refund is no longer open (e.g. rejected)', async () => {
+      prisma.referral.findMany.mockResolvedValue([{ id: 7 }]);
+      prisma.referral.findUnique.mockResolvedValue(referral);
+      prisma.refund.findFirst.mockResolvedValue(null); // rejected/resolved — no longer PENDING
+      prisma.user.update.mockResolvedValue({ walletCredit: 5 });
+      prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
+      prisma.referral.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 1, capped: 0, failed: 0 });
+      expect(prisma.referral.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'REWARDED' }) }),
+      );
+    });
+  });
+
+  // ==========================================================================
   // 7. Monthly cap: the 21st reward in one month -> CAPPED, the friend
   //    still gets their credit; it pays out the following month
   // ==========================================================================
@@ -333,15 +395,24 @@ describe('ReferralsService', () => {
 
   // ==========================================================================
   // 3. Refund during the hold period -> back to PENDING, no credit
+  // 5/9. Partial refunds -> net-paid amount recomputed cumulatively
+  // 7. Two small partial refunds that together cross the threshold
+  // 8. A partial refund that still leaves net-paid >= minimum -> no change
+  // 10. CAPPED -> PENDING claws back the friend's already-granted credit
   // ==========================================================================
-  describe('reverseReferralForRefundedOrder — during hold period', () => {
-    it('reverts a QUALIFIED referral to PENDING and clears the qualifying order, without touching any wallet', async () => {
-      prisma.referral.findFirst.mockResolvedValue({ id: 1, status: 'QUALIFIED', referrerId: 10, referredUserId: 20, rewardAmount: null, welcomeCreditAmount: 3 });
+  describe('reconcileReferralAfterRefund — during hold period (QUALIFIED/CAPPED)', () => {
+    it('reverts a QUALIFIED referral to PENDING when a full refund drops net-paid below the minimum, without touching any wallet (nothing was ever granted)', async () => {
+      prisma.referral.findFirst.mockResolvedValue({
+        id: 1, status: 'QUALIFIED', referrerId: 10, referredUserId: 20,
+        rewardAmount: null, welcomeCreditAmount: 3, welcomeCreditGrantedAt: null,
+      });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 20 } }); // full refund
       prisma.referral.updateMany.mockResolvedValue({ count: 1 });
 
-      const outcome = await service.reverseReferralForRefundedOrder(prisma, 555);
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
 
-      expect(outcome).toEqual({ kind: 'REVERTED_TO_PENDING' });
+      expect(outcome).toEqual({ kind: 'REVERTED_TO_PENDING', welcomeCreditClawedBack: false, referredUserId: 20, welcomeCreditAmount: 3 });
       expect(prisma.referral.updateMany).toHaveBeenCalledWith({
         where: { id: 1, status: 'QUALIFIED' },
         data: { status: 'PENDING', qualifyingOrderId: null, qualifiedAt: null },
@@ -350,20 +421,72 @@ describe('ReferralsService', () => {
       expect(prisma.walletTransaction.create).not.toHaveBeenCalled();
     });
 
-    it('reverts a CAPPED referral to PENDING the same way', async () => {
-      prisma.referral.findFirst.mockResolvedValue({ id: 1, status: 'CAPPED', referrerId: 10, referredUserId: 20, rewardAmount: null, welcomeCreditAmount: 3 });
+    it('does NOT revert when a partial refund still leaves net-paid at/above the minimum', async () => {
+      prisma.referral.findFirst.mockResolvedValue({
+        id: 1, status: 'QUALIFIED', referrerId: 10, referredUserId: 20,
+        rewardAmount: null, welcomeCreditAmount: 3, welcomeCreditGrantedAt: null,
+      });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 5 } }); // net-paid = 15, still >= $5
+
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
+
+      expect(outcome).toBeNull();
+      expect(prisma.referral.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('detects two small partial refunds that together cross the threshold (cumulative aggregate)', async () => {
+      prisma.referral.findFirst.mockResolvedValue({
+        id: 1, status: 'QUALIFIED', referrerId: 10, referredUserId: 20,
+        rewardAmount: null, welcomeCreditAmount: 3, welcomeCreditGrantedAt: null,
+      });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
       prisma.referral.updateMany.mockResolvedValue({ count: 1 });
 
-      const outcome = await service.reverseReferralForRefundedOrder(prisma, 555);
+      // First partial refund approved: $2 so far -> net-paid $18, fine.
+      prisma.refund.aggregate.mockResolvedValueOnce({ _sum: { amount: 2 } });
+      const first = await service.reconcileReferralAfterRefund(prisma, 555);
+      expect(first).toBeNull();
+      expect(prisma.referral.updateMany).not.toHaveBeenCalled();
 
-      expect(outcome).toEqual({ kind: 'REVERTED_TO_PENDING' });
-      expect(prisma.user.update).not.toHaveBeenCalled();
+      // Second partial refund approved: $17 cumulative -> net-paid $3, now below $5.
+      prisma.refund.aggregate.mockResolvedValueOnce({ _sum: { amount: 17 } });
+      const second = await service.reconcileReferralAfterRefund(prisma, 555);
+      expect(second?.kind).toBe('REVERTED_TO_PENDING');
+      expect(prisma.referral.updateMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('claws back the friend\'s already-granted welcome credit when a CAPPED referral reverts to PENDING, and clears welcomeCreditGrantedAt', async () => {
+      prisma.referral.findFirst.mockResolvedValue({
+        id: 1, status: 'CAPPED', referrerId: 10, referredUserId: 20,
+        rewardAmount: null, welcomeCreditAmount: 3, welcomeCreditGrantedAt: new Date('2026-09-01'),
+      });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 20 } });
+      prisma.referral.updateMany.mockResolvedValue({ count: 1 });
+      prisma.user.update.mockResolvedValue({ walletCredit: -3 });
+
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
+
+      expect(outcome).toEqual({ kind: 'REVERTED_TO_PENDING', welcomeCreditClawedBack: true, referredUserId: 20, welcomeCreditAmount: 3 });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 20 },
+        data: { walletCredit: { decrement: 3 } },
+        select: { walletCredit: true },
+      });
+      expect(prisma.walletTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ userId: 20, type: 'REFERRAL_REWARD_REVERSED', amount: -3 }) }),
+      );
+      // Cleared so the friend can honestly re-earn it on a later order.
+      expect(prisma.referral.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { welcomeCreditGrantedAt: null } });
+      // No monthly-cap counter touched — CAPPED never reserved a slot to begin with.
+      expect(prisma.referralMonthlyRewardCount.updateMany).not.toHaveBeenCalled();
     });
 
     it('does nothing for an order with no matching referral', async () => {
       prisma.referral.findFirst.mockResolvedValue(null);
 
-      const outcome = await service.reverseReferralForRefundedOrder(prisma, 999);
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 999);
 
       expect(outcome).toBeNull();
       expect(prisma.referral.updateMany).not.toHaveBeenCalled();
@@ -371,12 +494,12 @@ describe('ReferralsService', () => {
   });
 
   // ==========================================================================
-  // 4. Refund after REWARDED -> REVERSED, clawed back from both sides,
-  //    balance allowed to go negative
+  // 4/6. Refund drops net-paid below minimum after REWARDED -> REVERSED,
+  //      clawed back from both sides, balance allowed to go negative
   //
-  // 5. The same refund processed twice -> clawback happens only once
+  // 9. The same refund processed twice -> clawback happens only once
   // ==========================================================================
-  describe('reverseReferralForRefundedOrder — clawback after REWARDED', () => {
+  describe('reconcileReferralAfterRefund — clawback after REWARDED', () => {
     const rewardedReferral = {
       id: 1,
       status: 'REWARDED',
@@ -384,16 +507,19 @@ describe('ReferralsService', () => {
       referredUserId: 20,
       rewardAmount: 5,
       welcomeCreditAmount: 3,
+      welcomeCreditGrantedAt: new Date('2026-09-01'),
     };
 
-    it('claws back the reward from the referrer and the welcome credit from the friend, allowing a negative balance', async () => {
+    it('claws back the reward from the referrer and the welcome credit from the friend when a (full) refund drops net-paid below the minimum, allowing a negative balance', async () => {
       prisma.referral.findFirst.mockResolvedValue({ ...rewardedReferral });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 20 } });
       prisma.referral.updateMany.mockResolvedValue({ count: 1 });
       prisma.user.update
         .mockResolvedValueOnce({ walletCredit: -5 }) // referrer, now negative
         .mockResolvedValueOnce({ walletCredit: -3 }); // friend, now negative
 
-      const outcome = await service.reverseReferralForRefundedOrder(prisma, 555);
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
 
       expect(outcome).toEqual({ kind: 'REVERSED', referrerId: 10, referredUserId: 20, rewardAmount: 5, welcomeCreditAmount: 3 });
       expect(prisma.referral.updateMany).toHaveBeenCalledWith(
@@ -418,13 +544,27 @@ describe('ReferralsService', () => {
       );
     });
 
+    it('does NOT claw back a REWARDED referral when a partial refund still leaves net-paid at/above the minimum', async () => {
+      prisma.referral.findFirst.mockResolvedValue({ ...rewardedReferral });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 5 } }); // net-paid = 15
+
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
+
+      expect(outcome).toBeNull();
+      expect(prisma.referral.updateMany).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
     it('processing the same refund twice only claws back once', async () => {
       prisma.referral.findFirst.mockResolvedValue({ ...rewardedReferral });
+      prisma.order.findUnique.mockResolvedValue({ subtotal: 20, walletCreditUsed: 0 });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 20 } });
       prisma.user.update.mockResolvedValue({ walletCredit: -5 });
       // First call: the atomic guard succeeds (status really is REWARDED).
       prisma.referral.updateMany.mockResolvedValueOnce({ count: 1 });
 
-      const first = await service.reverseReferralForRefundedOrder(prisma, 555);
+      const first = await service.reconcileReferralAfterRefund(prisma, 555);
       expect(first?.kind).toBe('REVERSED');
       expect(prisma.user.update).toHaveBeenCalledTimes(2);
 
@@ -433,7 +573,7 @@ describe('ReferralsService', () => {
       // because the real status is already REVERSED from the first call.
       prisma.referral.updateMany.mockResolvedValueOnce({ count: 0 });
 
-      const second = await service.reverseReferralForRefundedOrder(prisma, 555);
+      const second = await service.reconcileReferralAfterRefund(prisma, 555);
       expect(second).toBeNull();
       // No additional wallet mutations from the second attempt.
       expect(prisma.user.update).toHaveBeenCalledTimes(2);
@@ -442,7 +582,7 @@ describe('ReferralsService', () => {
     it('does nothing for a referral that is already REVERSED or still PENDING', async () => {
       prisma.referral.findFirst.mockResolvedValue({ id: 1, status: 'REVERSED', referrerId: 10, referredUserId: 20, rewardAmount: 5, welcomeCreditAmount: 3 });
 
-      const outcome = await service.reverseReferralForRefundedOrder(prisma, 555);
+      const outcome = await service.reconcileReferralAfterRefund(prisma, 555);
 
       expect(outcome).toBeNull();
       expect(prisma.referral.updateMany).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, ReferralStatus } from '@prisma/client';
+import { Prisma, ReferralStatus, RefundStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -218,6 +218,31 @@ export class ReferralsService {
         return { kind: 'SKIPPED' };
       }
 
+      // Don't pay out while the qualifying order has an open refund
+      // request — PENDING is the only non-final RefundStatus (APPROVED
+      // and REJECTED are both terminal), so this is "is there a refund
+      // decision still pending". Queried inside this same transaction so
+      // a refund request created concurrently can't race past this check
+      // (MySQL/InnoDB's REPEATABLE READ snapshot means a refund committed
+      // by another transaction after this one's first read is simply not
+      // visible here regardless of when within this transaction it's
+      // checked — the only way to defeat this would be a request landing
+      // in the sub-millisecond window before this transaction's first
+      // statement, which isn't worth engineering around). Without this
+      // check, a customer could request a refund on day 6 (still inside
+      // RefundsService.REFUND_WINDOW_DAYS), have the job pay out on day 7
+      // before an admin decides, and then see a clawback — and a negative
+      // balance — land right after.
+      if (referral.qualifyingOrderId != null) {
+        const openRefund = await tx.refund.findFirst({
+          where: { orderId: referral.qualifyingOrderId, status: RefundStatus.PENDING },
+          select: { id: true },
+        });
+        if (openRefund) {
+          return { kind: 'SKIPPED' };
+        }
+      }
+
       // Friend's welcome credit is granted the FIRST time this referral is
       // processed here, regardless of whether the referrer ends up
       // REWARDED or CAPPED below — see ReferralStatus.CAPPED doc-comment
@@ -333,19 +358,36 @@ export class ReferralsService {
   }
 
   // ==========================================================================
-  // Refund-time (full refunds only — see RefundsService.approveRefund):
-  // either un-qualify a referral still waiting out its hold period, or
-  // claw back one that already paid out. Returns data for the caller to
-  // notify with AFTER its own transaction commits — this never sends
+  // Refund-time — called from RefundsService.approveRefund for EVERY
+  // approved refund, full or partial (not just full ones). Recomputes
+  // "amount actually paid" the same way qualifyReferralIfEligible computed
+  // it originally (subtotal - walletCreditUsed), minus every APPROVED
+  // refund issued against this order so far (cumulative, so two small
+  // partial refunds that together cross the threshold are caught on the
+  // second one). If that's still at/above the minimum, nothing happens —
+  // a partial refund that doesn't actually threaten the qualifying amount
+  // shouldn't touch the referral at all. Below the minimum, either
+  // un-qualifies a referral still waiting out its hold period, or claws
+  // back one that already paid out. Returns data for the caller to notify
+  // with AFTER its own transaction commits — this never sends
   // notifications itself, matching the rest of this service.
+  //
+  // Note: Refund.amount is whatever the admin/customer specified for a
+  // partial refund — this system doesn't track a separate
+  // product-vs-shipping split within it, so a partial refund that happens
+  // to include a shipping adjustment is counted in full here too. That's
+  // a deliberate, disclosed simplification (there's no more granular data
+  // to work from), and it biases conservative — if anything it triggers a
+  // revert/clawback slightly more readily than a stricter product-only
+  // split would, never less.
   // ==========================================================================
 
-  async reverseReferralForRefundedOrder(
+  async reconcileReferralAfterRefund(
     tx: Prisma.TransactionClient,
     orderId: number,
   ): Promise<
     | null
-    | { kind: 'REVERTED_TO_PENDING' }
+    | { kind: 'REVERTED_TO_PENDING'; welcomeCreditClawedBack: boolean; referredUserId: number; welcomeCreditAmount: number }
     | { kind: 'REVERSED'; referrerId: number; referredUserId: number; rewardAmount: number; welcomeCreditAmount: number }
   > {
     // qualifyingOrderId isn't unique at the schema level (it's only ever
@@ -355,81 +397,138 @@ export class ReferralsService {
     // this column to back a findUnique).
     const referral = await tx.referral.findFirst({ where: { qualifyingOrderId: orderId } });
     if (!referral) return null;
+    if (referral.status !== ReferralStatus.QUALIFIED && referral.status !== ReferralStatus.CAPPED && referral.status !== ReferralStatus.REWARDED) {
+      return null; // PENDING, or already REVERSED — nothing to reconcile.
+    }
+
+    const order = await tx.order.findUnique({ where: { id: orderId }, select: { subtotal: true, walletCreditUsed: true } });
+    if (!order) return null;
+
+    const refundedSoFar = await tx.refund.aggregate({
+      where: { orderId, status: RefundStatus.APPROVED },
+      _sum: { amount: true },
+    });
+    const netPaid = round2(order.subtotal - order.walletCreditUsed - (refundedSoFar._sum.amount ?? 0));
+
+    const settings = await this.settingsService.getSettings();
+    const minAmount = Number(settings.referralMinQualifyingAmount ?? 0);
+    if (netPaid >= minAmount) {
+      // Still clears the bar even after this refund — a partial refund
+      // that doesn't actually threaten the qualifying amount leaves the
+      // referral exactly as it was.
+      return null;
+    }
 
     if (referral.status === ReferralStatus.QUALIFIED || referral.status === ReferralStatus.CAPPED) {
       const reverted = await tx.referral.updateMany({
         where: { id: referral.id, status: referral.status },
         data: { status: ReferralStatus.PENDING, qualifyingOrderId: null, qualifiedAt: null },
       });
-      return reverted.count > 0 ? { kind: 'REVERTED_TO_PENDING' } : null;
-    }
+      if (reverted.count === 0) return null;
 
-    if (referral.status === ReferralStatus.REWARDED) {
-      // Atomic idempotency gate — the same refund approved twice (or two
-      // different refunds somehow both resolving to this order) only
-      // claws back once, since the second attempt finds status is no
-      // longer REWARDED.
-      const flip = await tx.referral.updateMany({
-        where: { id: referral.id, status: ReferralStatus.REWARDED },
-        data: { status: ReferralStatus.REVERSED, reversedAt: new Date() },
-      });
-      if (flip.count === 0) return null;
-
-      const rewardAmount = referral.rewardAmount ?? 0;
-      const welcomeCreditAmount = referral.welcomeCreditAmount;
-
-      // Deliberately NOT the `gte`-guarded decrement debitWalletForCheckout
-      // uses — a clawback must succeed even if it pushes the balance
-      // negative (the money was already spent or withdrawn in good faith;
-      // see the plan's explicit "saldo boleh negatif" policy).
-      if (rewardAmount > 0) {
-        const updatedReferrer = await tx.user.update({
-          where: { id: referral.referrerId },
-          data: { walletCredit: { decrement: rewardAmount } },
-          select: { walletCredit: true },
-        });
-        await tx.walletTransaction.create({
-          data: {
-            userId: referral.referrerId,
-            type: 'REFERRAL_REWARD_REVERSED',
-            amount: -rewardAmount,
-            balanceAfter: updatedReferrer.walletCredit,
-            referralId: referral.id,
-            orderId,
-            note: `Referral reward reversed — order #${orderId} was fully refunded`,
-          },
-        });
-      }
-      if (welcomeCreditAmount > 0) {
+      // A CAPPED referral (and any older, pre-Phase-1 referral backfilled
+      // with welcomeCreditGrantedAt already set) may have already
+      // credited the friend's welcome bonus even though the referrer was
+      // never paid — see payoutOne's doc-comment on why those two are
+      // decoupled. Claw that back too, and clear the grant marker so it
+      // can be honestly re-earned via a later qualifying order instead of
+      // being lost forever.
+      let welcomeCreditClawedBack = false;
+      if (referral.welcomeCreditGrantedAt && referral.welcomeCreditAmount > 0) {
         const updatedFriend = await tx.user.update({
           where: { id: referral.referredUserId },
-          data: { walletCredit: { decrement: welcomeCreditAmount } },
+          data: { walletCredit: { decrement: referral.welcomeCreditAmount } },
           select: { walletCredit: true },
         });
         await tx.walletTransaction.create({
           data: {
             userId: referral.referredUserId,
             type: 'REFERRAL_REWARD_REVERSED',
-            amount: -welcomeCreditAmount,
+            amount: -referral.welcomeCreditAmount,
             balanceAfter: updatedFriend.walletCredit,
             referralId: referral.id,
             orderId,
-            note: `Referral welcome credit reversed — order #${orderId} was fully refunded`,
+            note: `Referral welcome credit reversed — order #${orderId} no longer meets the minimum after refund`,
           },
         });
+        await tx.referral.update({ where: { id: referral.id }, data: { welcomeCreditGrantedAt: null } });
+        welcomeCreditClawedBack = true;
       }
 
+      // No monthly-cap slot to return here even for a CAPPED referral —
+      // CAPPED means the slot reservation attempt already FAILED (that's
+      // the definition of CAPPED in payoutOne), so none was ever held.
+
       return {
-        kind: 'REVERSED',
-        referrerId: referral.referrerId,
+        kind: 'REVERTED_TO_PENDING',
+        welcomeCreditClawedBack,
         referredUserId: referral.referredUserId,
-        rewardAmount,
-        welcomeCreditAmount,
+        welcomeCreditAmount: referral.welcomeCreditAmount,
       };
     }
 
-    // PENDING or already REVERSED — nothing to do.
-    return null;
+    // REWARDED -> REVERSED.
+    // Atomic idempotency gate — the same refund approved twice (or two
+    // different refunds somehow both resolving to this order) only claws
+    // back once, since a second attempt finds status is no longer
+    // REWARDED.
+    const flip = await tx.referral.updateMany({
+      where: { id: referral.id, status: ReferralStatus.REWARDED },
+      data: { status: ReferralStatus.REVERSED, reversedAt: new Date() },
+    });
+    if (flip.count === 0) return null;
+
+    const rewardAmount = referral.rewardAmount ?? 0;
+    const welcomeCreditAmount = referral.welcomeCreditAmount;
+
+    // Deliberately NOT the `gte`-guarded decrement debitWalletForCheckout
+    // uses — a clawback must succeed even if it pushes the balance
+    // negative (the money was already spent or withdrawn in good faith;
+    // see the plan's explicit "saldo boleh negatif" policy).
+    if (rewardAmount > 0) {
+      const updatedReferrer = await tx.user.update({
+        where: { id: referral.referrerId },
+        data: { walletCredit: { decrement: rewardAmount } },
+        select: { walletCredit: true },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          userId: referral.referrerId,
+          type: 'REFERRAL_REWARD_REVERSED',
+          amount: -rewardAmount,
+          balanceAfter: updatedReferrer.walletCredit,
+          referralId: referral.id,
+          orderId,
+          note: `Referral reward reversed — order #${orderId} no longer meets the minimum after refund`,
+        },
+      });
+    }
+    if (welcomeCreditAmount > 0) {
+      const updatedFriend = await tx.user.update({
+        where: { id: referral.referredUserId },
+        data: { walletCredit: { decrement: welcomeCreditAmount } },
+        select: { walletCredit: true },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          userId: referral.referredUserId,
+          type: 'REFERRAL_REWARD_REVERSED',
+          amount: -welcomeCreditAmount,
+          balanceAfter: updatedFriend.walletCredit,
+          referralId: referral.id,
+          orderId,
+          note: `Referral welcome credit reversed — order #${orderId} no longer meets the minimum after refund`,
+        },
+      });
+    }
+
+    return {
+      kind: 'REVERSED',
+      referrerId: referral.referrerId,
+      referredUserId: referral.referredUserId,
+      rewardAmount,
+      welcomeCreditAmount,
+    };
   }
 
   // ==========================================================================
