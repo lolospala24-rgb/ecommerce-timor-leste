@@ -3,6 +3,11 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
+# playwright is a devDependency used for local/CI E2E testing only — this
+# image never runs it, and its postinstall otherwise downloads ~300MB of
+# browser binaries during npm ci, which has been causing slow/unreliable
+# builds.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
 
 FROM node:20-alpine AS build
