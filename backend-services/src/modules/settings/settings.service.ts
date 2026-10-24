@@ -131,6 +131,19 @@ export class SettingsService {
     return this.getAdminSettings();
   }
 
+  // Server-controlled only — never part of SystemSettingsDto, so there's
+  // no path for an admin request body to set this directly. Called by
+  // ReferralsService.updateReferralSettings exactly on a false->true
+  // transition of referralRequirePhoneVerification.
+  async setReferralPhoneVerificationRequiredSince(date: Date): Promise<void> {
+    const current = await this.getSettings();
+    await this.prisma.systemSettings.update({
+      where: { id: current.id },
+      data: { referralPhoneVerificationRequiredSince: date },
+    });
+    await this.redisService.del(SETTINGS_CACHE_KEY);
+  }
+
   async uploadLogo(file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('No file uploaded');

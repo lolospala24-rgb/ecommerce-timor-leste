@@ -1,18 +1,26 @@
 import { randomInt } from 'crypto';
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { SmsProvider, SMS_PROVIDER } from '../../common/sms/sms-provider.interface';
 import { normalizeToTimorE164 } from '../../common/utils/phone.util';
 import { hashPassword, comparePassword } from '../../common/utils/bcrypt.util';
+import { diliDayKey, startOfDiliDay, startOfDiliMonth } from '../../common/utils/timezone.util';
 
 const CODE_LENGTH = 6;
 const CODE_TTL_MINUTES = 5;
 const MAX_VERIFY_ATTEMPTS = 5;
-const SEND_COOLDOWN_SECONDS = 60;
-const MAX_SENDS_PER_DAY = 5;
 const ONE_DAY_SECONDS = 24 * 60 * 60;
+
+const MAX_SENDS_PER_PHONE_PER_DAY = 5;
+const MAX_SENDS_PER_USER_PER_DAY = 5;
+// Looser than per-phone/per-user — a shared-NAT IP can legitimately
+// represent several real users, so this exists purely as a backstop
+// against gross abuse from one source, not as a tight per-identity limit.
+const MAX_SENDS_PER_IP_PER_DAY = 10;
+const DEFAULT_SMS_DAILY_GLOBAL_CAP = 200;
 
 // One message for every "can't send you a code right now" reason (phone
 // already verified on another account, or any rate limit hit) — a caller
@@ -21,20 +29,42 @@ const ONE_DAY_SECONDS = 24 * 60 * 60;
 // which phone numbers are already registered.
 const SEND_REJECTED_MESSAGE =
   "This phone number can't be verified right now. Please try again later or use a different number.";
+const GLOBAL_CAP_MESSAGE = 'Servisu verifikasaun okupadu, koko fali aban.';
+
+// e.g. "+67077123456" -> "+67077****56" — keeps enough to be useful for
+// a support conversation ("a number ending in 56") without retaining a
+// full number in SmsLog, which exists purely for cost/usage visibility,
+// not for contacting anyone.
+function maskPhone(e164: string): string {
+  if (e164.length < 8) return '****';
+  return `${e164.slice(0, 6)}****${e164.slice(-2)}`;
+}
 
 @Injectable()
 export class PhoneVerificationService {
+  private readonly logger = new Logger(PhoneVerificationService.name);
+
   constructor(
     private prisma: PrismaService,
     private redisService: RedisService,
+    private configService: ConfigService,
     @Inject(SMS_PROVIDER) private smsProvider: SmsProvider,
   ) {}
 
-  async requestCode(userId: number, rawPhone: string): Promise<void> {
-    const phone = normalizeToTimorE164(rawPhone);
-    if (!phone) {
-      throw new BadRequestException('Please provide a valid Timor-Leste mobile number.');
+  async requestCode(userId: number, rawPhone: string, clientIp: string): Promise<void> {
+    const normalized = normalizeToTimorE164(rawPhone);
+    // Explicit `=== false` (not `!normalized.ok`) — this project's
+    // tsconfig has strictNullChecks off, which makes TS's discriminated-
+    // union narrowing unreliable through negation/implicit-else; an
+    // explicit literal comparison narrows correctly regardless.
+    if (normalized.ok === false) {
+      throw new BadRequestException(
+        normalized.reason === 'TOO_SHORT'
+          ? 'Numeru seluler tenke 8 dígitu.'
+          : 'Please provide a valid Timor-Leste mobile number.',
+      );
     }
+    const phone = normalized.phone;
 
     const existingOwner = await this.prisma.user.findUnique({
       where: { verifiedPhone: phone },
@@ -44,20 +74,31 @@ export class PhoneVerificationService {
       throw new BadRequestException(SEND_REJECTED_MESSAGE);
     }
 
-    const cooldownKey = `phone_otp_cooldown:${phone}`;
-    if (await this.redisService.get(cooldownKey)) {
-      throw new BadRequestException(SEND_REJECTED_MESSAGE);
-    }
-
-    const dailyPhoneKey = `phone_otp_daily:${phone}`;
-    const dailyUserKey = `phone_otp_daily_user:${userId}`;
-    const [phoneSendsToday, userSendsToday] = await Promise.all([
-      this.redisService.get(dailyPhoneKey),
-      this.redisService.get(dailyUserKey),
+    // Atomic fixed-window counters — see RedisService.incrWithWindow's
+    // doc-comment for why this matters here specifically (real carrier
+    // cost per message, unlike the plain get+set pattern used for
+    // lower-stakes lockout counters elsewhere). The 60s-window phone
+    // counter doubles as the old separate "cooldown" check: count > 1
+    // within that window already means "sent too recently".
+    const [phoneWindowCount, phoneDailyCount, userDailyCount, ipDailyCount, globalDailyCount] = await Promise.all([
+      this.redisService.incrWithWindow(`phone_otp_cooldown:${phone}`, 60),
+      this.redisService.incrWithWindow(`phone_otp_daily:${phone}:${diliDayKey()}`, ONE_DAY_SECONDS),
+      this.redisService.incrWithWindow(`phone_otp_daily_user:${userId}:${diliDayKey()}`, ONE_DAY_SECONDS),
+      this.redisService.incrWithWindow(`phone_otp_daily_ip:${clientIp}:${diliDayKey()}`, ONE_DAY_SECONDS),
+      this.redisService.incrWithWindow(`sms_global_daily:${diliDayKey()}`, ONE_DAY_SECONDS),
     ]);
-    const phoneCount = parseInt(phoneSendsToday || '0', 10);
-    const userCount = parseInt(userSendsToday || '0', 10);
-    if (phoneCount >= MAX_SENDS_PER_DAY || userCount >= MAX_SENDS_PER_DAY) {
+
+    const globalCap = Number(this.configService.get('SMS_DAILY_GLOBAL_CAP') ?? DEFAULT_SMS_DAILY_GLOBAL_CAP);
+    if (globalDailyCount > globalCap) {
+      this.logger.warn(`SMS global daily cap (${globalCap}) reached — rejecting further OTP sends today.`);
+      throw new BadRequestException(GLOBAL_CAP_MESSAGE);
+    }
+    if (
+      phoneWindowCount > 1 ||
+      phoneDailyCount > MAX_SENDS_PER_PHONE_PER_DAY ||
+      userDailyCount > MAX_SENDS_PER_USER_PER_DAY ||
+      ipDailyCount > MAX_SENDS_PER_IP_PER_DAY
+    ) {
       throw new BadRequestException(SEND_REJECTED_MESSAGE);
     }
 
@@ -69,18 +110,20 @@ export class PhoneVerificationService {
       data: { userId, phone, codeHash, expiresAt },
     });
 
-    await this.smsProvider.sendSms(
-      phone,
-      `Your Lolospala verification code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes.`,
-    );
+    const message = `LOLOSPALA: Ita-nia kodigu verifikasaun mak ${code}. Validu minutu ${CODE_TTL_MINUTES}. Labele fahe ba ema seluk.`;
 
-    // Rate-limit bookkeeping only after a successful send — a failed SMS
-    // provider call shouldn't burn the user's quota.
-    await Promise.all([
-      this.redisService.set(cooldownKey, '1', SEND_COOLDOWN_SECONDS),
-      this.redisService.set(dailyPhoneKey, String(phoneCount + 1), ONE_DAY_SECONDS),
-      this.redisService.set(dailyUserKey, String(userCount + 1), ONE_DAY_SECONDS),
-    ]);
+    try {
+      await this.smsProvider.sendSms(phone, message);
+    } catch (error) {
+      await this.prisma.smsLog.create({
+        data: { userId, phoneMasked: maskPhone(phone), status: 'FAILED' },
+      });
+      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to send verification code.');
+    }
+
+    await this.prisma.smsLog.create({
+      data: { userId, phoneMasked: maskPhone(phone), status: 'SENT' },
+    });
   }
 
   async verifyCode(userId: number, rawCode: string): Promise<void> {
@@ -139,5 +182,44 @@ export class PhoneVerificationService {
       select: { verifiedPhone: true, phoneVerifiedAt: true },
     });
     return { verifiedPhone: user?.verifiedPhone ?? null, phoneVerifiedAt: user?.phoneVerifiedAt ?? null };
+  }
+
+  // Admin-only (enforced by AdminReferralsController's @Roles guard, not
+  // here) — clears a verified phone so it can be re-verified on a
+  // different account, e.g. a family sharing one number. Always audit
+  // logged via the same AdminLog model/pattern RefundsService.approveRefund
+  // already uses — no new audit mechanism introduced.
+  async adminUnlinkPhone(targetUserId: number, adminId: number): Promise<void> {
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { verifiedPhone: true },
+    });
+    if (!target?.verifiedPhone) {
+      throw new BadRequestException('This account has no verified phone number to unlink.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: { verifiedPhone: null, phoneVerifiedAt: null },
+      });
+      await tx.adminLog.create({
+        data: {
+          adminId,
+          action: 'UNLINK_VERIFIED_PHONE',
+          targetType: 'USER',
+          targetId: targetUserId,
+          details: { unlinkedPhone: target.verifiedPhone },
+        },
+      });
+    });
+  }
+
+  async getSmsUsageSummary(): Promise<{ today: number; thisMonth: number }> {
+    const [today, thisMonth] = await Promise.all([
+      this.prisma.smsLog.count({ where: { status: 'SENT', createdAt: { gte: startOfDiliDay() } } }),
+      this.prisma.smsLog.count({ where: { status: 'SENT', createdAt: { gte: startOfDiliMonth() } } }),
+    ]);
+    return { today, thisMonth };
   }
 }

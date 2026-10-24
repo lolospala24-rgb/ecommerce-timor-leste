@@ -167,6 +167,7 @@ model User {
   referralReceived   Referral?           @relation("ReferralReferredUser")
   walletTransactions WalletTransaction[]
   phoneVerificationCodes PhoneVerificationCode[]
+  smsLogs                SmsLog[]
 
   @@index([referredById])
   @@map("users")
@@ -192,6 +193,30 @@ model PhoneVerificationCode {
 
   @@index([userId])
   @@map("phone_verification_codes")
+}
+
+// One row per actual SMS send attempt — purely for admin cost/usage
+// visibility, a different purpose from PhoneVerificationCode above (which
+// exists for the verify flow itself and necessarily holds the full
+// number). phone is masked AT WRITE TIME (see maskPhone in
+// PhoneVerificationService) specifically so this log never retains a
+// full number — it only needs to answer "how much are we sending",
+// never "to whom".
+model SmsLog {
+  id                Int      @id @default(autoincrement())
+  userId            Int?
+  phoneMasked       String
+  providerMessageId String?
+  status            String
+  costAmount        Float?
+  costCurrency      String?
+  createdAt         DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId])
+  @@map("sms_logs")
 }
 
 model Seller {
@@ -1726,6 +1751,15 @@ model SystemSettings {
   // see ReferralsService.payoutOne's doc-comment. The referrer's own
   // phone is never checked.
   referralRequirePhoneVerification Boolean @default(false)
+  // Server-controlled only — never client-settable (see
+  // UpdateReferralSettingsDto, which deliberately has no field for this).
+  // Set to now() automatically, inside ReferralsService.updateReferralSettings,
+  // exactly when referralRequirePhoneVerification transitions false -> true.
+  // ReferralsService.payoutOne's phone gate only applies to a Referral
+  // whose createdAt is on/after this timestamp — a referral created while
+  // the rule was genuinely off is never retroactively required to verify,
+  // even if the flag was briefly on at some earlier point.
+  referralPhoneVerificationRequiredSince DateTime?
 
   bankName                 String?
   bankAccountName          String?

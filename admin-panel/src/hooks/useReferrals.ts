@@ -74,6 +74,17 @@ export interface ReferralSettings {
   referralMinQualifyingAmount: number;
   referralMonthlyCap: number;
   referralRequirePhoneVerification: boolean;
+  referralPhoneVerificationRequiredSince: string | null;
+  // Whether a real (non-console) SMS provider is configured AND available
+  // right now — the server refuses to flip referralRequirePhoneVerification
+  // to true unless this is true, so the UI uses it to disable/explain the
+  // toggle before a failed save, not just react to one.
+  smsProviderAvailable: boolean;
+}
+
+export interface SmsUsageSummary {
+  today: number;
+  thisMonth: number;
 }
 
 export const useAdminReferrals = (params: { page: number; limit: number; status?: ReferralStatus }) => {
@@ -134,6 +145,33 @@ export const useUpdateAdminReferralSettings = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update referral settings');
+    },
+  });
+};
+
+export const useAdminSmsUsage = () => {
+  return useQuery({
+    queryKey: ['admin-referrals', 'sms-usage'],
+    queryFn: async () => {
+      const response = await api.get('/admin/referrals/sms-usage');
+      return unwrapApiData<SmsUsageSummary>(response.data);
+    },
+  });
+};
+
+export const useAdminUnlinkVerifiedPhone = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await api.delete(`/admin/referrals/phone-verification/${userId}`);
+      return unwrapApiData<{ message: string }>(response.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
+      toast.success('Phone number unlinked successfully.');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to unlink phone number');
     },
   });
 };

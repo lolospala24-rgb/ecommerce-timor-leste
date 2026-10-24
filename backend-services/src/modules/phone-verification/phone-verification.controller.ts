@@ -1,9 +1,22 @@
-import { Body, Controller, Get, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { PhoneVerificationService } from './phone-verification.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { VerifyCodeDto } from './dto/verify-code.dto';
+
+// nginx sets X-Real-IP/X-Forwarded-For — req.ip alone would just be the
+// reverse proxy's own address behind it. Same pattern VideosController
+// already uses for its own per-viewer rate limiting.
+function getClientIp(req: Request): string {
+  return (
+    (req.headers['x-real-ip'] as string) ||
+    req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ||
+    req.ip ||
+    'unknown'
+  );
+}
 
 // No @Public() anywhere here — the global JwtAuthGuard requires login,
 // which is correct: a phone gets verified onto the caller's own account,
@@ -25,8 +38,8 @@ export class PhoneVerificationController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('request-code')
   @HttpCode(HttpStatus.OK)
-  async requestCode(@CurrentUser('id') userId: number, @Body() dto: RequestCodeDto) {
-    await this.phoneVerificationService.requestCode(userId, dto.phone);
+  async requestCode(@CurrentUser('id') userId: number, @Body() dto: RequestCodeDto, @Req() req: Request) {
+    await this.phoneVerificationService.requestCode(userId, dto.phone, getClientIp(req));
     return { message: 'Verification code sent' };
   }
 

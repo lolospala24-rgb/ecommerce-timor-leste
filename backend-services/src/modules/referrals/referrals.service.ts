@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, ReferralStatus, RefundStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,6 +7,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent } from '../notifications/notifications.constants';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import { diliMonthKey } from '../../common/utils/timezone.util';
+import { SmsProvider, SMS_PROVIDER } from '../../common/sms/sms-provider.interface';
+import { PhoneVerificationService } from '../phone-verification/phone-verification.service';
 import { UpdateReferralSettingsDto } from './dto/update-referral-settings.dto';
 
 function round2(n: number): number {
@@ -32,6 +34,8 @@ export class ReferralsService {
     private settingsService: SettingsService,
     private configService: ConfigService,
     private notificationsService: NotificationsService,
+    @Inject(SMS_PROVIDER) private smsProvider: SmsProvider,
+    private phoneVerificationService: PhoneVerificationService,
   ) {}
 
   private normalizeCode(code: string): string {
@@ -210,7 +214,12 @@ export class ReferralsService {
 
   private async payoutOne(
     referralId: number,
-    settings: { referralRewardAmount: unknown; referralMonthlyCap: unknown; referralRequirePhoneVerification: unknown },
+    settings: {
+      referralRewardAmount: unknown;
+      referralMonthlyCap: unknown;
+      referralRequirePhoneVerification: unknown;
+      referralPhoneVerificationRequiredSince: unknown;
+    },
   ): Promise<PayoutOutcome> {
     return this.prisma.$transaction(async (tx) => {
       const referral = await tx.referral.findUnique({
@@ -226,7 +235,17 @@ export class ReferralsService {
       // referrer is never required to verify anything. Checked before the
       // open-refund gate below purely for cost (no DB round trip needed
       // when this already short-circuits), order doesn't matter otherwise.
-      if (Boolean(settings.referralRequirePhoneVerification) && !referral.referredUser.phoneVerifiedAt) {
+      // Not retroactive: a referral created before the flag's most recent
+      // false->true transition was never bound by the rule, even though
+      // it's being paid out now. If the flag is on but the cutoff is
+      // somehow null (shouldn't happen — updateReferralSettings always
+      // sets it on that transition), fail closed and still gate rather
+      // than silently exempting everyone.
+      const requirePhoneVerification = Boolean(settings.referralRequirePhoneVerification);
+      const requiredSince = settings.referralPhoneVerificationRequiredSince as Date | string | null | undefined;
+      const appliesToThisReferral =
+        requirePhoneVerification && (requiredSince == null || referral.createdAt >= new Date(requiredSince));
+      if (appliesToThisReferral && !referral.referredUser.phoneVerifiedAt) {
         return { kind: 'SKIPPED' };
       }
 
@@ -726,6 +745,14 @@ export class ReferralsService {
     };
   }
 
+  // "Real" provider = not the dev-only console mock, and actually
+  // configured right now (credentials present at startup) — a provider
+  // that's real-but-misconfigured must read the same as "unavailable" to
+  // the admin UI, never a confusing third state.
+  private isRealSmsProviderAvailable(): boolean {
+    return this.smsProvider.kind !== 'console' && this.smsProvider.isAvailable() === true;
+  }
+
   async getReferralSettings() {
     const settings = await this.settingsService.getSettings();
     return {
@@ -736,11 +763,41 @@ export class ReferralsService {
       referralMinQualifyingAmount: settings.referralMinQualifyingAmount,
       referralMonthlyCap: settings.referralMonthlyCap,
       referralRequirePhoneVerification: settings.referralRequirePhoneVerification,
+      referralPhoneVerificationRequiredSince: settings.referralPhoneVerificationRequiredSince,
+      smsProviderAvailable: this.isRealSmsProviderAvailable(),
     };
   }
 
   async updateReferralSettings(dto: UpdateReferralSettingsDto) {
+    const current = await this.settingsService.getSettings();
+    const isEnablingPhoneVerification =
+      dto.referralRequirePhoneVerification === true && current.referralRequirePhoneVerification !== true;
+
+    if (isEnablingPhoneVerification && this.isRealSmsProviderAvailable() === false) {
+      throw new BadRequestException(
+        this.smsProvider.kind === 'console'
+          ? 'Cannot enable phone verification: no real SMS provider is configured (currently using the console/dev mock). Set SMS_PROVIDER=twilio and the required Twilio credentials first.'
+          : 'Cannot enable phone verification: the configured SMS provider (Twilio) is not available — check its credentials in the server logs.',
+      );
+    }
+
     await this.settingsService.updateSettings(dto);
+    // Cutoff is server-controlled only — never accepted from the DTO.
+    // Reset to "now" on every false->true transition (including a later
+    // re-enable) so a referral created while the rule was genuinely off
+    // is never retroactively required to verify, even if the flag was
+    // briefly on at some earlier point.
+    if (isEnablingPhoneVerification) {
+      await this.settingsService.setReferralPhoneVerificationRequiredSince(new Date());
+    }
     return this.getReferralSettings();
+  }
+
+  async getSmsUsageSummary(): Promise<{ today: number; thisMonth: number }> {
+    return this.phoneVerificationService.getSmsUsageSummary();
+  }
+
+  async adminUnlinkVerifiedPhone(targetUserId: number, adminId: number): Promise<void> {
+    await this.phoneVerificationService.adminUnlinkPhone(targetUserId, adminId);
   }
 }

@@ -1,9 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { BadRequestException } from '@nestjs/common';
 import { ReferralsService } from './referrals.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SMS_PROVIDER } from '../../common/sms/sms-provider.interface';
+import { PhoneVerificationService } from '../phone-verification/phone-verification.service';
 
 // Phase 1 of the referral program: reward/welcome credit is held during a
 // grace period (long enough to outlast the refund window on the order
@@ -19,6 +22,8 @@ describe('ReferralsService', () => {
   let prisma: any;
   let settingsService: any;
   let notificationsService: any;
+  let smsProvider: any;
+  let phoneVerificationService: any;
 
   const baseSettings = {
     referralProgramEnabled: true,
@@ -28,6 +33,7 @@ describe('ReferralsService', () => {
     referralMinQualifyingAmount: 5,
     referralMonthlyCap: 20,
     referralRequirePhoneVerification: false,
+    referralPhoneVerificationRequiredSince: null,
   };
 
   beforeEach(async () => {
@@ -72,10 +78,22 @@ describe('ReferralsService', () => {
     settingsService = {
       getSettings: jest.fn().mockResolvedValue({ ...baseSettings }),
       updateSettings: jest.fn(),
+      setReferralPhoneVerificationRequiredSince: jest.fn().mockResolvedValue(undefined),
     };
 
     notificationsService = {
       sendNotification: jest.fn().mockResolvedValue(undefined),
+    };
+
+    // Default: a real, available provider (Twilio) — most tests aren't
+    // about the gate itself, so this default lets an enable-the-flag
+    // update succeed unless a specific test overrides it to the
+    // console/unavailable shape to exercise the gate.
+    smsProvider = { kind: 'twilio', isAvailable: jest.fn().mockReturnValue(true) };
+
+    phoneVerificationService = {
+      getSmsUsageSummary: jest.fn().mockResolvedValue({ today: 0, thisMonth: 0 }),
+      adminUnlinkPhone: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -85,6 +103,8 @@ describe('ReferralsService', () => {
         { provide: SettingsService, useValue: settingsService },
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: NotificationsService, useValue: notificationsService },
+        { provide: SMS_PROVIDER, useValue: smsProvider },
+        { provide: PhoneVerificationService, useValue: phoneVerificationService },
       ],
     }).compile();
 
@@ -352,6 +372,190 @@ describe('ReferralsService', () => {
       const result = await service.payoutDueReferrals();
 
       expect(result).toEqual({ processed: 1, rewarded: 1, capped: 0, failed: 0 });
+    });
+  });
+
+  // ==========================================================================
+  // Cutoff date: the requirement only binds referrals CREATED on/after
+  // referralPhoneVerificationRequiredSince — never retroactive.
+  // ==========================================================================
+  describe('payoutDueReferrals — phone verification cutoff date', () => {
+    const referral = {
+      id: 9,
+      referrerId: 17,
+      referredUserId: 28,
+      status: 'QUALIFIED',
+      welcomeCreditAmount: 3,
+      welcomeCreditGrantedAt: null,
+      qualifyingOrderId: 900,
+    };
+    const requiredSince = new Date('2026-10-01T00:00:00.000Z');
+
+    it('pays out without verification when the referral was created BEFORE the cutoff, even though the flag is on', async () => {
+      settingsService.getSettings.mockResolvedValue({
+        ...baseSettings,
+        referralRequirePhoneVerification: true,
+        referralPhoneVerificationRequiredSince: requiredSince,
+      });
+      prisma.referral.findMany.mockResolvedValue([{ id: 9 }]);
+      prisma.referral.findUnique.mockResolvedValue({
+        ...referral,
+        createdAt: new Date('2026-09-15T00:00:00.000Z'),
+        referredUser: { phoneVerifiedAt: null },
+      });
+      prisma.user.update.mockResolvedValue({ walletCredit: 5 });
+      prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
+      prisma.referral.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 1, capped: 0, failed: 0 });
+    });
+
+    it('requires verification when the referral was created ON/AFTER the cutoff', async () => {
+      settingsService.getSettings.mockResolvedValue({
+        ...baseSettings,
+        referralRequirePhoneVerification: true,
+        referralPhoneVerificationRequiredSince: requiredSince,
+      });
+      prisma.referral.findMany.mockResolvedValue([{ id: 9 }]);
+      prisma.referral.findUnique.mockResolvedValue({
+        ...referral,
+        createdAt: new Date('2026-10-15T00:00:00.000Z'),
+        referredUser: { phoneVerifiedAt: null },
+      });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 0, capped: 0, failed: 0 });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('fails closed (still gates) if the flag is on but the cutoff is somehow null', async () => {
+      settingsService.getSettings.mockResolvedValue({
+        ...baseSettings,
+        referralRequirePhoneVerification: true,
+        referralPhoneVerificationRequiredSince: null,
+      });
+      prisma.referral.findMany.mockResolvedValue([{ id: 9 }]);
+      prisma.referral.findUnique.mockResolvedValue({
+        ...referral,
+        createdAt: new Date('2020-01-01T00:00:00.000Z'),
+        referredUser: { phoneVerifiedAt: null },
+      });
+
+      const result = await service.payoutDueReferrals();
+
+      expect(result).toEqual({ processed: 1, rewarded: 0, capped: 0, failed: 0 });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // Gate on enabling referralRequirePhoneVerification: the server must
+  // refuse the flip to true without a real, available SMS provider, and
+  // must stamp referralPhoneVerificationRequiredSince exactly on that
+  // transition.
+  // ==========================================================================
+  describe('updateReferralSettings — SMS provider gate + cutoff stamping', () => {
+    it('rejects enabling the flag when the provider is the console/dev mock', async () => {
+      smsProvider.kind = 'console';
+
+      await expect(service.updateReferralSettings({ referralRequirePhoneVerification: true })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(settingsService.updateSettings).not.toHaveBeenCalled();
+      expect(settingsService.setReferralPhoneVerificationRequiredSince).not.toHaveBeenCalled();
+    });
+
+    it('rejects enabling the flag when Twilio is configured as the provider but unavailable (missing credentials)', async () => {
+      smsProvider.kind = 'twilio';
+      smsProvider.isAvailable.mockReturnValue(false);
+
+      await expect(service.updateReferralSettings({ referralRequirePhoneVerification: true })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(settingsService.updateSettings).not.toHaveBeenCalled();
+    });
+
+    it('allows enabling the flag with a real, available provider, and stamps the cutoff to now', async () => {
+      const before = new Date();
+      await service.updateReferralSettings({ referralRequirePhoneVerification: true });
+      const after = new Date();
+
+      expect(settingsService.updateSettings).toHaveBeenCalled();
+      expect(settingsService.setReferralPhoneVerificationRequiredSince).toHaveBeenCalledTimes(1);
+      const stamped: Date = settingsService.setReferralPhoneVerificationRequiredSince.mock.calls[0][0];
+      expect(stamped.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(stamped.getTime()).toBeLessThanOrEqual(after.getTime());
+    });
+
+    it('does not re-stamp the cutoff when the flag was already on (true -> true)', async () => {
+      settingsService.getSettings.mockResolvedValue({ ...baseSettings, referralRequirePhoneVerification: true });
+
+      await service.updateReferralSettings({ referralRequirePhoneVerification: true });
+
+      expect(settingsService.setReferralPhoneVerificationRequiredSince).not.toHaveBeenCalled();
+    });
+
+    it('does not touch the cutoff when disabling the flag (true -> false)', async () => {
+      settingsService.getSettings.mockResolvedValue({ ...baseSettings, referralRequirePhoneVerification: true });
+
+      await service.updateReferralSettings({ referralRequirePhoneVerification: false });
+
+      expect(settingsService.setReferralPhoneVerificationRequiredSince).not.toHaveBeenCalled();
+      expect(settingsService.updateSettings).toHaveBeenCalled();
+    });
+
+    it('does not require a provider for unrelated settings updates', async () => {
+      smsProvider.kind = 'console';
+
+      await expect(service.updateReferralSettings({ referralMonthlyCap: 30 })).resolves.toBeDefined();
+      expect(settingsService.updateSettings).toHaveBeenCalled();
+    });
+  });
+
+  describe('getReferralSettings', () => {
+    it('reports smsProviderAvailable: false for the console provider', async () => {
+      smsProvider.kind = 'console';
+
+      const result = await service.getReferralSettings();
+
+      expect(result.smsProviderAvailable).toBe(false);
+    });
+
+    it('reports smsProviderAvailable: true for an available real provider', async () => {
+      smsProvider.kind = 'twilio';
+      smsProvider.isAvailable.mockReturnValue(true);
+
+      const result = await service.getReferralSettings();
+
+      expect(result.smsProviderAvailable).toBe(true);
+    });
+
+    it('reports smsProviderAvailable: false for a real provider that is misconfigured', async () => {
+      smsProvider.kind = 'twilio';
+      smsProvider.isAvailable.mockReturnValue(false);
+
+      const result = await service.getReferralSettings();
+
+      expect(result.smsProviderAvailable).toBe(false);
+    });
+  });
+
+  describe('SMS usage + admin phone unlink delegation', () => {
+    it('getSmsUsageSummary delegates to PhoneVerificationService', async () => {
+      phoneVerificationService.getSmsUsageSummary.mockResolvedValue({ today: 4, thisMonth: 55 });
+
+      const result = await service.getSmsUsageSummary();
+
+      expect(result).toEqual({ today: 4, thisMonth: 55 });
+    });
+
+    it('adminUnlinkVerifiedPhone delegates to PhoneVerificationService.adminUnlinkPhone with the same arguments', async () => {
+      await service.adminUnlinkVerifiedPhone(99, 1);
+
+      expect(phoneVerificationService.adminUnlinkPhone).toHaveBeenCalledWith(99, 1);
     });
   });
 

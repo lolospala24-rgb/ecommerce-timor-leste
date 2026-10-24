@@ -150,6 +150,41 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return count;
   }
 
+  // Atomic fixed-window counter — INCR then EXPIRE only on the window's
+  // first increment, as a single Lua script so there's no read-then-write
+  // gap a concurrent caller could land in (unlike the plain get+set
+  // pattern used elsewhere in this codebase for lower-stakes lockout
+  // counters). Built for PhoneVerificationService's send-rate limits,
+  // where a race letting one extra SMS through means real carrier cost.
+  // Returns the counter's value AFTER this increment — callers compare
+  // against their own cap (e.g. `> 1` for a cooldown, `> 5` for a daily
+  // cap) rather than this method enforcing any particular limit itself.
+  async incrWithWindow(key: string, windowSeconds: number): Promise<number> {
+    if (this.isRedisReady()) {
+      const script = `
+        local current = redis.call('INCR', KEYS[1])
+        if tonumber(current) == 1 then
+          redis.call('EXPIRE', KEYS[1], ARGV[1])
+        end
+        return current
+      `;
+      const result = await this.client!.eval(script, 1, key, windowSeconds);
+      return Number(result);
+    }
+    // In-memory fallback — single process, so there's no real concurrency
+    // to race against; a plain read-modify-write is fine here.
+    const now = Date.now();
+    const entry = this.inMemory.keyMap.get(key);
+    if (!entry || (entry.expiresAt && now > entry.expiresAt)) {
+      this.inMemory.keyMap.set(key, { value: '1', expiresAt: now + windowSeconds * 1000 });
+      return 1;
+    }
+    const next = parseInt(entry.value, 10) + 1;
+    entry.value = String(next);
+    this.inMemory.keyMap.set(key, entry);
+    return next;
+  }
+
   async keys(pattern: string): Promise<string[]> {
     if (this.isRedisReady()) return this.client.keys(pattern);
     // simple glob '*' -> regex

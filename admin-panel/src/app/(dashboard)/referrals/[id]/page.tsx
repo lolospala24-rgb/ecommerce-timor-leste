@@ -6,13 +6,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Check, Circle } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAdminReferralDetail, REFERRAL_STATUS_BADGE_VARIANT } from '@/hooks/useReferrals';
+import {
+  useAdminReferralDetail,
+  useAdminUnlinkVerifiedPhone,
+  REFERRAL_STATUS_BADGE_VARIANT,
+} from '@/hooks/useReferrals';
 
 export default function AdminReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: referral, isLoading } = useAdminReferralDetail(Number(id));
+  const unlinkPhone = useAdminUnlinkVerifiedPhone();
+
+  const handleUnlinkPhone = () => {
+    if (!referral) return;
+    const confirmed = window.confirm(
+      `Unlink the verified phone number from ${referral.referredUser.name}'s account? ` +
+        'They will need to verify a phone number again before future referrals requiring it can pay out.',
+    );
+    if (!confirmed) return;
+    unlinkPhone.mutate(referral.referredUser.id);
+  };
 
   if (isLoading) {
     return (
@@ -89,10 +104,26 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
             <CardContent className="space-y-2.5 text-sm">
               <Row label="Referrer" value={`${referral.referrer.name} (${referral.referrer.email})`} />
               <Row label="Referred User" value={`${referral.referredUser.name} (${referral.referredUser.email})`} />
-              <Row
-                label="Referred User Phone"
-                value={referral.referredUser.phoneVerifiedAt ? `Verified (${new Date(referral.referredUser.phoneVerifiedAt).toLocaleDateString()})` : 'Unverified'}
-              />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <Row
+                    label="Referred User Phone"
+                    value={referral.referredUser.phoneVerifiedAt ? `Verified (${new Date(referral.referredUser.phoneVerifiedAt).toLocaleDateString()})` : 'Unverified'}
+                  />
+                </div>
+                {referral.referredUser.phoneVerifiedAt && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={unlinkPhone.isPending}
+                    onClick={handleUnlinkPhone}
+                  >
+                    {unlinkPhone.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Unlink phone
+                  </Button>
+                )}
+              </div>
               <Row label="Referral Code" value={referral.referralCodeUsed} mono />
               <Row label="Welcome Credit" value={`$${referral.welcomeCreditAmount.toFixed(2)}`} />
               <Row label="Reward Amount" value={referral.rewardAmount != null ? `$${referral.rewardAmount.toFixed(2)}` : '—'} />

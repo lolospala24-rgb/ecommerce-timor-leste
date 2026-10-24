@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Query, NotFoundException } from '@nestjs/common';
 import { ReferralsService } from './referrals.service';
 import { UpdateReferralSettingsDto } from './dto/update-referral-settings.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { clampLimit } from '../../common/utils/pagination.util';
 import { Role, ReferralStatus } from '@prisma/client';
 
@@ -29,6 +30,21 @@ export class AdminReferralsController {
   async updateSettings(@Body() dto: UpdateReferralSettingsDto) {
     const data = await this.referralsService.updateReferralSettings(dto);
     return { message: 'Referral settings updated successfully', data };
+  }
+
+  // Declared before ':id' for the same route-ordering reason as
+  // 'stats'/'settings' above — 'phone-verification' would otherwise be
+  // swallowed by the ':id' route.
+  @Get('sms-usage')
+  async getSmsUsage() {
+    const data = await this.referralsService.getSmsUsageSummary();
+    return { data };
+  }
+
+  @Delete('phone-verification/:userId')
+  async unlinkPhone(@Param('userId', ParseIntPipe) userId: number, @CurrentUser('id') adminId: number) {
+    await this.referralsService.adminUnlinkVerifiedPhone(userId, adminId);
+    return { message: 'Phone number unlinked' };
   }
 
   @Get()
