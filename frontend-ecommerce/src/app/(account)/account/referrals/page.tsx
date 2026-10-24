@@ -165,7 +165,7 @@ export default function ReferralsPage() {
             <p className="text-sm text-muted-foreground">{step}</p>
           </div>
         ))}
-        <Link href="/terms" className="inline-block text-sm font-semibold text-primary hover:underline">
+        <Link href="/terms#referral" className="inline-block text-sm font-semibold text-primary hover:underline">
           Lee termu no kondisaun
         </Link>
       </div>

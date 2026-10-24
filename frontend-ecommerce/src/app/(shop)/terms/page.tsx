@@ -10,7 +10,56 @@ export const metadata: Metadata = {
 
 const LAST_UPDATED = '27 August 2026';
 
-export default function TermsPage() {
+interface ReferralTermsSettings {
+  referralWelcomeCredit: number;
+  referralRewardAmount: number;
+  referralMinQualifyingAmount: number;
+  referralHoldDays: number;
+  referralMonthlyCap: number;
+  referralRequirePhoneVerification: boolean;
+}
+
+const DEFAULT_REFERRAL_SETTINGS: ReferralTermsSettings = {
+  referralWelcomeCredit: 3,
+  referralRewardAmount: 5,
+  referralMinQualifyingAmount: 5,
+  referralHoldDays: 7,
+  referralMonthlyCap: 20,
+  referralRequirePhoneVerification: false,
+};
+
+// Own small copy of the settings fetch (same reasoning as products/[slug]
+// page's getSiteName — each call site keeps its own since cache/shape
+// needs differ) — every number in the referral section below comes from
+// here, never hardcoded, so this page can never drift from what
+// ReferralsService/ReferralPayoutJob actually enforce.
+async function getReferralTermsSettings(): Promise<ReferralTermsSettings> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl) return DEFAULT_REFERRAL_SETTINGS;
+  try {
+    const res = await fetch(`${apiUrl}/api/v1/settings/public`, { next: { revalidate: 300 } });
+    if (!res.ok) return DEFAULT_REFERRAL_SETTINGS;
+    const json = await res.json();
+    const settings = json?.data?.data ?? json?.data;
+    return {
+      referralWelcomeCredit: Number(settings?.referralWelcomeCredit ?? DEFAULT_REFERRAL_SETTINGS.referralWelcomeCredit),
+      referralRewardAmount: Number(settings?.referralRewardAmount ?? DEFAULT_REFERRAL_SETTINGS.referralRewardAmount),
+      referralMinQualifyingAmount: Number(settings?.referralMinQualifyingAmount ?? DEFAULT_REFERRAL_SETTINGS.referralMinQualifyingAmount),
+      referralHoldDays: Number(settings?.referralHoldDays ?? DEFAULT_REFERRAL_SETTINGS.referralHoldDays),
+      referralMonthlyCap: Number(settings?.referralMonthlyCap ?? DEFAULT_REFERRAL_SETTINGS.referralMonthlyCap),
+      // Not added to the public settings payload until Section C lands —
+      // optional chaining means this just stays false (bullet hidden)
+      // until then, and starts working the moment it's exposed.
+      referralRequirePhoneVerification: Boolean(settings?.referralRequirePhoneVerification ?? false),
+    };
+  } catch {
+    return DEFAULT_REFERRAL_SETTINGS;
+  }
+}
+
+export default async function TermsPage() {
+  const referral = await getReferralTermsSettings();
+
   return (
     <div className="space-y-10">
       <section className="rounded-xl bg-muted/30 p-8 text-center md:p-12">
@@ -168,6 +217,43 @@ export default function TermsPage() {
               </Link>{' '}
               for how we handle your data.
             </p>
+          </div>
+
+          <div id="referral" className="scroll-mt-24">
+            <h2 className="mb-2 text-base font-semibold text-foreground">13. Programa Konvida Belun</h2>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Ita bele konvida belun liuhusi ita-nia kódigu ka link referral.</li>
+              <li>Belun tenke rejista konta foun uza ita-nia kódigu. Konta ida bele simu konvite dala ida de&apos;it.</li>
+              <li>
+                Bainhira belun remata order primeiru ho valor minimu ${referral.referralMinQualifyingAmount.toFixed(2)}{' '}
+                (la inklui taxa entrega no coin ne&apos;ebé uza), no order ne&apos;e entrega ona, belun simu $
+                {referral.referralWelcomeCredit.toFixed(2)} no ita simu ${referral.referralRewardAmount.toFixed(2)}.
+              </li>
+              <li>
+                Prémiu tama ba wallet depois loron {referral.referralHoldDays} husi entrega, atu garante order la iha
+                refund.
+              </li>
+              <li>
+                Se order kansela ka refund (tomak ka parte ne&apos;ebé halo valor tun husi $
+                {referral.referralMinQualifyingAmount.toFixed(2)}), prémiu la fó, ka sei foti fali se fó ona. Tanba
+                ne&apos;e saldu wallet bele sai negativu.
+              </li>
+              <li>
+                Ema ida bele simu prémiu husi belun {referral.referralMonthlyCap} kada fulan. Prémiu ne&apos;ebé liu
+                limite sei tama iha fulan tuir mai.
+              </li>
+              <li>Kreditu wallet uza de&apos;it atu selu sasan iha LOLÓSPALA, labele troka ba osan kontadu.</li>
+              <li>LOLÓSPALA iha direitu atu kansela prémiu ka bloku konta ne&apos;ebé uza konta falsu ka halo fraude.</li>
+              <li>
+                LOLÓSPALA bele muda kondisaun programa ida-ne&apos;e. Mudansa la afeta prémiu ne&apos;ebé tama ona.
+              </li>
+              {referral.referralRequirePhoneVerification && (
+                <li>
+                  Atu simu prémiu, belun tenke verifika numeru telefone. Numeru telefone ida bele verifika iha konta
+                  ida de&apos;it.
+                </li>
+              )}
+            </ol>
           </div>
         </CardContent>
       </Card>

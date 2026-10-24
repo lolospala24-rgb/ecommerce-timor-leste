@@ -100,11 +100,11 @@ export class SettingsService {
       referralProgramEnabled: settings.referralProgramEnabled,
       referralWelcomeCredit: settings.referralWelcomeCredit,
       referralRewardAmount: settings.referralRewardAmount,
-      // Monthly cap deliberately left out — nothing storefront-facing
-      // needs it, unlike the hold period/minimum amount which the
-      // referral program copy explains to shoppers.
       referralHoldDays: settings.referralHoldDays,
       referralMinQualifyingAmount: settings.referralMinQualifyingAmount,
+      // Needed by the /terms#referral policy text ("{batas} kada fulan") —
+      // no longer admin-only now that the public policy page states it.
+      referralMonthlyCap: settings.referralMonthlyCap,
     };
   }
 

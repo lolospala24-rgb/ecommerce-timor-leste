@@ -33,6 +33,7 @@ export interface PublicSettings {
   referralRewardAmount: number;
   referralHoldDays: number;
   referralMinQualifyingAmount: number;
+  referralMonthlyCap: number;
 }
 
 // Store-wide config set by the admin (contact info, payment method
