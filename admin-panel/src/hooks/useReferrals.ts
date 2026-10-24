@@ -5,16 +5,31 @@ import api from '@/lib/api';
 import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-export type ReferralStatus = 'PENDING' | 'REWARDED';
+export type ReferralStatus = 'PENDING' | 'QUALIFIED' | 'REWARDED' | 'CAPPED' | 'REVERSED';
+
+// Shared between the referrals list and detail pages.
+export const REFERRAL_STATUS_BADGE_VARIANT: Record<
+  ReferralStatus,
+  'default' | 'secondary' | 'destructive' | 'success' | 'warning'
+> = {
+  PENDING: 'secondary',
+  QUALIFIED: 'warning',
+  CAPPED: 'warning',
+  REWARDED: 'success',
+  REVERSED: 'destructive',
+};
 
 export interface AdminReferral {
   id: number;
   status: ReferralStatus;
   referralCodeUsed: string;
   welcomeCreditAmount: number;
+  welcomeCreditGrantedAt: string | null;
   rewardAmount: number | null;
   qualifyingOrderId: number | null;
+  qualifiedAt: string | null;
   rewardedAt: string | null;
+  reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string; email: string };
   referredUser: { id: number; name: string; email: string };
@@ -45,6 +60,9 @@ export interface ReferralStats {
   totalReferrals: number;
   successfulReferrals: number;
   pendingReferrals: number;
+  qualifiedReferrals: number;
+  cappedReferrals: number;
+  reversedReferrals: number;
   rewardsIssued: number;
 }
 
@@ -52,6 +70,9 @@ export interface ReferralSettings {
   referralProgramEnabled: boolean;
   referralWelcomeCredit: number;
   referralRewardAmount: number;
+  referralHoldDays: number;
+  referralMinQualifyingAmount: number;
+  referralMonthlyCap: number;
 }
 
 export const useAdminReferrals = (params: { page: number; limit: number; status?: ReferralStatus }) => {

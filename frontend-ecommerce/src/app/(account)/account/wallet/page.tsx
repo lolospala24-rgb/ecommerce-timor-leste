@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 const TRANSACTION_LABELS: Record<WalletTransactionItem['type'], string> = {
   REFERRAL_WELCOME: 'Prémiu Benvindu',
   REFERRAL_REWARD: 'Prémiu Konvida',
+  REFERRAL_REWARD_REVERSED: 'Prémiu Kansela',
   CHECKOUT_REDEMPTION: 'Checkout',
   ADMIN_ADJUSTMENT: 'Ajustamentu',
 };

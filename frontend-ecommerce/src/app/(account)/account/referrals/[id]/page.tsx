@@ -2,7 +2,7 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { useReferralDetail } from '@/hooks/useReferral';
+import { useReferralDetail, type ReferralStatus } from '@/hooks/useReferral';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,14 +10,16 @@ import { Check, Circle, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AccountAppBar } from '@/components/account/AccountAppBar';
 import { StatusPill } from '@/components/account/StatusPill';
+import { getReferralStatusDisplay } from '@/lib/referralStatus';
 
 interface ReferralDetail {
   id: number;
-  status: 'PENDING' | 'REWARDED';
+  status: ReferralStatus;
   referralCodeUsed: string;
   welcomeCreditAmount: number;
   rewardAmount: number | null;
   rewardedAt: string | null;
+  reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string };
   referredUser: { id: number; name: string };
@@ -86,12 +88,7 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
       <AccountAppBar
         title={referral.referredUser.name}
         backHref="/account/referrals"
-        rightAction={
-          <StatusPill
-            label={referral.status === 'REWARDED' ? 'Prémiu simu' : 'Hein hela'}
-            tone={referral.status === 'REWARDED' ? 'success' : 'muted'}
-          />
-        }
+        rightAction={<StatusPill {...getReferralStatusDisplay(referral.status)} />}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -158,6 +155,12 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Rewarded</dt>
                   <dd className="font-medium">{new Date(referral.rewardedAt).toLocaleDateString()}</dd>
+                </div>
+              )}
+              {referral.reversedAt && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Kansela</dt>
+                  <dd className="font-medium text-destructive">{new Date(referral.reversedAt).toLocaleDateString()}</dd>
                 </div>
               )}
             </dl>

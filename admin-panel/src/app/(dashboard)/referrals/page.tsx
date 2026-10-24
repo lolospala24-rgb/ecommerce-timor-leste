@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Pagination } from '@/components/shared/Pagination';
 import { Users, CheckCircle2, Clock, DollarSign, Settings, Gift } from 'lucide-react';
-import { useAdminReferrals, useAdminReferralStats, type ReferralStatus } from '@/hooks/useReferrals';
+import { useAdminReferrals, useAdminReferralStats, type ReferralStatus, REFERRAL_STATUS_BADGE_VARIANT } from '@/hooks/useReferrals';
 
 export default function AdminReferralsPage() {
   const [page, setPage] = useState(1);
@@ -46,7 +46,14 @@ export default function AdminReferralsPage() {
   const statCards = [
     { label: 'Total Referrals', value: stats?.totalReferrals ?? 0, icon: Users },
     { label: 'Successful Referrals', value: stats?.successfulReferrals ?? 0, icon: CheckCircle2 },
-    { label: 'Pending Referrals', value: stats?.pendingReferrals ?? 0, icon: Clock },
+    // Pending + Qualified + Capped are all "still waiting" from an
+    // admin's perspective — the PENDING/QUALIFIED/CAPPED split only
+    // matters inside the status filter dropdown below.
+    {
+      label: 'Pending / Waiting',
+      value: (stats?.pendingReferrals ?? 0) + (stats?.qualifiedReferrals ?? 0) + (stats?.cappedReferrals ?? 0),
+      icon: Clock,
+    },
     { label: 'Rewards Issued', value: `$${(stats?.rewardsIssued ?? 0).toFixed(2)}`, icon: DollarSign },
   ];
 
@@ -106,7 +113,10 @@ export default function AdminReferralsPage() {
             <SelectContent>
               <SelectItem value="ALL">All Status</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="QUALIFIED">Qualified</SelectItem>
+              <SelectItem value="CAPPED">Capped</SelectItem>
               <SelectItem value="REWARDED">Rewarded</SelectItem>
+              <SelectItem value="REVERSED">Reversed</SelectItem>
             </SelectContent>
           </Select>
         </CardHeader>
@@ -151,7 +161,7 @@ export default function AdminReferralsPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{referral.referralCodeUsed}</TableCell>
                       <TableCell>
-                        <Badge variant={referral.status === 'REWARDED' ? 'default' : 'secondary'}>
+                        <Badge variant={REFERRAL_STATUS_BADGE_VARIANT[referral.status]}>
                           {referral.status}
                         </Badge>
                       </TableCell>

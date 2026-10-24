@@ -18,12 +18,18 @@ export default function AdminReferralSettingsPage() {
   const [enabled, setEnabled] = useState(true);
   const [welcomeCredit, setWelcomeCredit] = useState('3');
   const [rewardAmount, setRewardAmount] = useState('5');
+  const [holdDays, setHoldDays] = useState('7');
+  const [minQualifyingAmount, setMinQualifyingAmount] = useState('5');
+  const [monthlyCap, setMonthlyCap] = useState('20');
 
   useEffect(() => {
     if (!settings) return;
     setEnabled(settings.referralProgramEnabled);
     setWelcomeCredit(String(settings.referralWelcomeCredit));
     setRewardAmount(String(settings.referralRewardAmount));
+    setHoldDays(String(settings.referralHoldDays));
+    setMinQualifyingAmount(String(settings.referralMinQualifyingAmount));
+    setMonthlyCap(String(settings.referralMonthlyCap));
   }, [settings]);
 
   const handleSave = () => {
@@ -31,6 +37,9 @@ export default function AdminReferralSettingsPage() {
       referralProgramEnabled: enabled,
       referralWelcomeCredit: Number(welcomeCredit) || 0,
       referralRewardAmount: Number(rewardAmount) || 0,
+      referralHoldDays: Number(holdDays) || 1,
+      referralMinQualifyingAmount: Number(minQualifyingAmount) || 0,
+      referralMonthlyCap: Number(monthlyCap) || 1,
     });
   };
 
@@ -74,7 +83,10 @@ export default function AdminReferralSettingsPage() {
                 value={welcomeCredit}
                 onChange={(e) => setWelcomeCredit(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Credited to a new user who signs up with a valid referral code.</p>
+              <p className="text-xs text-muted-foreground">
+                Promised to a new user who signs up with a valid referral code, but credited
+                alongside the referrer's reward once the hold period below clears — not at signup.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -87,15 +99,69 @@ export default function AdminReferralSettingsPage() {
                 value={rewardAmount}
                 onChange={(e) => setRewardAmount(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">Credited to the referrer once the referred user's first order is delivered.</p>
+              <p className="text-xs text-muted-foreground">
+                Credited alongside the referred user's welcome credit once the hold period below
+                clears with no refund — not at delivery itself.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minQualifyingAmount">Minimum Qualifying Amount ($)</Label>
+              <Input
+                id="minQualifyingAmount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={minQualifyingAmount}
+                onChange={(e) => setMinQualifyingAmount(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                The referred user's first order must pay at least this much (subtotal minus any
+                wallet credit used, excluding shipping) to qualify the referrer for a reward.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="holdDays">Hold Period (days)</Label>
+              <Input
+                id="holdDays"
+                type="number"
+                min={1}
+                step="1"
+                value={holdDays}
+                onChange={(e) => setHoldDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                How long a qualifying order is held before paying out — defaults to the customer
+                refund window (7 days) so a refund has a chance to cancel the payout first. A
+                refund after the reward has already paid out claws it back instead.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="monthlyCap">Monthly Cap (per referrer)</Label>
+              <Input
+                id="monthlyCap"
+                type="number"
+                min={1}
+                step="1"
+                value={monthlyCap}
+                onChange={(e) => setMonthlyCap(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Max referrer rewards paid out per calendar month. Referrals past the cap still
+                credit the referred user right away — the referrer's own reward waits for next
+                month.
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label>Reward Trigger</Label>
-              <Input value="DELIVERED" disabled className="bg-muted" />
+              <Input value="DELIVERED + hold period" disabled className="bg-muted" />
               <p className="text-xs text-muted-foreground">
-                Fixed for v1 — the referrer is only rewarded once the referred customer's order is
-                actually delivered, not merely placed or paid.
+                Fixed — the referrer's reward (and the referred user's welcome credit) is only
+                paid out once the referred customer's order is delivered AND the hold period above
+                has passed with no refund.
               </p>
             </div>
 

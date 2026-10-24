@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Check, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAdminReferralDetail } from '@/hooks/useReferrals';
+import { useAdminReferralDetail, REFERRAL_STATUS_BADGE_VARIANT } from '@/hooks/useReferrals';
 
 export default function AdminReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -51,7 +51,7 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
         </Button>
         <div className="mt-1 flex items-center gap-3">
           <h1 className="text-2xl font-bold">Referral #{referral.id}</h1>
-          <Badge variant={referral.status === 'REWARDED' ? 'default' : 'secondary'}>{referral.status}</Badge>
+          <Badge variant={REFERRAL_STATUS_BADGE_VARIANT[referral.status]}>{referral.status}</Badge>
         </div>
       </div>
 
@@ -94,6 +94,7 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
               <Row label="Reward Amount" value={referral.rewardAmount != null ? `$${referral.rewardAmount.toFixed(2)}` : '—'} />
               <Row label="Created At" value={new Date(referral.createdAt).toLocaleString()} />
               <Row label="Rewarded At" value={referral.rewardedAt ? new Date(referral.rewardedAt).toLocaleString() : '—'} />
+              <Row label="Reversed At" value={referral.reversedAt ? new Date(referral.reversedAt).toLocaleString() : '—'} />
             </CardContent>
           </Card>
 

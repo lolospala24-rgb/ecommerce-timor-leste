@@ -31,6 +31,8 @@ export interface PublicSettings {
   referralProgramEnabled: boolean;
   referralWelcomeCredit: number;
   referralRewardAmount: number;
+  referralHoldDays: number;
+  referralMinQualifyingAmount: number;
 }
 
 // Store-wide config set by the admin (contact info, payment method
