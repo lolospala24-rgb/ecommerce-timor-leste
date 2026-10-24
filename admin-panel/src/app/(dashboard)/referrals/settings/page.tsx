@@ -21,6 +21,7 @@ export default function AdminReferralSettingsPage() {
   const [holdDays, setHoldDays] = useState('7');
   const [minQualifyingAmount, setMinQualifyingAmount] = useState('5');
   const [monthlyCap, setMonthlyCap] = useState('20');
+  const [requirePhoneVerification, setRequirePhoneVerification] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -30,6 +31,7 @@ export default function AdminReferralSettingsPage() {
     setHoldDays(String(settings.referralHoldDays));
     setMinQualifyingAmount(String(settings.referralMinQualifyingAmount));
     setMonthlyCap(String(settings.referralMonthlyCap));
+    setRequirePhoneVerification(settings.referralRequirePhoneVerification);
   }, [settings]);
 
   const handleSave = () => {
@@ -40,6 +42,7 @@ export default function AdminReferralSettingsPage() {
       referralHoldDays: Number(holdDays) || 1,
       referralMinQualifyingAmount: Number(minQualifyingAmount) || 0,
       referralMonthlyCap: Number(monthlyCap) || 1,
+      referralRequirePhoneVerification: requirePhoneVerification,
     });
   };
 
@@ -153,6 +156,18 @@ export default function AdminReferralSettingsPage() {
                 credit the referred user right away — the referrer's own reward waits for next
                 month.
               </p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Require Phone Verification</Label>
+                <p className="text-xs text-muted-foreground">
+                  When on, the referred user must verify their phone number (OTP) before the
+                  referrer's reward can pay out — a qualifying referral simply waits until they do.
+                  Off by default; existing behavior is unchanged until you turn this on.
+                </p>
+              </div>
+              <Switch checked={requirePhoneVerification} onCheckedChange={setRequirePhoneVerification} />
             </div>
 
             <div className="space-y-2">

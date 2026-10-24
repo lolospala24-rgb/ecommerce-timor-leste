@@ -3,10 +3,12 @@
 import { use } from 'react';
 import Link from 'next/link';
 import { useReferralDetail, type ReferralStatus } from '@/hooks/useReferral';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
+import { useAuthStore } from '@/stores/authStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Circle, Gift } from 'lucide-react';
+import { Check, Circle, Gift, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AccountAppBar } from '@/components/account/AccountAppBar';
 import { StatusPill } from '@/components/account/StatusPill';
@@ -22,7 +24,7 @@ interface ReferralDetail {
   reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string };
-  referredUser: { id: number; name: string };
+  referredUser: { id: number; name: string; phoneVerifiedAt: string | null };
   qualifyingOrder: {
     id: number;
     orderNumber: string;
@@ -35,6 +37,8 @@ interface ReferralDetail {
 export default function ReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, isLoading } = useReferralDetail(Number(id));
+  const { data: settings } = usePublicSettings();
+  const { user } = useAuthStore();
   const referral = data as ReferralDetail | null;
 
   if (isLoading) {
@@ -57,6 +61,11 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
       </div>
     );
   }
+
+  const isPendingStatus = referral.status !== 'REWARDED' && referral.status !== 'REVERSED';
+  const phoneVerificationNeeded = Boolean(settings?.referralRequirePhoneVerification) && isPendingStatus && !referral.referredUser.phoneVerifiedAt;
+  const viewerIsReferrer = user?.id === referral.referrer.id;
+  const viewerIsReferredUser = user?.id === referral.referredUser.id;
 
   const timeline = [
     { label: 'Referral Captured', done: true, date: referral.createdAt },
@@ -90,6 +99,26 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
         backHref="/account/referrals"
         rightAction={<StatusPill {...getReferralStatusDisplay(referral.status)} />}
       />
+
+      {phoneVerificationNeeded && viewerIsReferredUser && (
+        <Link
+          href="/account/phone-verification"
+          className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 transition-colors hover:border-warning/60"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning-foreground">
+            <Smartphone className="h-5 w-5" />
+          </span>
+          <p className="text-sm font-medium text-foreground">Verifika ita-nia numeru telefone atu simu prémiu</p>
+        </Link>
+      )}
+      {phoneVerificationNeeded && viewerIsReferrer && (
+        <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning-foreground">
+            <Smartphone className="h-5 w-5" />
+          </span>
+          <p className="text-sm font-medium text-foreground">Hein belun verifika telefone</p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="p-6">

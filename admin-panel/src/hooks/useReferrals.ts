@@ -32,7 +32,7 @@ export interface AdminReferral {
   reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string; email: string };
-  referredUser: { id: number; name: string; email: string };
+  referredUser: { id: number; name: string; email: string; phoneVerifiedAt: string | null };
   qualifyingOrder: { id: number; orderNumber: string } | null;
 }
 
@@ -73,6 +73,7 @@ export interface ReferralSettings {
   referralHoldDays: number;
   referralMinQualifyingAmount: number;
   referralMonthlyCap: number;
+  referralRequirePhoneVerification: boolean;
 }
 
 export const useAdminReferrals = (params: { page: number; limit: number; status?: ReferralStatus }) => {

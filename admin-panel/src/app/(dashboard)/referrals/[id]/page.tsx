@@ -89,6 +89,10 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
             <CardContent className="space-y-2.5 text-sm">
               <Row label="Referrer" value={`${referral.referrer.name} (${referral.referrer.email})`} />
               <Row label="Referred User" value={`${referral.referredUser.name} (${referral.referredUser.email})`} />
+              <Row
+                label="Referred User Phone"
+                value={referral.referredUser.phoneVerifiedAt ? `Verified (${new Date(referral.referredUser.phoneVerifiedAt).toLocaleDateString()})` : 'Unverified'}
+              />
               <Row label="Referral Code" value={referral.referralCodeUsed} mono />
               <Row label="Welcome Credit" value={`$${referral.welcomeCreditAmount.toFixed(2)}`} />
               <Row label="Reward Amount" value={referral.rewardAmount != null ? `$${referral.rewardAmount.toFixed(2)}` : '—'} />

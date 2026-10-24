@@ -34,6 +34,7 @@ export interface PublicSettings {
   referralHoldDays: number;
   referralMinQualifyingAmount: number;
   referralMonthlyCap: number;
+  referralRequirePhoneVerification: boolean;
 }
 
 // Store-wide config set by the admin (contact info, payment method

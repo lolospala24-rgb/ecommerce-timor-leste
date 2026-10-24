@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Pagination } from '@/components/shared/Pagination';
-import { Users, CheckCircle2, Clock, DollarSign, Settings, Gift } from 'lucide-react';
+import { Users, CheckCircle2, Clock, DollarSign, Settings, Gift, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useAdminReferrals, useAdminReferralStats, type ReferralStatus, REFERRAL_STATUS_BADGE_VARIANT } from '@/hooks/useReferrals';
 
 export default function AdminReferralsPage() {
@@ -140,6 +140,7 @@ export default function AdminReferralsPage() {
                     <TableHead>Referrer</TableHead>
                     <TableHead>Referred User</TableHead>
                     <TableHead>Code</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Reward</TableHead>
                     <TableHead>Order</TableHead>
@@ -160,6 +161,17 @@ export default function AdminReferralsPage() {
                         <p className="text-xs text-muted-foreground">{referral.referredUser.email}</p>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{referral.referralCodeUsed}</TableCell>
+                      <TableCell>
+                        {referral.referredUser.phoneVerifiedAt ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-success">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <ShieldAlert className="h-3.5 w-3.5" /> Unverified
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={REFERRAL_STATUS_BADGE_VARIANT[referral.status]}>
                           {referral.status}
