@@ -17,7 +17,7 @@ interface CategoryDetailScreenProps {
 function CategoryDetailSkeleton() {
   return (
     <div className="min-h-screen bg-[#F4F6F3] pb-6">
-      <div className="space-y-5 px-4 py-4">
+      <div className="space-y-5 px-4 pb-4">
         <div className="h-40 animate-pulse rounded-[20px] bg-[#F4F6F3]" />
         <div className="flex gap-3">
           {[...Array(5)].map((_, i) => (
@@ -83,7 +83,7 @@ function CategoryDetailInner({ slug }: CategoryDetailScreenProps) {
 
   return (
     <div className="min-h-screen bg-[#F4F6F3] pb-6">
-      <div className="mx-auto w-full space-y-5 px-4 py-4 min-[1000px]:max-w-[1200px]">
+      <div className="mx-auto w-full space-y-5 px-4 pb-4 min-[1000px]:max-w-[1200px]">
         <CategoryHero category={category} productCount={totalProducts} maxDiscountPercent={maxDiscount} />
 
         <SubCategorySelector

@@ -83,6 +83,13 @@ export function VideoRightPanel({ video, upNext, onSelectUpNext }: VideoRightPan
             <button
               type="button"
               onClick={(e) => {
+                if (product.hasVariants) {
+                  // No variant data in the feed payload — let the click
+                  // fall through to the surrounding Link so they land on
+                  // the product page's real variant selector instead of
+                  // hitting the backend's "Please select a variant" 400.
+                  return;
+                }
                 e.preventDefault();
                 void handleAddToCart();
               }}

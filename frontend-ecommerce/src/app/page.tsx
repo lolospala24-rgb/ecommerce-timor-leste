@@ -5,7 +5,7 @@ const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'E-commerce Timor-Leste';
 const siteDescription =
   process.env.NEXT_PUBLIC_SITE_DESCRIPTION ||
   'Platform kompras online ba Timor-Leste — shop electronics, fashion, local products and more with fast delivery across Timor-Leste.';
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ecommercetimor.com';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lolospala.com/';
 
 export const metadata: Metadata = {
   title: `${siteName} | Online Shopping in Timor-Leste`,

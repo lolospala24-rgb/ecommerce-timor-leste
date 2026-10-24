@@ -26,6 +26,7 @@ export class VideosRepository {
           thumbnail: true,
           images: true,
           stock: true,
+          _count: { select: { variants: true } },
           category: { select: { id: true, name: true } },
           seller: {
             select: {

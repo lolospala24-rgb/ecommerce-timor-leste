@@ -17,7 +17,7 @@ export function QuickFilterBar({ municipalities, selected, onToggle }: QuickFilt
   if (municipalities.length === 0) return null;
 
   return (
-    <div className="flex gap-2 overflow-x-auto border-t border-[#EEF1EE] px-4 py-2" data-lenis-prevent>
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide border-t border-[#EEF1EE] px-4 py-2" data-lenis-prevent>
       {municipalities.map((m) => {
         const active = selected === m;
         return (

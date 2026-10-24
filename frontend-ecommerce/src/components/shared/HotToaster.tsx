@@ -1,3 +1,5 @@
 'use client';
 
-export { Toaster } from 'react-hot-toast';
+import { Toaster as HotToaster } from 'react-hot-toast';
+
+export const Toaster = HotToaster;

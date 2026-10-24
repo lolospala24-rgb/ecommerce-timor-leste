@@ -12,10 +12,8 @@ interface VideoTopBarProps {
 
 // Mobile/tablet-only overlay nav (replaces the old reserved-strip
 // VideoFeedTabs below `lg`) — floats directly on top of the video, matching
-// the TikTok-style redesign. The desktop VideoSidebar (lg+) already covers
-// tab switching there, including Trending, which this overlay deliberately
-// leaves out to match the redesign exactly; it's still reachable via the
-// sidebar on larger screens.
+// the TikTok-style redesign. Mirrors the desktop VideoSidebar's (lg+) three
+// tabs (Trending/ForYou/Following) in the same compact row.
 export function VideoTopBar({ active, onChange }: VideoTopBarProps) {
   const { t } = useTranslation();
 
@@ -24,18 +22,33 @@ export function VideoTopBar({ active, onChange }: VideoTopBarProps) {
       className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between gap-3 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)] lg:hidden"
       style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0))' }}
     >
-      <Link href="/" aria-label="Home" className="pointer-events-auto shrink-0 text-white">
-        <Store className="h-5 w-5" />
+      {/* -ml-2 offsets the tap-target padding so the icon itself still
+          lines up visually flush with the tab row's left edge. */}
+      <Link
+        href="/"
+        aria-label="Home"
+        className="pointer-events-auto -ml-2 flex h-9 w-9 shrink-0 items-center justify-center text-white transition active:scale-95"
+      >
+        <Store className="h-5 w-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
       </Link>
 
       <div className="pointer-events-auto flex min-w-0 items-center gap-4 text-sm">
-        {/* Decorative only — there is no live-streaming feature behind this
-            yet, so it's a label, not a button, to avoid promising a tap
-            that does nothing. */}
-        <span className="flex shrink-0 items-center gap-1 font-medium text-white/60">
-          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-          {t('video.live')}
-        </span>
+        {/* Mobile's only way to reach the Trending filter — the desktop
+            VideoSidebar already exposes it (see FEED_NAV there), but below
+            `lg` there was previously no way to switch to it at all. */}
+        <button
+          type="button"
+          onClick={() => onChange('trending')}
+          aria-pressed={active === 'trending'}
+          className={`relative shrink-0 pb-1 font-semibold transition-colors ${
+            active === 'trending' ? 'text-white' : 'text-white/60'
+          }`}
+        >
+          {t('video.tab.trending')}
+          {active === 'trending' && (
+            <span className="absolute inset-x-0 -bottom-0.5 h-0.5 rounded-full bg-white" />
+          )}
+        </button>
 
         <button
           type="button"
@@ -66,8 +79,12 @@ export function VideoTopBar({ active, onChange }: VideoTopBarProps) {
         </button>
       </div>
 
-      <Link href="/search" aria-label={t('video.search')} className="pointer-events-auto shrink-0 text-white">
-        <Search className="h-5 w-5" />
+      <Link
+        href="/search"
+        aria-label={t('video.search')}
+        className="pointer-events-auto -mr-2 flex h-9 w-9 shrink-0 items-center justify-center text-white transition active:scale-95"
+      >
+        <Search className="h-5 w-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" />
       </Link>
     </div>
   );

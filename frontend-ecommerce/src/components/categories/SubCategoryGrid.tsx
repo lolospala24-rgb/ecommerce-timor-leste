@@ -8,9 +8,11 @@ import { getCategoryColorPair } from './categoryTokens';
 interface SubCategoryGridProps {
   category: Category;
   children: CategoryChild[];
+  /** See CategoryBanner's onNavigate — same "close the host overlay first" purpose. */
+  onNavigate?: () => void;
 }
 
-export function SubCategoryGrid({ category, children }: SubCategoryGridProps) {
+export function SubCategoryGrid({ category, children, onNavigate }: SubCategoryGridProps) {
   const pair = getCategoryColorPair(category.name, category.id);
 
   return (
@@ -19,6 +21,7 @@ export function SubCategoryGrid({ category, children }: SubCategoryGridProps) {
         <Link
           key={child.id}
           href={`/categories/${category.slug}?subcategory=${child.id}`}
+          onClick={onNavigate}
           className="flex flex-col items-center gap-1.5"
         >
           <span

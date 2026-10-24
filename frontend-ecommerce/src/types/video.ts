@@ -21,6 +21,12 @@ export interface VideoProduct {
   thumbnail: string | null;
   images: string[];
   stock: number;
+  // True when the product has variants on record — the video feed never
+  // carries variant data itself, so quick-add must send the shopper to the
+  // product page (where useProductVariantSelection lives) instead of
+  // calling addToCart with no variantId and hitting the backend's
+  // "Please select a variant" 400.
+  hasVariants: boolean;
   seller: VideoCreator | null;
 }
 

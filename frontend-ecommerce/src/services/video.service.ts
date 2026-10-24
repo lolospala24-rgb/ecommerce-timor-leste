@@ -40,6 +40,7 @@ function normalizeProduct(raw: any): VideoProduct | null {
     thumbnail: raw.thumbnail ?? images[0] ?? null,
     images,
     stock: Number(raw.stock ?? 0),
+    hasVariants: Number(raw._count?.variants ?? 0) > 0,
     seller: normalizeCreator(raw.seller),
   };
 }

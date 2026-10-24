@@ -19,7 +19,7 @@ export function CategoryChipBar({ categories, selectedId, onSelect }: CategoryCh
   const { t } = useTranslation();
 
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 py-2.5" data-lenis-prevent>
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-2.5" data-lenis-prevent>
       <Chip label={t('productList.categoryAll')} active={selectedId === undefined} onClick={() => onSelect(undefined)} />
       {categories.map((cat) => (
         <Chip

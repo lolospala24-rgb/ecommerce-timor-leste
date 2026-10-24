@@ -32,7 +32,14 @@ export function VideoActionsRail({ video, onOpenComments }: VideoActionsRailProp
     <div className="pointer-events-auto flex shrink-0 flex-col items-center gap-3 sm:gap-4">
       {creator && (
         <div className="relative h-9 w-9 shrink-0 sm:h-11 sm:w-11">
-          <div className="relative h-full w-full overflow-hidden rounded-full border-2 border-white bg-neutral-200 shadow-sm">
+          {/* The Follow "+" badge below is a sibling, not nested in this
+              Link — a <button> inside an <a> is invalid markup, and the
+              two need independent click targets anyway (profile vs follow). */}
+          <Link
+            href={`/sellers/${creator.id}`}
+            aria-label={`View ${creator.storeName}'s profile`}
+            className="relative block h-full w-full overflow-hidden rounded-full border-2 border-white bg-neutral-200 shadow-sm"
+          >
             {creator.storeLogo && !logoError ? (
               <Image
                 src={creator.storeLogo}
@@ -47,7 +54,7 @@ export function VideoActionsRail({ video, onOpenComments }: VideoActionsRailProp
                 {creator.storeName.slice(0, 1).toUpperCase()}
               </div>
             )}
-          </div>
+          </Link>
           {/* Desktop/tablet already has a Follow/Following pill in
               CreatorHeader — this "+" badge is the mobile/tablet
               replacement for that affordance, so it only shows up where

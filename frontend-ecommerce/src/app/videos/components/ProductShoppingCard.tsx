@@ -19,8 +19,18 @@ export function ProductShoppingCard({ product, videoId }: { product: VideoProduc
   const outOfStock = product.stock <= 0;
 
   const handleQuickAdd = async (e: React.MouseEvent) => {
+    if (outOfStock) {
+      e.preventDefault();
+      return;
+    }
+    if (product.hasVariants) {
+      // The video feed never carries variant data, so there's no variantId
+      // to send here — let the click fall through to the card's own Link
+      // instead of calling addToCart and hitting the backend's "Please
+      // select a variant" 400. The product page has the real selector.
+      return;
+    }
     e.preventDefault();
-    if (outOfStock) return;
     await addToCart(product, 1);
     // Signed-in path: cartStore.addItem (which useCart.addToCart delegates
     // to) already toasts and tracks add_to_cart itself — firing again here

@@ -56,7 +56,7 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.noResults': 'Laiha rezultadu.',
 
     // Video shop (mobile feed overlay)
-    'video.live': 'Live',
+    'video.tab.trending': 'Populár',
     'video.tab.forYou': 'Ba Ita',
     'video.tab.following': 'Tuir',
     'video.search': 'Buka',
@@ -454,7 +454,7 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.noResults': 'No results.',
 
     // Video shop (mobile feed overlay)
-    'video.live': 'Live',
+    'video.tab.trending': 'Trending',
     'video.tab.forYou': 'For You',
     'video.tab.following': 'Following',
     'video.search': 'Search',
@@ -842,7 +842,7 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.noResults': 'Tidak ada hasil.',
 
     // Video shop (mobile feed overlay)
-    'video.live': 'Live',
+    'video.tab.trending': 'Trending',
     'video.tab.forYou': 'Untuk Anda',
     'video.tab.following': 'Mengikuti',
     'video.search': 'Cari',
@@ -1230,7 +1230,7 @@ export const translations: Record<Locale, Dictionary> = {
     'nav.megaMenu.noResults': 'Nenhum resultado.',
 
     // Video shop (mobile feed overlay)
-    'video.live': 'Live',
+    'video.tab.trending': 'Em Alta',
     'video.tab.forYou': 'Para Você',
     'video.tab.following': 'Seguindo',
     'video.search': 'Pesquisar',

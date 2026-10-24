@@ -30,6 +30,43 @@ export function PwaInstall() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
+    // A service worker registered during an earlier `next start` (production)
+    // test stays active in the browser across dev sessions — Serwist is
+    // disabled in dev, but that only stops *new* registrations. The leftover
+    // worker then intercepts dev chunk/CSS requests and tries to precache
+    // old hashed filenames that no longer exist after a rebuild, causing
+    // "bad-precaching-response" 404s and broken module loads. Auto-clearing
+    // it here means that never requires a manual DevTools unregister again.
+    if (process.env.NODE_ENV === 'production' || !('serviceWorker' in navigator)) return;
+
+    const reloadKey = 'dev-service-worker-cleanup-reloaded';
+    const hadController = navigator.serviceWorker.controller !== null;
+    if (!hadController) sessionStorage.removeItem(reloadKey);
+
+    const cleanUpStaleServiceWorker = async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+      } catch (error) {
+        console.error('Failed to clean up the stale development service worker.', error);
+        return;
+      }
+
+      if (hadController && sessionStorage.getItem(reloadKey) !== '1') {
+        sessionStorage.setItem(reloadKey, '1');
+        window.location.reload();
+      }
+    };
+
+    void cleanUpStaleServiceWorker();
+  }, []);
+
+  useEffect(() => {
     if (process.env.NODE_ENV !== 'production' || !('serviceWorker' in navigator)) return;
 
     // A brand-new visitor's very first page load is always fetched before
