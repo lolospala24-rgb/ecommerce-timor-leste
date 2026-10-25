@@ -33,18 +33,12 @@ export class AdminReferralsController {
   }
 
   // Declared before ':id' for the same route-ordering reason as
-  // 'stats'/'settings' above — 'phone-verification' would otherwise be
+  // 'stats'/'settings' above — 'email-verification' would otherwise be
   // swallowed by the ':id' route.
-  @Get('sms-usage')
-  async getSmsUsage() {
-    const data = await this.referralsService.getSmsUsageSummary();
-    return { data };
-  }
-
-  @Delete('phone-verification/:userId')
-  async unlinkPhone(@Param('userId', ParseIntPipe) userId: number, @CurrentUser('id') adminId: number) {
-    await this.referralsService.adminUnlinkVerifiedPhone(userId, adminId);
-    return { message: 'Phone number unlinked' };
+  @Delete('email-verification/:userId')
+  async resetEmailVerification(@Param('userId', ParseIntPipe) userId: number, @CurrentUser('id') adminId: number) {
+    await this.referralsService.adminResetEmailVerification(userId, adminId);
+    return { message: 'Email verification reset' };
   }
 
   @Get()

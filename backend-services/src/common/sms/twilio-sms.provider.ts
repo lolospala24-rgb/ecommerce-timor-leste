@@ -28,12 +28,23 @@ export class TwilioSmsProvider implements SmsProvider {
   constructor(private configService: ConfigService) {
     const accountSid = this.configService.get<string>('TWILIO_ACCOUNT_SID');
     const authToken = this.configService.get<string>('TWILIO_AUTH_TOKEN');
+    // API Key auth (SID starts with "SK", paired with its own secret) is
+    // Twilio's recommended method — individually revocable without
+    // rotating the account's master Auth Token. Preferred over
+    // TWILIO_AUTH_TOKEN whenever both are present.
+    const apiKeySid = this.configService.get<string>('TWILIO_API_KEY_SID');
+    const apiKeySecret = this.configService.get<string>('TWILIO_API_KEY_SECRET');
     this.messagingServiceSid = this.configService.get<string>('TWILIO_MESSAGING_SERVICE_SID');
     this.fromNumber = this.configService.get<string>('TWILIO_FROM_NUMBER');
 
+    const hasApiKeyAuth = !!apiKeySid && !!apiKeySecret;
+    const hasAuthTokenAuth = !!authToken;
+
     const missing: string[] = [];
     if (!accountSid) missing.push('TWILIO_ACCOUNT_SID');
-    if (!authToken) missing.push('TWILIO_AUTH_TOKEN');
+    if (!hasApiKeyAuth && !hasAuthTokenAuth) {
+      missing.push('TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET (or TWILIO_AUTH_TOKEN)');
+    }
     if (!this.messagingServiceSid && !this.fromNumber) {
       missing.push('TWILIO_MESSAGING_SERVICE_SID (or TWILIO_FROM_NUMBER)');
     }
@@ -51,7 +62,9 @@ export class TwilioSmsProvider implements SmsProvider {
       return;
     }
 
-    this.client = new Twilio(accountSid, authToken);
+    this.client = hasApiKeyAuth
+      ? new Twilio(apiKeySid, apiKeySecret, { accountSid })
+      : new Twilio(accountSid, authToken);
   }
 
   isAvailable(): boolean {

@@ -25,7 +25,7 @@ export interface ReferralHistoryItem {
   qualifyingOrderId: number | null;
   rewardedAt: string | null;
   createdAt: string;
-  referredUser: { id: number; name: string; email: string; phoneVerifiedAt: string | null };
+  referredUser: { id: number; name: string; email: string; referralEmailVerifiedAt: string | null };
 }
 
 export interface WalletTransactionItem {

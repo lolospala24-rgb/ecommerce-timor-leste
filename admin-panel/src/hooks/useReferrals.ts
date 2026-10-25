@@ -32,7 +32,7 @@ export interface AdminReferral {
   reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string; email: string };
-  referredUser: { id: number; name: string; email: string; phoneVerifiedAt: string | null };
+  referredUser: { id: number; name: string; email: string; referralEmailVerifiedAt: string | null };
   qualifyingOrder: { id: number; orderNumber: string } | null;
 }
 
@@ -73,18 +73,11 @@ export interface ReferralSettings {
   referralHoldDays: number;
   referralMinQualifyingAmount: number;
   referralMonthlyCap: number;
+  // Field name kept from the original phone-based design — the active
+  // verification channel is now an email OTP (free, via the platform's
+  // existing SMTP config), not SMS. See backend SystemSettings doc-comment.
   referralRequirePhoneVerification: boolean;
   referralPhoneVerificationRequiredSince: string | null;
-  // Whether a real (non-console) SMS provider is configured AND available
-  // right now — the server refuses to flip referralRequirePhoneVerification
-  // to true unless this is true, so the UI uses it to disable/explain the
-  // toggle before a failed save, not just react to one.
-  smsProviderAvailable: boolean;
-}
-
-export interface SmsUsageSummary {
-  today: number;
-  thisMonth: number;
 }
 
 export const useAdminReferrals = (params: { page: number; limit: number; status?: ReferralStatus }) => {
@@ -149,29 +142,19 @@ export const useUpdateAdminReferralSettings = () => {
   });
 };
 
-export const useAdminSmsUsage = () => {
-  return useQuery({
-    queryKey: ['admin-referrals', 'sms-usage'],
-    queryFn: async () => {
-      const response = await api.get('/admin/referrals/sms-usage');
-      return unwrapApiData<SmsUsageSummary>(response.data);
-    },
-  });
-};
-
-export const useAdminUnlinkVerifiedPhone = () => {
+export const useAdminResetEmailVerification = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (userId: number) => {
-      const response = await api.delete(`/admin/referrals/phone-verification/${userId}`);
+      const response = await api.delete(`/admin/referrals/email-verification/${userId}`);
       return unwrapApiData<{ message: string }>(response.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
-      toast.success('Phone number unlinked successfully.');
+      toast.success('Email verification reset successfully.');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to unlink phone number');
+      toast.error(error.response?.data?.message || 'Failed to reset email verification');
     },
   });
 };

@@ -249,8 +249,8 @@ export default async function TermsPage() {
               </li>
               {referral.referralRequirePhoneVerification && (
                 <li>
-                  Atu simu prémiu, belun tenke verifika numeru telefone. Numeru telefone ida bele verifika iha konta
-                  ida de&apos;it.
+                  Atu simu prémiu, belun tenke verifika email liu husi kódigu ne&apos;ebé haruka ba sira-nia
+                  email.
                 </li>
               )}
             </ol>

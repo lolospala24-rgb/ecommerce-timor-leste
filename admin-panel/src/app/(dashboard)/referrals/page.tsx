@@ -162,7 +162,7 @@ export default function AdminReferralsPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{referral.referralCodeUsed}</TableCell>
                       <TableCell>
-                        {referral.referredUser.phoneVerifiedAt ? (
+                        {referral.referredUser.referralEmailVerifiedAt ? (
                           <span className="inline-flex items-center gap-1 text-xs text-success">
                             <ShieldCheck className="h-3.5 w-3.5" /> Verified
                           </span>

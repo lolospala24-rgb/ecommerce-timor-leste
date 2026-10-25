@@ -139,6 +139,14 @@ model User {
   verifiedPhone   String?   @unique
   phoneVerifiedAt DateTime?
 
+  // Referral verification gate (SystemSettings.referralRequirePhoneVerification
+  // — name kept for minimal schema churn, but the active mechanism is an
+  // email OTP, not SMS; see EmailOtpService). Deliberately separate from
+  // `emailVerified` above, which is satisfied once at registration via a
+  // clickable link and never re-challenged — this field proves the user
+  // actively controlled their inbox again, right now, at referral time.
+  referralEmailVerifiedAt DateTime?
+
   // Relations
   seller          Seller?
   customerAddress Address[]
@@ -168,6 +176,7 @@ model User {
   walletTransactions WalletTransaction[]
   phoneVerificationCodes PhoneVerificationCode[]
   smsLogs                SmsLog[]
+  emailOtpCodes          EmailOtpCode[]
 
   @@index([referredById])
   @@map("users")
@@ -217,6 +226,27 @@ model SmsLog {
   @@index([createdAt])
   @@index([userId])
   @@map("sms_logs")
+}
+
+// One row per issued email OTP — mirrors PhoneVerificationCode's shape
+// and purpose (the row IS the audit trail/attempt counter; send-rate-
+// limiting lives in Redis, see EmailOtpService). `email` is a snapshot
+// of the account email at send time, in case it changes before the code
+// is consumed.
+model EmailOtpCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("email_otp_codes")
 }
 
 model Seller {
@@ -1747,17 +1777,21 @@ model SystemSettings {
   referralMonthlyCap          Int   @default(20)
   // Default false: Phase 1 payout behavior is completely unchanged until
   // an admin opts in. When true, ReferralPayoutJob additionally requires
-  // the referred user to have a verified phone (User.phoneVerifiedAt) —
-  // see ReferralsService.payoutOne's doc-comment. The referrer's own
-  // phone is never checked.
+  // the referred user to have completed email OTP verification
+  // (User.referralEmailVerifiedAt) — see ReferralsService.payoutOne's
+  // doc-comment. The referrer's own email is never checked. Field name
+  // kept from the original phone-based design (minimal schema churn);
+  // the active verification channel is email, not SMS — see
+  // EmailOtpService. The dormant SMS/Twilio/WhatsApp path remains in the
+  // codebase for a possible future reactivation.
   referralRequirePhoneVerification Boolean @default(false)
   // Server-controlled only — never client-settable (see
   // UpdateReferralSettingsDto, which deliberately has no field for this).
   // Set to now() automatically, inside ReferralsService.updateReferralSettings,
   // exactly when referralRequirePhoneVerification transitions false -> true.
-  // ReferralsService.payoutOne's phone gate only applies to a Referral
-  // whose createdAt is on/after this timestamp — a referral created while
-  // the rule was genuinely off is never retroactively required to verify,
+  // ReferralsService.payoutOne's gate only applies to a Referral whose
+  // createdAt is on/after this timestamp — a referral created while the
+  // rule was genuinely off is never retroactively required to verify,
   // even if the flag was briefly on at some earlier point.
   referralPhoneVerificationRequiredSince DateTime?
 

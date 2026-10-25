@@ -13,6 +13,7 @@ import {
   abandonedCartTemplate,
   emailVerificationTemplate,
   passwordResetTemplate,
+  otpCodeTemplate,
 } from './mail-templates';
 
 interface ResolvedMailConfig {
@@ -213,6 +214,14 @@ export class MailService {
     const resetUrl = frontendUrl ? `${frontendUrl}/reset-password/${token}` : `/reset-password/${token}`;
     const html = passwordResetTemplate({ customerName: name, resetUrl });
     await this.send(email, 'Reset your password — E-commerce Timor-Leste', html);
+  }
+
+  // Returns whether the send actually succeeded (unlike the other auth
+  // emails above) — EmailOtpService needs this to decide SENT vs FAILED
+  // for its own usage log, the same way TwilioSmsProvider's caller does.
+  async sendOtpCodeEmail(email: string, name: string, code: string, ttlMinutes: number): Promise<boolean> {
+    const html = otpCodeTemplate({ customerName: name, code, ttlMinutes });
+    return this.send(email, 'Your verification code — E-commerce Timor-Leste', html);
   }
 
   // The remaining notification type below isn't exposed as an admin

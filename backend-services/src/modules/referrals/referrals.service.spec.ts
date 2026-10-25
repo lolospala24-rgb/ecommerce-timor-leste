@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException } from '@nestjs/common';
 import { ReferralsService } from './referrals.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { SMS_PROVIDER } from '../../common/sms/sms-provider.interface';
-import { PhoneVerificationService } from '../phone-verification/phone-verification.service';
+import { EmailOtpService } from '../email-otp/email-otp.service';
 
 // Phase 1 of the referral program: reward/welcome credit is held during a
 // grace period (long enough to outlast the refund window on the order
@@ -22,8 +20,7 @@ describe('ReferralsService', () => {
   let prisma: any;
   let settingsService: any;
   let notificationsService: any;
-  let smsProvider: any;
-  let phoneVerificationService: any;
+  let emailOtpService: any;
 
   const baseSettings = {
     referralProgramEnabled: true,
@@ -85,15 +82,8 @@ describe('ReferralsService', () => {
       sendNotification: jest.fn().mockResolvedValue(undefined),
     };
 
-    // Default: a real, available provider (Twilio) — most tests aren't
-    // about the gate itself, so this default lets an enable-the-flag
-    // update succeed unless a specific test overrides it to the
-    // console/unavailable shape to exercise the gate.
-    smsProvider = { kind: 'twilio', isAvailable: jest.fn().mockReturnValue(true) };
-
-    phoneVerificationService = {
-      getSmsUsageSummary: jest.fn().mockResolvedValue({ today: 0, thisMonth: 0 }),
-      adminUnlinkPhone: jest.fn().mockResolvedValue(undefined),
+    emailOtpService = {
+      adminResetVerification: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -103,8 +93,7 @@ describe('ReferralsService', () => {
         { provide: SettingsService, useValue: settingsService },
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: NotificationsService, useValue: notificationsService },
-        { provide: SMS_PROVIDER, useValue: smsProvider },
-        { provide: PhoneVerificationService, useValue: phoneVerificationService },
+        { provide: EmailOtpService, useValue: emailOtpService },
       ],
     }).compile();
 
@@ -317,7 +306,7 @@ describe('ReferralsService', () => {
   // - flag true + friend unverified -> SKIPPED, nothing credited
   // - flag true + friend verified -> pays out normally
   // ==========================================================================
-  describe('payoutDueReferrals — phone verification gate', () => {
+  describe('payoutDueReferrals — email verification gate', () => {
     const referral = {
       id: 8,
       referrerId: 16,
@@ -328,9 +317,9 @@ describe('ReferralsService', () => {
       qualifyingOrderId: 800,
     };
 
-    it('flag false: pays out exactly as Phase 1, regardless of phoneVerifiedAt', async () => {
+    it('flag false: pays out exactly as Phase 1, regardless of referralEmailVerifiedAt', async () => {
       prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
-      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { phoneVerifiedAt: null } });
+      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { referralEmailVerifiedAt: null } });
       prisma.user.update.mockResolvedValue({ walletCredit: 5 });
       prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
       prisma.referral.updateMany.mockResolvedValue({ count: 1 });
@@ -344,7 +333,7 @@ describe('ReferralsService', () => {
     it('flag true + friend unverified: SKIPPED, nothing credited, referral untouched', async () => {
       settingsService.getSettings.mockResolvedValue({ ...baseSettings, referralRequirePhoneVerification: true });
       prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
-      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { phoneVerifiedAt: null } });
+      prisma.referral.findUnique.mockResolvedValue({ ...referral, referredUser: { referralEmailVerifiedAt: null } });
 
       const result = await service.payoutDueReferrals();
 
@@ -353,8 +342,8 @@ describe('ReferralsService', () => {
       expect(prisma.walletTransaction.create).not.toHaveBeenCalled();
       expect(prisma.referral.updateMany).not.toHaveBeenCalled();
       expect(prisma.referral.update).not.toHaveBeenCalled();
-      // Doesn't even bother checking for an open refund — the phone gate
-      // short-circuits first.
+      // Doesn't even bother checking for an open refund — the
+      // verification gate short-circuits first.
       expect(prisma.refund.findFirst).not.toHaveBeenCalled();
     });
 
@@ -363,7 +352,7 @@ describe('ReferralsService', () => {
       prisma.referral.findMany.mockResolvedValue([{ id: 8 }]);
       prisma.referral.findUnique.mockResolvedValue({
         ...referral,
-        referredUser: { phoneVerifiedAt: new Date('2026-10-20') },
+        referredUser: { referralEmailVerifiedAt: new Date('2026-10-20') },
       });
       prisma.user.update.mockResolvedValue({ walletCredit: 5 });
       prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
@@ -379,7 +368,7 @@ describe('ReferralsService', () => {
   // Cutoff date: the requirement only binds referrals CREATED on/after
   // referralPhoneVerificationRequiredSince — never retroactive.
   // ==========================================================================
-  describe('payoutDueReferrals — phone verification cutoff date', () => {
+  describe('payoutDueReferrals — verification cutoff date', () => {
     const referral = {
       id: 9,
       referrerId: 17,
@@ -401,7 +390,7 @@ describe('ReferralsService', () => {
       prisma.referral.findUnique.mockResolvedValue({
         ...referral,
         createdAt: new Date('2026-09-15T00:00:00.000Z'),
-        referredUser: { phoneVerifiedAt: null },
+        referredUser: { referralEmailVerifiedAt: null },
       });
       prisma.user.update.mockResolvedValue({ walletCredit: 5 });
       prisma.referralMonthlyRewardCount.updateMany.mockResolvedValue({ count: 1 });
@@ -422,7 +411,7 @@ describe('ReferralsService', () => {
       prisma.referral.findUnique.mockResolvedValue({
         ...referral,
         createdAt: new Date('2026-10-15T00:00:00.000Z'),
-        referredUser: { phoneVerifiedAt: null },
+        referredUser: { referralEmailVerifiedAt: null },
       });
 
       const result = await service.payoutDueReferrals();
@@ -441,7 +430,7 @@ describe('ReferralsService', () => {
       prisma.referral.findUnique.mockResolvedValue({
         ...referral,
         createdAt: new Date('2020-01-01T00:00:00.000Z'),
-        referredUser: { phoneVerifiedAt: null },
+        referredUser: { referralEmailVerifiedAt: null },
       });
 
       const result = await service.payoutDueReferrals();
@@ -452,33 +441,13 @@ describe('ReferralsService', () => {
   });
 
   // ==========================================================================
-  // Gate on enabling referralRequirePhoneVerification: the server must
-  // refuse the flip to true without a real, available SMS provider, and
-  // must stamp referralPhoneVerificationRequiredSince exactly on that
-  // transition.
+  // Enabling referralRequirePhoneVerification: no provider-availability
+  // gate (email OTP rides on the SMTP config every core auth email already
+  // assumes), but must still stamp referralPhoneVerificationRequiredSince
+  // exactly on the false->true transition.
   // ==========================================================================
-  describe('updateReferralSettings — SMS provider gate + cutoff stamping', () => {
-    it('rejects enabling the flag when the provider is the console/dev mock', async () => {
-      smsProvider.kind = 'console';
-
-      await expect(service.updateReferralSettings({ referralRequirePhoneVerification: true })).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(settingsService.updateSettings).not.toHaveBeenCalled();
-      expect(settingsService.setReferralPhoneVerificationRequiredSince).not.toHaveBeenCalled();
-    });
-
-    it('rejects enabling the flag when Twilio is configured as the provider but unavailable (missing credentials)', async () => {
-      smsProvider.kind = 'twilio';
-      smsProvider.isAvailable.mockReturnValue(false);
-
-      await expect(service.updateReferralSettings({ referralRequirePhoneVerification: true })).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(settingsService.updateSettings).not.toHaveBeenCalled();
-    });
-
-    it('allows enabling the flag with a real, available provider, and stamps the cutoff to now', async () => {
+  describe('updateReferralSettings — cutoff stamping', () => {
+    it('allows enabling the flag and stamps the cutoff to now', async () => {
       const before = new Date();
       await service.updateReferralSettings({ referralRequirePhoneVerification: true });
       const after = new Date();
@@ -507,55 +476,18 @@ describe('ReferralsService', () => {
       expect(settingsService.updateSettings).toHaveBeenCalled();
     });
 
-    it('does not require a provider for unrelated settings updates', async () => {
-      smsProvider.kind = 'console';
-
+    it('does not touch the cutoff for unrelated settings updates', async () => {
       await expect(service.updateReferralSettings({ referralMonthlyCap: 30 })).resolves.toBeDefined();
       expect(settingsService.updateSettings).toHaveBeenCalled();
+      expect(settingsService.setReferralPhoneVerificationRequiredSince).not.toHaveBeenCalled();
     });
   });
 
-  describe('getReferralSettings', () => {
-    it('reports smsProviderAvailable: false for the console provider', async () => {
-      smsProvider.kind = 'console';
+  describe('admin email-verification reset delegation', () => {
+    it('adminResetEmailVerification delegates to EmailOtpService.adminResetVerification with the same arguments', async () => {
+      await service.adminResetEmailVerification(99, 1);
 
-      const result = await service.getReferralSettings();
-
-      expect(result.smsProviderAvailable).toBe(false);
-    });
-
-    it('reports smsProviderAvailable: true for an available real provider', async () => {
-      smsProvider.kind = 'twilio';
-      smsProvider.isAvailable.mockReturnValue(true);
-
-      const result = await service.getReferralSettings();
-
-      expect(result.smsProviderAvailable).toBe(true);
-    });
-
-    it('reports smsProviderAvailable: false for a real provider that is misconfigured', async () => {
-      smsProvider.kind = 'twilio';
-      smsProvider.isAvailable.mockReturnValue(false);
-
-      const result = await service.getReferralSettings();
-
-      expect(result.smsProviderAvailable).toBe(false);
-    });
-  });
-
-  describe('SMS usage + admin phone unlink delegation', () => {
-    it('getSmsUsageSummary delegates to PhoneVerificationService', async () => {
-      phoneVerificationService.getSmsUsageSummary.mockResolvedValue({ today: 4, thisMonth: 55 });
-
-      const result = await service.getSmsUsageSummary();
-
-      expect(result).toEqual({ today: 4, thisMonth: 55 });
-    });
-
-    it('adminUnlinkVerifiedPhone delegates to PhoneVerificationService.adminUnlinkPhone with the same arguments', async () => {
-      await service.adminUnlinkVerifiedPhone(99, 1);
-
-      expect(phoneVerificationService.adminUnlinkPhone).toHaveBeenCalledWith(99, 1);
+      expect(emailOtpService.adminResetVerification).toHaveBeenCalledWith(99, 1);
     });
   });
 

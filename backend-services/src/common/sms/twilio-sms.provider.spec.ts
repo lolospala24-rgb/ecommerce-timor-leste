@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Twilio } from 'twilio';
 import { TwilioSmsProvider } from './twilio-sms.provider';
 
 // The Twilio SDK is mocked at the module level — this test suite must
@@ -12,6 +13,8 @@ jest.mock('twilio', () => ({
     messages: { create: mockCreate },
   })),
 }));
+
+const MockedTwilio = Twilio as unknown as jest.Mock;
 
 function makeConfig(values: Record<string, string | undefined>): ConfigService {
   return { get: jest.fn((key: string) => values[key]) } as unknown as ConfigService;
@@ -28,6 +31,7 @@ describe('TwilioSmsProvider', () => {
 
   beforeEach(() => {
     mockCreate.mockReset();
+    MockedTwilio.mockClear();
     logErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
 
@@ -74,6 +78,63 @@ describe('TwilioSmsProvider', () => {
       new TwilioSmsProvider(makeConfig(FULL_CONFIG));
       const loggedText = logErrorSpy.mock.calls.map((call) => call.join(' ')).join('\n');
       expect(loggedText).not.toContain(FULL_CONFIG.TWILIO_AUTH_TOKEN);
+    });
+
+    it('is available using API Key auth (SID + secret) even without an Auth Token', () => {
+      const provider = new TwilioSmsProvider(
+        makeConfig({
+          TWILIO_ACCOUNT_SID: FULL_CONFIG.TWILIO_ACCOUNT_SID,
+          TWILIO_API_KEY_SID: 'SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          TWILIO_API_KEY_SECRET: 'super-secret-api-key-secret',
+          TWILIO_MESSAGING_SERVICE_SID: FULL_CONFIG.TWILIO_MESSAGING_SERVICE_SID,
+        }),
+      );
+
+      expect(provider.isAvailable()).toBe(true);
+      expect(MockedTwilio).toHaveBeenCalledWith('SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'super-secret-api-key-secret', {
+        accountSid: FULL_CONFIG.TWILIO_ACCOUNT_SID,
+      });
+    });
+
+    it('prefers API Key auth over the Auth Token when both are configured', () => {
+      new TwilioSmsProvider(
+        makeConfig({
+          ...FULL_CONFIG,
+          TWILIO_API_KEY_SID: 'SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          TWILIO_API_KEY_SECRET: 'super-secret-api-key-secret',
+        }),
+      );
+
+      expect(MockedTwilio).toHaveBeenCalledWith('SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'super-secret-api-key-secret', {
+        accountSid: FULL_CONFIG.TWILIO_ACCOUNT_SID,
+      });
+    });
+
+    it('is unavailable when only an API Key SID is set without its secret, and no Auth Token either', () => {
+      const provider = new TwilioSmsProvider(
+        makeConfig({
+          TWILIO_ACCOUNT_SID: FULL_CONFIG.TWILIO_ACCOUNT_SID,
+          TWILIO_API_KEY_SID: 'SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          TWILIO_MESSAGING_SERVICE_SID: FULL_CONFIG.TWILIO_MESSAGING_SERVICE_SID,
+        }),
+      );
+
+      expect(provider.isAvailable()).toBe(false);
+      expect(MockedTwilio).not.toHaveBeenCalled();
+    });
+
+    it('never logs the API Key secret on startup', () => {
+      const apiKeySecret = 'super-secret-api-key-secret-never-logged';
+      new TwilioSmsProvider(
+        makeConfig({
+          TWILIO_ACCOUNT_SID: FULL_CONFIG.TWILIO_ACCOUNT_SID,
+          TWILIO_API_KEY_SID: 'SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          TWILIO_API_KEY_SECRET: apiKeySecret,
+          TWILIO_MESSAGING_SERVICE_SID: FULL_CONFIG.TWILIO_MESSAGING_SERVICE_SID,
+        }),
+      );
+      const loggedText = logErrorSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+      expect(loggedText).not.toContain(apiKeySecret);
     });
   });
 

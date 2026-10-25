@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Check, Circle, Gift, Smartphone } from 'lucide-react';
+import { Check, Circle, Gift, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AccountAppBar } from '@/components/account/AccountAppBar';
 import { StatusPill } from '@/components/account/StatusPill';
@@ -24,7 +24,7 @@ interface ReferralDetail {
   reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string };
-  referredUser: { id: number; name: string; phoneVerifiedAt: string | null };
+  referredUser: { id: number; name: string; referralEmailVerifiedAt: string | null };
   qualifyingOrder: {
     id: number;
     orderNumber: string;
@@ -63,7 +63,7 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
   }
 
   const isPendingStatus = referral.status !== 'REWARDED' && referral.status !== 'REVERSED';
-  const phoneVerificationNeeded = Boolean(settings?.referralRequirePhoneVerification) && isPendingStatus && !referral.referredUser.phoneVerifiedAt;
+  const emailVerificationNeeded = Boolean(settings?.referralRequirePhoneVerification) && isPendingStatus && !referral.referredUser.referralEmailVerifiedAt;
   const viewerIsReferrer = user?.id === referral.referrer.id;
   const viewerIsReferredUser = user?.id === referral.referredUser.id;
 
@@ -100,23 +100,23 @@ export default function ReferralDetailPage({ params }: { params: Promise<{ id: s
         rightAction={<StatusPill {...getReferralStatusDisplay(referral.status)} />}
       />
 
-      {phoneVerificationNeeded && viewerIsReferredUser && (
+      {emailVerificationNeeded && viewerIsReferredUser && (
         <Link
-          href="/account/phone-verification"
+          href="/account/email-verification"
           className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 transition-colors hover:border-warning/60"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning-foreground">
-            <Smartphone className="h-5 w-5" />
+            <Mail className="h-5 w-5" />
           </span>
-          <p className="text-sm font-medium text-foreground">Verifika ita-nia numeru telefone atu simu prémiu</p>
+          <p className="text-sm font-medium text-foreground">Verifika ita-nia email atu simu prémiu</p>
         </Link>
       )}
-      {phoneVerificationNeeded && viewerIsReferrer && (
+      {emailVerificationNeeded && viewerIsReferrer && (
         <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning-foreground">
-            <Smartphone className="h-5 w-5" />
+            <Mail className="h-5 w-5" />
           </span>
-          <p className="text-sm font-medium text-foreground">Hein belun verifika telefone</p>
+          <p className="text-sm font-medium text-foreground">Hein belun verifika email</p>
         </div>
       )}
 

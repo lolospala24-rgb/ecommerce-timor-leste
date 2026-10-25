@@ -8,17 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Loader2, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import {
   useAdminReferralSettings,
   useUpdateAdminReferralSettings,
-  useAdminSmsUsage,
 } from '@/hooks/useReferrals';
 
 export default function AdminReferralSettingsPage() {
   const { data: settings, isLoading } = useAdminReferralSettings();
   const updateSettings = useUpdateAdminReferralSettings();
-  const { data: smsUsage } = useAdminSmsUsage();
 
   const [enabled, setEnabled] = useState(true);
   const [welcomeCredit, setWelcomeCredit] = useState('3');
@@ -166,33 +164,17 @@ export default function AdminReferralSettingsPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Require Phone Verification</Label>
+                  <Label>Require Email Verification</Label>
                   <p className="text-xs text-muted-foreground">
-                    When on, the referred user must verify their phone number (OTP) before the
-                    referrer's reward can pay out — a qualifying referral simply waits until they do.
-                    Off by default; existing behavior is unchanged until you turn this on. Only
-                    applies to referrals created after the setting is turned on — existing
-                    referrals still pay out without OTP.
+                    When on, the referred user must verify their email (OTP code sent to their
+                    inbox) before the referrer's reward can pay out — a qualifying referral simply
+                    waits until they do. Off by default; existing behavior is unchanged until you
+                    turn this on. Only applies to referrals created after the setting is turned on
+                    — existing referrals still pay out without OTP.
                   </p>
                 </div>
-                <Switch
-                  checked={requirePhoneVerification}
-                  disabled={!settings?.smsProviderAvailable && !requirePhoneVerification}
-                  onCheckedChange={setRequirePhoneVerification}
-                />
+                <Switch checked={requirePhoneVerification} onCheckedChange={setRequirePhoneVerification} />
               </div>
-
-              {!settings?.smsProviderAvailable && (
-                <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800">
-                    No real SMS provider is configured (the server is only using the console/dev
-                    mock). Set <code className="font-mono">SMS_PROVIDER=twilio</code> plus the
-                    Twilio credentials on the server first — this toggle cannot be turned on until
-                    then.
-                  </p>
-                </div>
-              )}
 
               {settings?.referralRequirePhoneVerification && settings?.referralPhoneVerificationRequiredSince && (
                 <p className="text-xs text-muted-foreground">
@@ -200,16 +182,6 @@ export default function AdminReferralSettingsPage() {
                   {new Date(settings.referralPhoneVerificationRequiredSince).toLocaleString()} — referrals
                   created before that date are not affected.
                 </p>
-              )}
-
-              {smsUsage && (
-                <div className="flex items-center gap-2 rounded-2xl border bg-muted/40 p-3 text-xs text-muted-foreground">
-                  <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                  <span>
-                    SMS usage: <strong className="text-foreground">{smsUsage.today}</strong> sent today,{' '}
-                    <strong className="text-foreground">{smsUsage.thisMonth}</strong> this month.
-                  </span>
-                </div>
               )}
             </div>
 

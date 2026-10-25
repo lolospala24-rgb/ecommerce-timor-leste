@@ -201,10 +201,10 @@ export default function ReferralsPage() {
                   <p className="truncate text-sm font-medium text-foreground">{item.referredUser.name}</p>
                   <p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</p>
                   {settings?.referralRequirePhoneVerification &&
-                    !item.referredUser.phoneVerifiedAt &&
+                    !item.referredUser.referralEmailVerifiedAt &&
                     item.status !== 'REWARDED' &&
                     item.status !== 'REVERSED' && (
-                      <p className="mt-0.5 text-xs font-medium text-warning-foreground">Hein belun verifika telefone</p>
+                      <p className="mt-0.5 text-xs font-medium text-warning-foreground">Hein belun verifika email</p>
                     )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

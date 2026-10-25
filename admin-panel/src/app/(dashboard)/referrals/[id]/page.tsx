@@ -10,23 +10,23 @@ import { ArrowLeft, Check, Circle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   useAdminReferralDetail,
-  useAdminUnlinkVerifiedPhone,
+  useAdminResetEmailVerification,
   REFERRAL_STATUS_BADGE_VARIANT,
 } from '@/hooks/useReferrals';
 
 export default function AdminReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: referral, isLoading } = useAdminReferralDetail(Number(id));
-  const unlinkPhone = useAdminUnlinkVerifiedPhone();
+  const resetEmailVerification = useAdminResetEmailVerification();
 
-  const handleUnlinkPhone = () => {
+  const handleResetEmailVerification = () => {
     if (!referral) return;
     const confirmed = window.confirm(
-      `Unlink the verified phone number from ${referral.referredUser.name}'s account? ` +
-        'They will need to verify a phone number again before future referrals requiring it can pay out.',
+      `Reset email verification for ${referral.referredUser.name}'s account? ` +
+        'They will need to verify their email again before future referrals requiring it can pay out.',
     );
     if (!confirmed) return;
-    unlinkPhone.mutate(referral.referredUser.id);
+    resetEmailVerification.mutate(referral.referredUser.id);
   };
 
   if (isLoading) {
@@ -107,20 +107,20 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1">
                   <Row
-                    label="Referred User Phone"
-                    value={referral.referredUser.phoneVerifiedAt ? `Verified (${new Date(referral.referredUser.phoneVerifiedAt).toLocaleDateString()})` : 'Unverified'}
+                    label="Referred User Email Verification"
+                    value={referral.referredUser.referralEmailVerifiedAt ? `Verified (${new Date(referral.referredUser.referralEmailVerifiedAt).toLocaleDateString()})` : 'Unverified'}
                   />
                 </div>
-                {referral.referredUser.phoneVerifiedAt && (
+                {referral.referredUser.referralEmailVerifiedAt && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="shrink-0"
-                    disabled={unlinkPhone.isPending}
-                    onClick={handleUnlinkPhone}
+                    disabled={resetEmailVerification.isPending}
+                    onClick={handleResetEmailVerification}
                   >
-                    {unlinkPhone.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                    Unlink phone
+                    {resetEmailVerification.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Reset verification
                   </Button>
                 )}
               </div>

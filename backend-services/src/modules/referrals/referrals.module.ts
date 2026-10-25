@@ -6,15 +6,11 @@ import { AdminReferralsController } from './admin-referrals.controller';
 import { WalletController } from './wallet.controller';
 import { SettingsModule } from '../settings/settings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { SmsModule } from '../../common/sms/sms.module';
-import { PhoneVerificationModule } from '../phone-verification/phone-verification.module';
+import { EmailOtpModule } from '../email-otp/email-otp.module';
 
 @Module({
-  // PhoneVerificationModule never depends back on ReferralsModule — this
-  // stays one-directional. SmsModule is needed directly here too: this
-  // service injects SMS_PROVIDER itself (to gate enabling the flag),
-  // separately from PhoneVerificationService's own use of it to send.
-  imports: [SettingsModule, NotificationsModule, SmsModule, PhoneVerificationModule],
+  // EmailOtpModule never depends back on ReferralsModule — one-directional.
+  imports: [SettingsModule, NotificationsModule, EmailOtpModule],
   controllers: [ReferralsController, AdminReferralsController, WalletController],
   providers: [ReferralsService, ReferralPayoutJob],
   exports: [ReferralsService],

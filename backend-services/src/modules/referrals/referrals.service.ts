@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, ReferralStatus, RefundStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -7,8 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent } from '../notifications/notifications.constants';
 import { generateUniqueReferralCode } from '../../common/utils/referral-code.util';
 import { diliMonthKey } from '../../common/utils/timezone.util';
-import { SmsProvider, SMS_PROVIDER } from '../../common/sms/sms-provider.interface';
-import { PhoneVerificationService } from '../phone-verification/phone-verification.service';
+import { EmailOtpService } from '../email-otp/email-otp.service';
 import { UpdateReferralSettingsDto } from './dto/update-referral-settings.dto';
 
 function round2(n: number): number {
@@ -34,8 +33,7 @@ export class ReferralsService {
     private settingsService: SettingsService,
     private configService: ConfigService,
     private notificationsService: NotificationsService,
-    @Inject(SMS_PROVIDER) private smsProvider: SmsProvider,
-    private phoneVerificationService: PhoneVerificationService,
+    private emailOtpService: EmailOtpService,
   ) {}
 
   private normalizeCode(code: string): string {
@@ -224,28 +222,28 @@ export class ReferralsService {
     return this.prisma.$transaction(async (tx) => {
       const referral = await tx.referral.findUnique({
         where: { id: referralId },
-        include: { referredUser: { select: { phoneVerifiedAt: true } } },
+        include: { referredUser: { select: { referralEmailVerifiedAt: true } } },
       });
       if (!referral || (referral.status !== ReferralStatus.QUALIFIED && referral.status !== ReferralStatus.CAPPED)) {
         return { kind: 'SKIPPED' };
       }
 
       // Default false — Phase 1 behavior is completely unchanged unless an
-      // admin opts in. Only the referred user's phone matters here; the
-      // referrer is never required to verify anything. Checked before the
-      // open-refund gate below purely for cost (no DB round trip needed
-      // when this already short-circuits), order doesn't matter otherwise.
-      // Not retroactive: a referral created before the flag's most recent
-      // false->true transition was never bound by the rule, even though
-      // it's being paid out now. If the flag is on but the cutoff is
-      // somehow null (shouldn't happen — updateReferralSettings always
-      // sets it on that transition), fail closed and still gate rather
-      // than silently exempting everyone.
-      const requirePhoneVerification = Boolean(settings.referralRequirePhoneVerification);
+      // admin opts in. Only the referred user's verification matters here;
+      // the referrer is never required to verify anything. Checked before
+      // the open-refund gate below purely for cost (no DB round trip
+      // needed when this already short-circuits), order doesn't matter
+      // otherwise. Not retroactive: a referral created before the flag's
+      // most recent false->true transition was never bound by the rule,
+      // even though it's being paid out now. If the flag is on but the
+      // cutoff is somehow null (shouldn't happen — updateReferralSettings
+      // always sets it on that transition), fail closed and still gate
+      // rather than silently exempting everyone.
+      const requireVerification = Boolean(settings.referralRequirePhoneVerification);
       const requiredSince = settings.referralPhoneVerificationRequiredSince as Date | string | null | undefined;
       const appliesToThisReferral =
-        requirePhoneVerification && (requiredSince == null || referral.createdAt >= new Date(requiredSince));
-      if (appliesToThisReferral && !referral.referredUser.phoneVerifiedAt) {
+        requireVerification && (requiredSince == null || referral.createdAt >= new Date(requiredSince));
+      if (appliesToThisReferral && !referral.referredUser.referralEmailVerifiedAt) {
         return { kind: 'SKIPPED' };
       }
 
@@ -640,7 +638,7 @@ export class ReferralsService {
     const [items, total] = await Promise.all([
       this.prisma.referral.findMany({
         where: { referrerId: userId },
-        include: { referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } } },
+        include: { referredUser: { select: { id: true, name: true, email: true, referralEmailVerifiedAt: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -657,7 +655,7 @@ export class ReferralsService {
       where: { id: referralId, OR: [{ referrerId: userId }, { referredUserId: userId }] },
       include: {
         referrer: { select: { id: true, name: true } },
-        referredUser: { select: { id: true, name: true, phoneVerifiedAt: true } },
+        referredUser: { select: { id: true, name: true, referralEmailVerifiedAt: true } },
         qualifyingOrder: { select: { id: true, orderNumber: true, total: true, status: true, deliveredAt: true } },
       },
     });
@@ -698,7 +696,7 @@ export class ReferralsService {
         where,
         include: {
           referrer: { select: { id: true, name: true, email: true } },
-          referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } },
+          referredUser: { select: { id: true, name: true, email: true, referralEmailVerifiedAt: true } },
           qualifyingOrder: { select: { id: true, orderNumber: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -715,7 +713,7 @@ export class ReferralsService {
       where: { id },
       include: {
         referrer: { select: { id: true, name: true, email: true } },
-        referredUser: { select: { id: true, name: true, email: true, phoneVerifiedAt: true } },
+        referredUser: { select: { id: true, name: true, email: true, referralEmailVerifiedAt: true } },
         qualifyingOrder: {
           select: { id: true, orderNumber: true, subtotal: true, total: true, paymentMethod: true, status: true, deliveredAt: true },
         },
@@ -745,14 +743,6 @@ export class ReferralsService {
     };
   }
 
-  // "Real" provider = not the dev-only console mock, and actually
-  // configured right now (credentials present at startup) — a provider
-  // that's real-but-misconfigured must read the same as "unavailable" to
-  // the admin UI, never a confusing third state.
-  private isRealSmsProviderAvailable(): boolean {
-    return this.smsProvider.kind !== 'console' && this.smsProvider.isAvailable() === true;
-  }
-
   async getReferralSettings() {
     const settings = await this.settingsService.getSettings();
     return {
@@ -764,40 +754,32 @@ export class ReferralsService {
       referralMonthlyCap: settings.referralMonthlyCap,
       referralRequirePhoneVerification: settings.referralRequirePhoneVerification,
       referralPhoneVerificationRequiredSince: settings.referralPhoneVerificationRequiredSince,
-      smsProviderAvailable: this.isRealSmsProviderAvailable(),
     };
   }
 
   async updateReferralSettings(dto: UpdateReferralSettingsDto) {
     const current = await this.settingsService.getSettings();
-    const isEnablingPhoneVerification =
+    const isEnablingVerification =
       dto.referralRequirePhoneVerification === true && current.referralRequirePhoneVerification !== true;
 
-    if (isEnablingPhoneVerification && this.isRealSmsProviderAvailable() === false) {
-      throw new BadRequestException(
-        this.smsProvider.kind === 'console'
-          ? 'Cannot enable phone verification: no real SMS provider is configured (currently using the console/dev mock). Set SMS_PROVIDER=twilio and the required Twilio credentials first.'
-          : 'Cannot enable phone verification: the configured SMS provider (Twilio) is not available — check its credentials in the server logs.',
-      );
-    }
-
+    // No provider-availability gate here (unlike the dormant SMS/Twilio
+    // path) — email OTP rides on the same SMTP config every other core
+    // auth email (password reset, signup verification) already assumes
+    // is present, so there's no separate "real provider configured"
+    // state to check before allowing this on.
     await this.settingsService.updateSettings(dto);
     // Cutoff is server-controlled only — never accepted from the DTO.
     // Reset to "now" on every false->true transition (including a later
     // re-enable) so a referral created while the rule was genuinely off
     // is never retroactively required to verify, even if the flag was
     // briefly on at some earlier point.
-    if (isEnablingPhoneVerification) {
+    if (isEnablingVerification) {
       await this.settingsService.setReferralPhoneVerificationRequiredSince(new Date());
     }
     return this.getReferralSettings();
   }
 
-  async getSmsUsageSummary(): Promise<{ today: number; thisMonth: number }> {
-    return this.phoneVerificationService.getSmsUsageSummary();
-  }
-
-  async adminUnlinkVerifiedPhone(targetUserId: number, adminId: number): Promise<void> {
-    await this.phoneVerificationService.adminUnlinkPhone(targetUserId, adminId);
+  async adminResetEmailVerification(targetUserId: number, adminId: number): Promise<void> {
+    await this.emailOtpService.adminResetVerification(targetUserId, adminId);
   }
 }

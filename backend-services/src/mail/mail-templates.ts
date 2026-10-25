@@ -253,6 +253,17 @@ export function passwordResetTemplate(params: { customerName: string; resetUrl: 
   return layout('Reset your password', body);
 }
 
+export function otpCodeTemplate(params: { customerName: string; code: string; ttlMinutes: number }) {
+  const body = `
+    <p>Hi ${params.customerName},</p>
+    <p>Your verification code is:</p>
+    <p style="margin:20px 0;text-align:center;">
+      <span style="display:inline-block;background:#f4f4f5;color:#111827;letter-spacing:6px;font-size:28px;font-weight:bold;padding:14px 24px;border-radius:8px;">${params.code}</span>
+    </p>
+    <p style="color:#6b7280;font-size:13px;">This code expires in ${params.ttlMinutes} minutes. Never share this code with anyone — we will never ask you for it.</p>`;
+  return layout('Your verification code', body);
+}
+
 export function testEmailTemplate() {
   const body = `<p>This is a test email confirming your SMTP settings are configured correctly.</p>`;
   return layout('Test Email', body);

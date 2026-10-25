@@ -38,6 +38,7 @@ import { QuickMenuModule } from './modules/quick-menu/quick-menu.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { PhoneVerificationModule } from './modules/phone-verification/phone-verification.module';
+import { EmailOtpModule } from './modules/email-otp/email-otp.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { StockNotificationsModule } from './modules/stock-notifications/stock-notifications.module';
 import { WebsiteHealthModule } from './modules/website-health/website-health.module';
@@ -101,6 +102,7 @@ import { AppService } from './app.service';
     CouponsModule,
     ReferralsModule,
     PhoneVerificationModule,
+    EmailOtpModule,
     FinanceModule,
     StockNotificationsModule,
     WebsiteHealthModule,
