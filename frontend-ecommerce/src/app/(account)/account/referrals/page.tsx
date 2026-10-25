@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useReferralSummary, useReferralHistory } from '@/hooks/useReferral';
+import { usePublicSettings } from '@/hooks/usePublicSettings';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pagination } from '@/components/shared/Pagination';
 import { ReferralShareModal } from '@/components/account/ReferralShareModal';
 import { AccountAppBar } from '@/components/account/AccountAppBar';
 import { StatusPill } from '@/components/account/StatusPill';
+import { getReferralStatusDisplay } from '@/lib/referralStatus';
 import { copyToClipboard } from '@/lib/utils';
 import { trackReferralRewardEarned } from '@/lib/analytics';
 import toast from 'react-hot-toast';
@@ -40,11 +42,17 @@ function trackNewlyRewarded(items: { id: number; status: string; rewardAmount: n
   window.localStorage.setItem(TRACKED_REWARDS_KEY, JSON.stringify(Array.from(trackedSet)));
 }
 
-const STEPS = [
-  'Fahe ita-nia kódigu husi WhatsApp ka midia sosial.',
-  'Belun rejista no sosa uza kódigu neʼe molok sira halo order dahuluk.',
-  'Ita rua simu prémiu — depois de order ida neʼe entrega ona.',
-];
+// Parameterized on the program's real settings (minimum qualifying amount,
+// hold period) so this copy can never drift out of sync with what the
+// backend actually enforces — see ReferralsService.qualifyReferralIfEligible
+// / payoutDueReferrals.
+function buildSteps(minAmount: number, holdDays: number): string[] {
+  return [
+    'Fahe ita-nia kódigu husi WhatsApp ka midia sosial.',
+    `Belun rejista no sosa uza kódigu neʼe — order dahuluk nia valór tenke liu $${minAmount.toFixed(0)}.`,
+    `Hein loron ${holdDays} hafoin order entrega — se laiha devolusaun, ita rua simu prémiu.`,
+  ];
+}
 
 export default function ReferralsPage() {
   const [page, setPage] = useState(1);
@@ -52,6 +60,8 @@ export default function ReferralsPage() {
   const [copiedCode, setCopiedCode] = useState(false);
   const { data: summary, isLoading: isSummaryLoading } = useReferralSummary();
   const { data: history, isLoading: isHistoryLoading } = useReferralHistory(page, 10);
+  const { data: settings } = usePublicSettings();
+  const steps = buildSteps(settings?.referralMinQualifyingAmount ?? 5, settings?.referralHoldDays ?? 7);
 
   useEffect(() => {
     if (history?.items) trackNewlyRewarded(history.items);
@@ -68,9 +78,11 @@ export default function ReferralsPage() {
   };
 
   const stats = [
-    { label: 'Rejista ona', value: summary?.totalReferred ?? 0, icon: Users },
-    { label: 'Prémiu simu', value: summary?.totalRewarded ?? 0, icon: CheckCircle2 },
-    { label: 'Hein hela', value: summary?.pendingCount ?? 0, icon: Clock },
+    { label: 'Rejista ona', value: String(summary?.totalReferred ?? 0), icon: Users },
+    // A dollar amount, not a raw count — the amount actually earned reads
+    // more meaningfully than "how many referrals reached REWARDED".
+    { label: 'Prémiu simu', value: `$${(summary?.totalRewardedAmount ?? 0).toFixed(2)}`, icon: CheckCircle2 },
+    { label: 'Hein hela', value: String(summary?.pendingCount ?? 0), icon: Clock },
   ];
 
   return (
@@ -145,7 +157,7 @@ export default function ReferralsPage() {
 
       <div className="space-y-2 rounded-2xl border bg-card p-4">
         <p className="font-bold text-foreground">Oinsá ida-ne'e la'o</p>
-        {STEPS.map((step, i) => (
+        {steps.map((step, i) => (
           <div key={i} className="flex items-start gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-success-foreground">
               {i + 1}
@@ -153,7 +165,7 @@ export default function ReferralsPage() {
             <p className="text-sm text-muted-foreground">{step}</p>
           </div>
         ))}
-        <Link href="/terms" className="inline-block text-sm font-semibold text-primary hover:underline">
+        <Link href="/terms#referral" className="inline-block text-sm font-semibold text-primary hover:underline">
           Lee termu no kondisaun
         </Link>
       </div>
@@ -188,12 +200,18 @@ export default function ReferralsPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{item.referredUser.name}</p>
                   <p className="text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleDateString()}</p>
+                  {settings?.referralRequirePhoneVerification &&
+                    !item.referredUser.referralEmailVerifiedAt &&
+                    item.status !== 'REWARDED' &&
+                    item.status !== 'REVERSED' && (
+                      <p className="mt-0.5 text-xs font-medium text-warning-foreground">Hein belun verifika email</p>
+                    )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {item.status === 'REWARDED' && item.rewardAmount != null && (
                     <span className="font-semibold text-success">+${item.rewardAmount.toFixed(2)}</span>
                   )}
-                  <StatusPill label={item.status === 'REWARDED' ? 'Prémiu simu' : 'Hein'} tone={item.status === 'REWARDED' ? 'success' : 'muted'} />
+                  <StatusPill {...getReferralStatusDisplay(item.status)} />
                 </div>
               </Link>
             ))}

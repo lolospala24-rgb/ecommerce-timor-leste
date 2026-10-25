@@ -8,6 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../../mail/mail.service';
 import { FinanceService } from './finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEvent } from '../notifications/notifications.constants';
+import { ReferralsService } from '../referrals/referrals.service';
 import { PaymentStatus, OrderStatus, RefundStatus, RefundType } from '@prisma/client';
 import { ResponseUtil } from '../../common/utils/response.util';
 
@@ -24,6 +26,7 @@ export class RefundsService {
     private mailService: MailService,
     private financeService: FinanceService,
     private notificationsService: NotificationsService,
+    private referralsService: ReferralsService,
   ) {}
 
   private resolveAmountAndType(paymentAmount: number, requested?: number) {
@@ -147,6 +150,7 @@ export class RefundsService {
       throw new BadRequestException(`Refund is already ${refund.status}`);
     }
 
+    let referralOutcome: Awaited<ReturnType<ReferralsService['reconcileReferralAfterRefund']>> = null;
     const result = await this.prisma.$transaction(async (tx) => {
       // Atomic status guard — same TOCTOU concern as payment confirm/reject.
       const updated = await tx.refund.updateMany({
@@ -176,6 +180,15 @@ export class RefundsService {
           data: { status: OrderStatus.CANCELLED, cancelledAt: new Date() },
         });
       }
+
+      // Referral reconciliation runs for EVERY approved refund, full or
+      // partial — see ReferralsService.reconcileReferralAfterRefund's
+      // doc-comment. It recomputes the order's net-paid amount itself
+      // (this refund's row was just flipped to APPROVED above, in this
+      // same transaction, so the aggregate it runs already includes it)
+      // and only touches the referral if that amount has actually dropped
+      // below the qualifying minimum.
+      referralOutcome = await this.referralsService.reconcileReferralAfterRefund(tx, refund.orderId);
 
       await this.financeService.reverseEarningsOnRefund(tx, refund.id);
 
@@ -212,6 +225,47 @@ export class RefundsService {
         true,
       )
       .catch((err) => console.error('Failed to send refund-approved notification:', err));
+
+    // Best-effort — never allow a notification hiccup to fail an
+    // otherwise-successful refund approval. Only fires when money actually
+    // moved (REVERSED, or a CAPPED/QUALIFIED revert that had already
+    // credited the friend) — a plain mid-hold-period revert with nothing
+    // to claw back stays silent, same as qualifying in the first place.
+    if (referralOutcome?.kind === 'REVERSED') {
+      const { referrerId, referredUserId, rewardAmount, welcomeCreditAmount } = referralOutcome;
+      if (rewardAmount > 0) {
+        await this.notificationsService
+          .sendNotification({
+            userId: referrerId,
+            title: 'Referral reward reversed',
+            message: `A refund on order #${result.orderId} brought it below the qualifying amount, so the $${rewardAmount.toFixed(2)} referral reward it earned has been removed from your wallet.`,
+            type: NotificationEvent.REFERRAL_REWARD_REVERSED,
+            sendEmail: false,
+          })
+          .catch((err) => console.error('Failed to send referral-reward-reversed notification:', err));
+      }
+      if (welcomeCreditAmount > 0) {
+        await this.notificationsService
+          .sendNotification({
+            userId: referredUserId,
+            title: 'Referral welcome credit reversed',
+            message: `A refund on order #${result.orderId} brought it below the qualifying amount, so the $${welcomeCreditAmount.toFixed(2)} referral welcome credit has been removed from your wallet.`,
+            type: NotificationEvent.REFERRAL_REWARD_REVERSED,
+            sendEmail: false,
+          })
+          .catch((err) => console.error('Failed to send referral-welcome-reversed notification:', err));
+      }
+    } else if (referralOutcome?.kind === 'REVERTED_TO_PENDING' && referralOutcome.welcomeCreditClawedBack) {
+      await this.notificationsService
+        .sendNotification({
+          userId: referralOutcome.referredUserId,
+          title: 'Referral welcome credit reversed',
+          message: `A refund on order #${result.orderId} brought it below the qualifying amount, so the $${referralOutcome.welcomeCreditAmount.toFixed(2)} referral welcome credit has been removed from your wallet.`,
+          type: NotificationEvent.REFERRAL_REWARD_REVERSED,
+          sendEmail: false,
+        })
+        .catch((err) => console.error('Failed to send referral-welcome-reversed notification:', err));
+    }
 
     return result;
   }

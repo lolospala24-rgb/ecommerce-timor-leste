@@ -3,29 +3,34 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
+export type ReferralStatus = 'PENDING' | 'QUALIFIED' | 'REWARDED' | 'CAPPED' | 'REVERSED';
+
 export interface ReferralSummary {
   referralCode: string | null;
   referralLink: string | null;
   walletCredit: number;
   totalReferred: number;
   totalRewarded: number;
+  // Sum of rewardAmount across REWARDED referrals — what the "Prémiu simu"
+  // stat tile actually displays (a dollar figure, not a raw count).
+  totalRewardedAmount: number;
   pendingCount: number;
 }
 
 export interface ReferralHistoryItem {
   id: number;
-  status: 'PENDING' | 'REWARDED';
+  status: ReferralStatus;
   rewardAmount: number | null;
   welcomeCreditAmount: number;
   qualifyingOrderId: number | null;
   rewardedAt: string | null;
   createdAt: string;
-  referredUser: { id: number; name: string; email: string };
+  referredUser: { id: number; name: string; email: string; referralEmailVerifiedAt: string | null };
 }
 
 export interface WalletTransactionItem {
   id: number;
-  type: 'REFERRAL_WELCOME' | 'REFERRAL_REWARD' | 'CHECKOUT_REDEMPTION' | 'ADMIN_ADJUSTMENT';
+  type: 'REFERRAL_WELCOME' | 'REFERRAL_REWARD' | 'REFERRAL_REWARD_REVERSED' | 'CHECKOUT_REDEMPTION' | 'ADMIN_ADJUSTMENT';
   amount: number;
   balanceAfter: number;
   referralId: number | null;

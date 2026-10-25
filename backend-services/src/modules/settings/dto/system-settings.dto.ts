@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsEmail, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, IsEmail, Min, Max } from 'class-validator';
 
 // Every field is optional: the admin Settings page's tabs each submit only
 // the subset they own (general/payment/system/email), and this DTO backs a
@@ -131,6 +131,25 @@ export class SystemSettingsDto {
   @IsOptional()
   @Min(0)
   referralRewardAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  referralHoldDays?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  referralMinQualifyingAmount?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  referralMonthlyCap?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  referralRequirePhoneVerification?: boolean;
 
   @IsString()
   @IsOptional()

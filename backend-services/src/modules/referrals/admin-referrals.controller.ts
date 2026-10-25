@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Query, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Query, NotFoundException } from '@nestjs/common';
 import { ReferralsService } from './referrals.service';
 import { UpdateReferralSettingsDto } from './dto/update-referral-settings.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { clampLimit } from '../../common/utils/pagination.util';
-import { Role } from '@prisma/client';
+import { Role, ReferralStatus } from '@prisma/client';
 
 @Roles(Role.ADMIN)
 @Controller('admin/referrals')
@@ -31,11 +32,20 @@ export class AdminReferralsController {
     return { message: 'Referral settings updated successfully', data };
   }
 
+  // Declared before ':id' for the same route-ordering reason as
+  // 'stats'/'settings' above — 'email-verification' would otherwise be
+  // swallowed by the ':id' route.
+  @Delete('email-verification/:userId')
+  async resetEmailVerification(@Param('userId', ParseIntPipe) userId: number, @CurrentUser('id') adminId: number) {
+    await this.referralsService.adminResetEmailVerification(userId, adminId);
+    return { message: 'Email verification reset' };
+  }
+
   @Get()
   async list(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('status') status?: 'PENDING' | 'REWARDED',
+    @Query('status') status?: ReferralStatus,
   ) {
     const data = await this.referralsService.listForAdmin({
       page: page ? parseInt(page, 10) : 1,

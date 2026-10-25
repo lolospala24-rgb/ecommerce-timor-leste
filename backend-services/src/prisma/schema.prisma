@@ -128,6 +128,25 @@ model User {
   referredById Int?
   walletCredit Float   @default(0)
 
+  // Phone verification (SystemSettings.referralRequirePhoneVerification
+  // gate) — deliberately separate from the freeform `phone` field above,
+  // which a user can edit anytime for unrelated contact-info reasons.
+  // verifiedPhone is only ever written by PhoneVerificationService after a
+  // successful OTP check, and nothing else ever touches it. A nullable
+  // `@unique` column allows unlimited NULLs (standard SQL semantics) —
+  // exactly "verified numbers must be unique, unverified ones
+  // unrestricted" with no extra modeling needed.
+  verifiedPhone   String?   @unique
+  phoneVerifiedAt DateTime?
+
+  // Referral verification gate (SystemSettings.referralRequirePhoneVerification
+  // — name kept for minimal schema churn, but the active mechanism is an
+  // email OTP, not SMS; see EmailOtpService). Deliberately separate from
+  // `emailVerified` above, which is satisfied once at registration via a
+  // clickable link and never re-challenged — this field proves the user
+  // actively controlled their inbox again, right now, at referral time.
+  referralEmailVerifiedAt DateTime?
+
   // Relations
   seller          Seller?
   customerAddress Address[]
@@ -155,9 +174,79 @@ model User {
   referralsGiven     Referral[]          @relation("ReferralReferrer")
   referralReceived   Referral?           @relation("ReferralReferredUser")
   walletTransactions WalletTransaction[]
+  phoneVerificationCodes PhoneVerificationCode[]
+  smsLogs                SmsLog[]
+  emailOtpCodes          EmailOtpCode[]
 
   @@index([referredById])
   @@map("users")
+}
+
+// One row per issued OTP code — the row itself is the audit trail /
+// attempt counter, not just a transient cache entry (send-rate-limiting
+// lives in Redis instead, see PhoneVerificationService). `phone` is the
+// E.164 number being verified, which may differ from User.phone (the
+// freeform contact field) and is only promoted to User.verifiedPhone once
+// this code is actually confirmed.
+model PhoneVerificationCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("phone_verification_codes")
+}
+
+// One row per actual SMS send attempt — purely for admin cost/usage
+// visibility, a different purpose from PhoneVerificationCode above (which
+// exists for the verify flow itself and necessarily holds the full
+// number). phone is masked AT WRITE TIME (see maskPhone in
+// PhoneVerificationService) specifically so this log never retains a
+// full number — it only needs to answer "how much are we sending",
+// never "to whom".
+model SmsLog {
+  id                Int      @id @default(autoincrement())
+  userId            Int?
+  phoneMasked       String
+  providerMessageId String?
+  status            String
+  costAmount        Float?
+  costCurrency      String?
+  createdAt         DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId])
+  @@map("sms_logs")
+}
+
+// One row per issued email OTP — mirrors PhoneVerificationCode's shape
+// and purpose (the row IS the audit trail/attempt counter; send-rate-
+// limiting lives in Redis, see EmailOtpService). `email` is a snapshot
+// of the account email at send time, in case it changes before the code
+// is consumed.
+model EmailOtpCode {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("email_otp_codes")
 }
 
 model Seller {
@@ -780,19 +869,39 @@ model CouponUsage {
 
 enum ReferralStatus {
   PENDING
+  // Referred user's first order hit DELIVERED and met
+  // SystemSettings.referralMinQualifyingAmount — reward is NOT credited
+  // yet. It sits here until ReferralPayoutJob clears it past
+  // referralHoldDays, which exists specifically so a same-order refund
+  // (the only refund window that can reach a DELIVERED order — see
+  // RefundsService.REFUND_WINDOW_DAYS) has a chance to cancel the payout
+  // before any money actually moves.
+  QUALIFIED
   REWARDED
+  // Hold period elapsed and the order never got refunded, but the
+  // referrer had already hit referralMonthlyCap rewards this calendar
+  // month — ReferralPayoutJob retries these first (oldest qualifiedAt
+  // first) once the next month starts. The referred user's welcome
+  // credit is NOT held back by this — see welcomeCreditGrantedAt below.
+  CAPPED
+  // A REWARDED referral's qualifyingOrder got a FULL refund after the
+  // reward had already been paid (realistically only reachable via the
+  // admin's instant full-refund button — see RefundsService
+  // doc-comments). Terminal: clawed-back money is never re-granted.
+  REVERSED
 }
 
 // One row per successful referral capture at registration — never created
 // any other way, and `referredUserId` is unique, so a user can be referred
 // at most once, ever. `status` is the idempotency gate for the referrer's
-// reward: ReferralsService.rewardReferrerIfEligible flips it PENDING ->
-// REWARDED exactly once via an atomic updateMany (same race-safe idiom
-// CouponsService.recordUsage uses for usedCount), triggered by whichever
-// of the referred user's orders reaches DELIVERED first — every later
-// DELIVERED order for that same customer is then a no-op since status is
-// no longer PENDING, so there's no separate "is this their first order"
-// query anywhere.
+// reward: ReferralsService.qualifyReferralIfEligible flips PENDING ->
+// QUALIFIED via an atomic updateMany (same race-safe idiom
+// CouponsService.recordUsage uses for usedCount) the moment the referred
+// user's first order reaches DELIVERED and clears the minimum-amount bar
+// — every later DELIVERED order for that same customer is then a no-op
+// since status is no longer PENDING. ReferralPayoutJob later flips
+// QUALIFIED/CAPPED -> REWARDED (or RefundsService flips either back to
+// PENDING, or REWARDED -> REVERSED) — see each service's doc-comments.
 model Referral {
   id             Int            @id @default(autoincrement())
   referrerId     Int
@@ -807,7 +916,24 @@ model Referral {
   welcomeCreditAmount Float
   rewardAmount        Float?
   qualifyingOrderId   Int?
+  // Set when PENDING -> QUALIFIED fires; cleared again if RefundsService
+  // reverts QUALIFIED/CAPPED back to PENDING (the order got refunded
+  // during the hold window, so a later order can still qualify fresh).
+  qualifiedAt         DateTime?
   rewardedAt          DateTime?
+  // When the referred user's welcome credit was actually credited to
+  // their wallet — set by ReferralPayoutJob the first time it processes
+  // this referral (REWARDED or CAPPED outcome alike; the referrer's
+  // monthly cap never holds back the referred user's own credit). Kept
+  // separate from `status` because a CAPPED referral already has this
+  // set while still waiting on the referrer's own payout. Pre-existing
+  // referrals from before this column existed are backfilled to their
+  // `createdAt` (see the migration) since the old flow credited the
+  // welcome bonus instantly at registration.
+  welcomeCreditGrantedAt DateTime?
+  // Set only when a REWARDED referral gets clawed back (see REVERSED
+  // above).
+  reversedAt          DateTime?
   createdAt           DateTime  @default(now())
 
   referrer        User   @relation("ReferralReferrer", fields: [referrerId], references: [id])
@@ -819,9 +945,34 @@ model Referral {
   @@map("referrals")
 }
 
+// One row per (referrer, calendar month) — a dedicated atomic counter
+// rather than a live COUNT(*) over `referrals`, because the monthly cap
+// needs a genuine read-then-conditionally-write guarantee under
+// concurrent payouts: `count` is only ever touched via
+// `updateMany({ where: { count: { lt: cap } }, data: { count: { increment: 1 } } })`,
+// the same conditional-update idiom used everywhere else in this schema
+// (Referral.status, User.walletCredit) — a plain COUNT query followed by
+// a separate write would be a classic TOCTOU race between two concurrent
+// ReferralPayoutJob ticks. monthKey is "YYYY-MM" in Asia/Dili (see
+// common/utils/timezone.util.ts) — not UTC, so a payout right around
+// midnight always lands in the month the referrer would actually expect.
+model ReferralMonthlyRewardCount {
+  id         Int    @id @default(autoincrement())
+  referrerId Int
+  monthKey   String
+  count      Int    @default(0)
+
+  @@unique([referrerId, monthKey])
+  @@map("referral_monthly_reward_counts")
+}
+
 enum WalletTransactionType {
   REFERRAL_WELCOME
   REFERRAL_REWARD
+  // One row per affected user (referrer and referred user each get their
+  // own) when RefundsService.reverseReferralForRefundedOrder claws back a
+  // REWARDED referral — see ReferralStatus.REVERSED.
+  REFERRAL_REWARD_REVERSED
   CHECKOUT_REDEMPTION
   ADMIN_ADJUSTMENT
 }
@@ -1611,6 +1762,38 @@ model SystemSettings {
   referralProgramEnabled Boolean @default(true)
   referralWelcomeCredit  Float   @default(3)
   referralRewardAmount   Float   @default(5)
+  // How long a QUALIFIED referral sits before ReferralPayoutJob pays it
+  // out — defaults to RefundsService.REFUND_WINDOW_DAYS (7), the only
+  // window a customer can refund the exact order that qualified it, so
+  // the hold period reliably outlasts that refund opportunity.
+  referralHoldDays            Int   @default(7)
+  // Minimum "amount actually paid" (order.subtotal - order.walletCreditUsed,
+  // deliberately excluding shipping/tax/service fee) a referred user's
+  // first DELIVERED order must clear before it qualifies the referrer for
+  // a reward.
+  referralMinQualifyingAmount Float @default(5)
+  // Max referrals a single referrer can have REWARDED within one calendar
+  // month (Asia/Dili) — see ReferralMonthlyRewardCount.
+  referralMonthlyCap          Int   @default(20)
+  // Default false: Phase 1 payout behavior is completely unchanged until
+  // an admin opts in. When true, ReferralPayoutJob additionally requires
+  // the referred user to have completed email OTP verification
+  // (User.referralEmailVerifiedAt) — see ReferralsService.payoutOne's
+  // doc-comment. The referrer's own email is never checked. Field name
+  // kept from the original phone-based design (minimal schema churn);
+  // the active verification channel is email, not SMS — see
+  // EmailOtpService. The dormant SMS/Twilio/WhatsApp path remains in the
+  // codebase for a possible future reactivation.
+  referralRequirePhoneVerification Boolean @default(false)
+  // Server-controlled only — never client-settable (see
+  // UpdateReferralSettingsDto, which deliberately has no field for this).
+  // Set to now() automatically, inside ReferralsService.updateReferralSettings,
+  // exactly when referralRequirePhoneVerification transitions false -> true.
+  // ReferralsService.payoutOne's gate only applies to a Referral whose
+  // createdAt is on/after this timestamp — a referral created while the
+  // rule was genuinely off is never retroactively required to verify,
+  // even if the flag was briefly on at some earlier point.
+  referralPhoneVerificationRequiredSince DateTime?
 
   bankName                 String?
   bankAccountName          String?

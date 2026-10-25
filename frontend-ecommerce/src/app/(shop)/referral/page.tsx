@@ -15,19 +15,22 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
-const STEPS = [
-  { icon: Share2, title: 'Share Your Link', description: 'Send your personal referral link to friends and family.' },
-  { icon: UserPlus, title: 'Friend Joins', description: 'They create a Lolospala account using your link.' },
-  { icon: Wallet, title: 'Welcome Reward', description: 'Your friend gets wallet credit right away.' },
-  { icon: ShoppingBag, title: 'First Order', description: 'They shop and place their first order.' },
-  { icon: PackageCheck, title: 'Order Delivered', description: 'Their order is delivered successfully.' },
-  { icon: Sparkles, title: 'You Earn', description: 'You receive wallet credit as a thank-you.' },
-];
+function buildSteps(minAmount: number, holdDays: number) {
+  return [
+    { icon: Share2, title: 'Share Your Link', description: 'Send your personal referral link to friends and family.' },
+    { icon: UserPlus, title: 'Friend Joins', description: 'They create a Lolospala account using your link.' },
+    { icon: ShoppingBag, title: 'First Order', description: `They place a first order of at least $${minAmount.toFixed(0)}.` },
+    { icon: PackageCheck, title: 'Order Delivered', description: 'Their order is delivered successfully.' },
+    { icon: Wallet, title: 'Hold Period', description: `After ${holdDays} refund-free days, both wallets are credited.` },
+    { icon: Sparkles, title: 'You Both Earn', description: 'You and your friend each receive wallet credit.' },
+  ];
+}
 
 export default function ReferralLandingPage() {
   const { data: settings } = usePublicSettings();
   const welcomeCredit = settings?.referralWelcomeCredit;
   const rewardAmount = settings?.referralRewardAmount;
+  const steps = buildSteps(settings?.referralMinQualifyingAmount ?? 5, settings?.referralHoldDays ?? 7);
 
   return (
     <div className="space-y-16 pb-8">
@@ -92,7 +95,7 @@ export default function ReferralLandingPage() {
         </div>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {STEPS.map((step, index) => (
+          {steps.map((step, index) => (
             <Card key={step.title} className="p-5">
               <div className="flex items-start gap-3.5">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">

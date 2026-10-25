@@ -6,13 +6,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Check, Circle } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAdminReferralDetail } from '@/hooks/useReferrals';
+import {
+  useAdminReferralDetail,
+  useAdminResetEmailVerification,
+  REFERRAL_STATUS_BADGE_VARIANT,
+} from '@/hooks/useReferrals';
 
 export default function AdminReferralDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: referral, isLoading } = useAdminReferralDetail(Number(id));
+  const resetEmailVerification = useAdminResetEmailVerification();
+
+  const handleResetEmailVerification = () => {
+    if (!referral) return;
+    const confirmed = window.confirm(
+      `Reset email verification for ${referral.referredUser.name}'s account? ` +
+        'They will need to verify their email again before future referrals requiring it can pay out.',
+    );
+    if (!confirmed) return;
+    resetEmailVerification.mutate(referral.referredUser.id);
+  };
 
   if (isLoading) {
     return (
@@ -51,7 +66,7 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
         </Button>
         <div className="mt-1 flex items-center gap-3">
           <h1 className="text-2xl font-bold">Referral #{referral.id}</h1>
-          <Badge variant={referral.status === 'REWARDED' ? 'default' : 'secondary'}>{referral.status}</Badge>
+          <Badge variant={REFERRAL_STATUS_BADGE_VARIANT[referral.status]}>{referral.status}</Badge>
         </div>
       </div>
 
@@ -89,11 +104,32 @@ export default function AdminReferralDetailPage({ params }: { params: Promise<{ 
             <CardContent className="space-y-2.5 text-sm">
               <Row label="Referrer" value={`${referral.referrer.name} (${referral.referrer.email})`} />
               <Row label="Referred User" value={`${referral.referredUser.name} (${referral.referredUser.email})`} />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <Row
+                    label="Referred User Email Verification"
+                    value={referral.referredUser.referralEmailVerifiedAt ? `Verified (${new Date(referral.referredUser.referralEmailVerifiedAt).toLocaleDateString()})` : 'Unverified'}
+                  />
+                </div>
+                {referral.referredUser.referralEmailVerifiedAt && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={resetEmailVerification.isPending}
+                    onClick={handleResetEmailVerification}
+                  >
+                    {resetEmailVerification.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Reset verification
+                  </Button>
+                )}
+              </div>
               <Row label="Referral Code" value={referral.referralCodeUsed} mono />
               <Row label="Welcome Credit" value={`$${referral.welcomeCreditAmount.toFixed(2)}`} />
               <Row label="Reward Amount" value={referral.rewardAmount != null ? `$${referral.rewardAmount.toFixed(2)}` : '—'} />
               <Row label="Created At" value={new Date(referral.createdAt).toLocaleString()} />
               <Row label="Rewarded At" value={referral.rewardedAt ? new Date(referral.rewardedAt).toLocaleString() : '—'} />
+              <Row label="Reversed At" value={referral.reversedAt ? new Date(referral.reversedAt).toLocaleString() : '—'} />
             </CardContent>
           </Card>
 

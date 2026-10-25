@@ -9,9 +9,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { MailModule } from '../../mail/mail.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
-  imports: [PrismaModule, SettingsModule, MailModule, NotificationsModule],
+  imports: [PrismaModule, SettingsModule, MailModule, NotificationsModule, ReferralsModule],
   controllers: [FinanceController, RefundsController, PayoutsController],
   providers: [FinanceService, RefundsService, PayoutsService],
   exports: [FinanceService, RefundsService, PayoutsService],

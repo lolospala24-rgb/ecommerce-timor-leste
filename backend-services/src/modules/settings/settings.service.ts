@@ -100,6 +100,15 @@ export class SettingsService {
       referralProgramEnabled: settings.referralProgramEnabled,
       referralWelcomeCredit: settings.referralWelcomeCredit,
       referralRewardAmount: settings.referralRewardAmount,
+      referralHoldDays: settings.referralHoldDays,
+      referralMinQualifyingAmount: settings.referralMinQualifyingAmount,
+      // Needed by the /terms#referral policy text ("{batas} kada fulan") —
+      // no longer admin-only now that the public policy page states it.
+      referralMonthlyCap: settings.referralMonthlyCap,
+      // Same sensitivity class as referralProgramEnabled — a plain
+      // boolean the storefront needs to decide whether to show phone
+      // verification prompts/copy at all.
+      referralRequirePhoneVerification: settings.referralRequirePhoneVerification,
     };
   }
 
@@ -120,6 +129,19 @@ export class SettingsService {
 
     await this.redisService.del(SETTINGS_CACHE_KEY);
     return this.getAdminSettings();
+  }
+
+  // Server-controlled only — never part of SystemSettingsDto, so there's
+  // no path for an admin request body to set this directly. Called by
+  // ReferralsService.updateReferralSettings exactly on a false->true
+  // transition of referralRequirePhoneVerification.
+  async setReferralPhoneVerificationRequiredSince(date: Date): Promise<void> {
+    const current = await this.getSettings();
+    await this.prisma.systemSettings.update({
+      where: { id: current.id },
+      data: { referralPhoneVerificationRequiredSince: date },
+    });
+    await this.redisService.del(SETTINGS_CACHE_KEY);
   }
 
   async uploadLogo(file: Express.Multer.File) {

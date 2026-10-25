@@ -5,19 +5,34 @@ import api from '@/lib/api';
 import { unwrapApiData } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
-export type ReferralStatus = 'PENDING' | 'REWARDED';
+export type ReferralStatus = 'PENDING' | 'QUALIFIED' | 'REWARDED' | 'CAPPED' | 'REVERSED';
+
+// Shared between the referrals list and detail pages.
+export const REFERRAL_STATUS_BADGE_VARIANT: Record<
+  ReferralStatus,
+  'default' | 'secondary' | 'destructive' | 'success' | 'warning'
+> = {
+  PENDING: 'secondary',
+  QUALIFIED: 'warning',
+  CAPPED: 'warning',
+  REWARDED: 'success',
+  REVERSED: 'destructive',
+};
 
 export interface AdminReferral {
   id: number;
   status: ReferralStatus;
   referralCodeUsed: string;
   welcomeCreditAmount: number;
+  welcomeCreditGrantedAt: string | null;
   rewardAmount: number | null;
   qualifyingOrderId: number | null;
+  qualifiedAt: string | null;
   rewardedAt: string | null;
+  reversedAt: string | null;
   createdAt: string;
   referrer: { id: number; name: string; email: string };
-  referredUser: { id: number; name: string; email: string };
+  referredUser: { id: number; name: string; email: string; referralEmailVerifiedAt: string | null };
   qualifyingOrder: { id: number; orderNumber: string } | null;
 }
 
@@ -45,6 +60,9 @@ export interface ReferralStats {
   totalReferrals: number;
   successfulReferrals: number;
   pendingReferrals: number;
+  qualifiedReferrals: number;
+  cappedReferrals: number;
+  reversedReferrals: number;
   rewardsIssued: number;
 }
 
@@ -52,6 +70,14 @@ export interface ReferralSettings {
   referralProgramEnabled: boolean;
   referralWelcomeCredit: number;
   referralRewardAmount: number;
+  referralHoldDays: number;
+  referralMinQualifyingAmount: number;
+  referralMonthlyCap: number;
+  // Field name kept from the original phone-based design — the active
+  // verification channel is now an email OTP (free, via the platform's
+  // existing SMTP config), not SMS. See backend SystemSettings doc-comment.
+  referralRequirePhoneVerification: boolean;
+  referralPhoneVerificationRequiredSince: string | null;
 }
 
 export const useAdminReferrals = (params: { page: number; limit: number; status?: ReferralStatus }) => {
@@ -112,6 +138,23 @@ export const useUpdateAdminReferralSettings = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update referral settings');
+    },
+  });
+};
+
+export const useAdminResetEmailVerification = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await api.delete(`/admin/referrals/email-verification/${userId}`);
+      return unwrapApiData<{ message: string }>(response.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
+      toast.success('Email verification reset successfully.');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to reset email verification');
     },
   });
 };
